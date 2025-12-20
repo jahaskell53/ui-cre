@@ -8,9 +8,11 @@ import { Heart, MessageCircle01, Share01, Bookmark, MessageChatSquare, BarChartS
 import { Input } from "@/components/base/input/input";
 
 interface FeedItemProps {
-    category: string;
-    title: string;
-    summary: string;
+    type?: "article" | "post";
+    category?: string;
+    title?: string;
+    summary?: string;
+    content?: string;
     author: string;
     role: string;
     time: string;
@@ -19,22 +21,31 @@ interface FeedItemProps {
 
 const FeedItem = ({ item }: { item: FeedItemProps }) => {
     const [showComments, setShowComments] = useState(false);
+    const isArticle = item.type !== "post";
 
     return (
         <article className="bg-primary border border-secondary rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-            <div className="flex flex-col md:flex-row">
-                <div className="w-full md:w-48 h-48 md:h-auto bg-secondary shrink-0 relative">
-                    <div className="absolute inset-0 flex items-center justify-center text-quaternary font-medium">Article Image</div>
-                </div>
+            <div className={isArticle ? "flex flex-col md:flex-row" : "flex flex-col"}>
+                {isArticle && (
+                    <div className="w-full md:w-48 h-48 md:h-auto bg-secondary shrink-0 relative">
+                        <div className="absolute inset-0 flex items-center justify-center text-quaternary font-medium text-xs">Article Image</div>
+                    </div>
+                )}
                 <div className="p-6 flex flex-col justify-between flex-1">
                     <div>
                         <div className="flex items-center gap-3 mb-3">
-                            <span className="text-xs font-bold text-brand-solid uppercase tracking-widest">{item.category}</span>
-                            <span className="w-1 h-1 rounded-full bg-quaternary" />
+                            {item.category && (
+                                <>
+                                    <span className="text-xs font-bold text-brand-solid uppercase tracking-widest">{item.category}</span>
+                                    <span className="w-1 h-1 rounded-full bg-quaternary" />
+                                </>
+                            )}
                             <span className="text-sm text-tertiary">{item.time}</span>
                         </div>
-                        <h3 className="text-xl font-bold text-primary mb-3 leading-snug">{item.title}</h3>
-                        <p className="text-secondary text-base mb-6 line-clamp-2">{item.summary}</p>
+                        {item.title && <h3 className="text-xl font-bold text-primary mb-3 leading-snug">{item.title}</h3>}
+                        <p className="text-secondary text-base mb-6 leading-relaxed">
+                            {item.summary || item.content}
+                        </p>
                     </div>
                     <div className="flex items-center justify-between mt-auto">
                         <div className="flex items-center gap-3">
@@ -98,6 +109,37 @@ const FeedItem = ({ item }: { item: FeedItemProps }) => {
 };
 
 export default function FeedPage() {
+    const feedItems: FeedItemProps[] = [
+        {
+            type: 'post',
+            content: "Just closed on a 32-unit value-add in Phoenix. The bridge debt market is tough right now, but we secured a 6.2% floating rate with a great lender. Anyone else seeing cap rate decompression in the Southwest?",
+            author: 'Jordan Smith',
+            role: 'Principal, Stonegate Capital',
+            time: '12m ago',
+            initials: 'JS'
+        },
+        {
+            type: 'article',
+            category: 'Market Analysis',
+            title: 'The Shift from Value-Add to Core-Plus in Secondary Markets',
+            summary: 'As interest rates stabilize, institutional equity is pivoting towards newer assets with lower operational risk. Here is what it means for your portfolio...',
+            author: 'Elena Rodriguez',
+            role: 'Head of Research, PropEdge',
+            time: '1h ago',
+            initials: 'ER'
+        },
+        {
+            type: 'article',
+            category: 'Legislative Update',
+            title: 'New Rental Caps in Florida: What Every Owner Needs to Know',
+            summary: 'The latest senate bill proposes significant changes to annual rent increase limits in designated high-growth zones. Compliance starts in Q3...',
+            author: 'Marcus Thorne',
+            role: 'Legal Counsel',
+            time: '4h ago',
+            initials: 'MT'
+        }
+    ];
+
     return (
         <MainLayout>
             <div className="flex flex-col gap-10">
@@ -122,26 +164,7 @@ export default function FeedPage() {
                             </div>
 
                             <div className="grid gap-8">
-                                {[
-                                    {
-                                        category: 'Market Analysis',
-                                        title: 'The Shift from Value-Add to Core-Plus in Secondary Markets',
-                                        summary: 'As interest rates stabilize, institutional equity is pivoting towards newer assets with lower operational risk. Here is what it means for your portfolio...',
-                                        author: 'Elena Rodriguez',
-                                        role: 'Head of Research, PropEdge',
-                                        time: '1h ago',
-                                        initials: 'ER'
-                                    },
-                                    {
-                                        category: 'Legislative Update',
-                                        title: 'New Rental Caps in Florida: What Every Owner Needs to Know',
-                                        summary: 'The latest senate bill proposes significant changes to annual rent increase limits in designated high-growth zones. Compliance starts in Q3...',
-                                        author: 'Marcus Thorne',
-                                        role: 'Legal Counsel',
-                                        time: '4h ago',
-                                        initials: 'MT'
-                                    }
-                                ].map((item, i) => (
+                                {feedItems.map((item, i) => (
                                     <FeedItem key={i} item={item} />
                                 ))}
                             </div>
