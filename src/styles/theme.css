@@ -697,6 +697,7 @@
     --color-text-brand-secondary_hover: var(--color-brand-800);
     --color-text-brand-tertiary: var(--color-brand-600);
     --color-text-brand-tertiary_alt: var(--color-brand-600);
+    --color-text-brand-solid: var(--color-brand-600);
 
     /* BORDER COLORS */
     --color-border-primary: var(--color-gray-300);
@@ -856,6 +857,7 @@
     --text-color-brand-secondary_hover: var(--color-text-brand-secondary_hover);
     --text-color-brand-tertiary: var(--color-text-brand-tertiary);
     --text-color-brand-tertiary_alt: var(--color-text-brand-tertiary_alt);
+    --text-color-brand-solid: var(--color-text-brand-solid);
     --text-color-error-primary: var(--color-text-error-primary);
     --text-color-error-primary_hover: var(--color-text-error-primary_hover);
     --text-color-warning-primary: var(--color-text-warning-primary);
