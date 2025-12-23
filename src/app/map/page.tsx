@@ -4,6 +4,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { SearchLg, FilterLines, Map01 } from "@untitledui/icons";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
+import { PropertyMap } from "@/components/application/map/property-map";
 
 export default function MapPage() {
     return (
@@ -41,14 +42,9 @@ export default function MapPage() {
                         </div>
                     </div>
 
-                    {/* Interactive Map Mock */}
-                    <div className="flex-1 bg-secondary flex items-center justify-center relative">
-                        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#9e77ed 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-                        <div className="flex flex-col items-center gap-4 text-tertiary">
-                            <Map01 className="size-12 opacity-50" />
-                            <p className="font-medium text-lg">Interactive Map Integration</p>
-                            <p className="text-sm">Connect with Mapbox or Google Maps API</p>
-                        </div>
+                    {/* Interactive Map */}
+                    <div className="flex-1 relative">
+                        <PropertyMap className="absolute inset-0" />
                     </div>
                 </div>
             </div>
