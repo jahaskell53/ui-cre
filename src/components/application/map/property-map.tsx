@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
@@ -14,7 +15,8 @@ export const PropertyMap = ({ className }: MapProps) => {
     const map = useRef<mapboxgl.Map | null>(null);
 
     useEffect(() => {
-        if (map.current || !mapContainer.current) return;
+        if (!mapContainer.current) return;
+        if (map.current) return;
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
@@ -26,12 +28,20 @@ export const PropertyMap = ({ className }: MapProps) => {
         // Add navigation controls (zoom, rotate)
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+        // Fix for container sizing issues on load
+        map.current.on('load', () => {
+            map.current?.resize();
+        });
+
         return () => {
-            map.current?.remove();
+            if (map.current) {
+                map.current.remove();
+                map.current = null;
+            }
         };
     }, []);
 
     return (
-        <div ref={mapContainer} className={className} style={{ width: '100%', height: '100%' }} />
+        <div ref={mapContainer} className={className} style={{ width: '100%', height: '100%', minHeight: '400px' }} />
     );
 };

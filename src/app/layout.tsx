@@ -28,9 +28,6 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <Head>
-                <link href='https://api.mapbox.com/mapbox-gl-js/v3.17.0/mapbox-gl.css' rel='stylesheet' />
-            </Head>
             <body className={cx(inter.variable, "bg-primary antialiased")}>
                 <RouteProvider>
                     <Theme>{children}</Theme>
