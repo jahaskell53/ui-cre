@@ -14,6 +14,7 @@ export interface Property {
     price: string;
     coordinates: [number, number];
     thumbnailUrl?: string | null;
+    capRate?: string | null;
 }
 
 interface MapProps {
@@ -52,10 +53,17 @@ export const PropertyMap = ({ className, properties, selectedId }: MapProps) => 
                         <div style="padding: 8px;">
                             <h3 style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #101828;">${property.name}</h3>
                             <p style="font-size: 12px; color: #475467; margin-bottom: 8px;">${property.address}</p>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <span style="font-size: 11px; font-weight: 600; color: #7f56d9;">${property.units} Units</span>
                                 <span style="font-size: 13px; font-weight: 700; color: #101828;">${property.price}</span>
                             </div>
+                            ${property.capRate ? `
+                                <div style="display: flex; justify-content: flex-start; align-items: center;">
+                                    <span style="font-size: 11px; font-weight: 500; color: #475467; background: #f2f4f7; padding: 2px 6px; border-radius: 4px;">
+                                        ${property.capRate}
+                                    </span>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `);

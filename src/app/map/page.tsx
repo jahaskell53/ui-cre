@@ -61,7 +61,8 @@ export default function MapPage() {
                         units: item.square_footage ? Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) : 0,
                         price: item.price || 'TBD',
                         coordinates: coords,
-                        thumbnailUrl: item.thumbnail_url
+                        thumbnailUrl: item.thumbnail_url,
+                        capRate: item.cap_rate
                     } as Property;
                 })
             );
@@ -130,6 +131,13 @@ export default function MapPage() {
                                             <span className="text-primary font-medium">{property.units} Units</span>
                                             <span className="text-brand-solid font-semibold">{property.price}</span>
                                         </div>
+                                        {property.capRate && (
+                                            <div className="mt-2 flex items-center">
+                                                <span className="text-xs font-semibold text-tertiary bg-secondary-subtle px-2 py-0.5 rounded-md">
+                                                    {property.capRate}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             )}
