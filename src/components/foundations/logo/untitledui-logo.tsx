@@ -12,7 +12,7 @@ export const UntitledLogo = (props: HTMLAttributes<HTMLDivElement>) => {
                 alt="Logo"
                 width={225}
                 height={48}
-                className="h-full w-auto brightness-0 invert"
+                className="h-full w-auto brightness-0 dark:invert"
                 priority
             />
         </div>
