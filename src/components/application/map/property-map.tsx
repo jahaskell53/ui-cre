@@ -113,7 +113,8 @@ export const PropertyMap = ({ className, properties, selectedId }: MapProps) => 
             });
 
             // Open the popup
-            if (!marker.getPopup().isOpen()) {
+            const popup = marker.getPopup();
+            if (popup && !popup.isOpen()) {
                 marker.togglePopup();
             }
         }
