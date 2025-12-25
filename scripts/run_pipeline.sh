@@ -32,8 +32,12 @@ echo "[2/3] Running 2-split_details.py..."
 python3 "$SCRIPT_DIR/2-split_details.py" "$CSV_FILE"
 
 # Run Script 3: Refine Details
-echo "[3/3] Running 3-refine_details.py..."
+echo "[3/4] Running 3-refine_details.py..."
 python3 "$SCRIPT_DIR/3-refine_details.py" "$CSV_FILE"
+
+# Run Script 4: Geocode Listings
+echo "[4/4] Running 4-geocode_csv.py..."
+python3 "$SCRIPT_DIR/4-geocode_csv.py" "$CSV_FILE"
 
 echo "----------------------------------------"
 echo "Pipeline completed successfully!"
