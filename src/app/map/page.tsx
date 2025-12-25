@@ -57,8 +57,7 @@ export default function MapPage() {
                         id: item.id,
                         name: item.headline || 'Investment Opportunity',
                         address: item.address,
-                        // Mocking units from sqft if units not available, or just use 0
-                        units: item.square_footage ? Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) : 0,
+                        units: item.square_footage ? (Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) || null) : null,
                         price: item.price || 'TBD',
                         coordinates: coords,
                         thumbnailUrl: item.thumbnail_url,
@@ -128,7 +127,9 @@ export default function MapPage() {
                                         <h3 className="font-semibold text-primary truncate" title={property.name}>{property.name}</h3>
                                         <p className="text-sm text-tertiary mb-2">{property.address}</p>
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-primary font-medium">{property.units} Units</span>
+                                            {property.units && property.units > 0 ? (
+                                                <span className="text-primary font-medium">{property.units} Units</span>
+                                            ) : <span />}
                                             <span className="text-brand-solid font-semibold">{property.price}</span>
                                         </div>
                                         {property.capRate && (

@@ -10,7 +10,7 @@ export interface Property {
     id: string | number;
     name: string;
     address: string;
-    units: number;
+    units?: number | null;
     price: string;
     coordinates: [number, number];
     thumbnailUrl?: string | null;
@@ -54,7 +54,7 @@ export const PropertyMap = ({ className, properties, selectedId }: MapProps) => 
                             <h3 style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #101828;">${property.name}</h3>
                             <p style="font-size: 12px; color: #475467; margin-bottom: 8px;">${property.address}</p>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                <span style="font-size: 11px; font-weight: 600; color: #7f56d9;">${property.units} Units</span>
+                                ${property.units && property.units > 0 ? `<span style="font-size: 11px; font-weight: 600; color: #7f56d9;">${property.units} Units</span>` : '<span></span>'}
                                 <span style="font-size: 13px; font-weight: 700; color: #101828;">${property.price}</span>
                             </div>
                             ${property.capRate ? `
