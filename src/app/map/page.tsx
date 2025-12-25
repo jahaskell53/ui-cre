@@ -40,7 +40,7 @@ export default function MapPage() {
 
         const mappedProperties: Property[] = data.map((item) => ({
             id: item.id,
-            name: item.headline || 'Investment Opportunity',
+            name: item.headline || item.address || 'Building',
             address: item.address || 'Address not listed',
             units: item.square_footage ? (Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) || null) : null,
             price: item.price || 'TBD',
