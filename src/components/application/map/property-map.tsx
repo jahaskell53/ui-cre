@@ -7,7 +7,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 mapboxgl.accessToken = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
 export interface Property {
-    id: number;
+    id: string | number;
     name: string;
     address: string;
     units: number;
@@ -18,13 +18,13 @@ export interface Property {
 interface MapProps {
     className?: string;
     properties: Property[];
-    selectedId?: number | null;
+    selectedId?: string | number | null;
 }
 
 export const PropertyMap = ({ className, properties, selectedId }: MapProps) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
-    const markers = useRef<{ [key: number]: mapboxgl.Marker }>({});
+    const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
 
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
