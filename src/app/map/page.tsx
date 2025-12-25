@@ -42,6 +42,7 @@ export default function MapPage() {
             id: item.id,
             name: item.headline || item.address || 'Building',
             address: item.address || 'Address not listed',
+            location: item.location,
             units: item.square_footage ? (Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) || null) : null,
             price: item.price || 'TBD',
             coordinates: [item.longitude, item.latitude],
@@ -125,7 +126,10 @@ export default function MapPage() {
                                             )}
                                         </div>
                                         <h3 className="font-semibold text-primary truncate" title={property.name}>{property.name}</h3>
-                                        <p className="text-sm text-tertiary mb-2 line-clamp-1">{property.address}</p>
+                                        <p className="text-sm text-tertiary truncate">{property.address}</p>
+                                        {property.location && (
+                                            <p className="text-xs text-secondary font-medium mb-2 truncate">{property.location}</p>
+                                        )}
                                         <div className="flex justify-between items-center text-sm">
                                             {property.units && property.units > 0 ? (
                                                 <span className="text-primary font-medium">{property.units} Units</span>
