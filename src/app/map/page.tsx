@@ -8,36 +8,22 @@ import { Button } from "@/components/base/buttons/button";
 import { PropertyMap, type Property } from "@/components/application/map/property-map";
 import { supabase } from "@/utils/supabase";
 
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
-
-async function geocodeAddress(address: string): Promise<[number, number] | null> {
-    try {
-        const response = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}`
-        );
-        const data = await response.json();
-        if (data.features && data.features.length > 0) {
-            return data.features[0].center; // [lng, lat]
-        }
-    } catch (e) {
-        console.error('Geocoding error:', e);
-    }
-    return null;
-}
-
 export default function MapPage() {
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchAndGeocode() {
+        async function fetchProperties() {
             setLoading(true);
+            // Fetch everything that has coordinates stored in the DB
             const { data, error } = await supabase
                 .from('loopnet_listings')
                 .select('*')
-                .not('address', 'is', null)
-                .limit(20);
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null)
+                .order('created_at', { ascending: false })
+                .limit(200); // Now we can safely load many more
 
             if (error) {
                 console.error('Error fetching listings:', error);
@@ -45,33 +31,22 @@ export default function MapPage() {
                 return;
             }
 
-            const geocodedProperties = await Promise.all(
-                data.map(async (item) => {
-                    // Combine address and location for better geocoding results
-                    const fullAddress = `${item.address}, ${item.location}`;
-                    const coords = await geocodeAddress(fullAddress);
+            const mappedProperties: Property[] = data.map((item) => ({
+                id: item.id,
+                name: item.headline || 'Investment Opportunity',
+                address: item.address || 'Address not listed',
+                units: item.square_footage ? (Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) || null) : null,
+                price: item.price || 'TBD',
+                coordinates: [item.longitude, item.latitude], // [lng, lat] from DB
+                thumbnailUrl: item.thumbnail_url,
+                capRate: item.cap_rate
+            }));
 
-                    if (!coords) return null;
-
-                    return {
-                        id: item.id,
-                        name: item.headline || 'Investment Opportunity',
-                        address: item.address,
-                        units: item.square_footage ? (Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) || null) : null,
-                        price: item.price || 'TBD',
-                        coordinates: coords,
-                        thumbnailUrl: item.thumbnail_url,
-                        capRate: item.cap_rate
-                    } as Property;
-                })
-            );
-
-            const filtered = geocodedProperties.filter((p): p is Property => p !== null);
-            setProperties(filtered);
+            setProperties(mappedProperties);
             setLoading(false);
         }
 
-        fetchAndGeocode();
+        fetchProperties();
     }, []);
 
     return (
@@ -80,7 +55,7 @@ export default function MapPage() {
                 <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-display-sm font-semibold text-primary">Property Map</h1>
-                        <p className="text-lg text-tertiary">Discover and analyze multi-family opportunities from LoopNet.</p>
+                        <p className="text-lg text-tertiary">Discover {properties.length} multi-family opportunities with instant coordinate loading.</p>
                     </div>
                     <div className="flex gap-2 w-full sm:w-auto">
                         <Input icon={SearchLg} placeholder="Search zip, address, market..." className="w-full sm:w-64" />
@@ -93,18 +68,18 @@ export default function MapPage() {
                     <div className="w-80 border-r border-secondary flex flex-col bg-primary z-10">
                         <div className="p-4 border-b border-secondary">
                             <span className="text-sm font-semibold text-secondary uppercase tracking-wider">
-                                {loading ? 'Fetching...' : `${properties.length} Results from Database`}
+                                {loading ? 'Loading...' : `${properties.length} Results Found`}
                             </span>
                         </div>
                         <div className="flex-1 overflow-auto divide-y divide-secondary">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center p-8 text-tertiary gap-3">
                                     <Loading03 className="w-6 h-6 animate-spin" />
-                                    <p className="text-sm">Geocoding addresses...</p>
+                                    <p className="text-sm">Fetching properties...</p>
                                 </div>
                             ) : properties.length === 0 ? (
                                 <div className="p-8 text-center text-tertiary">
-                                    <p>No properties found with valid addresses.</p>
+                                    <p>No geocoded properties found. Run the geocoding script to populate coordinates.</p>
                                 </div>
                             ) : (
                                 properties.map((property) => (
@@ -125,7 +100,7 @@ export default function MapPage() {
                                             )}
                                         </div>
                                         <h3 className="font-semibold text-primary truncate" title={property.name}>{property.name}</h3>
-                                        <p className="text-sm text-tertiary mb-2">{property.address}</p>
+                                        <p className="text-sm text-tertiary mb-2 line-clamp-1">{property.address}</p>
                                         <div className="flex justify-between items-center text-sm">
                                             {property.units && property.units > 0 ? (
                                                 <span className="text-primary font-medium">{property.units} Units</span>
@@ -147,14 +122,6 @@ export default function MapPage() {
 
                     {/* Interactive Map */}
                     <div className="flex-1 relative">
-                        {loading && (
-                            <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-20 flex items-center justify-center">
-                                <div className="bg-primary p-6 rounded-2xl shadow-xl flex flex-col items-center gap-3">
-                                    <Loading03 className="w-8 h-8 animate-spin text-brand-solid" />
-                                    <p className="font-medium text-primary">Mapping properties...</p>
-                                </div>
-                            </div>
-                        )}
                         <PropertyMap
                             properties={properties}
                             selectedId={selectedId}
