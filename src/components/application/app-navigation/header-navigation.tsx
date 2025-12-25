@@ -61,7 +61,7 @@ export const HeaderNavigationBase = ({
             <MobileNavigationHeader>
                 <aside className="flex h-full max-w-full flex-col justify-between overflow-auto border-r border-secondary bg-primary pt-4 lg:pt-6">
                     <div className="flex flex-col gap-5 px-4 lg:px-5">
-                        <UntitledLogo className="h-8" />
+                        <UntitledLogo className="h-12" />
                         <Input shortcut size="sm" aria-label="Search" placeholder="Search" icon={SearchLg} />
                     </div>
 
@@ -108,7 +108,7 @@ export const HeaderNavigationBase = ({
                                 href="/"
                                 className="rounded-xs outline-focus-ring focus-visible:outline-2 focus-visible:outline-offset-2"
                             >
-                                <UntitledLogo className="h-8" />
+                                <UntitledLogo className="h-12" />
                             </a>
 
                             <nav>
@@ -165,9 +165,9 @@ export const HeaderNavigationBase = ({
                                             cx(
                                                 "will-change-transform",
                                                 isEntering &&
-                                                    "duration-300 ease-out animate-in fade-in placement-right:slide-in-from-left-2 placement-top:slide-in-from-bottom-2 placement-bottom:slide-in-from-top-2",
+                                                "duration-300 ease-out animate-in fade-in placement-right:slide-in-from-left-2 placement-top:slide-in-from-bottom-2 placement-bottom:slide-in-from-top-2",
                                                 isExiting &&
-                                                    "duration-150 ease-in animate-out fade-out placement-right:slide-out-to-left-2 placement-top:slide-out-to-bottom-2 placement-bottom:slide-out-to-top-2",
+                                                "duration-150 ease-in animate-out fade-out placement-right:slide-out-to-left-2 placement-top:slide-out-to-bottom-2 placement-bottom:slide-out-to-top-2",
                                             )
                                         }
                                     >

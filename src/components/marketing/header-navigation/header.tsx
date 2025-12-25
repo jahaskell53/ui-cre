@@ -117,7 +117,7 @@ export const Header = ({ items = headerNavItems, isFullWidth, isFloating, classN
                     )}
                 >
                     <div className="flex flex-1 items-center gap-5">
-                        <UntitledLogo className="h-8 md:max-lg:hidden" />
+                        <UntitledLogo className="h-12 md:max-lg:hidden" />
                         <UntitledLogoMinimal className="hidden h-8 md:inline-block lg:hidden" />
 
                         {/* Desktop navigation */}

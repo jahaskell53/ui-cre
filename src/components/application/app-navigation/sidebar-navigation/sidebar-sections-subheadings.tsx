@@ -26,7 +26,7 @@ export const SidebarNavigationSectionsSubheadings = ({ activeUrl = "/", items }:
             className="flex h-full w-full max-w-full flex-col justify-between overflow-auto border-secondary bg-primary pt-4 shadow-xs md:border-r lg:w-(--width) lg:rounded-xl lg:border lg:pt-5"
         >
             <div className="flex flex-col gap-5 px-4 lg:px-5">
-                <UntitledLogo className="h-8" />
+                <UntitledLogo className="h-12" />
             </div>
 
             <ul className="mt-8">
