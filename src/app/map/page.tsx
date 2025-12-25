@@ -16,21 +16,28 @@ export default function MapPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [totalCount, setTotalCount] = useState(0);
+    const [searchQuery, setSearchQuery] = useState("");
 
-    const fetchProperties = useCallback(async (pageNum: number) => {
+    const fetchProperties = useCallback(async (pageNum: number, search: string) => {
         setLoading(true);
 
         const from = pageNum * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
-        // Fetch properties and total count
-        const { data, error, count } = await supabase
+        // Build query
+        let query = supabase
             .from('loopnet_listings')
             .select('*', { count: 'exact' })
             .not('latitude', 'is', null)
             .not('longitude', 'is', null)
-            .order('created_at', { ascending: false })
-            .range(from, to);
+            .order('created_at', { ascending: false });
+
+        if (search) {
+            // Search in headline, address, and location
+            query = query.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
+        }
+
+        const { data, error, count } = await query.range(from, to);
 
         if (error) {
             console.error('Error fetching listings:', error);
@@ -57,8 +64,12 @@ export default function MapPage() {
     }, []);
 
     useEffect(() => {
-        fetchProperties(page);
-    }, [page, fetchProperties]);
+        const timer = setTimeout(() => {
+            fetchProperties(page, searchQuery);
+        }, searchQuery ? 500 : 0); // debounce 500ms for search, immediate for pagination
+
+        return () => clearTimeout(timer);
+    }, [page, searchQuery, fetchProperties]);
 
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
     const currentPageDisplay = page + 1;
@@ -84,7 +95,16 @@ export default function MapPage() {
                         <p className="text-lg text-tertiary">Discover {totalCount} multi-family opportunities across the Bay Area.</p>
                     </div>
                     <div className="flex gap-2 w-full sm:w-auto">
-                        <Input icon={SearchLg} placeholder="Search zip, address, market..." className="w-full sm:w-32 lg:w-64" />
+                        <Input
+                            icon={SearchLg}
+                            placeholder="Search zip, address, market..."
+                            className="w-full sm:w-32 lg:w-64"
+                            value={searchQuery}
+                            onChange={(value) => {
+                                setSearchQuery(value);
+                                setPage(0); // Reset to first page on search
+                            }}
+                        />
                         <Button color="secondary" iconLeading={FilterLines}>Filters</Button>
                     </div>
                 </div>
