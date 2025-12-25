@@ -13,6 +13,7 @@ export interface Property {
     units: number;
     price: string;
     coordinates: [number, number];
+    thumbnailUrl?: string | null;
 }
 
 interface MapProps {
@@ -42,12 +43,19 @@ export const PropertyMap = ({ className, properties, selectedId }: MapProps) => 
         properties.forEach((property) => {
             const popup = new mapboxgl.Popup({ offset: 25, className: 'property-popup' })
                 .setHTML(`
-                    <div style="padding: 4px;">
-                        <h3 style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #101828;">${property.name}</h3>
-                        <p style="font-size: 12px; color: #475467; margin-bottom: 8px;">${property.address}</p>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 11px; font-weight: 600; color: #7f56d9;">${property.units} Units</span>
-                            <span style="font-size: 13px; font-weight: 700; color: #101828;">${property.price}</span>
+                    <div style="padding: 0px; width: 200px;">
+                        ${property.thumbnailUrl ? `
+                            <div style="width: 100%; height: 100px; border-radius: 8px 8px 0 0; overflow: hidden; background: #f2f4f7;">
+                                <img src="${property.thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="${property.name}" />
+                            </div>
+                        ` : ''}
+                        <div style="padding: 8px;">
+                            <h3 style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #101828;">${property.name}</h3>
+                            <p style="font-size: 12px; color: #475467; margin-bottom: 8px;">${property.address}</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; font-weight: 600; color: #7f56d9;">${property.units} Units</span>
+                                <span style="font-size: 13px; font-weight: 700; color: #101828;">${property.price}</span>
+                            </div>
                         </div>
                     </div>
                 `);

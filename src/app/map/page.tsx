@@ -60,7 +60,8 @@ export default function MapPage() {
                         // Mocking units from sqft if units not available, or just use 0
                         units: item.square_footage ? Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) : 0,
                         price: item.price || 'TBD',
-                        coordinates: coords
+                        coordinates: coords,
+                        thumbnailUrl: item.thumbnail_url
                     } as Property;
                 })
             );
@@ -113,7 +114,15 @@ export default function MapPage() {
                                         className={`p-4 hover:bg-secondary cursor-pointer transition-colors ${selectedId === property.id ? 'bg-secondary' : ''}`}
                                     >
                                         <div className="aspect-video bg-hover rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                                            <div className="text-xs text-tertiary italic">Property Image</div>
+                                            {property.thumbnailUrl ? (
+                                                <img
+                                                    src={property.thumbnailUrl}
+                                                    alt={property.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="text-xs text-tertiary italic">No Image</div>
+                                            )}
                                         </div>
                                         <h3 className="font-semibold text-primary truncate" title={property.name}>{property.name}</h3>
                                         <p className="text-sm text-tertiary mb-2">{property.address}</p>
