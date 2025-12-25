@@ -16,6 +16,7 @@ export interface Property {
     coordinates: [number, number];
     thumbnailUrl?: string | null;
     capRate?: string | null;
+    squareFootage?: string | null;
 }
 
 interface MapProps {
@@ -59,11 +60,18 @@ export const PropertyMap = ({ className, properties, selectedId }: MapProps) => 
                                 ${property.units && property.units > 0 ? `<span style="font-size: 11px; font-weight: 600; color: #7f56d9;">${property.units} Units</span>` : '<span></span>'}
                                 <span style="font-size: 13px; font-weight: 700; color: #101828;">${property.price}</span>
                             </div>
-                            ${property.capRate ? `
-                                <div style="display: flex; justify-content: flex-start; align-items: center;">
-                                    <span style="font-size: 11px; font-weight: 500; color: #475467; background: #f2f4f7; padding: 2px 6px; border-radius: 4px;">
-                                        ${property.capRate}
-                                    </span>
+                            ${property.capRate || property.squareFootage ? `
+                                <div style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center;">
+                                    ${property.capRate ? `
+                                        <span style="font-size: 10px; font-weight: 600; color: #344054; background: #f2f4f7; border: 1px solid #d0d5dd; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">
+                                            ${property.capRate}
+                                        </span>
+                                    ` : ''}
+                                    ${property.squareFootage ? `
+                                        <span style="font-size: 10px; font-weight: 600; color: #344054; background: #f2f4f7; border: 1px solid #d0d5dd; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">
+                                            ${property.squareFootage}
+                                        </span>
+                                    ` : ''}
                                 </div>
                             ` : ''}
                         </div>

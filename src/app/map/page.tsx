@@ -47,7 +47,8 @@ export default function MapPage() {
             price: item.price || 'TBD',
             coordinates: [item.longitude, item.latitude],
             thumbnailUrl: item.thumbnail_url,
-            capRate: item.cap_rate
+            capRate: item.cap_rate,
+            squareFootage: item.square_footage
         }));
 
         setProperties(mappedProperties);
@@ -136,11 +137,18 @@ export default function MapPage() {
                                             ) : <span />}
                                             <span className="text-brand-solid font-semibold">{property.price}</span>
                                         </div>
-                                        {property.capRate && (
-                                            <div className="mt-2 flex items-center">
-                                                <span className="text-xs font-semibold text-tertiary bg-secondary-subtle px-2 py-0.5 rounded-md">
-                                                    {property.capRate}
-                                                </span>
+                                        {(property.capRate || property.squareFootage) && (
+                                            <div className="mt-2 flex flex-wrap gap-2 items-center">
+                                                {property.capRate && (
+                                                    <span className="text-xs font-semibold text-tertiary bg-secondary-subtle px-2 py-0.5 rounded-md border border-secondary">
+                                                        {property.capRate}
+                                                    </span>
+                                                )}
+                                                {property.squareFootage && (
+                                                    <span className="text-xs font-semibold text-tertiary bg-secondary-subtle px-2 py-0.5 rounded-md border border-secondary">
+                                                        {property.squareFootage}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                     </div>
