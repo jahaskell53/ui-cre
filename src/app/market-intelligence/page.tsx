@@ -282,15 +282,15 @@ export default function MarketIntelligencePage() {
                                     {/* Bars */}
                                     <rect x="100" y={250 - (120 / 140) * 200} width="120" height={(120 / 140) * 200} fill="#7F56D9" rx="4" />
                                     <text x="160" y={250 - (120 / 140) * 200 - 8} textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">$120</text>
-                                    <text x="160" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">ARBUCKLE</text>
+                                    <text x="160" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">Arbuckle</text>
 
                                     <rect x="250" y={250 - (95 / 140) * 200} width="120" height={(95 / 140) * 200} fill="#7F56D9" rx="4" />
                                     <text x="310" y={250 - (95 / 140) * 200 - 8} textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">$95</text>
-                                    <text x="310" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">WILLIAMS</text>
+                                    <text x="310" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">Williams</text>
 
                                     <rect x="400" y={250 - (110 / 140) * 200} width="120" height={(110 / 140) * 200} fill="#7F56D9" rx="4" />
                                     <text x="460" y={250 - (110 / 140) * 200 - 8} textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">$110</text>
-                                    <text x="460" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">COLUSA</text>
+                                    <text x="460" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">Colusa</text>
                                 </svg>
                             </div>
                         </div>
