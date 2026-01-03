@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
-import { TrendUp02 } from "@untitledui/icons";
+import { ArrowNarrowUp, ArrowNarrowDown } from "@untitledui/icons";
 import { Badge } from "@/components/base/badges/badges";
 import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
@@ -111,21 +111,28 @@ export default function MarketIntelligencePage() {
                 label: "Number of Sales",
                 value: "285",
                 subtitle: "Last 18 months",
+                trend: "up",
+                isPositive: true,
             },
             {
                 label: "Median Sale Price",
                 value: "$362,500",
                 subtitle: "Avg: $417,868",
+                trend: "up",
+                isPositive: true,
             },
             {
                 label: "Vacancy Rate",
                 value: "3.4%",
                 trend: "up",
+                isPositive: false,
             },
             {
                 label: "Price per Sq Ft",
                 value: "$229",
                 subtitle: "Avg size: 2,034 sqft",
+                trend: "up",
+                isPositive: true,
             },
             {
                 label: "YoY Price Change",
@@ -215,13 +222,21 @@ export default function MarketIntelligencePage() {
                         >
                             <div className="flex justify-between items-start mb-4">
                                 <p className="text-sm font-bold text-quaternary uppercase tracking-widest">{tile.label}</p>
-                                {tile.trend === "up" && (
-                                    <Badge color="success" size="sm" type="pill-color" className="gap-1 px-1.5 py-0.5">
-                                        <TrendUp02 className="size-3" />
-                                    </Badge>
-                                )}
                             </div>
-                            <h3 className="text-3xl font-bold text-primary tracking-tight mb-2">{tile.value}</h3>
+                            <div className="flex items-center gap-2 mb-2">
+                                {tile.trend && (
+                                    <div className={tile.isPositive ? 'text-utility-success-700' : 'text-utility-error-700'}>
+                                        {tile.trend === "up" ? (
+                                            <ArrowNarrowUp className="size-5" />
+                                        ) : (
+                                            <ArrowNarrowDown className="size-5" />
+                                        )}
+                                    </div>
+                                )}
+                                <h3 className={`text-3xl font-bold tracking-tight ${tile.trend && tile.isPositive ? 'text-utility-success-700' : tile.trend && !tile.isPositive ? 'text-utility-error-700' : 'text-primary'}`}>
+                                    {tile.value}
+                                </h3>
+                            </div>
                             {tile.subtitle && (
                                 <p className="text-sm text-tertiary">{tile.subtitle}</p>
                             )}
