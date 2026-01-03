@@ -245,6 +245,200 @@ export default function MarketIntelligencePage() {
                         </div>
                     </div>
                 )}
+
+                {selectedCounty?.id === "colusa" && selectedState?.id === "CA" && (
+                    <div className="flex flex-col gap-10">
+                        {/* Sale Volume by Cities Bar Chart */}
+                        <div className="bg-primary border border-secondary rounded-2xl p-6 shadow-sm">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-primary">Sale Volume by Cities in {selectedCounty?.label?.toUpperCase() || ''} County</h2>
+                                <p className="text-sm text-tertiary mt-1">Price/Sq Ft</p>
+                                <p className="text-xs text-quaternary mt-1">Last 18 Months, min. 50 sales</p>
+                            </div>
+                            <div className="w-full">
+                                <svg viewBox="0 0 600 300" className="w-full h-auto">
+                                    {/* Y-axis labels */}
+                                    {[0, 35, 70, 105, 140].map((val, i) => (
+                                        <g key={i}>
+                                            <line x1="50" y1={250 - (val / 140) * 200} x2="550" y2={250 - (val / 140) * 200} stroke="#E4E7EC" strokeWidth="1" strokeDasharray="2,2" />
+                                            <text x="45" y={250 - (val / 140) * 200 + 4} textAnchor="end" className="text-xs fill-quaternary" fontSize="12">{val}</text>
+                                        </g>
+                                    ))}
+                                    {/* Bars */}
+                                    <rect x="100" y={250 - (120 / 140) * 200} width="120" height={(120 / 140) * 200} fill="#7F56D9" rx="4" />
+                                    <text x="160" y={250 - (120 / 140) * 200 - 8} textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">$120</text>
+                                    <text x="160" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">ARBUCKLE</text>
+
+                                    <rect x="250" y={250 - (95 / 140) * 200} width="120" height={(95 / 140) * 200} fill="#7F56D9" rx="4" />
+                                    <text x="310" y={250 - (95 / 140) * 200 - 8} textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">$95</text>
+                                    <text x="310" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">WILLIAMS</text>
+
+                                    <rect x="400" y={250 - (110 / 140) * 200} width="120" height={(110 / 140) * 200} fill="#7F56D9" rx="4" />
+                                    <text x="460" y={250 - (110 / 140) * 200 - 8} textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">$110</text>
+                                    <text x="460" y="285" textAnchor="middle" className="text-xs font-semibold fill-primary" fontSize="12">COLUSA</text>
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Average Home Price Comparison Line Chart */}
+                        <div className="bg-primary border border-secondary rounded-2xl p-6 shadow-sm">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-primary">Average Home Price Comparison</h2>
+                                <p className="text-sm text-tertiary mt-1">{selectedCounty.label} County, CA vs CA State Average (30 Years)</p>
+                            </div>
+                            <div className="w-full">
+                                <svg viewBox="0 0 800 400" className="w-full h-auto">
+                                    {/* Y-axis labels */}
+                                    {[0, 300000, 600000, 900000, 1200000].map((val, i) => {
+                                        const y = 350 - (val / 1200000) * 300;
+                                        return (
+                                            <g key={i}>
+                                                <line x1="80" y1={y} x2="750" y2={y} stroke="#E4E7EC" strokeWidth="1" strokeDasharray="2,2" />
+                                                <text x="75" y={y + 4} textAnchor="end" className="text-xs fill-quaternary" fontSize="11">
+                                                    ${val === 0 ? '0' : val === 300000 ? '300K' : val === 600000 ? '600K' : val === 900000 ? '900K' : '1.2M'}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+                                    {/* X-axis labels */}
+                                    {['2003', '2005', '2007', '2009', '2011', '2013', '2015', '2017', '2019', '2021', '2023', '2025'].map((year, i) => {
+                                        const x = 80 + (i / 11) * 670;
+                                        return (
+                                            <text key={i} x={x} y="385" textAnchor="middle" className="text-xs fill-quaternary" fontSize="10">{year}</text>
+                                        );
+                                    })}
+                                    {/* County line */}
+                                    <polyline
+                                        points="80,320 150,310 220,290 290,280 360,270 430,260 500,250 570,240 640,230 710,220 750,210"
+                                        fill="none"
+                                        stroke="#7F56D9"
+                                        strokeWidth="3"
+                                    />
+                                    {/* State line */}
+                                    <polyline
+                                        points="80,300 150,295 220,285 290,275 360,265 430,255 500,245 570,235 640,225 710,215 750,205"
+                                        fill="none"
+                                        stroke="#98A2B3"
+                                        strokeWidth="2"
+                                        strokeDasharray="5,5"
+                                    />
+                                    {/* Legend */}
+                                    <g>
+                                        <line x1="600" y1="50" x2="630" y2="50" stroke="#7F56D9" strokeWidth="3" />
+                                        <text x="640" y="54" className="text-xs fill-secondary" fontSize="12">Colusa County</text>
+                                        <line x1="600" y1="70" x2="630" y2="70" stroke="#98A2B3" strokeWidth="2" strokeDasharray="5,5" />
+                                        <text x="640" y="74" className="text-xs fill-secondary" fontSize="12">CA State Average</text>
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Annual Sales Volume Comparison Line Chart */}
+                        <div className="bg-primary border border-secondary rounded-2xl p-6 shadow-sm">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-primary">Annual Sales Volume Comparison</h2>
+                                <p className="text-sm text-tertiary mt-1">{selectedCounty.label} County, CA vs CA State Volume (30 Years)</p>
+                            </div>
+                            <div className="w-full">
+                                <svg viewBox="0 0 800 400" className="w-full h-auto">
+                                    {/* Y-axis labels */}
+                                    {[0, 250000, 500000, 750000, 1000000].map((val, i) => {
+                                        const y = 350 - (val / 1000000) * 300;
+                                        return (
+                                            <g key={i}>
+                                                <line x1="80" y1={y} x2="750" y2={y} stroke="#E4E7EC" strokeWidth="1" strokeDasharray="2,2" />
+                                                <text x="75" y={y + 4} textAnchor="end" className="text-xs fill-quaternary" fontSize="11">
+                                                    {val === 0 ? '0' : val === 250000 ? '250K' : val === 500000 ? '500K' : val === 750000 ? '750K' : '1M'}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+                                    {/* X-axis labels */}
+                                    {['2003', '2005', '2007', '2009', '2011', '2013', '2015', '2017', '2019', '2021', '2023', '2025'].map((year, i) => {
+                                        const x = 80 + (i / 11) * 670;
+                                        return (
+                                            <text key={i} x={x} y="385" textAnchor="middle" className="text-xs fill-quaternary" fontSize="10">{year}</text>
+                                        );
+                                    })}
+                                    {/* County line */}
+                                    <polyline
+                                        points="80,340 150,330 220,320 290,310 360,300 430,290 500,280 570,270 640,260 710,250 750,240"
+                                        fill="none"
+                                        stroke="#7F56D9"
+                                        strokeWidth="3"
+                                    />
+                                    {/* State line */}
+                                    <polyline
+                                        points="80,200 150,190 220,180 290,170 360,160 430,150 500,140 570,130 640,120 710,110 750,100"
+                                        fill="none"
+                                        stroke="#98A2B3"
+                                        strokeWidth="2"
+                                        strokeDasharray="5,5"
+                                    />
+                                    {/* Legend */}
+                                    <g>
+                                        <line x1="600" y1="50" x2="630" y2="50" stroke="#7F56D9" strokeWidth="3" />
+                                        <text x="640" y="54" className="text-xs fill-secondary" fontSize="12">Colusa County</text>
+                                        <line x1="600" y1="70" x2="630" y2="70" stroke="#98A2B3" strokeWidth="2" strokeDasharray="5,5" />
+                                        <text x="640" y="74" className="text-xs fill-secondary" fontSize="12">CA State Volume</text>
+                                    </g>
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Sales Price By ZIP Code Table */}
+                        <div className="bg-primary border border-secondary rounded-2xl overflow-hidden shadow-sm">
+                            <div className="p-6 border-b border-secondary">
+                                <h2 className="text-xl font-semibold text-primary">Sales Price By ZIP Code {selectedCounty.label} County, CA</h2>
+                                <p className="text-sm text-tertiary mt-1">Last 18 Months</p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-secondary/50 border-b border-secondary">
+                                        <tr>
+                                            <th className="px-6 py-4 text-xs font-bold text-quaternary uppercase tracking-widest">ZIP Code</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-quaternary uppercase tracking-widest">City</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-quaternary uppercase tracking-widest text-right">Median Price</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-quaternary uppercase tracking-widest text-right">Avg Price</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-quaternary uppercase tracking-widest text-right">Sales Count</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-quaternary uppercase tracking-widest text-right">Price/Sq Ft</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-secondary">
+                                        {[
+                                            { zip: '95932', city: 'Colusa', median: '$385,000', avg: '$412,500', count: 42, priceSqFt: '$229' },
+                                            { zip: '95987', city: 'Williams', median: '$342,000', avg: '$368,200', count: 38, priceSqFt: '$195' },
+                                            { zip: '95912', city: 'Arbuckle', median: '$298,000', avg: '$325,800', count: 28, priceSqFt: '$178' },
+                                            { zip: '95934', city: 'Colusa', median: '$410,000', avg: '$435,200', count: 35, priceSqFt: '$245' },
+                                            { zip: '95988', city: 'Williams', median: '$365,000', avg: '$389,500', count: 31, priceSqFt: '$212' },
+                                        ].map((row, i) => (
+                                            <tr key={i} className="hover:bg-secondary/30 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <span className="font-semibold text-primary">{row.zip}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-secondary">{row.city}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <span className="font-bold text-primary">{row.median}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <span className="text-secondary">{row.avg}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <span className="text-secondary">{row.count}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <span className="text-secondary">{row.priceSqFt}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </MainLayout>
     );
