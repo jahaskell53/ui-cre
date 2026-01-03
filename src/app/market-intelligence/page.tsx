@@ -6,6 +6,7 @@ import { TrendUp02 } from "@untitledui/icons";
 import { Badge } from "@/components/base/badges/badges";
 import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
+import { PropertyMap, type Property } from "@/components/application/map/property-map";
 
 export default function MarketIntelligencePage() {
     const [selectedState, setSelectedState] = useState<SelectItemType | null>({
@@ -43,6 +44,65 @@ export default function MarketIntelligencePage() {
             { id: "arbuckle", label: "Arbuckle" },
         ]
         : [];
+
+    // Mock recent sales data for the selected region
+    const recentSales: Property[] = selectedCounty?.id === "colusa" ? [
+        {
+            id: 1,
+            name: "Riverside Apartments",
+            address: "123 Main St, Colusa, CA",
+            location: "Colusa, CA",
+            units: 24,
+            price: "$2.4M",
+            coordinates: [-122.1794, 39.2143],
+            capRate: "6.2%",
+            squareFootage: "18,500 sqft",
+        },
+        {
+            id: 2,
+            name: "Oak Grove Complex",
+            address: "456 Oak Ave, Colusa, CA",
+            location: "Colusa, CA",
+            units: 16,
+            price: "$1.8M",
+            coordinates: [-122.1850, 39.2200],
+            capRate: "5.8%",
+            squareFootage: "12,200 sqft",
+        },
+        {
+            id: 3,
+            name: "Parkview Terrace",
+            address: "789 Park Blvd, Williams, CA",
+            location: "Williams, CA",
+            units: 32,
+            price: "$3.1M",
+            coordinates: [-122.1490, 39.1540],
+            capRate: "6.5%",
+            squareFootage: "24,800 sqft",
+        },
+        {
+            id: 4,
+            name: "Sunset Gardens",
+            address: "321 Sunset Dr, Colusa, CA",
+            location: "Colusa, CA",
+            units: 20,
+            price: "$2.0M",
+            coordinates: [-122.1720, 39.2080],
+            capRate: "6.0%",
+            squareFootage: "15,600 sqft",
+        },
+        {
+            id: 5,
+            name: "Arbuckle Heights",
+            address: "654 Hill St, Arbuckle, CA",
+            location: "Arbuckle, CA",
+            units: 12,
+            price: "$1.2M",
+            coordinates: [-122.0570, 39.0170],
+            capRate: "5.5%",
+            squareFootage: "9,400 sqft",
+        },
+    ] : [];
 
     const marketData = {
         location: `${selectedCounty?.label || ""} County, ${selectedState?.id || ""}`,
@@ -168,6 +228,23 @@ export default function MarketIntelligencePage() {
                         </div>
                     ))}
                 </div>
+
+                {selectedCounty && selectedState && (
+                    <div className="flex flex-col gap-6">
+                        <div>
+                            <h2 className="text-xl font-semibold text-primary">
+                                Recent Sales {selectedCounty.label} County, {selectedState.id}
+                            </h2>
+                            <p className="text-sm text-tertiary mt-1">Last 18 Months</p>
+                        </div>
+                        <div className="border border-secondary rounded-2xl overflow-hidden bg-primary shadow-sm" style={{ height: '600px' }}>
+                            <PropertyMap
+                                properties={recentSales}
+                                className="w-full h-full"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         </MainLayout>
     );
