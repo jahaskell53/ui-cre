@@ -587,8 +587,8 @@ export default function FeedPage() {
             <div className="flex flex-col gap-10">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                     <div>
-                        <h1 className="text-display-sm font-semibold text-primary">Master Feed</h1>
-                        <p className="text-lg text-tertiary">Curated multi-family intelligence and community insights.</p>
+                        <h1 className="text-display-sm font-semibold text-primary">Feed</h1>
+                        <p className="text-lg text-tertiary">Industry Intelligence and community insights.</p>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
                         <Button
@@ -615,7 +615,7 @@ export default function FeedPage() {
                         <section className="flex flex-col gap-6">
                             <div className="flex justify-between items-center border-b border-secondary pb-4">
                                 <h2 className="text-xl font-semibold text-primary">
-                                    {showingLiked ? "Liked Posts" : "Industry Intelligence"}
+                                    {showingLiked ? "Liked Posts" : "Posts"}
                                 </h2>
                             </div>
 
