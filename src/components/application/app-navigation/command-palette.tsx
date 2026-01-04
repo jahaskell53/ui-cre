@@ -126,7 +126,6 @@ export const CommandPalette = ({ isOpen, setOpen }: CommandPaletteProps) => {
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="text-md font-semibold text-primary">{item.label}</div>
-                                                            {item.href && <div className="text-xs text-tertiary truncate">{item.href}</div>}
                                                         </div>
                                                         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <span className="text-xs font-medium text-fg-quaternary">Select</span>
