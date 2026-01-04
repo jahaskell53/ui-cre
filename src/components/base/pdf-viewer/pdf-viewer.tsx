@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { ChevronLeft, ChevronRight, RefreshCw01 } from '@untitledui/icons';
+import { RefreshCw01, File02, ArrowUpRight } from '@untitledui/icons';
 import { Button } from '@/components/base/buttons/button';
 
 // Set up the worker
@@ -16,7 +16,6 @@ interface PdfViewerProps {
 
 export const PdfViewer = ({ url }: PdfViewerProps) => {
     const [numPages, setNumPages] = useState<number | null>(null);
-    const [pageNumber, setPageNumber] = useState(1);
     const [containerWidth, setContainerWidth] = useState<number | null>(null);
     const [isMounted, setIsMounted] = useState(false);
 
@@ -40,31 +39,14 @@ export const PdfViewer = ({ url }: PdfViewerProps) => {
         <div className="flex flex-col gap-0 w-full bg-secondary/5 rounded-xl border border-secondary" ref={setContainerRef}>
             <div className="flex items-center justify-between p-3 border-b border-secondary bg-primary rounded-t-xl">
                 <div className="text-xs font-semibold text-secondary">
-                    Page {pageNumber} <span className="text-tertiary">of</span> {numPages || '--'}
+                    PDF Document <span className="text-tertiary">({numPages || '--'} pages)</span>
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        size="sm"
-                        color="secondary"
-                        onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))}
-                        isDisabled={pageNumber <= 1}
-                        className="p-1!"
-                    >
-                        <ChevronLeft className="size-4" />
-                    </Button>
-                    <Button
-                        size="sm"
-                        color="secondary"
-                        onClick={() => setPageNumber(prev => Math.min(prev + 1, numPages || prev))}
-                        isDisabled={numPages ? pageNumber >= numPages : true}
-                        className="p-1!"
-                    >
-                        <ChevronRight className="size-4" />
-                    </Button>
-                </div>
+                <Button size="sm" color="tertiary" iconLeading={ArrowUpRight} onClick={() => window.open(url, '_blank')}>
+                    Open Original
+                </Button>
             </div>
 
-            <div className="flex justify-center p-4 bg-secondary/10 overflow-auto max-h-[600px] min-h-[400px]">
+            <div className="flex flex-col items-center gap-4 p-4 bg-secondary/10 overflow-auto max-h-[800px] min-h-[400px]">
                 <Document
                     file={url}
                     onLoadSuccess={onDocumentLoadSuccess}
@@ -89,18 +71,18 @@ export const PdfViewer = ({ url }: PdfViewerProps) => {
                         </div>
                     }
                 >
-                    <Page
-                        pageNumber={pageNumber}
-                        width={containerWidth ? containerWidth - 32 : 550}
-                        renderAnnotationLayer={false}
-                        renderTextLayer={false}
-                        className="shadow-xl rounded-sm overflow-hidden"
-                    />
+                    {numPages && Array.from(new Array(numPages), (el, index) => (
+                        <div key={`page_${index + 1}`} className="shadow-xl rounded-sm overflow-hidden mb-4 last:mb-0">
+                            <Page
+                                pageNumber={index + 1}
+                                width={containerWidth ? containerWidth - 32 : 550}
+                                renderAnnotationLayer={false}
+                                renderTextLayer={false}
+                            />
+                        </div>
+                    ))}
                 </Document>
             </div>
         </div>
     );
 };
-
-// Import helper for cleaner page.tsx
-import { File02 } from '@untitledui/icons';
