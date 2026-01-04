@@ -1,29 +1,42 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 
-export default function LoginPage() {
+export default function SignUpPage() {
+    const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [fullName, setFullName] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
 
-    const handleLogin = async () => {
+    const handleSignUp = async () => {
         setIsLoading(true);
         setError(null);
+        setMessage(null);
         
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+            email, 
+            password,
+            options: { 
+                data: { 
+                    full_name: fullName || undefined
+                } 
+            }
+        });
         
         setIsLoading(false);
         
         if (error) {
             setError(error.message);
         } else {
-            window.location.href = "/";
+            setMessage("Check your email for a confirmation link!");
         }
     };
 
@@ -31,8 +44,8 @@ export default function LoginPage() {
         <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4">
             <div className="w-full max-w-md space-y-6">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold">Welcome Back</h1>
-                    <p className="text-tertiary mt-2">Sign in to your account</p>
+                    <h1 className="text-2xl font-bold">Create an account</h1>
+                    <p className="text-tertiary mt-2">Sign up to get started</p>
                 </div>
                 
                 {error && (
@@ -41,7 +54,20 @@ export default function LoginPage() {
                     </div>
                 )}
                 
+                {message && (
+                    <div className="w-full p-3 rounded-lg bg-brand-primary/10 text-brand-primary text-sm">
+                        {message}
+                    </div>
+                )}
+                
                 <div className="space-y-4">
+                    <Input 
+                        label="Full Name"
+                        placeholder="Enter your full name" 
+                        value={fullName} 
+                        onChange={setFullName}
+                        isDisabled={isLoading}
+                    />
                     <Input 
                         label="Email"
                         placeholder="Enter your email" 
@@ -53,27 +79,28 @@ export default function LoginPage() {
                     <Input 
                         type="password" 
                         label="Password"
-                        placeholder="Enter your password" 
+                        placeholder="Create a password" 
                         value={password} 
                         onChange={setPassword}
                         isDisabled={isLoading}
                     />
                     <Button 
-                        onClick={handleLogin}
+                        onClick={handleSignUp}
                         isLoading={isLoading}
                         className="w-full"
                     >
-                        Log In
+                        Sign Up
                     </Button>
                 </div>
 
                 <div className="text-center text-sm text-tertiary">
-                    Don't have an account?{" "}
-                    <Link href="/signup" className="text-brand-solid hover:text-brand-solid_hover font-semibold">
-                        Sign up
+                    Already have an account?{" "}
+                    <Link href="/login" className="text-brand-solid hover:text-brand-solid_hover font-semibold">
+                        Log in
                     </Link>
                 </div>
             </div>
         </div>
     );
 }
+
