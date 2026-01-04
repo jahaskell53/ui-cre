@@ -27,6 +27,8 @@ interface SidebarNavigationProps {
     hideBorder?: boolean;
     /** Additional CSS classes to apply to the sidebar. */
     className?: string;
+    /** Callback when the search input is clicked. */
+    onSearchClick?: () => void;
 }
 
 export const SidebarNavigationSimple = ({
@@ -37,6 +39,7 @@ export const SidebarNavigationSimple = ({
     showAccountCard = true,
     hideBorder = false,
     className,
+    onSearchClick,
 }: SidebarNavigationProps) => {
     const MAIN_SIDEBAR_WIDTH = 296;
 
@@ -55,7 +58,17 @@ export const SidebarNavigationSimple = ({
         >
             <div className="flex flex-col gap-5 px-4 lg:px-5">
                 <UntitledLogo className="h-12" />
-                <Input shortcut size="sm" aria-label="Search" placeholder="Search" icon={SearchLg} />
+                <div onClick={onSearchClick} className="cursor-pointer">
+                    <Input
+                        shortcut
+                        size="sm"
+                        aria-label="Search"
+                        placeholder="Search"
+                        icon={SearchLg}
+                        isReadOnly
+                        className="pointer-events-none"
+                    />
+                </div>
             </div>
 
             <NavList activeUrl={activeUrl} items={items} />
