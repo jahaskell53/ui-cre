@@ -12,7 +12,15 @@ export const UntitledLogo = (props: HTMLAttributes<HTMLDivElement>) => {
                 alt="Logo"
                 width={225}
                 height={48}
-                className="h-full w-auto brightness-0 dark:invert"
+                className="hidden lg:block h-full w-auto brightness-0 dark:invert"
+                priority
+            />
+            <Image
+                src="/favicon.ico"
+                alt="Logo"
+                width={32}
+                height={32}
+                className="block lg:hidden h-full w-auto brightness-0 dark:invert"
                 priority
             />
         </div>
