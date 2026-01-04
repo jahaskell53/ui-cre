@@ -7,6 +7,7 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { BadgeWithDot } from "@/components/base/badges/badges";
 import { Input } from "@/components/base/input/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
+import { useUser } from "@/hooks/use-user";
 import { cx } from "@/utils/cx";
 import { MobileNavigationHeader } from "./base-components/mobile-header";
 import { NavAccountCard, NavAccountMenu } from "./base-components/nav-account-card";
@@ -52,6 +53,7 @@ export const HeaderNavigationBase = ({
     showAvatarDropdown = true,
     hideBorder = false,
 }: HeaderNavigationBaseProps) => {
+    const { user, profile } = useUser();
     const activeSubNavItems = subItems || items.find((item) => item.current && item.items && item.items.length > 0)?.items;
 
     const showSecondaryNav = activeSubNavItems && activeSubNavItems.length > 0;
@@ -146,7 +148,7 @@ export const HeaderNavigationBase = ({
                                 />
                             </div>
 
-                            {showAvatarDropdown && (
+                            {showAvatarDropdown && user && (
                                 <DialogTrigger>
                                     <AriaButton
                                         className={({ isPressed, isFocused }) =>
@@ -156,7 +158,11 @@ export const HeaderNavigationBase = ({
                                             )
                                         }
                                     >
-                                        <Avatar alt="Olivia Rhye" src="https://www.untitledui.com/images/avatars/olivia-rhye?bg=%23E0E0E0" size="md" />
+                                        <Avatar 
+                                            alt={profile?.full_name || user.email || "User"} 
+                                            src={profile?.avatar_url || undefined} 
+                                            size="md" 
+                                        />
                                     </AriaButton>
                                     <Popover
                                         placement="bottom right"
