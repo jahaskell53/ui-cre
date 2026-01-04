@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
-import { Heart, MessageCircle01, Bookmark, MessageChatSquare, Send01, X, Trash01, DotsVertical } from "@untitledui/icons";
+import { Heart, MessageCircle01, Bookmark, MessageChatSquare, Send01, X, Trash01, DotsVertical, ArrowUpRight } from "@untitledui/icons";
 import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
@@ -46,6 +46,14 @@ interface Comment {
   };
 }
 
+interface LinkPreview {
+  title: string;
+  description: string;
+  image: string;
+  siteName: string;
+  url: string;
+}
+
 const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: { 
   post: Post; 
   currentUserId: string | undefined;
@@ -59,7 +67,10 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
     const [comments, setComments] = useState<Comment[]>([]);
     const [commentText, setCommentText] = useState("");
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
+    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const isArticle = post.type !== "post";
+    const isLink = post.type === "link";
     const authorName = post.profile?.full_name || post.profile?.username || "Anonymous User";
     const initials = authorName === "Anonymous User" ? "AU" : authorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
@@ -68,6 +79,12 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
             loadComments();
         }
     }, [showComments, post.id]);
+
+    useEffect(() => {
+        if (isLink && post.summary) {
+            loadLinkPreview(post.summary);
+        }
+    }, [isLink, post.summary]);
 
     const loadComments = async () => {
         const { data, error } = await supabase
@@ -86,6 +103,22 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
             })));
         } else if (error) {
             console.error("Error loading comments:", error.message);
+        }
+    };
+
+    const loadLinkPreview = async (url: string) => {
+        if (!url) return;
+        setIsLoadingPreview(true);
+        try {
+            const response = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`);
+            if (response.ok) {
+                const data = await response.json();
+                setLinkPreview(data);
+            }
+        } catch (error) {
+            console.error("Error loading link preview:", error);
+        } finally {
+            setIsLoadingPreview(false);
         }
     };
 
@@ -111,12 +144,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
 
     return (
         <article className="bg-primary border border-secondary rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-            <div className={isArticle ? "flex flex-col md:flex-row" : "flex flex-col"}>
-                {isArticle && (
-                    <div className="w-full md:w-48 h-48 md:h-auto bg-secondary shrink-0 relative">
-                        <div className="absolute inset-0 flex items-center justify-center text-quaternary font-medium text-xs">Article Image</div>
-                    </div>
-                )}
+            <div className="flex flex-col">
                 <div className="p-6 flex flex-col justify-between flex-1">
                     <div>
                         <div className="flex items-center justify-between mb-3">
@@ -157,9 +185,80 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                             )}
                         </div>
                         {post.title && <h3 className="text-xl font-bold text-primary mb-3 leading-snug">{post.title}</h3>}
-                        <p className="text-secondary text-base mb-6 leading-relaxed">
-                            {post.summary || post.content}
-                        </p>
+                        {!isLink && (
+                            <p className="text-secondary text-base mb-6 leading-relaxed">
+                                {post.summary || post.content}
+                            </p>
+                        )}
+                        {isLink && (
+                            <div className="mb-6">
+                                {isLoadingPreview ? (
+                                    <div className="border border-secondary rounded-xl p-4 bg-secondary/20 animate-pulse">
+                                        <div className="h-4 bg-secondary rounded w-3/4 mb-2"></div>
+                                        <div className="h-4 bg-secondary rounded w-1/2"></div>
+                                    </div>
+                                ) : linkPreview ? (
+                                    <a
+                                        href={linkPreview.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block border border-secondary rounded-xl overflow-hidden hover:border-tertiary transition-colors group"
+                                    >
+                                        {linkPreview.image && (
+                                            <div className="w-full h-48 bg-secondary relative overflow-hidden">
+                                                <img
+                                                    src={linkPreview.image}
+                                                    alt={linkPreview.title}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).style.display = "none";
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="p-4">
+                                            {linkPreview.siteName && (
+                                                <div className="text-xs text-tertiary uppercase tracking-wide mb-1">
+                                                    {linkPreview.siteName}
+                                                </div>
+                                            )}
+                                            <h4 className="text-lg font-semibold text-primary mb-2 group-hover:text-brand-solid transition-colors">
+                                                {linkPreview.title || linkPreview.url}
+                                            </h4>
+                                            {linkPreview.description && (
+                                                <p className="text-sm text-secondary line-clamp-2 mb-2">
+                                                    {linkPreview.description}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center gap-2 text-xs text-tertiary">
+                                                <ArrowUpRight className="w-3 h-3" />
+                                                <span className="truncate">
+                                                    {(() => {
+                                                        try {
+                                                            return new URL(linkPreview.url).hostname;
+                                                        } catch {
+                                                            return linkPreview.url;
+                                                        }
+                                                    })()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                ) : post.summary ? (
+                                    <a
+                                        href={post.summary}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block border border-secondary rounded-xl p-4 hover:border-tertiary transition-colors group"
+                                    >
+                                        <div className="flex items-center gap-2 text-primary group-hover:text-brand-solid transition-colors">
+                                            <ArrowUpRight className="w-4 h-4" />
+                                            <span className="truncate">{post.summary}</span>
+                                        </div>
+                                    </a>
+                                ) : null}
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center justify-between mt-auto">
                         <div className="flex items-center gap-3">
@@ -441,7 +540,9 @@ export default function FeedPage() {
     };
 
     const handleCreatePost = async (close?: () => void) => {
-        if (!user || !postContent.trim()) return;
+        if (!user) return;
+        if (postType !== "link" && !postContent.trim()) return;
+        if (postType === "link" && !postUrl.trim()) return;
 
         setIsSubmitting(true);
         const { error } = await supabase
@@ -449,7 +550,7 @@ export default function FeedPage() {
             .insert({
                 user_id: user.id,
                 type: postType,
-                content: postContent.trim(),
+                content: postType === "link" ? "" : postContent.trim(),
                 title: postType === "article" ? postTitle.trim() || null : null,
                 category: postType === "article" ? postCategory.trim() || null : null,
                 summary: postType === "article" ? postSummary.trim() || null : postType === "link" ? postUrl.trim() || null : null,
@@ -615,13 +716,15 @@ export default function FeedPage() {
                                             </div>
                                         )}
 
-                                        <TextArea
-                                            label={postType === "article" ? "Content" : postType === "link" ? "Description" : "What's on your mind?"}
-                                            placeholder={postType === "article" ? "Start writing your article..." : postType === "link" ? "Add a description for this link..." : "Share your thoughts with the community..."}
-                                            value={postContent}
-                                            onChange={setPostContent}
-                                            rows={postType === "article" ? 8 : 4}
-                                        />
+                                        {postType !== "link" && (
+                                            <TextArea
+                                                label={postType === "article" ? "Content" : "What's on your mind?"}
+                                                placeholder={postType === "article" ? "Start writing your article..." : "Share your thoughts with the community..."}
+                                                value={postContent}
+                                                onChange={setPostContent}
+                                                rows={postType === "article" ? 8 : 4}
+                                            />
+                                        )}
                                     </div>
 
                                     <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 border-t border-secondary -mx-6 px-6 mt-2">
@@ -643,7 +746,7 @@ export default function FeedPage() {
                                         <Button
                                             onClick={() => handleCreatePost(close)}
                                             isLoading={isSubmitting}
-                                            isDisabled={!postContent.trim()}
+                                            isDisabled={postType === "link" ? !postUrl.trim() : !postContent.trim()}
                                             className="flex-1 sm:flex-none"
                                         >
                                             {postType === "article" ? "Publish article" : postType === "link" ? "Share link" : "Post to feed"}
