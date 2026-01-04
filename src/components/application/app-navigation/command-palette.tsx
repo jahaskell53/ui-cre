@@ -68,7 +68,7 @@ export const CommandPalette = ({ isOpen, setOpen }: CommandPaletteProps) => {
 
     return (
         <ModalOverlay isOpen={isOpen} onOpenChange={setOpen} isDismissable>
-            <Modal className="max-w-2xl bg-primary rounded-xl shadow-2xl overflow-hidden border border-secondary transition-all">
+            <Modal className="max-w-lg bg-primary rounded-xl shadow-2xl overflow-hidden border border-secondary transition-all">
                 <Dialog className="flex flex-col h-full max-h-[80vh] outline-none">
                     <div className="relative flex items-center border-b border-secondary bg-primary">
                         <SearchLg className="absolute left-4 size-5 text-fg-quaternary" />

@@ -219,43 +219,25 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-3">
-                                        {showPdfPreview && post.file_url.toLowerCase().endsWith('.pdf') && (
+                                        {post.file_url.toLowerCase().endsWith('.pdf') ? (
                                             <div className="w-full animate-in fade-in slide-in-from-top-2 duration-300">
                                                 <PdfViewer url={post.file_url} />
                                             </div>
+                                        ) : (
+                                            <div className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5 group">
+                                                <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary">
+                                                    <File02 className="size-5" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-primary truncate">
+                                                        {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
+                                                    </p>
+                                                    <p className="text-xs text-tertiary uppercase tracking-wider">
+                                                        {post.file_url.split('.').pop()?.toUpperCase()} File
+                                                    </p>
+                                                </div>
+                                            </div>
                                         )}
-                                        <div className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5 group">
-                                            <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary">
-                                                <File02 className="size-5" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-primary truncate">
-                                                    {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
-                                                </p>
-                                                <p className="text-xs text-tertiary uppercase tracking-wider">
-                                                    {post.file_url.split('.').pop()?.toUpperCase()} File
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {post.file_url.toLowerCase().endsWith('.pdf') && (
-                                                    <Button
-                                                        size="sm"
-                                                        color="secondary"
-                                                        onClick={() => setShowPdfPreview(!showPdfPreview)}
-                                                    >
-                                                        {showPdfPreview ? "Hide Preview" : "Show Preview"}
-                                                    </Button>
-                                                )}
-                                                <Button
-                                                    size="sm"
-                                                    color="tertiary"
-                                                    iconLeading={ArrowUpRight}
-                                                    onClick={() => window.open(post.file_url!, '_blank')}
-                                                >
-                                                    Open
-                                                </Button>
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -12,12 +12,15 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 interface PdfViewerProps {
     url: string;
+    title?: string;
 }
 
-export const PdfViewer = ({ url }: PdfViewerProps) => {
+export const PdfViewer = ({ url, title }: PdfViewerProps) => {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [containerWidth, setContainerWidth] = useState<number | null>(null);
     const [isMounted, setIsMounted] = useState(false);
+
+    const filename = title || decodeURIComponent(url.split('/').pop()?.split('-').slice(1).join('-') || "Document.pdf");
 
     useEffect(() => {
         setIsMounted(true);
@@ -38,15 +41,20 @@ export const PdfViewer = ({ url }: PdfViewerProps) => {
     return (
         <div className="flex flex-col gap-0 w-full bg-secondary/5 rounded-xl border border-secondary" ref={setContainerRef}>
             <div className="flex items-center justify-between p-3 border-b border-secondary bg-primary rounded-t-xl">
-                <div className="text-xs font-semibold text-secondary">
-                    PDF Document <span className="text-tertiary">({numPages || '--'} pages)</span>
+                <div className="flex flex-col gap-0.5">
+                    <div className="text-sm font-semibold text-primary truncate max-w-[300px] sm:max-w-md">
+                        {filename}
+                    </div>
+                    <div className="text-[10px] font-bold text-tertiary uppercase tracking-widest">
+                        {numPages || '--'} Pages
+                    </div>
                 </div>
-                <Button size="sm" color="tertiary" iconLeading={ArrowUpRight} onClick={() => window.open(url, '_blank')}>
-                    Open Original
+                <Button size="sm" color="secondary" iconLeading={ArrowUpRight} onClick={() => window.open(url, '_blank')}>
+                    Open
                 </Button>
             </div>
 
-            <div className="flex flex-col items-center gap-4 p-4 bg-secondary/10 overflow-auto max-h-[800px] min-h-[400px]">
+            <div className="flex flex-col items-center gap-4 p-4 bg-secondary/10 overflow-auto max-h-[500px] min-h-[250px]">
                 <Document
                     file={url}
                     onLoadSuccess={onDocumentLoadSuccess}
