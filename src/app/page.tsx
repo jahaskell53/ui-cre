@@ -533,9 +533,9 @@ export default function FeedPage() {
             {showPostModal && (
                 <ModalOverlay isOpen={showPostModal} onOpenChange={setShowPostModal}>
                     <Modal>
-                        <Dialog className="w-full max-w-2xl mx-auto bg-primary rounded-xl shadow-lg p-6">
+                        <Dialog className="w-full max-w-6xl mx-auto bg-primary rounded-xl shadow-lg p-6">
                             {({ close }) => (
-                                <div className="space-y-4">
+                                <div className="w-full space-y-4">
                                     <div className="flex items-center justify-between border-b border-secondary pb-4 -mx-6 px-6 mb-2">
                                         <h2 className="text-lg font-semibold text-primary">Create new post</h2>
                                         <Button
@@ -547,7 +547,7 @@ export default function FeedPage() {
                                         />
                                     </div>
 
-                                    <div className="flex flex-col gap-6">
+                                    <div className="w-full flex flex-col gap-6">
                                         <div className="flex flex-col gap-3">
                                             <span className="text-sm font-medium text-secondary">Select post type</span>
                                             <div className="flex gap-2">
