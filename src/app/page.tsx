@@ -393,6 +393,7 @@ export default function FeedPage() {
     const [postContent, setPostContent] = useState("");
     const [postUrl, setPostUrl] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showingLiked, setShowingLiked] = useState(false);
 
     useEffect(() => {
         if (!userLoading) {
@@ -589,7 +590,14 @@ export default function FeedPage() {
                         <p className="text-lg text-tertiary">Curated multi-family intelligence and community insights.</p>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
-                        <Button color="secondary" iconLeading={Heart} className="flex-1 lg:flex-none">Liked</Button>
+                        <Button
+                            color={showingLiked ? "primary" : "secondary"}
+                            iconLeading={Heart}
+                            className="flex-1 lg:flex-none"
+                            onClick={() => setShowingLiked(!showingLiked)}
+                        >
+                            Liked
+                        </Button>
                         <Button
                             color="primary"
                             iconLeading={MessageChatSquare}
@@ -605,27 +613,31 @@ export default function FeedPage() {
                     <div className="flex flex-col gap-8">
                         <section className="flex flex-col gap-6">
                             <div className="flex justify-between items-center border-b border-secondary pb-4">
-                                <h2 className="text-xl font-semibold text-primary">Industry Intelligence</h2>
+                                <h2 className="text-xl font-semibold text-primary">
+                                    {showingLiked ? "Liked Posts" : "Industry Intelligence"}
+                                </h2>
                             </div>
 
                             <div className="grid gap-8">
-                                {posts.length === 0 ? (
+                                {posts.filter(p => !showingLiked || p.is_liked).length === 0 ? (
                                     <div className="text-center py-12 text-tertiary">
-                                        No posts yet. Be the first to share something!
+                                        {showingLiked ? "You haven't liked any posts yet." : "No posts yet. Be the first to share something!"}
                                     </div>
                                 ) : (
-                                    posts.map((post) => (
-                                        <FeedItem
-                                            key={post.id}
-                                            post={post}
-                                            currentUserId={user?.id}
-                                            currentUserProfile={profile}
-                                            onLike={handleLike}
-                                            onComment={handleComment}
-                                            onDeletePost={handleDeletePost}
-                                            onDeleteComment={handleDeleteComment}
-                                        />
-                                    ))
+                                    posts
+                                        .filter(p => !showingLiked || p.is_liked)
+                                        .map((post) => (
+                                            <FeedItem
+                                                key={post.id}
+                                                post={post}
+                                                currentUserId={user?.id}
+                                                currentUserProfile={profile}
+                                                onLike={handleLike}
+                                                onComment={handleComment}
+                                                onDeletePost={handleDeletePost}
+                                                onDeleteComment={handleDeleteComment}
+                                            />
+                                        ))
                                 )}
                             </div>
                         </section>
@@ -672,8 +684,6 @@ export default function FeedPage() {
                                                 </Button>
                                             </div>
                                         </div>
-
-
                                         {postType === "link" && (
                                             <div className="space-y-4 animate-in fade-in duration-200">
                                                 <Input
