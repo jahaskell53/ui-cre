@@ -14,6 +14,7 @@
         "@tailwindcss/typography": "^0.5.19",
         "@untitledui/file-icons": "^0.0.8",
         "@untitledui/icons": "^0.0.19",
+        "date-fns": "^4.1.0",
         "input-otp": "^1.4.2",
         "mapbox-gl": "^3.17.0",
         "motion": "^12.23.26",
