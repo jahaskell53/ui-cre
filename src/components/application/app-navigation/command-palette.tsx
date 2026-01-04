@@ -7,7 +7,7 @@ import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/mod
 import { Input } from "@/components/base/input/input";
 import { cx } from "@/utils/cx";
 import { useRouter } from "next/navigation";
-import { APP_NAV_ITEMS } from "@/config/nav";
+import { APP_NAV_ITEMS, FOOTER_NAV_ITEMS } from "@/config/nav";
 
 interface CommandPaletteProps {
     isOpen: boolean;
@@ -30,9 +30,9 @@ export const CommandPalette = ({ isOpen, setOpen }: CommandPaletteProps) => {
         setQuery("");
     }, [setOpen]);
 
-    // Dummy search items - combining nav items and some mock actions
+    // Combine all navigation items for search
     const items = useMemo(() => {
-        const navItems = APP_NAV_ITEMS.map(item => ({
+        const mainItems = APP_NAV_ITEMS.map(item => ({
             id: item.href,
             label: item.label,
             icon: item.icon,
@@ -40,12 +40,15 @@ export const CommandPalette = ({ isOpen, setOpen }: CommandPaletteProps) => {
             category: "Navigation"
         }));
 
-        const actions = [
-            { id: "new-post", label: "Create new post", icon: File01, category: "Actions", onClick: () => console.log("New post") },
-            { id: "settings", label: "Open settings", icon: Settings01, category: "Actions", href: "/settings" },
-        ];
+        const footerItems = FOOTER_NAV_ITEMS.map(item => ({
+            id: item.href,
+            label: item.label,
+            icon: item.icon,
+            href: item.href,
+            category: "Account"
+        }));
 
-        return [...navItems, ...actions];
+        return [...mainItems, ...footerItems];
     }, []);
 
     const filteredItems = items.filter(item =>
