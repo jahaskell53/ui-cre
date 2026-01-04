@@ -589,7 +589,7 @@ export default function FeedPage() {
                         <p className="text-lg text-tertiary">Curated multi-family intelligence and community insights.</p>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
-                        <Button color="secondary" iconLeading={Bookmark} className="flex-1 lg:flex-none">Saved</Button>
+                        <Button color="secondary" iconLeading={Heart} className="flex-1 lg:flex-none">Liked</Button>
                         <Button 
                             color="primary" 
                             iconLeading={MessageChatSquare} 
