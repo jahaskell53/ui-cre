@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
-import { Heart, MessageCircle01, Bookmark, MessageChatSquare, BarChartSquare01, Send01, X } from "@untitledui/icons";
+import { Heart, MessageCircle01, Bookmark, MessageChatSquare, Send01, X } from "@untitledui/icons";
 import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
@@ -418,8 +418,8 @@ export default function FeedPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
-                    <div className="lg:col-span-2 flex flex-col gap-8">
+                <div className="grid grid-cols-1 gap-10">
+                    <div className="flex flex-col gap-8">
                         <section className="flex flex-col gap-6">
                             <div className="flex justify-between items-center border-b border-secondary pb-4">
                                 <h2 className="text-xl font-semibold text-primary">Industry Intelligence</h2>
@@ -442,23 +442,6 @@ export default function FeedPage() {
                                         />
                                     ))
                                 )}
-                            </div>
-                        </section>
-                    </div>
-
-                    <div className="flex flex-col gap-10">
-                        <section className="bg-brand-solid rounded-2xl p-6 text-white shadow-lg overflow-hidden relative">
-                            <div className="relative z-10">
-                                <h3 className="text-lg font-bold mb-2">Portfolio Health</h3>
-                                <p className="text-brand-secondary text-sm mb-6">Your holdings are performing 12% above market average.</p>
-                                <div className="flex items-end gap-3 mb-6">
-                                    <span className="text-4xl font-bold">96.4%</span>
-                                    <span className="text-sm text-brand-secondary mb-1">avg. occupancy</span>
-                                </div>
-                                <Button className="w-full bg-white text-brand-solid hover:bg-brand-secondary border-none font-bold">Manage Holdings</Button>
-                            </div>
-                            <div className="absolute right-[-20px] bottom-[-20px] opacity-10">
-                                <BarChartSquare01 className="size-32" />
                             </div>
                         </section>
                     </div>
