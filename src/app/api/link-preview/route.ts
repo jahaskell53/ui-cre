@@ -17,11 +17,15 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Type guard to check if preview has the expected properties
+    const hasTitle = "title" in preview;
+    const hasImages = "images" in preview;
+
     return NextResponse.json({
-      title: preview.title || "",
-      description: preview.description || "",
-      image: preview.images?.[0] || "",
-      siteName: preview.siteName || "",
+      title: hasTitle ? (preview.title || "") : "",
+      description: hasTitle ? (preview.description || "") : "",
+      image: hasImages && Array.isArray(preview.images) ? (preview.images[0] || "") : "",
+      siteName: hasTitle ? (preview.siteName || "") : "",
       url: preview.url || url,
     });
   } catch (error) {
