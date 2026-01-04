@@ -54,6 +54,14 @@ interface LinkPreview {
   url: string;
 }
 
+const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
+    return (
+        <Heart 
+            className={isLiked ? `${className || ''} [&>path]:fill-current` : className}
+        />
+    );
+};
+
 const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: { 
   post: Post; 
   currentUserId: string | undefined;
@@ -275,7 +283,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                             <Button 
                                 color={post.is_liked ? "primary" : "tertiary"} 
                                 size="sm" 
-                                iconLeading={Heart}
+                                iconLeading={(props) => <HeartIcon isLiked={post.is_liked || false} {...props} />}
                                 onClick={() => onLike(post.id)}
                             >
                                 {post.likes_count || 0}
