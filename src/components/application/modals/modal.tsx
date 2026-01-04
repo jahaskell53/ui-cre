@@ -9,6 +9,7 @@ export const DialogTrigger = AriaDialogTrigger;
 export const ModalOverlay = (props: AriaModalOverlayProps) => {
     return (
         <AriaModalOverlay
+            isDismissable
             {...props}
             className={(state) =>
                 cx(
