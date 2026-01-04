@@ -726,7 +726,7 @@ export default function FeedPage() {
                                             isDisabled={postType === "link" ? !postUrl.trim() : !postContent.trim()}
                                             className="flex-1 sm:flex-none"
                                         >
-                                            {postType === "link" ? "Share link" : "Post to feed"}
+                                            Share
                                         </Button>
                                     </div>
                                 </div>
