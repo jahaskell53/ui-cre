@@ -67,6 +67,7 @@ export default function ProfilePage() {
             setError(err.message || "Failed to update profile");
         } finally {
             setIsSaving(false);
+        }
     };
 
     return (
