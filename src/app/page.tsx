@@ -14,6 +14,12 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { formatDistanceToNow } from "date-fns";
+import dynamic from "next/dynamic";
+
+const PdfViewer = dynamic(() => import("@/components/base/pdf-viewer/pdf-viewer").then(mod => mod.PdfViewer), {
+    ssr: false,
+    loading: () => <div className="w-full h-[400px] border border-secondary rounded-xl animate-pulse bg-secondary/10 flex items-center justify-center text-tertiary">Loading viewer...</div>
+});
 
 interface Post {
     id: string;
@@ -214,12 +220,8 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                 ) : (
                                     <div className="flex flex-col gap-3">
                                         {showPdfPreview && post.file_url.toLowerCase().endsWith('.pdf') && (
-                                            <div className="w-full h-[600px] border border-secondary rounded-xl overflow-hidden bg-primary animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <iframe
-                                                    src={`${post.file_url}#toolbar=0`}
-                                                    className="w-full h-full"
-                                                    title="PDF Preview"
-                                                />
+                                            <div className="w-full animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <PdfViewer url={post.file_url} />
                                             </div>
                                         )}
                                         <div className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5 group">
