@@ -52,7 +52,7 @@ export default function HoldingsPage() {
                             <h2 className="text-xl font-bold text-primary">Asset Breakdown</h2>
                             <button className="text-sm font-semibold text-brand-solid hover:text-brand-tertiary">View all properties</button>
                         </div>
-                        <div className="border border-secondary rounded-2xl overflow-hidden shadow-sm bg-primary">
+                        <div className="border border-secondary rounded-2xl overflow-x-auto shadow-sm bg-primary">
                             <table className="w-full text-left">
                                 <thead className="bg-secondary/50 border-b border-secondary">
                                     <tr>

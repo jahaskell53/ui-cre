@@ -23,9 +23,9 @@ export default function CalendarPage() {
 
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                     <div className="xl:col-span-3">
-                        <div className="bg-primary border border-secondary rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-primary border border-secondary rounded-2xl overflow-x-auto shadow-sm">
                             {/* Calendar Header */}
-                            <div className="border-b border-secondary p-4 flex justify-between items-center bg-primary">
+                            <div className="border-b border-secondary p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-primary min-w-[700px]">
                                 <div className="flex items-center gap-4">
                                     <h2 className="text-lg font-semibold text-primary">December 2025</h2>
                                     <div className="flex items-center border border-secondary rounded-lg overflow-hidden">
@@ -42,14 +42,14 @@ export default function CalendarPage() {
                             </div>
 
                             {/* Calendar Grid Mock */}
-                            <div className="grid grid-cols-7 border-b border-secondary bg-secondary/30">
+                            <div className="grid grid-cols-7 border-b border-secondary bg-secondary/30 min-w-[700px]">
                                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                                     <div key={day} className="py-3 text-center text-xs font-bold text-quaternary uppercase tracking-widest">
                                         {day}
                                     </div>
                                 ))}
                             </div>
-                            <div className="grid grid-cols-7 grid-rows-5 h-[650px]">
+                            <div className="grid grid-cols-7 grid-rows-5 h-[650px] min-w-[700px]">
                                 {Array.from({ length: 35 }).map((_, i) => (
                                     <div key={i} className="border-r border-b border-secondary p-3 group hover:bg-secondary/20 transition-colors last:border-r-0 relative">
                                         <span className={`text-sm font-semibold ${(i < 3 || i > 33) ? 'text-quaternary' : 'text-secondary'}`}>

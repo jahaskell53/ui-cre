@@ -6,7 +6,7 @@ import { cx } from "@/utils/cx";
 
 export const UntitledLogo = (props: HTMLAttributes<HTMLDivElement>) => {
     return (
-        <div {...props} className={cx("flex h-12 w-full items-center justify-center overflow-visible", props.className)}>
+        <div {...props} className={cx("flex h-8 w-auto items-center overflow-visible", props.className)}>
             <Image
                 src="/horizontal-logo.png"
                 alt="Logo"

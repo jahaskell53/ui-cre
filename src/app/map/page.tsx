@@ -109,9 +109,9 @@ export default function MapPage() {
                     </div>
                 </div>
 
-                <div className="flex-1 flex border border-secondary rounded-2xl overflow-hidden bg-primary shadow-sm relative">
+                <div className="flex-1 flex flex-col lg:flex-row border border-secondary rounded-2xl overflow-hidden bg-primary shadow-sm relative">
                     {/* Map Sidebar */}
-                    <div className="w-80 border-r border-secondary flex flex-col bg-primary z-10">
+                    <div className="w-full lg:w-80 h-1/2 lg:h-auto border-b lg:border-b-0 lg:border-r border-secondary flex flex-col bg-primary z-10">
                         <div className="p-4 border-b border-secondary flex justify-between items-center bg-primary">
                             <span className="text-sm font-semibold text-secondary uppercase tracking-wider">
                                 {loading ? 'Loading...' : `Results ${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, totalCount)}`}

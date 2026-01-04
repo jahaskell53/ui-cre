@@ -143,14 +143,14 @@ export default function FeedPage() {
     return (
         <MainLayout>
             <div className="flex flex-col gap-10">
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                     <div>
                         <h1 className="text-display-sm font-semibold text-primary">Master Feed</h1>
                         <p className="text-lg text-tertiary">Curated multi-family intelligence and community insights.</p>
                     </div>
-                    <div className="flex gap-3">
-                        <Button color="secondary" iconLeading={Bookmark}>Saved</Button>
-                        <Button color="primary" iconLeading={MessageChatSquare}>New Post</Button>
+                    <div className="flex gap-3 w-full lg:w-auto">
+                        <Button color="secondary" iconLeading={Bookmark} className="flex-1 lg:flex-none">Saved</Button>
+                        <Button color="primary" iconLeading={MessageChatSquare} className="flex-1 lg:flex-none">New Post</Button>
                     </div>
                 </div>
 
