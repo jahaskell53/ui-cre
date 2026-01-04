@@ -13,7 +13,7 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
     const pathname = usePathname();
 
     return (
-        <div className="flex min-h-screen bg-secondary">
+        <div className="flex min-h-screen flex-col lg:flex-row bg-secondary">
             <SidebarNavigationSimple
                 items={APP_NAV_ITEMS}
                 footerItems={FOOTER_NAV_ITEMS}
