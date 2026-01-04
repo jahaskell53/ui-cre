@@ -17,7 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 
 interface Post {
   id: string;
-  type: "post" | "article";
+  type: "post" | "article" | "link";
   category?: string;
   title?: string;
   content: string;
@@ -282,11 +282,12 @@ export default function FeedPage() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [showPostModal, setShowPostModal] = useState(false);
-    const [postType, setPostType] = useState<"post" | "article">("post");
+    const [postType, setPostType] = useState<"post" | "article" | "link">("post");
     const [postContent, setPostContent] = useState("");
     const [postTitle, setPostTitle] = useState("");
     const [postCategory, setPostCategory] = useState("");
     const [postSummary, setPostSummary] = useState("");
+    const [postUrl, setPostUrl] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -451,7 +452,7 @@ export default function FeedPage() {
                 content: postContent.trim(),
                 title: postType === "article" ? postTitle.trim() || null : null,
                 category: postType === "article" ? postCategory.trim() || null : null,
-                summary: postType === "article" ? postSummary.trim() || null : null,
+                summary: postType === "article" ? postSummary.trim() || null : postType === "link" ? postUrl.trim() || null : null,
             });
 
         if (!error) {
@@ -460,6 +461,7 @@ export default function FeedPage() {
             setPostTitle("");
             setPostCategory("");
             setPostSummary("");
+            setPostUrl("");
             setPostType("post");
             loadPosts();
             close?.();
@@ -567,6 +569,14 @@ export default function FeedPage() {
                                                 >
                                                     Article
                                                 </Button>
+                                                <Button
+                                                    color={postType === "link" ? "primary" : "secondary"}
+                                                    size="sm"
+                                                    onClick={() => setPostType("link")}
+                                                    className="flex-1 lg:flex-none"
+                                                >
+                                                    Link
+                                                </Button>
                                             </div>
                                         </div>
 
@@ -594,9 +604,20 @@ export default function FeedPage() {
                                             </div>
                                         )}
 
+                                        {postType === "link" && (
+                                            <div className="space-y-4 animate-in fade-in duration-200">
+                                                <Input
+                                                    label="URL"
+                                                    placeholder="https://example.com"
+                                                    value={postUrl}
+                                                    onChange={setPostUrl}
+                                                />
+                                            </div>
+                                        )}
+
                                         <TextArea
-                                            label={postType === "article" ? "Content" : "What's on your mind?"}
-                                            placeholder={postType === "article" ? "Start writing your article..." : "Share your thoughts with the community..."}
+                                            label={postType === "article" ? "Content" : postType === "link" ? "Description" : "What's on your mind?"}
+                                            placeholder={postType === "article" ? "Start writing your article..." : postType === "link" ? "Add a description for this link..." : "Share your thoughts with the community..."}
                                             value={postContent}
                                             onChange={setPostContent}
                                             rows={postType === "article" ? 8 : 4}
@@ -612,6 +633,7 @@ export default function FeedPage() {
                                                 setPostTitle("");
                                                 setPostCategory("");
                                                 setPostSummary("");
+                                                setPostUrl("");
                                                 setPostType("post");
                                             }}
                                             className="flex-1 sm:flex-none"
@@ -624,7 +646,7 @@ export default function FeedPage() {
                                             isDisabled={!postContent.trim()}
                                             className="flex-1 sm:flex-none"
                                         >
-                                            {postType === "article" ? "Publish article" : "Post to feed"}
+                                            {postType === "article" ? "Publish article" : postType === "link" ? "Share link" : "Post to feed"}
                                         </Button>
                                     </div>
                                 </div>
