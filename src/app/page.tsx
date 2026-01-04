@@ -79,6 +79,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+    const [showPdfPreview, setShowPdfPreview] = useState(true);
     const isArticle = post.type !== "post";
     const isLink = post.type === "link";
     const authorName = post.profile?.full_name || post.profile?.username || "Anonymous User";
@@ -211,25 +212,49 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                         />
                                     </div>
                                 ) : (
-                                    <a
-                                        href={post.file_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5 hover:bg-secondary/10 transition-colors group"
-                                    >
-                                        <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary group-hover:text-brand-solid transition-colors">
-                                            <File02 className="size-5" />
+                                    <div className="flex flex-col gap-3">
+                                        {showPdfPreview && post.file_url.toLowerCase().endsWith('.pdf') && (
+                                            <div className="w-full h-[600px] border border-secondary rounded-xl overflow-hidden bg-primary animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <iframe
+                                                    src={`${post.file_url}#toolbar=0`}
+                                                    className="w-full h-full"
+                                                    title="PDF Preview"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5 group">
+                                            <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary">
+                                                <File02 className="size-5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-primary truncate">
+                                                    {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
+                                                </p>
+                                                <p className="text-xs text-tertiary uppercase tracking-wider">
+                                                    {post.file_url.split('.').pop()?.toUpperCase()} File
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {post.file_url.toLowerCase().endsWith('.pdf') && (
+                                                    <Button
+                                                        size="sm"
+                                                        color="secondary"
+                                                        onClick={() => setShowPdfPreview(!showPdfPreview)}
+                                                    >
+                                                        {showPdfPreview ? "Hide Preview" : "Show Preview"}
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    size="sm"
+                                                    color="tertiary"
+                                                    iconLeading={ArrowUpRight}
+                                                    onClick={() => window.open(post.file_url!, '_blank')}
+                                                >
+                                                    Open
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-primary truncate">
-                                                {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
-                                            </p>
-                                            <p className="text-xs text-tertiary uppercase tracking-wider">
-                                                {post.file_url.split('.').pop()?.toUpperCase()} File
-                                            </p>
-                                        </div>
-                                        <ArrowUpRight className="size-4 text-tertiary group-hover:text-brand-solid transition-colors" />
-                                    </a>
+                                    </div>
                                 )}
                             </div>
                         )}
