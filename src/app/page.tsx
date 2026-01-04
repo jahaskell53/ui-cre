@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
-import { Heart, MessageCircle01, Bookmark, MessageChatSquare, Send01, X } from "@untitledui/icons";
+import { Heart, MessageCircle01, Bookmark, MessageChatSquare, Send01, X, Trash01, DotsVertical } from "@untitledui/icons";
 import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
+import { Dropdown } from "@/components/base/dropdown/dropdown";
+import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { formatDistanceToNow } from "date-fns";
@@ -44,12 +46,14 @@ interface Comment {
   };
 }
 
-const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment }: { 
+const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: { 
   post: Post; 
   currentUserId: string | undefined;
   currentUserProfile: { full_name: string | null; avatar_url: string | null } | null;
   onLike: (postId: string) => void;
   onComment: (postId: string, content: string) => void;
+  onDeletePost: (postId: string) => void;
+  onDeleteComment: (commentId: string, postId: string) => void;
 }) => {
     const [showComments, setShowComments] = useState(false);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -115,16 +119,42 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment }
                 )}
                 <div className="p-6 flex flex-col justify-between flex-1">
                     <div>
-                        <div className="flex items-center gap-3 mb-3">
-                            {post.category && (
-                                <>
-                                    <span className="text-xs font-bold text-brand-solid uppercase tracking-widest">{post.category}</span>
-                                    <span className="w-1 h-1 rounded-full bg-quaternary" />
-                                </>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                                {post.category && (
+                                    <>
+                                        <span className="text-xs font-bold text-brand-solid uppercase tracking-widest">{post.category}</span>
+                                        <span className="w-1 h-1 rounded-full bg-quaternary" />
+                                    </>
+                                )}
+                                <span className="text-sm text-tertiary">
+                                    {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                                </span>
+                            </div>
+                            {currentUserId === post.user_id && (
+                                <Dropdown.Root>
+                                    <ButtonUtility 
+                                        icon={DotsVertical} 
+                                        size="sm" 
+                                        color="tertiary"
+                                        tooltip="More options"
+                                    />
+                                    <Dropdown.Popover>
+                                        <Dropdown.Menu>
+                                            <Dropdown.Item 
+                                                icon={Trash01}
+                                                onAction={() => {
+                                                    if (confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
+                                                        onDeletePost(post.id);
+                                                    }
+                                                }}
+                                            >
+                                                Delete post
+                                            </Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown.Popover>
+                                </Dropdown.Root>
                             )}
-                            <span className="text-sm text-tertiary">
-                                {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                            </span>
                         </div>
                         {post.title && <h3 className="text-xl font-bold text-primary mb-3 leading-snug">{post.title}</h3>}
                         <p className="text-secondary text-base mb-6 leading-relaxed">
@@ -181,9 +211,25 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment }
                                         <div className="flex-1 bg-primary p-3 rounded-xl border border-secondary shadow-xs">
                                             <div className="flex justify-between items-center mb-1">
                                                 <span className="text-xs font-bold text-primary">{commentAuthorName}</span>
-                                                <span className="text-[10px] text-tertiary uppercase">
-                                                    {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] text-tertiary uppercase">
+                                                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                                                    </span>
+                                                    {currentUserId === comment.user_id && (
+                                                        <ButtonUtility
+                                                            icon={Trash01}
+                                                            size="xs"
+                                                            color="tertiary"
+                                                            tooltip="Delete comment"
+                                                            onClick={async () => {
+                                                                if (confirm("Are you sure you want to delete this comment?")) {
+                                                                    await onDeleteComment(comment.id, post.id);
+                                                                    loadComments();
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
                                             <p className="text-sm text-secondary">{comment.content}</p>
                                         </div>
@@ -359,6 +405,40 @@ export default function FeedPage() {
         ));
     };
 
+    const handleDeletePost = async (postId: string) => {
+        const { error } = await supabase
+            .from("posts")
+            .delete()
+            .eq("id", postId)
+            .eq("user_id", user?.id);
+
+        if (!error) {
+            setPosts(posts.filter(p => p.id !== postId));
+        } else {
+            console.error("Error deleting post:", error.message);
+            alert("Failed to delete post. Please try again.");
+        }
+    };
+
+    const handleDeleteComment = async (commentId: string, postId: string) => {
+        const { error } = await supabase
+            .from("comments")
+            .delete()
+            .eq("id", commentId)
+            .eq("user_id", user?.id);
+
+        if (!error) {
+            setPosts(posts.map(p => 
+                p.id === postId 
+                    ? { ...p, comments_count: Math.max(0, (p.comments_count || 0) - 1) }
+                    : p
+            ));
+        } else {
+            console.error("Error deleting comment:", error.message);
+            alert("Failed to delete comment. Please try again.");
+        }
+    };
+
     const handleCreatePost = async (close?: () => void) => {
         if (!user || !postContent.trim()) return;
 
@@ -439,6 +519,8 @@ export default function FeedPage() {
                                             currentUserProfile={profile}
                                             onLike={handleLike}
                                             onComment={handleComment}
+                                            onDeletePost={handleDeletePost}
+                                            onDeleteComment={handleDeleteComment}
                                         />
                                     ))
                                 )}
