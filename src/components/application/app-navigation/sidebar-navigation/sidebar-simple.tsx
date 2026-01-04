@@ -9,7 +9,6 @@ import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountCard } from "../base-components/nav-account-card";
 import { NavItemBase } from "../base-components/nav-item";
 import { NavList } from "../base-components/nav-list";
-import { ThemeToggle } from "../base-components/theme-toggle";
 import type { NavItemType } from "../config";
 
 interface SidebarNavigationProps {
@@ -74,9 +73,6 @@ export const SidebarNavigationSimple = ({
             <NavList activeUrl={activeUrl} items={items} />
 
             <div className="mt-auto flex flex-col gap-4 px-2 py-4 lg:px-4 lg:py-6">
-                <div className="px-2">
-                    <ThemeToggle />
-                </div>
                 {footerItems.length > 0 && (
                     <ul className="flex flex-col">
                         {footerItems.map((item) => (
