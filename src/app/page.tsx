@@ -16,60 +16,60 @@ import { supabase } from "@/utils/supabase";
 import { formatDistanceToNow } from "date-fns";
 
 interface Post {
-  id: string;
-  type: "post" | "article" | "link";
-  category?: string;
-  title?: string;
-  content: string;
-  summary?: string;
-  created_at: string;
-  user_id: string;
-  profile?: {
-    full_name: string | null;
-    username: string | null;
-    avatar_url: string | null;
-  };
-  likes_count?: number;
-  comments_count?: number;
-  is_liked?: boolean;
+    id: string;
+    type: "post" | "article" | "link";
+    category?: string;
+    title?: string;
+    content: string;
+    summary?: string;
+    created_at: string;
+    user_id: string;
+    profile?: {
+        full_name: string | null;
+        username: string | null;
+        avatar_url: string | null;
+    };
+    likes_count?: number;
+    comments_count?: number;
+    is_liked?: boolean;
 }
 
 interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  profile?: {
-    full_name: string | null;
-    username: string | null;
-    avatar_url: string | null;
-  };
+    id: string;
+    content: string;
+    created_at: string;
+    user_id: string;
+    profile?: {
+        full_name: string | null;
+        username: string | null;
+        avatar_url: string | null;
+    };
 }
 
 interface LinkPreview {
-  title: string;
-  description: string;
-  image: string;
-  siteName: string;
-  url: string;
+    title: string;
+    description: string;
+    image: string;
+    siteName: string;
+    url: string;
 }
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
     return (
-        <Heart 
+        <Heart
             className={isLiked ? `${className || ''} [&>path]:fill-current` : className}
         />
     );
 };
 
-const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: { 
-  post: Post; 
-  currentUserId: string | undefined;
-  currentUserProfile: { full_name: string | null; avatar_url: string | null } | null;
-  onLike: (postId: string) => void;
-  onComment: (postId: string, content: string) => void;
-  onDeletePost: (postId: string) => void;
-  onDeleteComment: (commentId: string, postId: string) => void;
+const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: {
+    post: Post;
+    currentUserId: string | undefined;
+    currentUserProfile: { full_name: string | null; avatar_url: string | null } | null;
+    onLike: (postId: string) => void;
+    onComment: (postId: string, content: string) => void;
+    onDeletePost: (postId: string) => void;
+    onDeleteComment: (commentId: string, postId: string) => void;
 }) => {
     const [showComments, setShowComments] = useState(false);
     const [comments, setComments] = useState<Comment[]>([]);
@@ -132,7 +132,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
 
     const handleComment = async () => {
         if (!commentText.trim() || !currentUserId) return;
-        
+
         setIsSubmittingComment(true);
         const { error } = await supabase
             .from("comments")
@@ -169,15 +169,15 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                             </div>
                             {currentUserId === post.user_id && (
                                 <Dropdown.Root>
-                                    <ButtonUtility 
-                                        icon={DotsVertical} 
-                                        size="sm" 
+                                    <ButtonUtility
+                                        icon={DotsVertical}
+                                        size="sm"
                                         color="tertiary"
                                         tooltip="More options"
                                     />
                                     <Dropdown.Popover>
                                         <Dropdown.Menu>
-                                            <Dropdown.Item 
+                                            <Dropdown.Item
                                                 icon={Trash01}
                                                 onAction={() => {
                                                     if (confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
@@ -270,8 +270,8 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                     </div>
                     <div className="flex items-center justify-between mt-auto">
                         <div className="flex items-center gap-3">
-                            <Avatar 
-                                size="sm" 
+                            <Avatar
+                                size="sm"
                                 initials={initials}
                                 src={post.profile?.avatar_url || undefined}
                             />
@@ -280,9 +280,9 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                             </div>
                         </div>
                         <div className="flex gap-1">
-                            <Button 
-                                color={post.is_liked ? "primary" : "tertiary"} 
-                                size="sm" 
+                            <Button
+                                color={post.is_liked ? "primary" : "tertiary"}
+                                size="sm"
                                 iconLeading={(props) => <HeartIcon isLiked={post.is_liked || false} {...props} />}
                                 onClick={() => onLike(post.id)}
                             >
@@ -310,8 +310,8 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                 const commentInitials = commentAuthorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
                                 return (
                                     <div key={comment.id} className="flex gap-3">
-                                        <Avatar 
-                                            size="xs" 
+                                        <Avatar
+                                            size="xs"
                                             initials={commentInitials}
                                             src={comment.profile?.avatar_url || undefined}
                                         />
@@ -346,8 +346,8 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                         </div>
                         {currentUserId && currentUserProfile && (
                             <div className="flex gap-3 items-start mt-2">
-                                <Avatar 
-                                    size="xs" 
+                                <Avatar
+                                    size="xs"
                                     initials={currentUserProfile.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
                                     src={currentUserProfile.avatar_url || undefined}
                                 />
@@ -365,10 +365,10 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                             }
                                         }}
                                     />
-                                    <Button 
-                                        color="primary" 
-                                        size="sm" 
-                                        iconLeading={Send01} 
+                                    <Button
+                                        color="primary"
+                                        size="sm"
+                                        iconLeading={Send01}
                                         className="shrink-0"
                                         onClick={handleComment}
                                         isLoading={isSubmittingComment}
@@ -389,11 +389,8 @@ export default function FeedPage() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [showPostModal, setShowPostModal] = useState(false);
-    const [postType, setPostType] = useState<"post" | "article" | "link">("post");
+    const [postType, setPostType] = useState<"post" | "link">("post");
     const [postContent, setPostContent] = useState("");
-    const [postTitle, setPostTitle] = useState("");
-    const [postCategory, setPostCategory] = useState("");
-    const [postSummary, setPostSummary] = useState("");
     const [postUrl, setPostUrl] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -421,7 +418,7 @@ export default function FeedPage() {
 
         if (postsData) {
             const postIds = postsData.map(p => p.id);
-            
+
             // Get likes count and check if current user liked
             const { data: likesData } = await supabase
                 .from("likes")
@@ -480,8 +477,8 @@ export default function FeedPage() {
                 .eq("user_id", user.id);
 
             if (!error) {
-                setPosts(posts.map(p => 
-                    p.id === postId 
+                setPosts(posts.map(p =>
+                    p.id === postId
                         ? { ...p, is_liked: false, likes_count: (p.likes_count || 0) - 1 }
                         : p
                 ));
@@ -496,8 +493,8 @@ export default function FeedPage() {
                 });
 
             if (!error) {
-                setPosts(posts.map(p => 
-                    p.id === postId 
+                setPosts(posts.map(p =>
+                    p.id === postId
                         ? { ...p, is_liked: true, likes_count: (p.likes_count || 0) + 1 }
                         : p
                 ));
@@ -506,8 +503,8 @@ export default function FeedPage() {
     };
 
     const handleComment = async (postId: string, content: string) => {
-        setPosts(posts.map(p => 
-            p.id === postId 
+        setPosts(posts.map(p =>
+            p.id === postId
                 ? { ...p, comments_count: (p.comments_count || 0) + 1 }
                 : p
         ));
@@ -536,8 +533,8 @@ export default function FeedPage() {
             .eq("user_id", user?.id);
 
         if (!error) {
-            setPosts(posts.map(p => 
-                p.id === postId 
+            setPosts(posts.map(p =>
+                p.id === postId
                     ? { ...p, comments_count: Math.max(0, (p.comments_count || 0) - 1) }
                     : p
             ));
@@ -559,17 +556,12 @@ export default function FeedPage() {
                 user_id: user.id,
                 type: postType,
                 content: postType === "link" ? "" : postContent.trim(),
-                title: postType === "article" ? postTitle.trim() || null : null,
-                category: postType === "article" ? postCategory.trim() || null : null,
-                summary: postType === "article" ? postSummary.trim() || null : postType === "link" ? postUrl.trim() || null : null,
+                summary: postType === "link" ? postUrl.trim() || null : null,
             });
 
         if (!error) {
             setShowPostModal(false);
             setPostContent("");
-            setPostTitle("");
-            setPostCategory("");
-            setPostSummary("");
             setPostUrl("");
             setPostType("post");
             loadPosts();
@@ -598,9 +590,9 @@ export default function FeedPage() {
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
                         <Button color="secondary" iconLeading={Heart} className="flex-1 lg:flex-none">Liked</Button>
-                        <Button 
-                            color="primary" 
-                            iconLeading={MessageChatSquare} 
+                        <Button
+                            color="primary"
+                            iconLeading={MessageChatSquare}
                             className="flex-1 lg:flex-none"
                             onClick={() => setShowPostModal(true)}
                         >
@@ -623,8 +615,8 @@ export default function FeedPage() {
                                     </div>
                                 ) : (
                                     posts.map((post) => (
-                                        <FeedItem 
-                                            key={post.id} 
+                                        <FeedItem
+                                            key={post.id}
                                             post={post}
                                             currentUserId={user?.id}
                                             currentUserProfile={profile}
@@ -671,14 +663,6 @@ export default function FeedPage() {
                                                     Post
                                                 </Button>
                                                 <Button
-                                                    color={postType === "article" ? "primary" : "secondary"}
-                                                    size="sm"
-                                                    onClick={() => setPostType("article")}
-                                                    className="flex-1 lg:flex-none"
-                                                >
-                                                    Article
-                                                </Button>
-                                                <Button
                                                     color={postType === "link" ? "primary" : "secondary"}
                                                     size="sm"
                                                     onClick={() => setPostType("link")}
@@ -689,29 +673,6 @@ export default function FeedPage() {
                                             </div>
                                         </div>
 
-                                        {postType === "article" && (
-                                            <div className="space-y-4 animate-in fade-in duration-200">
-                                                <Input
-                                                    label="Title"
-                                                    placeholder="Enter article title"
-                                                    value={postTitle}
-                                                    onChange={setPostTitle}
-                                                />
-                                                <Input
-                                                    label="Category"
-                                                    placeholder="e.g., Market Analysis"
-                                                    value={postCategory}
-                                                    onChange={setPostCategory}
-                                                />
-                                                <TextArea
-                                                    label="Summary"
-                                                    placeholder="Brief summary of the article"
-                                                    value={postSummary}
-                                                    onChange={setPostSummary}
-                                                    rows={2}
-                                                />
-                                            </div>
-                                        )}
 
                                         {postType === "link" && (
                                             <div className="space-y-4 animate-in fade-in duration-200">
@@ -726,11 +687,11 @@ export default function FeedPage() {
 
                                         {postType !== "link" && (
                                             <TextArea
-                                                label={postType === "article" ? "Content" : "What's on your mind?"}
-                                                placeholder={postType === "article" ? "Start writing your article..." : "Share your thoughts with the community..."}
+                                                label="What's on your mind?"
+                                                placeholder="Share your thoughts with the community..."
                                                 value={postContent}
                                                 onChange={setPostContent}
-                                                rows={postType === "article" ? 8 : 4}
+                                                rows={4}
                                             />
                                         )}
                                     </div>
@@ -741,9 +702,6 @@ export default function FeedPage() {
                                             onClick={() => {
                                                 close();
                                                 setPostContent("");
-                                                setPostTitle("");
-                                                setPostCategory("");
-                                                setPostSummary("");
                                                 setPostUrl("");
                                                 setPostType("post");
                                             }}
@@ -757,7 +715,7 @@ export default function FeedPage() {
                                             isDisabled={postType === "link" ? !postUrl.trim() : !postContent.trim()}
                                             className="flex-1 sm:flex-none"
                                         >
-                                            {postType === "article" ? "Publish article" : postType === "link" ? "Share link" : "Post to feed"}
+                                            {postType === "link" ? "Share link" : "Post to feed"}
                                         </Button>
                                     </div>
                                 </div>
