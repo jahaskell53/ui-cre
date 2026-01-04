@@ -57,7 +57,8 @@ interface LinkPreview {
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
     return (
         <Heart
-            className={isLiked ? `${className || ''} [&>path]:fill-current` : className}
+            className={className}
+            fill={isLiked ? "currentColor" : "none"}
         />
     );
 };
@@ -592,7 +593,7 @@ export default function FeedPage() {
                     <div className="flex gap-3 w-full lg:w-auto">
                         <Button
                             color={showingLiked ? "primary" : "secondary"}
-                            iconLeading={Heart}
+                            iconLeading={(props) => <HeartIcon isLiked={showingLiked} {...props} />}
                             className="flex-1 lg:flex-none"
                             onClick={() => setShowingLiked(!showingLiked)}
                         >
