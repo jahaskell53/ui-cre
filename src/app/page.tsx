@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
-import { Heart, MessageCircle01, Bookmark, MessageChatSquare, Send01, X, Trash01, DotsVertical, ArrowUpRight } from "@untitledui/icons";
+import { Heart, MessageCircle01, MessageChatSquare, Send01, X, Trash01, DotsVertical, ArrowUpRight, File02 } from "@untitledui/icons";
 import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
@@ -22,6 +22,7 @@ interface Post {
     title?: string;
     content: string;
     summary?: string;
+    file_url?: string | null;
     created_at: string;
     user_id: string;
     profile?: {
@@ -198,6 +199,39 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                             <p className="text-secondary text-base mb-6 leading-relaxed">
                                 {post.summary || post.content}
                             </p>
+                        )}
+                        {post.file_url && (
+                            <div className="mb-6">
+                                {post.file_url.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
+                                    <div className="border border-secondary rounded-xl overflow-hidden bg-secondary/10">
+                                        <img
+                                            src={post.file_url}
+                                            alt="Post attachment"
+                                            className="w-full max-h-[500px] object-contain mx-auto"
+                                        />
+                                    </div>
+                                ) : (
+                                    <a
+                                        href={post.file_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5 hover:bg-secondary/10 transition-colors group"
+                                    >
+                                        <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary group-hover:text-brand-solid transition-colors">
+                                            <File02 className="size-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-primary truncate">
+                                                {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
+                                            </p>
+                                            <p className="text-xs text-tertiary uppercase tracking-wider">
+                                                {post.file_url.split('.').pop()?.toUpperCase()} File
+                                            </p>
+                                        </div>
+                                        <ArrowUpRight className="size-4 text-tertiary group-hover:text-brand-solid transition-colors" />
+                                    </a>
+                                )}
+                            </div>
                         )}
                         {isLink && (
                             <div className="mb-6">
@@ -395,6 +429,8 @@ export default function FeedPage() {
     const [postUrl, setPostUrl] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showingLiked, setShowingLiked] = useState(false);
+    const [attachedFileUrl, setAttachedFileUrl] = useState<string | null>(null);
+    const [isUploadingFile, setIsUploadingFile] = useState(false);
 
     useEffect(() => {
         if (!userLoading) {
@@ -546,6 +582,34 @@ export default function FeedPage() {
         }
     };
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingFile(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                setAttachedFileUrl(data.url);
+            } else {
+                alert(data.error || "Failed to upload file");
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert("Failed to upload file");
+        } finally {
+            setIsUploadingFile(false);
+        }
+    };
+
     const handleCreatePost = async (close?: () => void) => {
         if (!user) return;
         if (postType !== "link" && !postContent.trim()) return;
@@ -559,12 +623,14 @@ export default function FeedPage() {
                 type: postType,
                 content: postType === "link" ? "" : postContent.trim(),
                 summary: postType === "link" ? postUrl.trim() || null : null,
+                file_url: attachedFileUrl,
             });
 
         if (!error) {
             setShowPostModal(false);
             setPostContent("");
             setPostUrl("");
+            setAttachedFileUrl(null);
             setPostType("post");
             loadPosts();
             close?.();
@@ -705,6 +771,51 @@ export default function FeedPage() {
                                                 rows={4}
                                             />
                                         )}
+
+                                        <div className="flex flex-col gap-3">
+                                            <span className="text-sm font-medium text-secondary">Attachments</span>
+                                            <div className="flex flex-wrap gap-3">
+                                                {attachedFileUrl ? (
+                                                    <div className="relative w-32 h-32 border border-secondary rounded-lg overflow-hidden group bg-secondary/5 flex items-center justify-center p-2">
+                                                        {attachedFileUrl.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
+                                                            <img src={attachedFileUrl} className="w-full h-full object-cover rounded-md" />
+                                                        ) : (
+                                                            <div className="flex flex-col items-center text-center gap-1">
+                                                                <File02 className="size-8 text-tertiary" />
+                                                                <span className="text-[10px] font-medium text-secondary truncate w-24">
+                                                                    {decodeURIComponent(attachedFileUrl.split('/').pop()?.split('-').slice(1).join('-') || "File")}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            onClick={() => setAttachedFileUrl(null)}
+                                                            className="absolute top-1 right-1 p-1 bg-primary/80 rounded-full text-primary opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                                        >
+                                                            <X className="size-4" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <label className="cursor-pointer">
+                                                        <input
+                                                            type="file"
+                                                            className="hidden"
+                                                            onChange={handleFileUpload}
+                                                            disabled={isUploadingFile}
+                                                        />
+                                                        <div className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-secondary rounded-lg hover:border-tertiary transition-colors bg-secondary/5">
+                                                            {isUploadingFile ? (
+                                                                <div className="text-xs text-tertiary animate-pulse">Uploading...</div>
+                                                            ) : (
+                                                                <>
+                                                                    <File02 className="size-6 text-tertiary mb-2" />
+                                                                    <span className="text-xs text-tertiary">Add file</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 border-t border-secondary -mx-6 px-6 mt-2">
@@ -714,6 +825,7 @@ export default function FeedPage() {
                                                 close();
                                                 setPostContent("");
                                                 setPostUrl("");
+                                                setAttachedFileUrl(null);
                                                 setPostType("post");
                                             }}
                                             className="flex-1 sm:flex-none"
