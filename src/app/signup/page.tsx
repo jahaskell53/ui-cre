@@ -6,15 +6,27 @@ import Link from "next/link";
 import { supabase } from "@/utils/supabase";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
 
 export default function SignUpPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [fullName, setFullName] = useState("");
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+
+    const roles = ["Property Owner", "Broker", "Lender"];
+
+    const toggleRole = (role: string) => {
+        setSelectedRoles(prev =>
+            prev.includes(role)
+                ? prev.filter(r => r !== role)
+                : [...prev, role]
+        );
+    };
 
     const handleSignUp = async () => {
         setIsLoading(true);
@@ -26,7 +38,8 @@ export default function SignUpPage() {
             password,
             options: {
                 data: {
-                    full_name: fullName || undefined
+                    full_name: fullName || undefined,
+                    roles: selectedRoles
                 },
                 emailRedirectTo: `${window.location.origin}/auth/callback`,
             }
@@ -85,6 +98,21 @@ export default function SignUpPage() {
                         onChange={setPassword}
                         isDisabled={isLoading}
                     />
+
+                    <div className="space-y-3">
+                        <label className="text-sm font-medium text-secondary">I am a (select all that apply):</label>
+                        <div className="flex flex-col gap-3 p-4 border border-secondary rounded-xl bg-secondary/5">
+                            {roles.map((role) => (
+                                <Checkbox
+                                    key={role}
+                                    label={role}
+                                    isSelected={selectedRoles.includes(role)}
+                                    onChange={() => toggleRole(role)}
+                                    isDisabled={isLoading}
+                                />
+                            ))}
+                        </div>
+                    </div>
                     <Button
                         onClick={handleSignUp}
                         isLoading={isLoading}
