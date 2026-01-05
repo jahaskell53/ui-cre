@@ -20,19 +20,20 @@ export default function SignUpPage() {
         setIsLoading(true);
         setError(null);
         setMessage(null);
-        
-        const { error } = await supabase.auth.signUp({ 
-            email, 
+
+        const { error } = await supabase.auth.signUp({
+            email,
             password,
-            options: { 
-                data: { 
+            options: {
+                data: {
                     full_name: fullName || undefined
-                } 
+                },
+                emailRedirectTo: `${window.location.origin}/auth/callback`,
             }
         });
-        
+
         setIsLoading(false);
-        
+
         if (error) {
             setError(error.message);
         } else {
@@ -47,44 +48,44 @@ export default function SignUpPage() {
                     <h1 className="text-2xl font-bold">Create an account</h1>
                     <p className="text-tertiary mt-2">Sign up to get started</p>
                 </div>
-                
+
                 {error && (
                     <div className="w-full p-3 rounded-lg bg-error-primary/10 text-error-primary text-sm">
                         {error}
                     </div>
                 )}
-                
+
                 {message && (
                     <div className="w-full p-3 rounded-lg bg-brand-primary/10 text-brand-primary text-sm">
                         {message}
                     </div>
                 )}
-                
+
                 <div className="space-y-4">
-                    <Input 
+                    <Input
                         label="Full Name"
-                        placeholder="Enter your full name" 
-                        value={fullName} 
+                        placeholder="Enter your full name"
+                        value={fullName}
                         onChange={setFullName}
                         isDisabled={isLoading}
                     />
-                    <Input 
+                    <Input
                         label="Email"
-                        placeholder="Enter your email" 
-                        value={email} 
+                        placeholder="Enter your email"
+                        value={email}
                         onChange={setEmail}
                         type="email"
                         isDisabled={isLoading}
                     />
-                    <Input 
-                        type="password" 
+                    <Input
+                        type="password"
                         label="Password"
-                        placeholder="Create a password" 
-                        value={password} 
+                        placeholder="Create a password"
+                        value={password}
                         onChange={setPassword}
                         isDisabled={isLoading}
                     />
-                    <Button 
+                    <Button
                         onClick={handleSignUp}
                         isLoading={isLoading}
                         className="w-full"
