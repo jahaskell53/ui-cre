@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Button } from "@/components/base/buttons/button";
+import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { supabase } from "@/utils/supabase";
 import { useUser } from "@/hooks/use-user";
 import { ArrowLeft } from "@untitledui/icons";
@@ -82,15 +83,12 @@ export default function UserProfilePage() {
         return (
             <MainLayout>
                 <div className="max-w-2xl">
-                    <Button
-                        color="secondary"
-                        size="sm"
+                    <ButtonUtility
+                        icon={ArrowLeft}
                         onClick={() => router.back()}
+                        tooltip="Back"
                         className="mb-6"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
-                    </Button>
+                    />
                     <div className="text-center py-12">
                         <h2 className="text-xl font-semibold text-primary mb-2">User not found</h2>
                         <p className="text-tertiary">The user profile you're looking for doesn't exist.</p>
@@ -112,15 +110,12 @@ export default function UserProfilePage() {
     return (
         <MainLayout>
             <div className="max-w-2xl">
-                <Button
-                    color="secondary"
-                    size="sm"
+                <ButtonUtility
+                    icon={ArrowLeft}
                     onClick={() => router.back()}
+                    tooltip="Back"
                     className="mb-6"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back
-                </Button>
+                />
 
                 <div className="bg-primary border border-secondary rounded-2xl p-8">
                     <div className="flex flex-col items-center text-center mb-8">
