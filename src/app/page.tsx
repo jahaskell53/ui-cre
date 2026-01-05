@@ -24,10 +24,7 @@ const PdfViewer = dynamic(() => import("@/components/base/pdf-viewer/pdf-viewer"
 interface Post {
     id: string;
     type: "post" | "article" | "link";
-    category?: string;
-    title?: string;
     content: string;
-    summary?: string;
     file_url?: string | null;
     created_at: string;
     user_id: string;
@@ -98,10 +95,10 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
     }, [showComments, post.id]);
 
     useEffect(() => {
-        if (isLink && post.summary) {
-            loadLinkPreview(post.summary);
+        if (isLink && post.content) {
+            loadLinkPreview(post.content);
         }
-    }, [isLink, post.summary]);
+    }, [isLink, post.content]);
 
     const loadComments = async () => {
         const { data, error } = await supabase
@@ -166,12 +163,6 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                     <div>
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
-                                {post.category && (
-                                    <>
-                                        <span className="text-xs font-bold text-brand-solid uppercase tracking-widest">{post.category}</span>
-                                        <span className="w-1 h-1 rounded-full bg-quaternary" />
-                                    </>
-                                )}
                                 <span className="text-sm text-tertiary">
                                     {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                                 </span>
@@ -201,10 +192,9 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                 </Dropdown.Root>
                             )}
                         </div>
-                        {post.title && <h3 className="text-xl font-bold text-primary mb-3 leading-snug">{post.title}</h3>}
                         {!isLink && (
                             <p className="text-secondary text-base mb-6 leading-relaxed">
-                                {post.summary || post.content}
+                                {post.content}
                             </p>
                         )}
                         {post.file_url && (
@@ -296,16 +286,16 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                             </div>
                                         </div>
                                     </a>
-                                ) : post.summary ? (
+                                ) : post.content ? (
                                     <a
-                                        href={post.summary}
+                                        href={post.content}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="block border border-secondary rounded-xl p-4 hover:border-tertiary transition-colors group"
                                     >
                                         <div className="flex items-center gap-2 text-primary group-hover:text-brand-solid transition-colors">
                                             <ArrowUpRight className="w-4 h-4" />
-                                            <span className="truncate">{post.summary}</span>
+                                            <span className="truncate">{post.content}</span>
                                         </div>
                                     </a>
                                 ) : null}
@@ -630,8 +620,7 @@ export default function FeedPage() {
             .insert({
                 user_id: user.id,
                 type: postType,
-                content: postType === "link" ? "" : postContent.trim(),
-                summary: postType === "link" ? postUrl.trim() || null : null,
+                content: postType === "link" ? postUrl.trim() : postContent.trim(),
                 file_url: attachedFileUrl,
             });
 
