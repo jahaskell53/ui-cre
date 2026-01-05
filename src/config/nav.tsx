@@ -1,5 +1,6 @@
 import { BarChartSquare01, Calendar, Home01, Map01, Settings01, User01, TrendUp02, Users01 } from "@untitledui/icons";
 import type { NavItemType } from "@/components/application/app-navigation/config";
+import { Badge } from "@/components/base/badges/badges";
 
 export const APP_NAV_ITEMS: NavItemType[] = [
     {
@@ -16,16 +17,19 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         label: "Seminar Calendar",
         icon: Calendar,
         href: "/calendar",
+        badge: <Badge className="ml-3" color="orange" type="pill-color" size="sm">Coming Soon</Badge>,
     },
     {
         label: "Holdings & Insights",
         icon: BarChartSquare01,
         href: "/holdings",
+        badge: <Badge className="ml-3" color="orange" type="pill-color" size="sm">Coming Soon</Badge>,
     },
     {
         label: "Market Intelligence",
         icon: TrendUp02,
         href: "/market-intelligence",
+        badge: <Badge className="ml-3" color="orange" type="pill-color" size="sm">Coming Soon</Badge>,
     },
     {
         label: "Users",
@@ -46,3 +50,4 @@ export const FOOTER_NAV_ITEMS: NavItemType[] = [
         href: "/profile",
     },
 ];
+
