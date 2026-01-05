@@ -23,6 +23,13 @@ export default function ProfilePage() {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push("/login");
+        }
+    }, [loading, user, router]);
+
     // Update form when profile loads
     useEffect(() => {
         if (profile) {
@@ -44,7 +51,6 @@ export default function ProfilePage() {
     }
 
     if (!user) {
-        router.push("/login");
         return null;
     }
 
