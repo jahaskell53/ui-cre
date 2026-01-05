@@ -1,4 +1,4 @@
-import { BarChartSquare01, Calendar, Home01, Map01, Settings01, User01, TrendUp02 } from "@untitledui/icons";
+import { BarChartSquare01, Calendar, Home01, Map01, Settings01, User01, TrendUp02, Users01 } from "@untitledui/icons";
 import type { NavItemType } from "@/components/application/app-navigation/config";
 
 export const APP_NAV_ITEMS: NavItemType[] = [
@@ -26,6 +26,11 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         label: "Market Intelligence",
         icon: TrendUp02,
         href: "/market-intelligence",
+    },
+    {
+        label: "Users",
+        icon: Users01,
+        href: "/users",
     },
 ];
 

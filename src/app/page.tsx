@@ -76,6 +76,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
     onDeletePost: (postId: string) => void;
     onDeleteComment: (commentId: string, postId: string) => void;
 }) => {
+    const router = useRouter();
     const [showComments, setShowComments] = useState(false);
     const [comments, setComments] = useState<Comment[]>([]);
     const [commentText, setCommentText] = useState("");
@@ -303,7 +304,10 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                         )}
                     </div>
                     <div className="flex items-center justify-between mt-auto">
-                        <div className="flex items-center gap-3">
+                        <div 
+                            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => router.push(`/users/${post.user_id}`)}
+                        >
                             <Avatar
                                 size="sm"
                                 initials={initials}
@@ -344,14 +348,24 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                 const commentInitials = commentAuthorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
                                 return (
                                     <div key={comment.id} className="flex gap-3">
-                                        <Avatar
-                                            size="xs"
-                                            initials={commentInitials}
-                                            src={comment.profile?.avatar_url || undefined}
-                                        />
+                                        <div 
+                                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                                            onClick={() => router.push(`/users/${comment.user_id}`)}
+                                        >
+                                            <Avatar
+                                                size="xs"
+                                                initials={commentInitials}
+                                                src={comment.profile?.avatar_url || undefined}
+                                            />
+                                        </div>
                                         <div className="flex-1 bg-primary p-3 rounded-xl border border-secondary shadow-xs">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-xs font-bold text-primary">{commentAuthorName}</span>
+                                                <span 
+                                                    className="text-xs font-bold text-primary cursor-pointer hover:text-brand-solid transition-colors"
+                                                    onClick={() => router.push(`/users/${comment.user_id}`)}
+                                                >
+                                                    {commentAuthorName}
+                                                </span>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] text-tertiary uppercase">
                                                         {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
