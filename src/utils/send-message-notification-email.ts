@@ -42,7 +42,10 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
         const recipientEmail = recipientUser.user.email;
 
         // Generate email content
-        const senderProfile = message.sender;
+        // TypeScript infers sender as potentially an array from Supabase types,
+        // but in practice it's always a single object due to the foreign key relationship
+        const sender = message.sender;
+        const senderProfile = Array.isArray(sender) ? sender[0] : sender;
         const senderName = senderProfile?.full_name || senderProfile?.username || "Someone";
         const messageUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/messages?user_id=${message.sender_id}`;
         

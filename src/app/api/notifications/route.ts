@@ -53,6 +53,11 @@ export async function GET(request: NextRequest) {
                         .eq("id", notification.related_id)
                         .single();
 
+                    // TypeScript infers sender as potentially an array from Supabase types,
+                    // but in practice it's always a single object due to the foreign key relationship
+                    const sender = message?.sender;
+                    const senderProfile = Array.isArray(sender) ? sender[0] : sender;
+                    
                     return {
                         id: notification.id,
                         type: notification.type,
@@ -61,11 +66,11 @@ export async function GET(request: NextRequest) {
                         related_id: notification.related_id,
                         created_at: notification.created_at,
                         read_at: notification.read_at,
-                        sender: message?.sender ? {
-                            id: message.sender.id,
-                            username: message.sender.username,
-                            full_name: message.sender.full_name,
-                            avatar_url: message.sender.avatar_url,
+                        sender: senderProfile ? {
+                            id: senderProfile.id,
+                            username: senderProfile.username,
+                            full_name: senderProfile.full_name,
+                            avatar_url: senderProfile.avatar_url,
                         } : null,
                     };
                 }
