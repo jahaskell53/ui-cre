@@ -9,7 +9,7 @@ import { TextArea } from "@/components/base/textarea/textarea";
 import { Input } from "@/components/base/input/input";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
-import { Send01, Plus, SearchLg, X } from "@untitledui/icons";
+import { ArrowUp, Plus, SearchLg, X } from "@untitledui/icons";
 import { formatDistanceToNow } from "date-fns";
 
 interface Conversation {
@@ -578,27 +578,24 @@ export default function MessagesPage() {
 
                                 {/* Message Input */}
                                 <div className="p-4 border-t border-secondary">
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 items-end">
                                         <div className="flex-1">
                                             <TextArea
-                                                label="Message"
                                                 placeholder="Type a message..."
                                                 value={messageContent}
                                                 onChange={setMessageContent}
                                                 onKeyDown={handleKeyPress}
-                                                rows={2}
-                                                textAreaClassName="resize-none"
-                                                hideRequiredIndicator
+                                                rows={1}
+                                                textAreaClassName="resize-none !rounded-full !h-12 !py-3"
                                             />
                                         </div>
                                         <Button
                                             onClick={sendMessage}
                                             isDisabled={!messageContent.trim() || sending}
-                                            iconLeading={Send01}
+                                            iconLeading={ArrowUp}
                                             size="lg"
-                                        >
-                                            Send
-                                        </Button>
+                                            className="!rounded-full !w-12 !h-12 !p-0"
+                                        />
                                     </div>
                                 </div>
                             </>
