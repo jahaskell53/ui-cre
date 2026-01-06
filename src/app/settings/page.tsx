@@ -3,6 +3,7 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { ThemeToggle } from "@/components/application/app-navigation/base-components/theme-toggle";
 
+export default function SettingsPage() {
     return (
         <MainLayout>
             <div className="max-w-2xl pb-20">
