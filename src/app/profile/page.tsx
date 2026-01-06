@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Upload01 } from "@untitledui/icons";
+import { cx } from "@/utils/cx";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -22,6 +24,9 @@ export default function ProfilePage() {
     const [website, setWebsite] = useState("");
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+
+    const roles = ["Property Owner", "Broker", "Lender"];
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -37,6 +42,7 @@ export default function ProfilePage() {
             setUsername(profile.username || "");
             setWebsite(profile.website || "");
             setAvatarUrl(profile.avatar_url || null);
+            setSelectedRoles(profile.roles || []);
         }
     }, [profile]);
 
@@ -54,6 +60,14 @@ export default function ProfilePage() {
         return null;
     }
 
+    const toggleRole = (role: string) => {
+        setSelectedRoles(prev =>
+            prev.includes(role)
+                ? prev.filter(r => r !== role)
+                : [...prev, role]
+        );
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         setError(null);
@@ -67,6 +81,7 @@ export default function ProfilePage() {
                     username: username || null,
                     website: website || null,
                     avatar_url: avatarUrl,
+                    roles: selectedRoles,
                     updated_at: new Date().toISOString(),
                 })
                 .eq("id", user.id);
@@ -208,21 +223,40 @@ export default function ProfilePage() {
                                 type="url"
                             />
                         </div>
+                    </div>
 
-                        <div className="flex gap-3 pt-4">
-                            <Button
-                                onClick={handleSave}
-                                isLoading={isSaving}
-                            >
-                                Save Changes
-                            </Button>
-                            <Button
-                                color="secondary"
-                                onClick={() => router.back()}
-                            >
-                                Cancel
-                            </Button>
+                    {/* Professional Profile Section */}
+                    <section className="bg-primary border border-secondary rounded-2xl p-6 shadow-xs">
+                        <div className="flex flex-col gap-1 mb-6">
+                            <h2 className="text-lg font-semibold text-primary">Professional Profile</h2>
+                            <p className="text-sm text-tertiary">Select the roles that best describe your involvement in commercial real estate.</p>
                         </div>
+
+                        <div className="flex flex-col gap-3 p-4 border border-secondary rounded-xl bg-secondary/5">
+                            {roles.map((role) => (
+                                <Checkbox
+                                    key={role}
+                                    label={role}
+                                    isSelected={selectedRoles.includes(role)}
+                                    onChange={() => toggleRole(role)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <div className="flex gap-3 pt-4">
+                        <Button
+                            onClick={handleSave}
+                            isLoading={isSaving}
+                        >
+                            Save Changes
+                        </Button>
+                        <Button
+                            color="secondary"
+                            onClick={() => router.back()}
+                        >
+                            Cancel
+                        </Button>
                     </div>
                 </div>
             </div>
