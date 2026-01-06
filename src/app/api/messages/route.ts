@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { sendMessageNotificationEmail } from "@/utils/send-message-notification-email";
 
 export async function POST(request: NextRequest) {
     try {
@@ -53,6 +54,12 @@ export async function POST(request: NextRequest) {
             console.error("Error inserting message:", insertError);
             return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
         }
+
+        // Send email notification asynchronously (don't wait for it)
+        sendMessageNotificationEmail(message.id).catch(error => {
+            console.error("Error sending email notification:", error);
+            // Don't fail the request if email fails
+        });
 
         return NextResponse.json(message, { status: 201 });
     } catch (error: any) {

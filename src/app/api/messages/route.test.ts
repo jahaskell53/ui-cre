@@ -8,6 +8,11 @@ vi.mock('@/utils/supabase/server', () => ({
   createClient: vi.fn(),
 }))
 
+// Mock the email sending function
+vi.mock('@/utils/send-message-notification-email', () => ({
+  sendMessageNotificationEmail: vi.fn().mockResolvedValue(true),
+}))
+
 describe('POST /api/messages', () => {
   const mockUser = {
     id: 'user-123',
