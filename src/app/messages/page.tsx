@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -53,14 +53,34 @@ export default function MessagesPage() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     
-    // Check for user_id query parameter
+    const fetchUserProfile = useCallback(async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("id, username, full_name, avatar_url, website, roles")
+                .eq("id", userId)
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                setSelectedUserProfile(data);
+            }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+        }
+    }, []);
+
+    // Check for user_id query parameter and fetch user profile
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const userId = params.get("user_id");
         if (userId) {
             setSelectedUserId(userId);
+            // Fetch user profile when coming from profile page
+            fetchUserProfile(userId);
         }
-    }, []);
+    }, [fetchUserProfile]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [messageContent, setMessageContent] = useState("");
     const [loading, setLoading] = useState(true);
@@ -261,16 +281,21 @@ export default function MessagesPage() {
     };
 
     useEffect(() => {
-        // Clear selected user profile when switching conversations
+        // Clear selected user profile when switching to an existing conversation
+        // Or fetch it if we don't have it yet (e.g., from query param)
         if (selectedUserId) {
             const conversation = conversations.find(c => c.other_user_id === selectedUserId);
             if (conversation?.other_user) {
+                // If we have a conversation, we don't need the selectedUserProfile
                 setSelectedUserProfile(null);
+            } else if (!selectedUserProfile) {
+                // If no conversation and no profile, fetch it (e.g., from query param)
+                fetchUserProfile(selectedUserId);
             }
         } else {
             setSelectedUserProfile(null);
         }
-    }, [selectedUserId, conversations]);
+    }, [selectedUserId, conversations, selectedUserProfile, fetchUserProfile]);
 
     const getInitialsFromUser = (user: UserProfile | Conversation["other_user"]) => {
         const name = user?.full_name || user?.username || "Unknown User";
