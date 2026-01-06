@@ -127,7 +127,7 @@ describe('GET /api/messages/unread-count', () => {
     expect(data.error).toBe('Failed to count unread messages')
   })
 
-  it('should filter by recipient_id and read_at is null', async () => {
+    it('should filter by user_id and read_at is null', async () => {
     vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
       data: { user: mockUser },
       error: null,
@@ -152,8 +152,8 @@ describe('GET /api/messages/unread-count', () => {
 
     await GET(request)
 
-    expect(mockSupabaseClient.from).toHaveBeenCalledWith('messages')
-    expect(mockEq).toHaveBeenCalledWith('recipient_id', 'user-123')
+    expect(mockSupabaseClient.from).toHaveBeenCalledWith('notifications')
+    expect(mockEq).toHaveBeenCalledWith('user_id', 'user-123')
   })
 })
 

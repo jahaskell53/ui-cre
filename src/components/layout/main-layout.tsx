@@ -24,6 +24,14 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
                     ),
                 };
             }
+            if (item.href === "/notifications" && unreadCount > 0) {
+                return {
+                    ...item,
+                    badge: (
+                        <span className="ml-3 size-2 rounded-full bg-orange-500" aria-label={`${unreadCount} unread notifications`} />
+                    ),
+                };
+            }
             return item;
         });
     }, [unreadCount]);

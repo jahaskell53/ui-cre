@@ -1,4 +1,4 @@
-import { BarChartSquare01, Calendar, Home01, Map01, Settings01, User01, TrendUp02, Users01, MessageChatSquare } from "@untitledui/icons";
+import { BarChartSquare01, Calendar, Home01, Map01, Settings01, User01, TrendUp02, Users01, MessageChatSquare, Bell01 } from "@untitledui/icons";
 import type { NavItemType } from "@/components/application/app-navigation/config";
 import { Badge } from "@/components/base/badges/badges";
 
@@ -40,6 +40,11 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         label: "Messages",
         icon: MessageChatSquare,
         href: "/messages",
+    },
+    {
+        label: "Notifications",
+        icon: Bell01,
+        href: "/notifications",
     },
 ];
 

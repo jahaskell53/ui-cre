@@ -12,16 +12,16 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Count unread messages where user is recipient and read_at is null
+        // Count unread notifications for the user
         const { count, error } = await supabase
-            .from("messages")
+            .from("notifications")
             .select("*", { count: "exact", head: true })
-            .eq("recipient_id", user.id)
+            .eq("user_id", user.id)
             .is("read_at", null);
 
         if (error) {
-            console.error("Error counting unread messages:", error);
-            return NextResponse.json({ error: "Failed to count unread messages" }, { status: 500 });
+            console.error("Error counting unread notifications:", error);
+            return NextResponse.json({ error: "Failed to count unread notifications" }, { status: 500 });
         }
 
         return NextResponse.json({ unread_count: count || 0 });
