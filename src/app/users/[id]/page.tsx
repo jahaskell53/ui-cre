@@ -8,7 +8,7 @@ import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { supabase } from "@/utils/supabase";
 import { useUser } from "@/hooks/use-user";
-import { ArrowLeft, Heart, MessageCircle01, ArrowUpRight, File02 } from "@untitledui/icons";
+import { ArrowLeft, Heart, MessageCircle01, ArrowUpRight, File02, MessageChatSquare } from "@untitledui/icons";
 import { formatDistanceToNow } from "date-fns";
 
 interface UserProfile {
@@ -232,8 +232,8 @@ export default function UserProfilePage() {
                         </div>
                     </div>
 
-                    {isOwnProfile && (
-                        <div className="mt-6 pt-6 border-t border-secondary">
+                    <div className="mt-6 pt-6 border-t border-secondary">
+                        {isOwnProfile ? (
                             <Button
                                 onClick={() => router.push("/profile")}
                                 color="secondary"
@@ -241,8 +241,16 @@ export default function UserProfilePage() {
                             >
                                 Edit Profile
                             </Button>
-                        </div>
-                    )}
+                        ) : (
+                            <Button
+                                onClick={() => router.push(`/messages?user_id=${profile.id}`)}
+                                className="w-full"
+                                iconLeading={MessageChatSquare}
+                            >
+                                Message
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* User Activity Section */}

@@ -34,3 +34,35 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Create messages table
+create table messages (
+  id uuid default gen_random_uuid() primary key,
+  sender_id uuid references auth.users on delete cascade not null,
+  recipient_id uuid references auth.users on delete cascade not null,
+  content text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  read_at timestamp with time zone,
+  constraint content_not_empty check (char_length(trim(content)) > 0)
+);
+
+-- Create index for faster queries
+create index messages_sender_recipient_idx on messages(sender_id, recipient_id);
+create index messages_recipient_sender_idx on messages(recipient_id, sender_id);
+create index messages_created_at_idx on messages(created_at desc);
+
+-- Set up Row Level Security (RLS)
+alter table messages enable row level security;
+
+-- Users can view messages where they are sender or recipient
+create policy "Users can view their own messages" on messages
+  for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
+
+-- Users can only send messages as themselves
+create policy "Users can send messages" on messages
+  for insert with check (auth.uid() = sender_id);
+
+-- Users can only update read_at for messages they received
+create policy "Users can mark their received messages as read" on messages
+  for update using (auth.uid() = recipient_id)
+  with check (auth.uid() = recipient_id);
