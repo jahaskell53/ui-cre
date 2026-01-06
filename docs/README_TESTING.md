@@ -7,19 +7,45 @@
 npm install
 ```
 
-2. **Run tests:**
+2. **Run tests (runs once and exits):**
 ```bash
 npm test
 ```
 
-3. **Run tests in watch mode:**
+3. **Run tests in watch mode (for local development):**
 ```bash
-npm test -- --watch
+npm run test:watch
 ```
 
 4. **Run tests with UI:**
 ```bash
 npm run test:ui
+```
+
+## CI/CD Integration
+
+Tests run automatically on every push and pull request via GitHub Actions.
+
+### GitHub Actions Workflow
+
+The workflow file is located at `.github/workflows/test.yml` and:
+- Runs on all pushes and pull requests
+- Uses Node.js 20
+- Installs dependencies with `npm ci`
+- Runs all tests with `npm test`
+
+### Viewing Test Results
+
+1. Go to your GitHub repository
+2. Click on the "Actions" tab
+3. Select the workflow run to see test results
+4. Tests must pass before merging pull requests (if branch protection is enabled)
+
+### Alternative CI/CD Platforms
+
+If you're using a different CI/CD platform, the test command is:
+```bash
+npm ci && npm test
 ```
 
 ## Test Structure
