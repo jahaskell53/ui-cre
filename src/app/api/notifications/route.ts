@@ -38,25 +38,23 @@ export async function GET(request: NextRequest) {
         const formattedNotifications = await Promise.all(
             (notifications || []).map(async (notification) => {
                 if (notification.type === "message" && notification.related_id) {
-                    // Get sender info from the message
+                    // Get sender_id from the message
                     const { data: message } = await supabase
                         .from("messages")
-                        .select(`
-                            sender_id,
-                            sender:profiles!messages_sender_id_fkey(
-                                id,
-                                username,
-                                full_name,
-                                avatar_url
-                            )
-                        `)
+                        .select("sender_id")
                         .eq("id", notification.related_id)
                         .single();
 
-                    // TypeScript infers sender as potentially an array from Supabase types,
-                    // but in practice it's always a single object due to the foreign key relationship
-                    const sender = message?.sender;
-                    const senderProfile = Array.isArray(sender) ? sender[0] : sender;
+                    // Get sender profile (sender_id references auth.users.id, and profiles.id = auth.users.id)
+                    let senderProfile = null;
+                    if (message?.sender_id) {
+                        const { data: profile } = await supabase
+                            .from("profiles")
+                            .select("id, username, full_name, avatar_url")
+                            .eq("id", message.sender_id)
+                            .single();
+                        senderProfile = profile;
+                    }
                     
                     return {
                         id: notification.id,
