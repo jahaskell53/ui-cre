@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -23,23 +23,22 @@ interface Notification {
 
 export default function NotificationsPage() {
     const router = useRouter();
-    const { user } = useUser();
+    const { user, loading: userLoading } = useUser();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadNotifications();
+    const loadNotifications = useCallback(async () => {
+        if (!user) return;
         
-        // Poll for new notifications every 5 seconds
-        const interval = setInterval(loadNotifications, 5000);
-        
-        return () => clearInterval(interval);
-    }, []);
-
-    const loadNotifications = async () => {
         try {
-            const response = await fetch("/api/notifications");
+            const response = await fetch("/api/notifications", {
+                credentials: "include",
+            });
             if (!response.ok) {
+                if (response.status === 401) {
+                    router.push("/login");
+                    return;
+                }
                 throw new Error("Failed to load notifications");
             }
             const data = await response.json();
@@ -49,7 +48,23 @@ export default function NotificationsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user, router]);
+
+    useEffect(() => {
+        if (userLoading) return;
+        
+        if (!user) {
+            router.push("/login");
+            return;
+        }
+        
+        loadNotifications();
+        
+        // Poll for new notifications every 5 seconds
+        const interval = setInterval(loadNotifications, 5000);
+        
+        return () => clearInterval(interval);
+    }, [user, userLoading, router, loadNotifications]);
 
     const handleNotificationClick = async (notification: Notification) => {
         if (notification.type === "message" && notification.sender) {
@@ -57,6 +72,7 @@ export default function NotificationsPage() {
             try {
                 await fetch(`/api/notifications/${notification.id}/read`, {
                     method: "POST",
+                    credentials: "include",
                 });
             } catch (error) {
                 console.error("Error marking notification as read:", error);
