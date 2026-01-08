@@ -83,6 +83,58 @@ export async function POST(request: NextRequest) {
     }
 }
 
+export async function PUT(request: NextRequest) {
+    try {
+        const supabase = await createClient();
+        
+        // Get authenticated user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const searchParams = request.nextUrl.searchParams;
+        const contactId = searchParams.get("id");
+
+        if (!contactId) {
+            return NextResponse.json({ error: "Contact ID is required" }, { status: 400 });
+        }
+
+        const body = await request.json();
+        const { first_name, last_name, email_address, company, position } = body;
+
+        if (!first_name || !last_name || !email_address) {
+            return NextResponse.json({ error: "First name, last name, and email address are required" }, { status: 400 });
+        }
+
+        // Update the contact (RLS will ensure user can only update their own contacts)
+        const { data, error } = await supabase
+            .from("contacts")
+            .update({
+                first_name: first_name.trim(),
+                last_name: last_name.trim(),
+                email_address: email_address.trim(),
+                company: company?.trim() || null,
+                position: position?.trim() || null,
+            })
+            .eq("id", contactId)
+            .eq("user_id", user.id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error updating contact:", error);
+            return NextResponse.json({ error: "Failed to update contact" }, { status: 500 });
+        }
+
+        return NextResponse.json(data);
+    } catch (error: any) {
+        console.error("Error in PUT /api/contacts:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    }
+}
+
 export async function DELETE(request: NextRequest) {
     try {
         const supabase = await createClient();

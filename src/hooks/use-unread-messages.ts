@@ -29,7 +29,7 @@ export function useUnreadMessages() {
     const interval = setInterval(fetchUnreadCount, 10000)
 
     return () => clearInterval(interval)
-  }, [user])
+  }, [user?.id])
 
   return unreadCount
 }

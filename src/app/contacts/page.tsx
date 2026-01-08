@@ -3,11 +3,14 @@
 import { useState, useCallback, useEffect } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/base/buttons/button";
+import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Avatar } from "@/components/base/avatar/avatar";
+import { Input } from "@/components/base/input/input";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Check, X, CheckCircle, Trash01 } from "@untitledui/icons";
+import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01 } from "@untitledui/icons";
 
 interface ParsedContact {
     firstName: string;
@@ -41,6 +44,15 @@ export default function ContactsPage() {
     const [success, setSuccess] = useState<string | null>(null);
     const [selectedSavedContacts, setSelectedSavedContacts] = useState<Set<string>>(new Set());
     const [deleting, setDeleting] = useState(false);
+    const [editingContact, setEditingContact] = useState<Contact | null>(null);
+    const [editFormData, setEditFormData] = useState({
+        first_name: "",
+        last_name: "",
+        email_address: "",
+        company: "",
+        position: "",
+    });
+    const [saving, setSaving] = useState(false);
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -278,6 +290,75 @@ export default function ContactsPage() {
         }
     };
 
+    const handleEditContact = (contact: Contact) => {
+        setEditingContact(contact);
+        setEditFormData({
+            first_name: contact.first_name,
+            last_name: contact.last_name,
+            email_address: contact.email_address,
+            company: contact.company || "",
+            position: contact.position || "",
+        });
+        setError(null);
+        setSuccess(null);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingContact) return;
+
+        if (!editFormData.first_name.trim() || !editFormData.last_name.trim() || !editFormData.email_address.trim()) {
+            setError("First name, last name, and email address are required");
+            return;
+        }
+
+        setSaving(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const response = await fetch(`/api/contacts?id=${editingContact.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    first_name: editFormData.first_name.trim(),
+                    last_name: editFormData.last_name.trim(),
+                    email_address: editFormData.email_address.trim(),
+                    company: editFormData.company.trim() || null,
+                    position: editFormData.position.trim() || null,
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to update contact");
+            }
+
+            // Update local state
+            setContacts(contacts.map(c =>
+                c.id === editingContact.id
+                    ? {
+                          ...c,
+                          first_name: editFormData.first_name.trim(),
+                          last_name: editFormData.last_name.trim(),
+                          email_address: editFormData.email_address.trim(),
+                          company: editFormData.company.trim() || null,
+                          position: editFormData.position.trim() || null,
+                      }
+                    : c
+            ));
+
+            setEditingContact(null);
+            setSuccess("Contact updated successfully");
+        } catch (error) {
+            console.error("Error updating contact:", error);
+            setError(error instanceof Error ? error.message : "Failed to update contact");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const getInitials = (firstName: string, lastName: string) => {
         return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
     };
@@ -469,6 +550,13 @@ export default function ContactsPage() {
                                                             </div>
                                                         )}
                                                     </div>
+                                                    <ButtonUtility
+                                                        color="tertiary"
+                                                        tooltip="Edit contact"
+                                                        icon={Edit01}
+                                                        size="sm"
+                                                        onClick={() => handleEditContact(contact)}
+                                                    />
                                                 </div>
                                             </div>
                                         ))}
@@ -477,6 +565,92 @@ export default function ContactsPage() {
                             )}
                         </div>
                     </div>
+                )}
+
+                {editingContact && (
+                    <ModalOverlay isOpen={!!editingContact} onOpenChange={(isOpen) => !isOpen && setEditingContact(null)}>
+                        <Modal>
+                            <Dialog className="w-full max-w-2xl mx-auto bg-primary rounded-xl shadow-lg p-6">
+                                {({ close }) => (
+                                    <div className="w-full space-y-4">
+                                        <div className="flex items-center justify-between border-b border-secondary pb-4 -mx-6 px-6 mb-2">
+                                            <h2 className="text-lg font-semibold text-primary">Edit Contact</h2>
+                                            <Button
+                                                color="tertiary"
+                                                size="sm"
+                                                iconLeading={X}
+                                                onClick={close}
+                                                className="p-1"
+                                            />
+                                        </div>
+
+                                        {error && (
+                                            <div className="p-4 rounded-lg bg-error-primary/10 border border-error-primary/20 text-error-primary text-sm">
+                                                {error}
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <Input
+                                                    label="First Name"
+                                                    value={editFormData.first_name}
+                                                    onChange={(value) => setEditFormData({ ...editFormData, first_name: value })}
+                                                    placeholder="First Name"
+                                                    isRequired
+                                                />
+                                                <Input
+                                                    label="Last Name"
+                                                    value={editFormData.last_name}
+                                                    onChange={(value) => setEditFormData({ ...editFormData, last_name: value })}
+                                                    placeholder="Last Name"
+                                                    isRequired
+                                                />
+                                            </div>
+                                            <Input
+                                                label="Email Address"
+                                                type="email"
+                                                value={editFormData.email_address}
+                                                onChange={(value) => setEditFormData({ ...editFormData, email_address: value })}
+                                                placeholder="email@example.com"
+                                                isRequired
+                                            />
+                                            <Input
+                                                label="Company"
+                                                value={editFormData.company}
+                                                onChange={(value) => setEditFormData({ ...editFormData, company: value })}
+                                                placeholder="Company"
+                                            />
+                                            <Input
+                                                label="Position"
+                                                value={editFormData.position}
+                                                onChange={(value) => setEditFormData({ ...editFormData, position: value })}
+                                                placeholder="Position"
+                                            />
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-4 border-t border-secondary">
+                                            <Button
+                                                color="secondary"
+                                                onClick={close}
+                                                isDisabled={saving}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                color="primary"
+                                                onClick={handleSaveEdit}
+                                                isDisabled={saving}
+                                                iconLeading={saving ? undefined : Check}
+                                            >
+                                                {saving ? "Saving..." : "Save Changes"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </Dialog>
+                        </Modal>
+                    </ModalOverlay>
                 )}
             </div>
         </MainLayout>
