@@ -3,11 +3,12 @@
 import { useState, useCallback, useEffect } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/base/buttons/button";
+import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Check, X, CheckCircle } from "@untitledui/icons";
+import { UploadCloud02, Check, X, CheckCircle, Trash01 } from "@untitledui/icons";
 
 interface ParsedContact {
     firstName: string;
@@ -39,6 +40,7 @@ export default function ContactsPage() {
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -219,6 +221,32 @@ export default function ContactsPage() {
         }
     }, [user, userLoading, loadContacts]);
 
+    const handleDeleteContact = async (contactId: string) => {
+        setError(null);
+        setSuccess(null);
+        setDeletingContactId(contactId);
+        
+        try {
+            const response = await fetch(`/api/contacts?id=${contactId}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to delete contact");
+            }
+
+            // Remove from local state and reload
+            setContacts(contacts.filter(c => c.id !== contactId));
+            setSuccess("Contact deleted successfully");
+        } catch (error) {
+            console.error("Error deleting contact:", error);
+            setError(error instanceof Error ? error.message : "Failed to delete contact");
+        } finally {
+            setDeletingContactId(null);
+        }
+    };
+
     const getInitials = (firstName: string, lastName: string) => {
         return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
     };
@@ -361,7 +389,7 @@ export default function ContactsPage() {
                             ) : (
                                 <div className="divide-y divide-secondary">
                                     {contacts.map((contact) => (
-                                        <div key={contact.id} className="p-4">
+                                        <div key={contact.id} className="p-4 hover:bg-secondary/5 transition-colors">
                                             <div className="flex items-center gap-4">
                                                 <Avatar
                                                     size="md"
@@ -382,6 +410,14 @@ export default function ContactsPage() {
                                                         </div>
                                                     )}
                                                 </div>
+                                                <ButtonUtility
+                                                    color="tertiary"
+                                                    tooltip="Delete contact"
+                                                    icon={Trash01}
+                                                    size="sm"
+                                                    isDisabled={deletingContactId === contact.id}
+                                                    onClick={() => handleDeleteContact(contact.id)}
+                                                />
                                             </div>
                                         </div>
                                     ))}

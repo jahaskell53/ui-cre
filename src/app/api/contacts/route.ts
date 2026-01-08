@@ -83,3 +83,40 @@ export async function POST(request: NextRequest) {
     }
 }
 
+export async function DELETE(request: NextRequest) {
+    try {
+        const supabase = await createClient();
+        
+        // Get authenticated user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const searchParams = request.nextUrl.searchParams;
+        const contactId = searchParams.get("id");
+
+        if (!contactId) {
+            return NextResponse.json({ error: "Contact ID is required" }, { status: 400 });
+        }
+
+        // Delete the contact (RLS will ensure user can only delete their own contacts)
+        const { error } = await supabase
+            .from("contacts")
+            .delete()
+            .eq("id", contactId)
+            .eq("user_id", user.id);
+
+        if (error) {
+            console.error("Error deleting contact:", error);
+            return NextResponse.json({ error: "Failed to delete contact" }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error("Error in DELETE /api/contacts:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    }
+}
+
