@@ -68,6 +68,8 @@ export default function ContactsPage() {
         "Due Diligence",
         "Closed/Archive",
     ]);
+    const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
+    const [newColumnName, setNewColumnName] = useState("");
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -525,9 +527,15 @@ export default function ContactsPage() {
     };
 
     const handleAddColumn = () => {
-        const newColumn = prompt("Enter column name:");
-        if (newColumn && newColumn.trim()) {
-            setKanbanColumns([...kanbanColumns, newColumn.trim()]);
+        setIsAddColumnModalOpen(true);
+        setNewColumnName("");
+    };
+
+    const handleSaveNewColumn = () => {
+        if (newColumnName && newColumnName.trim()) {
+            setKanbanColumns([...kanbanColumns, newColumnName.trim()]);
+            setIsAddColumnModalOpen(false);
+            setNewColumnName("");
         }
     };
 
@@ -903,6 +911,60 @@ export default function ContactsPage() {
                                                 iconLeading={saving ? undefined : Check}
                                             >
                                                 {saving ? "Saving..." : "Save Changes"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </Dialog>
+                        </Modal>
+                    </ModalOverlay>
+                )}
+
+                {isAddColumnModalOpen && (
+                    <ModalOverlay isOpen={isAddColumnModalOpen} onOpenChange={(isOpen) => !isOpen && setIsAddColumnModalOpen(false)}>
+                        <Modal>
+                            <Dialog className="w-full max-w-md mx-auto bg-primary rounded-xl shadow-lg p-6">
+                                {({ close }) => (
+                                    <div className="w-full space-y-4">
+                                        <div className="flex items-center justify-between border-b border-secondary pb-4 -mx-6 px-6 mb-2">
+                                            <h2 className="text-lg font-semibold text-primary">Add Column</h2>
+                                            <Button
+                                                color="tertiary"
+                                                size="sm"
+                                                iconLeading={X}
+                                                onClick={close}
+                                                className="p-1"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <Input
+                                                label="Column Name"
+                                                value={newColumnName}
+                                                onChange={(value) => setNewColumnName(value)}
+                                                placeholder="Enter column name"
+                                                isRequired
+                                                autoFocus
+                                            />
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-4 border-t border-secondary">
+                                            <Button
+                                                color="secondary"
+                                                onClick={close}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                color="primary"
+                                                onClick={() => {
+                                                    handleSaveNewColumn();
+                                                    close();
+                                                }}
+                                                isDisabled={!newColumnName.trim()}
+                                                iconLeading={Check}
+                                            >
+                                                Add Column
                                             </Button>
                                         </div>
                                     </div>
