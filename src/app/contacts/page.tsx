@@ -10,7 +10,8 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { Input } from "@/components/base/input/input";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01 } from "@untitledui/icons";
+import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List } from "@untitledui/icons";
+import { Kanban } from "react-kanban-kit";
 
 interface ParsedContact {
     firstName: string;
@@ -29,6 +30,7 @@ interface Contact {
     company: string | null;
     position: string | null;
     phone_number: string | null;
+    status: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -55,6 +57,14 @@ export default function ContactsPage() {
         phone_number: "",
     });
     const [saving, setSaving] = useState(false);
+    const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+    const [kanbanColumns, setKanbanColumns] = useState<string[]>([
+        "Active Prospecting",
+        "OM/Financials Received",
+        "Underwriting",
+        "Due Diligence",
+        "Closed/Archive",
+    ]);
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -384,9 +394,140 @@ export default function ContactsPage() {
         return phone;
     };
 
+    const buildKanbanData = (): any => {
+        const rootChildren = kanbanColumns.map((col, idx) => `col-${idx}`);
+        
+        const dataSource: any = {
+            root: {
+                id: "root",
+                title: "Root",
+                children: rootChildren,
+                totalChildrenCount: kanbanColumns.length,
+                parentId: null,
+            },
+        };
+
+        kanbanColumns.forEach((columnTitle, idx) => {
+            const columnId = `col-${idx}`;
+            const columnContacts = contacts.filter(
+                c => (c.status || "Active Prospecting") === columnTitle
+            );
+            const cardIds = columnContacts.map(c => `card-${c.id}`);
+
+            dataSource[columnId] = {
+                id: columnId,
+                title: columnTitle,
+                children: cardIds,
+                totalChildrenCount: columnContacts.length,
+                parentId: "root",
+            };
+
+            columnContacts.forEach(contact => {
+                dataSource[`card-${contact.id}`] = {
+                    id: `card-${contact.id}`,
+                    title: `${contact.first_name} ${contact.last_name}`,
+                    parentId: columnId,
+                    children: [],
+                    totalChildrenCount: 0,
+                    type: "card",
+                    content: contact,
+                };
+            });
+        });
+
+        return dataSource;
+    };
+
+    const configMap: any = {
+        card: {
+            render: ({ data }: { data: any }) => {
+                const contact = data.content as Contact;
+                return (
+                    <div 
+                        className="p-3 bg-primary border border-secondary rounded-lg hover:bg-secondary/5 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditContact(contact);
+                        }}
+                    >
+                        <div className="flex items-start gap-3">
+                            <Avatar
+                                size="sm"
+                                initials={getInitials(contact.first_name, contact.last_name)}
+                            />
+                            <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-sm text-primary">
+                                    {contact.first_name} {contact.last_name}
+                                </div>
+                                <div className="text-xs text-secondary mt-1">
+                                    {contact.email_address}
+                                </div>
+                                {contact.phone_number && (
+                                    <div className="text-xs text-secondary mt-1">
+                                        {formatPhoneNumber(contact.phone_number)}
+                                    </div>
+                                )}
+                                {(contact.company || contact.position) && (
+                                    <div className="text-xs text-tertiary mt-1">
+                                        {contact.position && contact.company
+                                            ? `${contact.position} at ${contact.company}`
+                                            : contact.position || contact.company}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            },
+            isDraggable: true,
+        },
+    };
+
+    const handleCardMove = async (move: any) => {
+        const contactId = move.cardId.replace("card-", "");
+        const columnIndex = parseInt(move.toColumnId.replace("col-", ""));
+        const newStatus = kanbanColumns[columnIndex];
+
+        if (!newStatus) {
+            console.error("Invalid column index:", columnIndex);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/contacts?id=${contactId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    status: newStatus,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to update contact status");
+            }
+
+            // Update local state
+            setContacts(contacts.map(c =>
+                c.id === contactId ? { ...c, status: newStatus } : c
+            ));
+        } catch (error) {
+            console.error("Error updating contact status:", error);
+            setError("Failed to update contact status");
+        }
+    };
+
+    const handleAddColumn = () => {
+        const newColumn = prompt("Enter column name:");
+        if (newColumn && newColumn.trim()) {
+            setKanbanColumns([...kanbanColumns, newColumn.trim()]);
+        }
+    };
+
     return (
         <MainLayout>
-            <div className="max-w-6xl mx-auto">
+            <div className={viewMode === "kanban" ? "max-w-full mx-auto px-4" : "max-w-6xl mx-auto"}>
                 <h1 className="text-display-sm font-semibold text-primary mb-2">Contacts</h1>
                 <p className="text-lg text-tertiary mb-8">Manage your contact list and import contacts from CSV files.</p>
 
@@ -501,6 +642,22 @@ export default function ContactsPage() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-lg font-semibold text-primary">Your Contacts</h2>
                             <div className="flex gap-3">
+                                <div className="flex gap-1 bg-secondary/10 rounded-lg p-1">
+                                    <Button
+                                        color={viewMode === "list" ? "primary" : "secondary"}
+                                        size="sm"
+                                        iconLeading={List}
+                                        onClick={() => setViewMode("list")}
+                                        className="!px-3"
+                                    />
+                                    <Button
+                                        color={viewMode === "kanban" ? "primary" : "secondary"}
+                                        size="sm"
+                                        iconLeading={LayoutGrid01}
+                                        onClick={() => setViewMode("kanban")}
+                                        className="!px-3"
+                                    />
+                                </div>
                                 {selectedSavedContacts.size > 0 && (
                                     <Button
                                         color="secondary"
@@ -527,69 +684,119 @@ export default function ContactsPage() {
                                 </Button>
                             </div>
                         </div>
-                        <div className="bg-primary border border-secondary rounded-2xl overflow-hidden">
-                            {loading ? (
-                                <div className="flex items-center justify-center py-12">
-                                    <div className="text-tertiary">Loading contacts...</div>
-                                </div>
-                            ) : (
-                                <>
-                                    {contacts.length > 0 && (
-                                        <div className="p-4 border-b border-secondary">
-                                            <Checkbox
-                                                isSelected={selectedSavedContacts.size === contacts.length && contacts.length > 0}
-                                                isIndeterminate={selectedSavedContacts.size > 0 && selectedSavedContacts.size < contacts.length}
-                                                onChange={toggleAllSavedContacts}
-                                                label="Select All"
-                                            />
-                                        </div>
-                                    )}
-                                    <div className="divide-y divide-secondary">
-                                        {contacts.map((contact) => (
-                                            <div key={contact.id} className="p-4 hover:bg-secondary/5 transition-colors">
-                                                <div className="flex items-center gap-4">
-                                                    <Checkbox
-                                                        isSelected={selectedSavedContacts.has(contact.id)}
-                                                        onChange={() => toggleSavedContactSelection(contact.id)}
-                                                    />
-                                                    <Avatar
-                                                        size="md"
-                                                        initials={getInitials(contact.first_name, contact.last_name)}
-                                                    />
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="font-semibold text-sm text-primary">
-                                                            {contact.first_name} {contact.last_name}
-                                                        </div>
-                                                        <div className="text-sm text-secondary mt-1">
-                                                            {contact.email_address}
-                                                        </div>
-                                                        {contact.phone_number && (
-                                                            <div className="text-sm text-secondary mt-1">
-                                                                {formatPhoneNumber(contact.phone_number)}
-                                                            </div>
-                                                        )}
-                                                        {(contact.company || contact.position) && (
-                                                            <div className="text-xs text-tertiary mt-1">
-                                                                {contact.position && contact.company
-                                                                    ? `${contact.position} at ${contact.company}`
-                                                                    : contact.position || contact.company}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <ButtonUtility
-                                                        color="tertiary"
-                                                        tooltip="Edit contact"
-                                                        icon={Edit01}
-                                                        size="sm"
-                                                        onClick={() => handleEditContact(contact)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
+                        {viewMode === "list" ? (
+                            <div className="bg-primary border border-secondary rounded-2xl overflow-hidden">
+                                {loading ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="text-tertiary">Loading contacts...</div>
                                     </div>
-                                </>
-                            )}
-                        </div>
+                                ) : (
+                                    <>
+                                        {contacts.length > 0 && (
+                                            <div className="p-4 border-b border-secondary">
+                                                <Checkbox
+                                                    isSelected={selectedSavedContacts.size === contacts.length && contacts.length > 0}
+                                                    isIndeterminate={selectedSavedContacts.size > 0 && selectedSavedContacts.size < contacts.length}
+                                                    onChange={toggleAllSavedContacts}
+                                                    label="Select All"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="divide-y divide-secondary">
+                                            {contacts.map((contact) => (
+                                                <div key={contact.id} className="p-4 hover:bg-secondary/5 transition-colors">
+                                                    <div className="flex items-center gap-4">
+                                                        <Checkbox
+                                                            isSelected={selectedSavedContacts.has(contact.id)}
+                                                            onChange={() => toggleSavedContactSelection(contact.id)}
+                                                        />
+                                                        <Avatar
+                                                            size="md"
+                                                            initials={getInitials(contact.first_name, contact.last_name)}
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-semibold text-sm text-primary">
+                                                                {contact.first_name} {contact.last_name}
+                                                            </div>
+                                                            <div className="text-sm text-secondary mt-1">
+                                                                {contact.email_address}
+                                                            </div>
+                                                            {contact.phone_number && (
+                                                                <div className="text-sm text-secondary mt-1">
+                                                                    {formatPhoneNumber(contact.phone_number)}
+                                                                </div>
+                                                            )}
+                                                            {(contact.company || contact.position) && (
+                                                                <div className="text-xs text-tertiary mt-1">
+                                                                    {contact.position && contact.company
+                                                                        ? `${contact.position} at ${contact.company}`
+                                                                        : contact.position || contact.company}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <ButtonUtility
+                                                            color="tertiary"
+                                                            tooltip="Edit contact"
+                                                            icon={Edit01}
+                                                            size="sm"
+                                                            onClick={() => handleEditContact(contact)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="bg-primary border border-secondary rounded-2xl overflow-hidden p-4">
+                                {loading ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="text-tertiary">Loading contacts...</div>
+                                    </div>
+                                ) : (
+                                    <div className="w-full overflow-x-auto">
+                                        <Kanban
+                                            dataSource={buildKanbanData()}
+                                            configMap={configMap}
+                                            onCardMove={handleCardMove}
+                                            allowColumnAdder={true}
+                                            renderColumnAdder={() => (
+                                                <Button
+                                                    color="secondary"
+                                                    size="sm"
+                                                    onClick={handleAddColumn}
+                                                    className="w-full"
+                                                >
+                                                    + Add Column
+                                                </Button>
+                                            )}
+                                            renderColumnHeader={(column) => (
+                                                <div className="flex items-center justify-between p-3 border-b border-secondary">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-semibold text-primary">{column.title}</h3>
+                                                        <span className="text-sm text-tertiary">({column.totalChildrenCount})</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            columnWrapperStyle={() => ({
+                                                backgroundColor: "transparent",
+                                                border: "1px solid rgb(var(--color-secondary))",
+                                                borderRadius: "0.75rem",
+                                                minWidth: "280px",
+                                            })}
+                                            columnStyle={() => ({
+                                                minHeight: "400px",
+                                                maxHeight: "calc(100vh - 300px)",
+                                                overflowY: "auto",
+                                            })}
+                                            cardsGap={8}
+                                            rootStyle={{ width: "100%" }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 

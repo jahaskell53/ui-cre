@@ -35,6 +35,7 @@
         "react-aria-components": "^1.13.0",
         "react-dom": "^19.2.3",
         "react-hotkeys-hook": "^5.2.1",
+        "react-kanban-kit": "^0.0.2-beta.5",
         "react-pdf": "^10.3.0",
         "tailwind-merge": "^3.4.0",
         "tailwindcss": "^4.1.18",

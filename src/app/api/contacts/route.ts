@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
             company: contact.company?.trim() || null,
             position: contact.position?.trim() || null,
             phone_number: contact.phoneNumber?.trim() || null,
+            status: "Active Prospecting",
         })).filter((contact: any) => 
             contact.first_name && contact.last_name && contact.email_address
         );
@@ -103,23 +104,42 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { first_name, last_name, email_address, company, position, phone_number } = body;
+        const { first_name, last_name, email_address, company, position, phone_number, status } = body;
 
-        if (!first_name || !last_name || !email_address) {
-            return NextResponse.json({ error: "First name, last name, and email address are required" }, { status: 400 });
+        // Build update object - only include fields that are provided
+        const updateData: any = {};
+        
+        if (first_name !== undefined) updateData.first_name = first_name.trim();
+        if (last_name !== undefined) updateData.last_name = last_name.trim();
+        if (email_address !== undefined) updateData.email_address = email_address.trim();
+        if (company !== undefined) updateData.company = company?.trim() || null;
+        if (position !== undefined) updateData.position = position?.trim() || null;
+        if (phone_number !== undefined) updateData.phone_number = phone_number?.trim() || null;
+        if (status !== undefined) updateData.status = status || null;
+
+        // If updating required fields, validate them
+        if (updateData.first_name !== undefined || updateData.last_name !== undefined || updateData.email_address !== undefined) {
+            // Get current contact to validate
+            const { data: currentContact } = await supabase
+                .from("contacts")
+                .select("first_name, last_name, email_address")
+                .eq("id", contactId)
+                .eq("user_id", user.id)
+                .single();
+
+            const finalFirstName = updateData.first_name ?? currentContact?.first_name;
+            const finalLastName = updateData.last_name ?? currentContact?.last_name;
+            const finalEmail = updateData.email_address ?? currentContact?.email_address;
+
+            if (!finalFirstName || !finalLastName || !finalEmail) {
+                return NextResponse.json({ error: "First name, last name, and email address are required" }, { status: 400 });
+            }
         }
 
         // Update the contact (RLS will ensure user can only update their own contacts)
         const { data, error } = await supabase
             .from("contacts")
-            .update({
-                first_name: first_name.trim(),
-                last_name: last_name.trim(),
-                email_address: email_address.trim(),
-                company: company?.trim() || null,
-                position: position?.trim() || null,
-                phone_number: phone_number?.trim() || null,
-            })
+            .update(updateData)
             .eq("id", contactId)
             .eq("user_id", user.id)
             .select()
