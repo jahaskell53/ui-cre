@@ -806,7 +806,6 @@ export default function ContactsPage() {
                                             })}
                                             columnStyle={() => ({
                                                 minHeight: "400px",
-                                                maxHeight: "calc(100vh - 300px)",
                                                 overflowY: "auto",
                                             })}
                                             cardsGap={8}
