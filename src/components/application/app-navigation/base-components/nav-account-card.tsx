@@ -8,6 +8,7 @@ import { BookOpen01, ChevronSelectorVertical, LogOut01, Settings01, User01 } fro
 import { useFocusManager } from "react-aria";
 import type { DialogProps as AriaDialogProps } from "react-aria-components";
 import { Button as AriaButton, Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
+import { Avatar } from "@/components/base/avatar/avatar";
 import { AvatarLabelGroup } from "@/components/base/avatar/avatar-label-group";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useUser } from "@/hooks/use-user";
@@ -153,17 +154,26 @@ export const NavAccountCard = ({
     const displayName = profile?.full_name || user.email?.split("@")[0] || "User";
     const email = user.email || "";
     const avatarUrl = profile?.avatar_url || undefined;
+    
+    // Get initials from display name
+    const getInitials = (name: string) => {
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    };
+    const initials = getInitials(displayName);
 
     return (
         <div ref={triggerRef} className={cx("relative flex items-center rounded-xl p-3 ring-1 ring-secondary ring-inset", iconOnly ? "justify-center" : "gap-3")}>
             {iconOnly ? (
                 <AriaDialogTrigger>
                     <AriaButton className="flex cursor-pointer items-center justify-center rounded-md p-1.5 text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2 pressed:bg-primary_hover pressed:text-fg-quaternary_hover">
-                        <AvatarLabelGroup
+                        <Avatar
                             size="md"
                             src={avatarUrl}
-                            title={displayName}
-                            subtitle={email}
+                            initials={initials}
                             status="online"
                         />
                     </AriaButton>
