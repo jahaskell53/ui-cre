@@ -1,3 +1,5 @@
+--This file is just for record keeping. To add a migration, use the supabase MCP tool. 
+
 -- Create contacts table
 create table contacts (
   id uuid default gen_random_uuid() primary key,
@@ -49,4 +51,7 @@ $$ language plpgsql;
 create trigger on_contact_updated
   before update on contacts
   for each row execute procedure update_contacts_updated_at();
+
+-- Add home address field
+alter table contacts add column if not exists home_address text;
 
