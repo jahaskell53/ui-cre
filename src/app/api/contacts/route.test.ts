@@ -86,6 +86,7 @@ describe('GET /api/contacts', () => {
         company: 'Acme Corp',
         position: 'Engineer',
         phone_number: '+1234567890',
+        notes: 'Met at conference',
         created_at: new Date().toISOString(),
       },
       {
@@ -97,6 +98,7 @@ describe('GET /api/contacts', () => {
         company: null,
         position: null,
         phone_number: null,
+        notes: null,
         created_at: new Date().toISOString(),
       },
     ]
@@ -305,6 +307,7 @@ describe('POST /api/contacts', () => {
         company: 'Acme Corp',
         position: 'Engineer',
         phone_number: '+1234567890',
+        notes: 'Met at conference',
         created_at: new Date().toISOString(),
       },
       {
@@ -316,6 +319,7 @@ describe('POST /api/contacts', () => {
         company: null,
         position: null,
         phone_number: null,
+        notes: null,
         created_at: new Date().toISOString(),
       },
     ]
@@ -342,6 +346,7 @@ describe('POST /api/contacts', () => {
             company: 'Acme Corp',
             position: 'Engineer',
             phoneNumber: '+1234567890',
+            notes: 'Met at conference',
           },
           {
             firstName: 'Jane',
@@ -367,6 +372,8 @@ describe('POST /api/contacts', () => {
         company: 'Acme Corp',
         position: 'Engineer',
         phone_number: '+1234567890',
+        notes: 'Met at conference',
+        status: 'Active Prospecting',
       },
       {
         user_id: 'user-123',
@@ -376,6 +383,8 @@ describe('POST /api/contacts', () => {
         company: null,
         position: null,
         phone_number: null,
+        notes: null,
+        status: 'Active Prospecting',
       },
     ])
   })
@@ -396,6 +405,7 @@ describe('POST /api/contacts', () => {
         company: null,
         position: null,
         phone_number: null,
+        notes: null,
         created_at: new Date().toISOString(),
       },
     ]
@@ -449,6 +459,8 @@ describe('POST /api/contacts', () => {
         company: null,
         position: null,
         phone_number: null,
+        notes: null,
+        status: 'Active Prospecting',
       },
     ])
   })
@@ -469,6 +481,7 @@ describe('POST /api/contacts', () => {
         company: 'Acme Corp',
         position: 'Engineer',
         phone_number: '+1234567890',
+        notes: 'Important contact',
         created_at: new Date().toISOString(),
       },
     ]
@@ -495,6 +508,7 @@ describe('POST /api/contacts', () => {
             company: '  Acme Corp  ',
             position: '  Engineer  ',
             phoneNumber: '  +1234567890  ',
+            notes: '  Important contact  ',
           },
         ],
       }),
@@ -513,6 +527,8 @@ describe('POST /api/contacts', () => {
         company: 'Acme Corp',
         position: 'Engineer',
         phone_number: '+1234567890',
+        notes: 'Important contact',
+        status: 'Active Prospecting',
       },
     ])
   })
@@ -737,6 +753,21 @@ describe('PUT /api/contacts', () => {
       error: null,
     } as any)
 
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: '', email_address: '' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      select: mockSelect,
+    } as any)
+
     const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
       method: 'PUT',
       body: JSON.stringify({
@@ -767,9 +798,21 @@ describe('PUT /api/contacts', () => {
       company: 'Acme Corp',
       position: 'Engineer',
       phone_number: '+1234567890',
+      notes: 'Met at conference',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
 
     const mockUpdate = vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -784,9 +827,15 @@ describe('PUT /api/contacts', () => {
       }),
     })
 
-    vi.mocked(mockSupabaseClient.from).mockReturnValue({
-      update: mockUpdate,
-    } as any)
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
 
     const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
       method: 'PUT',
@@ -797,6 +846,7 @@ describe('PUT /api/contacts', () => {
         company: 'Acme Corp',
         position: 'Engineer',
         phone_number: '+1234567890',
+        notes: 'Met at conference',
       }),
     })
 
@@ -806,6 +856,7 @@ describe('PUT /api/contacts', () => {
     expect(response.status).toBe(200)
     expect(data.id).toBe('contact-1')
     expect(data.phone_number).toBe('+1234567890')
+    expect(data.notes).toBe('Met at conference')
     expect(mockUpdate).toHaveBeenCalledWith({
       first_name: 'John',
       last_name: 'Doe',
@@ -813,6 +864,7 @@ describe('PUT /api/contacts', () => {
       company: 'Acme Corp',
       position: 'Engineer',
       phone_number: '+1234567890',
+      notes: 'Met at conference',
     })
   })
 
@@ -831,9 +883,21 @@ describe('PUT /api/contacts', () => {
       company: 'Acme Corp',
       position: 'Engineer',
       phone_number: '+1234567890',
+      notes: 'Important contact',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
 
     const mockUpdate = vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -848,9 +912,15 @@ describe('PUT /api/contacts', () => {
       }),
     })
 
-    vi.mocked(mockSupabaseClient.from).mockReturnValue({
-      update: mockUpdate,
-    } as any)
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
 
     const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
       method: 'PUT',
@@ -861,6 +931,7 @@ describe('PUT /api/contacts', () => {
         company: '  Acme Corp  ',
         position: '  Engineer  ',
         phone_number: '  +1234567890  ',
+        notes: '  Important contact  ',
       }),
     })
 
@@ -875,6 +946,7 @@ describe('PUT /api/contacts', () => {
       company: 'Acme Corp',
       position: 'Engineer',
       phone_number: '+1234567890',
+      notes: 'Important contact',
     })
   })
 
@@ -893,9 +965,21 @@ describe('PUT /api/contacts', () => {
       company: null,
       position: null,
       phone_number: null,
+      notes: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
 
     const mockUpdate = vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -910,9 +994,15 @@ describe('PUT /api/contacts', () => {
       }),
     })
 
-    vi.mocked(mockSupabaseClient.from).mockReturnValue({
-      update: mockUpdate,
-    } as any)
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
 
     const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
       method: 'PUT',
@@ -923,6 +1013,7 @@ describe('PUT /api/contacts', () => {
         company: null,
         position: null,
         phone_number: null,
+        notes: null,
       }),
     })
 
@@ -931,6 +1022,7 @@ describe('PUT /api/contacts', () => {
 
     expect(response.status).toBe(200)
     expect(data.phone_number).toBeNull()
+    expect(data.notes).toBeNull()
     expect(mockUpdate).toHaveBeenCalledWith({
       first_name: 'John',
       last_name: 'Doe',
@@ -938,6 +1030,78 @@ describe('PUT /api/contacts', () => {
       company: null,
       position: null,
       phone_number: null,
+      notes: null,
+    })
+  })
+
+  it('should successfully update contact with notes', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Acme Corp',
+      position: 'Engineer',
+      phone_number: '+1234567890',
+      notes: 'Follow up next week',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        notes: 'Follow up next week',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.notes).toBe('Follow up next week')
+    expect(mockUpdate).toHaveBeenCalledWith({
+      notes: 'Follow up next week',
     })
   })
 
@@ -946,6 +1110,17 @@ describe('PUT /api/contacts', () => {
       data: { user: mockUser },
       error: null,
     } as any)
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
 
     const mockUpdate = vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -960,9 +1135,15 @@ describe('PUT /api/contacts', () => {
       }),
     })
 
-    vi.mocked(mockSupabaseClient.from).mockReturnValue({
-      update: mockUpdate,
-    } as any)
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
 
     const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
       method: 'PUT',

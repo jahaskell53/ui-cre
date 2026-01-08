@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
             company: contact.company?.trim() || null,
             position: contact.position?.trim() || null,
             phone_number: contact.phoneNumber?.trim() || null,
+            notes: contact.notes?.trim() || null,
             status: "Active Prospecting",
         })).filter((contact: any) => 
             contact.first_name && contact.last_name && contact.email_address
