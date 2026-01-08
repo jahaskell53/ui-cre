@@ -60,6 +60,9 @@ export async function POST(request: NextRequest) {
             phone_number: contact.phoneNumber?.trim() || null,
             notes: contact.notes?.trim() || null,
             home_address: contact.homeAddress?.trim() || null,
+            owned_properties: Array.isArray(contact.ownedProperties) && contact.ownedProperties.length > 0
+                ? contact.ownedProperties.filter((p: string) => p?.trim()).map((p: string) => p.trim())
+                : null,
             status: "Active Prospecting",
         })).filter((contact: any) => 
             contact.first_name && contact.last_name && contact.email_address
@@ -106,7 +109,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { first_name, last_name, email_address, company, position, phone_number, status, notes, home_address } = body;
+        const { first_name, last_name, email_address, company, position, phone_number, status, notes, home_address, owned_properties } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -120,6 +123,11 @@ export async function PUT(request: NextRequest) {
         if (status !== undefined) updateData.status = status || null;
         if (notes !== undefined) updateData.notes = notes?.trim() || null;
         if (home_address !== undefined) updateData.home_address = home_address?.trim() || null;
+        if (owned_properties !== undefined) {
+            updateData.owned_properties = Array.isArray(owned_properties) && owned_properties.length > 0
+                ? owned_properties.filter((p: string) => p?.trim()).map((p: string) => p.trim())
+                : null;
+        }
 
         // If updating required fields, validate them
         if (updateData.first_name !== undefined || updateData.last_name !== undefined || updateData.email_address !== undefined) {

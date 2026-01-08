@@ -12,7 +12,7 @@ import { AddressInput } from "@/components/base/input/address-input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus } from "@untitledui/icons";
+import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus, Minus } from "@untitledui/icons";
 import { Kanban } from "react-kanban-kit";
 
 interface ParsedContact {
@@ -35,6 +35,7 @@ interface Contact {
     status: string | null;
     notes: string | null;
     home_address: string | null;
+    owned_properties: string[] | null;
     created_at: string;
     updated_at: string;
 }
@@ -48,6 +49,7 @@ const createEmptyContactForm = () => ({
     phone_number: "",
     notes: "",
     home_address: "",
+    owned_properties: [] as string[],
 });
 
 export default function ContactsPage() {
@@ -338,6 +340,7 @@ export default function ContactsPage() {
             phone_number: contact.phone_number || "",
             notes: contact.notes || "",
             home_address: contact.home_address || "",
+            owned_properties: contact.owned_properties || [],
         });
         setError(null);
         setSuccess(null);
@@ -378,6 +381,9 @@ export default function ContactsPage() {
                         phone_number: editFormData.phone_number.trim() || null,
                         notes: editFormData.notes.trim() || null,
                         home_address: editFormData.home_address.trim() || null,
+                        owned_properties: editFormData.owned_properties.filter(p => p.trim()).length > 0 
+                            ? editFormData.owned_properties.filter(p => p.trim())
+                            : null,
                     }),
                 });
 
@@ -399,6 +405,9 @@ export default function ContactsPage() {
                               phone_number: editFormData.phone_number.trim() || null,
                               notes: editFormData.notes.trim() || null,
                               home_address: editFormData.home_address.trim() || null,
+                              owned_properties: editFormData.owned_properties.filter(p => p.trim()).length > 0 
+                                  ? editFormData.owned_properties.filter(p => p.trim())
+                                  : null,
                           }
                         : c
                 ));
@@ -421,6 +430,9 @@ export default function ContactsPage() {
                                 phoneNumber: editFormData.phone_number.trim(),
                                 notes: editFormData.notes.trim(),
                                 homeAddress: editFormData.home_address.trim(),
+                                ownedProperties: editFormData.owned_properties.filter(p => p.trim()).length > 0 
+                                    ? editFormData.owned_properties.filter(p => p.trim())
+                                    : [],
                             },
                         ],
                     }),
@@ -482,6 +494,7 @@ export default function ContactsPage() {
                 contact.status,
                 contact.notes,
                 contact.home_address,
+                ...(contact.owned_properties || []),
             ].filter(field => field !== null && field !== undefined);
 
             return searchableFields.some(field => 
@@ -569,6 +582,11 @@ export default function ContactsPage() {
                                         {contact.position && contact.company
                                             ? `${contact.position} at ${contact.company}`
                                             : contact.position || contact.company}
+                                    </div>
+                                )}
+                                {contact.owned_properties && contact.owned_properties.length > 0 && (
+                                    <div className="text-xs text-tertiary mt-1">
+                                        {contact.owned_properties.length} owned propert{contact.owned_properties.length === 1 ? 'y' : 'ies'}
                                     </div>
                                 )}
                             </div>
@@ -952,6 +970,11 @@ export default function ContactsPage() {
                                                                         : contact.position || contact.company}
                                                                 </div>
                                                             )}
+                                                            {contact.owned_properties && contact.owned_properties.length > 0 && (
+                                                                <div className="text-xs text-tertiary mt-1">
+                                                                    {contact.owned_properties.length} owned propert{contact.owned_properties.length === 1 ? 'y' : 'ies'}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <ButtonUtility
                                                             color="tertiary"
@@ -1121,12 +1144,58 @@ export default function ContactsPage() {
                                                 placeholder="Search for an address..."
                                                 className="col-span-2"
                                             />
+                                            <div className="col-span-2 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-sm font-medium text-primary">Owned Properties</label>
+                                                    <Button
+                                                        color="secondary"
+                                                        size="sm"
+                                                        iconLeading={Plus}
+                                                        onClick={() => {
+                                                            setEditFormData({
+                                                                ...editFormData,
+                                                                owned_properties: [...editFormData.owned_properties, ""],
+                                                            });
+                                                        }}
+                                                    >
+                                                        Add Property
+                                                    </Button>
+                                                </div>
+                                                {editFormData.owned_properties.map((property, index) => (
+                                                    <div key={index} className="flex gap-2">
+                                                        <AddressInput
+                                                            value={property}
+                                                            onChange={(value) => {
+                                                                const newProperties = [...editFormData.owned_properties];
+                                                                newProperties[index] = value;
+                                                                setEditFormData({ ...editFormData, owned_properties: newProperties });
+                                                            }}
+                                                            placeholder="Search for an address..."
+                                                            className="flex-1"
+                                                        />
+                                                        <Button
+                                                            color="tertiary"
+                                                            size="sm"
+                                                            iconLeading={Minus}
+                                                            onClick={() => {
+                                                                const newProperties = editFormData.owned_properties.filter((_, i) => i !== index);
+                                                                setEditFormData({ ...editFormData, owned_properties: newProperties });
+                                                            }}
+                                                            className="!px-3"
+                                                        />
+                                                    </div>
+                                                ))}
+                                                {editFormData.owned_properties.length === 0 && (
+                                                    <p className="text-sm text-tertiary">No owned properties added yet.</p>
+                                                )}
+                                            </div>
                                             <TextArea
                                                 label="Notes"
                                                 value={editFormData.notes}
                                                 onChange={(value: string) => setEditFormData({ ...editFormData, notes: value })}
                                                 placeholder="Add notes about this contact..."
                                                 rows={6}
+                                                className="col-span-2"
                                             />
                                         </div>
 
