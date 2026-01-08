@@ -63,7 +63,7 @@ export default function ContactsPage() {
     const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
     const [kanbanColumns, setKanbanColumns] = useState<string[]>([
         "Active Prospecting",
-        "OM/Financials Received",
+        "Offering Memorandum",
         "Underwriting",
         "Due Diligence",
         "Closed/Archive",
