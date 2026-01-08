@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
             email_address: contact.emailAddress?.trim() || "",
             company: contact.company?.trim() || null,
             position: contact.position?.trim() || null,
+            phone_number: contact.phoneNumber?.trim() || null,
         })).filter((contact: any) => 
             contact.first_name && contact.last_name && contact.email_address
         );
