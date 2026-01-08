@@ -12,7 +12,7 @@ import { AddressInput } from "@/components/base/input/address-input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg } from "@untitledui/icons";
+import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus } from "@untitledui/icons";
 import { Kanban } from "react-kanban-kit";
 
 interface ParsedContact {
@@ -39,6 +39,17 @@ interface Contact {
     updated_at: string;
 }
 
+const createEmptyContactForm = () => ({
+    first_name: "",
+    last_name: "",
+    email_address: "",
+    company: "",
+    position: "",
+    phone_number: "",
+    notes: "",
+    home_address: "",
+});
+
 export default function ContactsPage() {
     const { user, loading: userLoading } = useUser();
     const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
@@ -52,17 +63,9 @@ export default function ContactsPage() {
     const [selectedSavedContacts, setSelectedSavedContacts] = useState<Set<string>>(new Set());
     const [deleting, setDeleting] = useState(false);
     const [editingContact, setEditingContact] = useState<Contact | null>(null);
-    const [editFormData, setEditFormData] = useState({
-        first_name: "",
-        last_name: "",
-        email_address: "",
-        company: "",
-        position: "",
-        phone_number: "",
-        notes: "",
-        home_address: "",
-    });
+    const [editFormData, setEditFormData] = useState(createEmptyContactForm());
     const [saving, setSaving] = useState(false);
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
     const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
     const [kanbanColumns, setKanbanColumns] = useState<string[]>([
         "Active Prospecting",
@@ -73,6 +76,10 @@ export default function ContactsPage() {
     ]);
     const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
     const [newColumnName, setNewColumnName] = useState("");
+    const [isEditColumnModalOpen, setIsEditColumnModalOpen] = useState(false);
+    const [editColumnIndex, setEditColumnIndex] = useState<number | null>(null);
+    const [editColumnName, setEditColumnName] = useState("");
+    const [columnSaving, setColumnSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
     const loadContacts = useCallback(async () => {
@@ -312,6 +319,13 @@ export default function ContactsPage() {
         }
     };
 
+    const closeContactModal = () => {
+        setIsContactModalOpen(false);
+        setEditingContact(null);
+        setEditFormData(createEmptyContactForm());
+        setError(null);
+    };
+
     const handleEditContact = (contact: Contact) => {
         setEditingContact(contact);
         setEditFormData({
@@ -326,11 +340,18 @@ export default function ContactsPage() {
         });
         setError(null);
         setSuccess(null);
+        setIsContactModalOpen(true);
     };
 
-    const handleSaveEdit = async () => {
-        if (!editingContact) return;
+    const handleCreateContact = () => {
+        setEditingContact(null);
+        setEditFormData(createEmptyContactForm());
+        setError(null);
+        setSuccess(null);
+        setIsContactModalOpen(true);
+    };
 
+    const handleSaveContact = async () => {
         if (!editFormData.first_name.trim() || !editFormData.last_name.trim() || !editFormData.email_address.trim()) {
             setError("First name, last name, and email address are required");
             return;
@@ -341,50 +362,82 @@ export default function ContactsPage() {
         setSuccess(null);
 
         try {
-            const response = await fetch(`/api/contacts?id=${editingContact.id}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    first_name: editFormData.first_name.trim(),
-                    last_name: editFormData.last_name.trim(),
-                    email_address: editFormData.email_address.trim(),
-                    company: editFormData.company.trim() || null,
-                    position: editFormData.position.trim() || null,
-                    phone_number: editFormData.phone_number.trim() || null,
-                    notes: editFormData.notes.trim() || null,
-                    home_address: editFormData.home_address.trim() || null,
-                }),
-            });
+            if (editingContact) {
+                const response = await fetch(`/api/contacts?id=${editingContact.id}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        first_name: editFormData.first_name.trim(),
+                        last_name: editFormData.last_name.trim(),
+                        email_address: editFormData.email_address.trim(),
+                        company: editFormData.company.trim() || null,
+                        position: editFormData.position.trim() || null,
+                        phone_number: editFormData.phone_number.trim() || null,
+                        notes: editFormData.notes.trim() || null,
+                        home_address: editFormData.home_address.trim() || null,
+                    }),
+                });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || "Failed to update contact");
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || "Failed to update contact");
+                }
+
+                // Update local state
+                setContacts(contacts.map(c =>
+                    c.id === editingContact.id
+                        ? {
+                              ...c,
+                              first_name: editFormData.first_name.trim(),
+                              last_name: editFormData.last_name.trim(),
+                              email_address: editFormData.email_address.trim(),
+                              company: editFormData.company.trim() || null,
+                              position: editFormData.position.trim() || null,
+                              phone_number: editFormData.phone_number.trim() || null,
+                              notes: editFormData.notes.trim() || null,
+                              home_address: editFormData.home_address.trim() || null,
+                          }
+                        : c
+                ));
+
+                setSuccess("Contact updated successfully");
+            } else {
+                const response = await fetch("/api/contacts", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        contacts: [
+                            {
+                                firstName: editFormData.first_name.trim(),
+                                lastName: editFormData.last_name.trim(),
+                                emailAddress: editFormData.email_address.trim(),
+                                company: editFormData.company.trim(),
+                                position: editFormData.position.trim(),
+                                phoneNumber: editFormData.phone_number.trim(),
+                                notes: editFormData.notes.trim(),
+                                homeAddress: editFormData.home_address.trim(),
+                            },
+                        ],
+                    }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || "Failed to create contact");
+                }
+
+                await loadContacts();
+                setSuccess("Contact created successfully");
             }
 
-            // Update local state
-            setContacts(contacts.map(c =>
-                c.id === editingContact.id
-                    ? {
-                          ...c,
-                          first_name: editFormData.first_name.trim(),
-                          last_name: editFormData.last_name.trim(),
-                          email_address: editFormData.email_address.trim(),
-                          company: editFormData.company.trim() || null,
-                          position: editFormData.position.trim() || null,
-                          phone_number: editFormData.phone_number.trim() || null,
-                          notes: editFormData.notes.trim() || null,
-                          home_address: editFormData.home_address.trim() || null,
-                      }
-                    : c
-            ));
-
-            setEditingContact(null);
-            setSuccess("Contact updated successfully");
+            closeContactModal();
         } catch (error) {
-            console.error("Error updating contact:", error);
-            setError(error instanceof Error ? error.message : "Failed to update contact");
+            console.error("Error saving contact:", error);
+            setError(error instanceof Error ? error.message : "Failed to save contact");
         } finally {
             setSaving(false);
         }
@@ -574,6 +627,81 @@ export default function ContactsPage() {
         }
     };
 
+    const handleEditColumn = (index: number) => {
+        if (index < 0 || index >= kanbanColumns.length) return;
+        setEditColumnIndex(index);
+        setEditColumnName(kanbanColumns[index]);
+        setIsEditColumnModalOpen(true);
+    };
+
+    const handleSaveEditedColumn = async () => {
+        if (editColumnIndex === null) return;
+        const trimmedName = editColumnName.trim();
+        if (!trimmedName) {
+            setError("Column name is required");
+            return;
+        }
+
+        const oldName = kanbanColumns[editColumnIndex];
+        if (!oldName) return;
+
+        // No change needed
+        if (oldName === trimmedName) {
+            setIsEditColumnModalOpen(false);
+            return;
+        }
+
+        setColumnSaving(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const contactsToUpdate = contacts.filter(
+                (contact) => (contact.status || "Active Prospecting") === oldName
+            );
+
+            if (contactsToUpdate.length > 0) {
+                const results = await Promise.all(
+                    contactsToUpdate.map((contact) =>
+                        fetch(`/api/contacts?id=${contact.id}`, {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ status: trimmedName }),
+                        })
+                    )
+                );
+
+                if (results.some((response) => !response.ok)) {
+                    throw new Error("Failed to update some contacts");
+                }
+            }
+
+            setContacts((prevContacts) =>
+                prevContacts.map((contact) =>
+                    (contact.status || "Active Prospecting") === oldName
+                        ? { ...contact, status: trimmedName }
+                        : contact
+                )
+            );
+
+            setKanbanColumns((prevColumns) =>
+                prevColumns.map((col, idx) => (idx === editColumnIndex ? trimmedName : col))
+            );
+
+            setIsEditColumnModalOpen(false);
+            setEditColumnIndex(null);
+            setEditColumnName("");
+            setSuccess("Column title updated");
+        } catch (error) {
+            console.error("Error updating column title:", error);
+            setError(error instanceof Error ? error.message : "Failed to update column title");
+        } finally {
+            setColumnSaving(false);
+        }
+    };
+
     return (
         <MainLayout>
             <div className={viewMode === "kanban" ? "max-w-full mx-auto px-4" : "max-w-6xl mx-auto"}>
@@ -727,6 +855,15 @@ export default function ContactsPage() {
                                     </Button>
                                 )}
                                 <Button
+                                    color="primary"
+                                    size="sm"
+                                    onClick={handleCreateContact}
+                                    iconLeading={Plus}
+                                    className="!px-3"
+                                >
+                                    New
+                                </Button>
+                                <Button
                                     color="secondary"
                                     size="sm"
                                     onClick={() => {
@@ -737,7 +874,7 @@ export default function ContactsPage() {
                                     }}
                                     iconLeading={UploadCloud02}
                                 >
-                                    Upload More
+                                    Upload
                                 </Button>
                             </div>
                         </div>
@@ -854,6 +991,20 @@ export default function ContactsPage() {
                                                         <h3 className="font-semibold text-primary">{column.title}</h3>
                                                         <span className="text-sm text-tertiary">({column.totalChildrenCount})</span>
                                                     </div>
+                                                    <ButtonUtility
+                                                        color="tertiary"
+                                                        size="sm"
+                                                        icon={Edit01}
+                                                        onClick={() => {
+                                                            const columnIndex = typeof column.id === "string"
+                                                                ? parseInt(column.id.replace("col-", ""), 10)
+                                                                : -1;
+                                                            if (!Number.isNaN(columnIndex) && columnIndex >= 0) {
+                                                                handleEditColumn(columnIndex);
+                                                            }
+                                                        }}
+                                                        isDisabled={columnSaving}
+                                                    />
                                                 </div>
                                             )}
                                             columnWrapperStyle={() => ({
@@ -876,19 +1027,24 @@ export default function ContactsPage() {
                     </div>
                 )}
 
-                {editingContact && (
-                    <ModalOverlay isOpen={!!editingContact} onOpenChange={(isOpen) => !isOpen && setEditingContact(null)}>
+                {isContactModalOpen && (
+                    <ModalOverlay isOpen={isContactModalOpen} onOpenChange={(isOpen) => !isOpen && closeContactModal()}>
                         <Modal>
                             <Dialog className="w-full max-w-2xl mx-auto bg-primary rounded-xl shadow-lg p-6">
                                 {({ close }) => (
                                     <div className="w-full space-y-4">
                                         <div className="flex items-center justify-between border-b border-secondary pb-4 -mx-6 px-6 mb-2">
-                                            <h2 className="text-lg font-semibold text-primary">Edit Contact</h2>
+                                            <h2 className="text-lg font-semibold text-primary">
+                                                {editingContact ? "Edit Contact" : "Add Contact"}
+                                            </h2>
                                             <Button
                                                 color="tertiary"
                                                 size="sm"
                                                 iconLeading={X}
-                                                onClick={close}
+                                                onClick={() => {
+                                                    close();
+                                                    closeContactModal();
+                                                }}
                                                 className="p-1"
                                             />
                                         </div>
@@ -968,18 +1124,21 @@ export default function ContactsPage() {
                                         <div className="flex justify-end gap-3 pt-4 border-t border-secondary">
                                             <Button
                                                 color="secondary"
-                                                onClick={close}
+                                                onClick={() => {
+                                                    close();
+                                                    closeContactModal();
+                                                }}
                                                 isDisabled={saving}
                                             >
                                                 Cancel
                                             </Button>
                                             <Button
                                                 color="primary"
-                                                onClick={handleSaveEdit}
+                                                onClick={handleSaveContact}
                                                 isDisabled={saving}
                                                 iconLeading={saving ? undefined : Check}
                                             >
-                                                {saving ? "Saving..." : "Save Changes"}
+                                                {saving ? "Saving..." : editingContact ? "Save Changes" : "Create Contact"}
                                             </Button>
                                         </div>
                                     </div>
@@ -1034,6 +1193,67 @@ export default function ContactsPage() {
                                                 iconLeading={Check}
                                             >
                                                 Add Column
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </Dialog>
+                        </Modal>
+                    </ModalOverlay>
+                )}
+
+                {isEditColumnModalOpen && (
+                    <ModalOverlay
+                        isOpen={isEditColumnModalOpen}
+                        onOpenChange={(isOpen) => {
+                            if (!isOpen) {
+                                setIsEditColumnModalOpen(false);
+                                setEditColumnIndex(null);
+                                setEditColumnName("");
+                            }
+                        }}
+                    >
+                        <Modal>
+                            <Dialog className="w-full max-w-md mx-auto bg-primary rounded-xl shadow-lg p-6">
+                                {({ close }) => (
+                                    <div className="w-full space-y-4">
+                                        <div className="flex items-center justify-between border-b border-secondary pb-4 -mx-6 px-6 mb-2">
+                                            <h2 className="text-lg font-semibold text-primary">Edit Column</h2>
+                                            <Button
+                                                color="tertiary"
+                                                size="sm"
+                                                iconLeading={X}
+                                                onClick={close}
+                                                className="p-1"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <Input
+                                                label="Column Name"
+                                                value={editColumnName}
+                                                onChange={(value) => setEditColumnName(value)}
+                                                placeholder="Enter column name"
+                                                isRequired
+                                                autoFocus
+                                            />
+                                        </div>
+
+                                        <div className="flex justify-end gap-3 pt-4 border-t border-secondary">
+                                            <Button
+                                                color="secondary"
+                                                onClick={close}
+                                                isDisabled={columnSaving}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                color="primary"
+                                                onClick={handleSaveEditedColumn}
+                                                isDisabled={!editColumnName.trim() || columnSaving}
+                                                iconLeading={columnSaving ? undefined : Check}
+                                            >
+                                                {columnSaving ? "Saving..." : "Save Changes"}
                                             </Button>
                                         </div>
                                     </div>
