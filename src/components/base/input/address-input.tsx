@@ -45,7 +45,7 @@ export const AddressInput = ({
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const debounceTimerRef = useRef<NodeJS.Timeout>();
+    const debounceTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     // Sync external value with internal search query
     useEffect(() => {

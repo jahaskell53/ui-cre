@@ -101,7 +101,7 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
             className={cx(iconOnly ? "px-2 py-2 justify-center" : "px-3 py-2", styles.root, current && styles.rootSelected, iconOnly && "relative")}
             onClick={onClick}
             aria-current={current ? "page" : undefined}
-            title={iconOnly ? (typeof children === "string" ? children : undefined) : undefined}
+            aria-label={iconOnly ? (typeof children === "string" ? children : undefined) : undefined}
         >
             {iconElement}
             {labelElement}
