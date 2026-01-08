@@ -102,7 +102,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { first_name, last_name, email_address, company, position } = body;
+        const { first_name, last_name, email_address, company, position, phone_number } = body;
 
         if (!first_name || !last_name || !email_address) {
             return NextResponse.json({ error: "First name, last name, and email address are required" }, { status: 400 });
@@ -117,6 +117,7 @@ export async function PUT(request: NextRequest) {
                 email_address: email_address.trim(),
                 company: company?.trim() || null,
                 position: position?.trim() || null,
+                phone_number: phone_number?.trim() || null,
             })
             .eq("id", contactId)
             .eq("user_id", user.id)

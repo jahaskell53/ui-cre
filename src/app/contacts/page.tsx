@@ -28,6 +28,7 @@ interface Contact {
     email_address: string;
     company: string | null;
     position: string | null;
+    phone_number: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -51,6 +52,7 @@ export default function ContactsPage() {
         email_address: "",
         company: "",
         position: "",
+        phone_number: "",
     });
     const [saving, setSaving] = useState(false);
 
@@ -298,6 +300,7 @@ export default function ContactsPage() {
             email_address: contact.email_address,
             company: contact.company || "",
             position: contact.position || "",
+            phone_number: contact.phone_number || "",
         });
         setError(null);
         setSuccess(null);
@@ -327,6 +330,7 @@ export default function ContactsPage() {
                     email_address: editFormData.email_address.trim(),
                     company: editFormData.company.trim() || null,
                     position: editFormData.position.trim() || null,
+                    phone_number: editFormData.phone_number.trim() || null,
                 }),
             });
 
@@ -345,6 +349,7 @@ export default function ContactsPage() {
                           email_address: editFormData.email_address.trim(),
                           company: editFormData.company.trim() || null,
                           position: editFormData.position.trim() || null,
+                          phone_number: editFormData.phone_number.trim() || null,
                       }
                     : c
             ));
@@ -614,6 +619,13 @@ export default function ContactsPage() {
                                                 onChange={(value) => setEditFormData({ ...editFormData, email_address: value })}
                                                 placeholder="email@example.com"
                                                 isRequired
+                                            />
+                                            <Input
+                                                label="Phone Number"
+                                                type="tel"
+                                                value={editFormData.phone_number}
+                                                onChange={(value) => setEditFormData({ ...editFormData, phone_number: value })}
+                                                placeholder="+1 (555) 123-4567"
                                             />
                                             <Input
                                                 label="Company"
