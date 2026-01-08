@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GET, POST, DELETE } from './route'
+import { GET, POST, PUT, DELETE } from './route'
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest } from 'next/server'
 
@@ -85,6 +85,7 @@ describe('GET /api/contacts', () => {
         email_address: 'john@example.com',
         company: 'Acme Corp',
         position: 'Engineer',
+        phone_number: '+1234567890',
         created_at: new Date().toISOString(),
       },
       {
@@ -95,6 +96,7 @@ describe('GET /api/contacts', () => {
         email_address: 'jane@example.com',
         company: null,
         position: null,
+        phone_number: null,
         created_at: new Date().toISOString(),
       },
     ]
@@ -302,6 +304,7 @@ describe('POST /api/contacts', () => {
         email_address: 'john@example.com',
         company: 'Acme Corp',
         position: 'Engineer',
+        phone_number: '+1234567890',
         created_at: new Date().toISOString(),
       },
       {
@@ -312,6 +315,7 @@ describe('POST /api/contacts', () => {
         email_address: 'jane@example.com',
         company: null,
         position: null,
+        phone_number: null,
         created_at: new Date().toISOString(),
       },
     ]
@@ -337,6 +341,7 @@ describe('POST /api/contacts', () => {
             emailAddress: 'john@example.com',
             company: 'Acme Corp',
             position: 'Engineer',
+            phoneNumber: '+1234567890',
           },
           {
             firstName: 'Jane',
@@ -361,6 +366,7 @@ describe('POST /api/contacts', () => {
         email_address: 'john@example.com',
         company: 'Acme Corp',
         position: 'Engineer',
+        phone_number: '+1234567890',
       },
       {
         user_id: 'user-123',
@@ -369,6 +375,7 @@ describe('POST /api/contacts', () => {
         email_address: 'jane@example.com',
         company: null,
         position: null,
+        phone_number: null,
       },
     ])
   })
@@ -388,6 +395,7 @@ describe('POST /api/contacts', () => {
         email_address: 'john@example.com',
         company: null,
         position: null,
+        phone_number: null,
         created_at: new Date().toISOString(),
       },
     ]
@@ -440,6 +448,7 @@ describe('POST /api/contacts', () => {
         email_address: 'john@example.com',
         company: null,
         position: null,
+        phone_number: null,
       },
     ])
   })
@@ -459,6 +468,7 @@ describe('POST /api/contacts', () => {
         email_address: 'john@example.com',
         company: 'Acme Corp',
         position: 'Engineer',
+        phone_number: '+1234567890',
         created_at: new Date().toISOString(),
       },
     ]
@@ -484,6 +494,7 @@ describe('POST /api/contacts', () => {
             emailAddress: '  john@example.com  ',
             company: '  Acme Corp  ',
             position: '  Engineer  ',
+            phoneNumber: '  +1234567890  ',
           },
         ],
       }),
@@ -501,6 +512,7 @@ describe('POST /api/contacts', () => {
         email_address: 'john@example.com',
         company: 'Acme Corp',
         position: 'Engineer',
+        phone_number: '+1234567890',
       },
     ])
   })
@@ -654,6 +666,319 @@ describe('DELETE /api/contacts', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to delete contact')
+  })
+})
+
+describe('PUT /api/contacts', () => {
+  const mockUser = {
+    id: 'user-123',
+    email: 'test@example.com',
+  }
+
+  const mockSupabaseClient = {
+    auth: {
+      getUser: vi.fn(),
+    },
+    from: vi.fn(),
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(createClient).mockResolvedValue(mockSupabaseClient as any)
+  })
+
+  it('should return 401 if user is not authenticated', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: null },
+      error: { message: 'Not authenticated' },
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(401)
+    expect(data.error).toBe('Unauthorized')
+  })
+
+  it('should return 400 if contact ID is missing', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Contact ID is required')
+  })
+
+  it('should return 400 if required fields are missing', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        // missing last_name and email_address
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('First name, last name, and email address are required')
+  })
+
+  it('should successfully update contact with phone number', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Acme Corp',
+      position: 'Engineer',
+      phone_number: '+1234567890',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      update: mockUpdate,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        company: 'Acme Corp',
+        position: 'Engineer',
+        phone_number: '+1234567890',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.id).toBe('contact-1')
+    expect(data.phone_number).toBe('+1234567890')
+    expect(mockUpdate).toHaveBeenCalledWith({
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Acme Corp',
+      position: 'Engineer',
+      phone_number: '+1234567890',
+    })
+  })
+
+  it('should trim whitespace from contact fields including phone number', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Acme Corp',
+      position: 'Engineer',
+      phone_number: '+1234567890',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      update: mockUpdate,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: '  John  ',
+        last_name: '  Doe  ',
+        email_address: '  john@example.com  ',
+        company: '  Acme Corp  ',
+        position: '  Engineer  ',
+        phone_number: '  +1234567890  ',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalledWith({
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Acme Corp',
+      position: 'Engineer',
+      phone_number: '+1234567890',
+    })
+  })
+
+  it('should handle null phone number', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: null,
+      position: null,
+      phone_number: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      update: mockUpdate,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        company: null,
+        position: null,
+        phone_number: null,
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.phone_number).toBeNull()
+    expect(mockUpdate).toHaveBeenCalledWith({
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: null,
+      position: null,
+      phone_number: null,
+    })
+  })
+
+  it('should handle errors when updating contact', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'Database error' },
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      update: mockUpdate,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        phone_number: '+1234567890',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to update contact')
   })
 })
 
