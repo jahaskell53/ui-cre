@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { first_name, last_name, email_address, company, position, phone_number, status } = body;
+        const { first_name, last_name, email_address, company, position, phone_number, status, notes } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -116,6 +116,7 @@ export async function PUT(request: NextRequest) {
         if (position !== undefined) updateData.position = position?.trim() || null;
         if (phone_number !== undefined) updateData.phone_number = phone_number?.trim() || null;
         if (status !== undefined) updateData.status = status || null;
+        if (notes !== undefined) updateData.notes = notes?.trim() || null;
 
         // If updating required fields, validate them
         if (updateData.first_name !== undefined || updateData.last_name !== undefined || updateData.email_address !== undefined) {

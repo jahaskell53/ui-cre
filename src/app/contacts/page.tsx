@@ -8,6 +8,7 @@ import { FileUpload } from "@/components/application/file-upload/file-upload-bas
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Input } from "@/components/base/input/input";
+import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
 import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List } from "@untitledui/icons";
@@ -31,6 +32,7 @@ interface Contact {
     position: string | null;
     phone_number: string | null;
     status: string | null;
+    notes: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -55,6 +57,7 @@ export default function ContactsPage() {
         company: "",
         position: "",
         phone_number: "",
+        notes: "",
     });
     const [saving, setSaving] = useState(false);
     const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
@@ -311,6 +314,7 @@ export default function ContactsPage() {
             company: contact.company || "",
             position: contact.position || "",
             phone_number: contact.phone_number || "",
+            notes: contact.notes || "",
         });
         setError(null);
         setSuccess(null);
@@ -341,6 +345,7 @@ export default function ContactsPage() {
                     company: editFormData.company.trim() || null,
                     position: editFormData.position.trim() || null,
                     phone_number: editFormData.phone_number.trim() || null,
+                    notes: editFormData.notes.trim() || null,
                 }),
             });
 
@@ -360,6 +365,7 @@ export default function ContactsPage() {
                           company: editFormData.company.trim() || null,
                           position: editFormData.position.trim() || null,
                           phone_number: editFormData.phone_number.trim() || null,
+                          notes: editFormData.notes.trim() || null,
                       }
                     : c
             ));
@@ -872,6 +878,13 @@ export default function ContactsPage() {
                                                 value={editFormData.position}
                                                 onChange={(value) => setEditFormData({ ...editFormData, position: value })}
                                                 placeholder="Position"
+                                            />
+                                            <TextArea
+                                                label="Notes"
+                                                value={editFormData.notes}
+                                                onChange={(value: string) => setEditFormData({ ...editFormData, notes: value })}
+                                                placeholder="Add notes about this contact..."
+                                                rows={6}
                                             />
                                         </div>
 
