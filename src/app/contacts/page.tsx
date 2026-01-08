@@ -8,6 +8,7 @@ import { FileUpload } from "@/components/application/file-upload/file-upload-bas
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { Input } from "@/components/base/input/input";
+import { AddressInput } from "@/components/base/input/address-input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
@@ -948,11 +949,12 @@ export default function ContactsPage() {
                                                 onChange={(value) => setEditFormData({ ...editFormData, position: value })}
                                                 placeholder="Position"
                                             />
-                                            <Input
+                                            <AddressInput
                                                 label="Home Address"
                                                 value={editFormData.home_address}
                                                 onChange={(value) => setEditFormData({ ...editFormData, home_address: value })}
-                                                placeholder="123 Main St, Springfield"
+                                                placeholder="Search for an address..."
+                                                className="col-span-2"
                                             />
                                             <TextArea
                                                 label="Notes"
