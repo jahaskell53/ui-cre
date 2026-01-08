@@ -123,8 +123,10 @@ const NavAccountCardMenuItem = ({
 
 export const NavAccountCard = ({
     popoverPlacement,
+    iconOnly = false,
 }: {
     popoverPlacement?: Placement;
+    iconOnly?: boolean;
 }) => {
     const triggerRef = useRef<HTMLDivElement>(null);
     const isDesktop = useBreakpoint("lg");
@@ -132,12 +134,14 @@ export const NavAccountCard = ({
 
     if (loading) {
         return (
-            <div className="flex items-center gap-3 rounded-xl p-3 ring-1 ring-secondary ring-inset">
+            <div className={cx("flex items-center rounded-xl p-3 ring-1 ring-secondary ring-inset", iconOnly ? "justify-center" : "gap-3")}>
                 <div className="h-10 w-10 rounded-full bg-secondary animate-pulse" />
-                <div className="flex-1 space-y-2">
-                    <div className="h-4 w-24 rounded bg-secondary animate-pulse" />
-                    <div className="h-3 w-32 rounded bg-secondary animate-pulse" />
-                </div>
+                {!iconOnly && (
+                    <div className="flex-1 space-y-2">
+                        <div className="h-4 w-24 rounded bg-secondary animate-pulse" />
+                        <div className="h-3 w-32 rounded bg-secondary animate-pulse" />
+                    </div>
+                )}
             </div>
         );
     }
@@ -151,19 +155,17 @@ export const NavAccountCard = ({
     const avatarUrl = profile?.avatar_url || undefined;
 
     return (
-        <div ref={triggerRef} className="relative flex items-center gap-3 rounded-xl p-3 ring-1 ring-secondary ring-inset">
-            <AvatarLabelGroup
-                size="md"
-                src={avatarUrl}
-                title={displayName}
-                subtitle={email}
-                status="online"
-            />
-
-            <div className="absolute top-1.5 right-1.5">
+        <div ref={triggerRef} className={cx("relative flex items-center rounded-xl p-3 ring-1 ring-secondary ring-inset", iconOnly ? "justify-center" : "gap-3")}>
+            {iconOnly ? (
                 <AriaDialogTrigger>
                     <AriaButton className="flex cursor-pointer items-center justify-center rounded-md p-1.5 text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2 pressed:bg-primary_hover pressed:text-fg-quaternary_hover">
-                        <ChevronSelectorVertical className="size-4 shrink-0" />
+                        <AvatarLabelGroup
+                            size="md"
+                            src={avatarUrl}
+                            title={displayName}
+                            subtitle={email}
+                            status="online"
+                        />
                     </AriaButton>
                     <AriaPopover
                         placement={popoverPlacement ?? (isDesktop ? "right bottom" : "top right")}
@@ -182,7 +184,41 @@ export const NavAccountCard = ({
                         <NavAccountMenu />
                     </AriaPopover>
                 </AriaDialogTrigger>
-            </div>
+            ) : (
+                <>
+                    <AvatarLabelGroup
+                        size="md"
+                        src={avatarUrl}
+                        title={displayName}
+                        subtitle={email}
+                        status="online"
+                    />
+
+                    <div className="absolute top-1.5 right-1.5">
+                        <AriaDialogTrigger>
+                            <AriaButton className="flex cursor-pointer items-center justify-center rounded-md p-1.5 text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2 pressed:bg-primary_hover pressed:text-fg-quaternary_hover">
+                                <ChevronSelectorVertical className="size-4 shrink-0" />
+                            </AriaButton>
+                            <AriaPopover
+                                placement={popoverPlacement ?? (isDesktop ? "right bottom" : "top right")}
+                                triggerRef={triggerRef}
+                                offset={8}
+                                className={({ isEntering, isExiting }) =>
+                                    cx(
+                                        "origin-(--trigger-anchor-point) will-change-transform",
+                                        isEntering &&
+                                            "duration-150 ease-out animate-in fade-in placement-right:slide-in-from-left-0.5 placement-top:slide-in-from-bottom-0.5 placement-bottom:slide-in-from-top-0.5",
+                                        isExiting &&
+                                            "duration-100 ease-in animate-out fade-out placement-right:slide-out-to-left-0.5 placement-top:slide-out-to-bottom-0.5 placement-bottom:slide-out-to-top-0.5",
+                                    )
+                                }
+                            >
+                                <NavAccountMenu />
+                            </AriaPopover>
+                        </AriaDialogTrigger>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

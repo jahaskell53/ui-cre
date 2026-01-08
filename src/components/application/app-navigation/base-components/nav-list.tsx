@@ -12,15 +12,17 @@ interface NavListProps {
     className?: string;
     /** List of items to display. */
     items: (NavItemType | NavItemDividerType)[];
+    /** Whether to show only icons. */
+    iconOnly?: boolean;
 }
 
-export const NavList = ({ activeUrl, items, className }: NavListProps) => {
+export const NavList = ({ activeUrl, items, className, iconOnly = false }: NavListProps) => {
     const [open, setOpen] = useState(false);
     const activeItem = items.find((item) => item.href === activeUrl || item.items?.some((subItem) => subItem.href === activeUrl));
     const [currentItem, setCurrentItem] = useState(activeItem);
 
     return (
-        <ul className={cx("mt-4 flex flex-col px-2 lg:px-4", className)}>
+        <ul className={cx("mt-4 flex flex-col", iconOnly ? "px-2" : "px-2 lg:px-4", className)}>
             {items.map((item, index) => {
                 if (item.divider) {
                     return (
@@ -34,33 +36,36 @@ export const NavList = ({ activeUrl, items, className }: NavListProps) => {
                     return (
                         <details
                             key={item.label}
-                            open={activeItem?.href === item.href}
+                            open={activeItem?.href === item.href && !iconOnly}
                             className="appearance-none py-0.5"
                             onToggle={(e) => {
                                 setOpen(e.currentTarget.open);
                                 setCurrentItem(item);
                             }}
                         >
-                            <NavItemBase href={item.href} badge={item.badge} icon={item.icon} type="collapsible">
+                            <NavItemBase href={item.href} badge={item.badge} icon={item.icon} type="collapsible" iconOnly={iconOnly}>
                                 {item.label}
                             </NavItemBase>
 
-                            <dd>
-                                <ul className="py-0.5">
-                                    {item.items.map((childItem) => (
-                                        <li key={childItem.label} className="py-0.5">
-                                            <NavItemBase
-                                                href={childItem.href}
-                                                badge={childItem.badge}
-                                                type="collapsible-child"
-                                                current={activeUrl === childItem.href}
-                                            >
-                                                {childItem.label}
-                                            </NavItemBase>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </dd>
+                            {!iconOnly && (
+                                <dd>
+                                    <ul className="py-0.5">
+                                        {item.items.map((childItem) => (
+                                            <li key={childItem.label} className="py-0.5">
+                                                <NavItemBase
+                                                    href={childItem.href}
+                                                    badge={childItem.badge}
+                                                    type="collapsible-child"
+                                                    current={activeUrl === childItem.href}
+                                                    iconOnly={iconOnly}
+                                                >
+                                                    {childItem.label}
+                                                </NavItemBase>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </dd>
+                            )}
                         </details>
                     );
                 }
@@ -74,6 +79,7 @@ export const NavList = ({ activeUrl, items, className }: NavListProps) => {
                             href={item.href}
                             current={currentItem?.href === item.href}
                             open={open && currentItem?.href === item.href}
+                            iconOnly={iconOnly}
                         >
                             {item.label}
                         </NavItemBase>
