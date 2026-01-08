@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/base/buttons/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { FileUpload } from "@/components/application/file-upload/file-upload-base";
 import { Checkbox } from "@/components/base/checkbox/checkbox";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -40,7 +39,8 @@ export default function ContactsPage() {
     const [importing, setImporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
+    const [selectedSavedContacts, setSelectedSavedContacts] = useState<Set<string>>(new Set());
+    const [deleting, setDeleting] = useState(false);
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -221,29 +221,60 @@ export default function ContactsPage() {
         }
     }, [user, userLoading, loadContacts]);
 
-    const handleDeleteContact = async (contactId: string) => {
+    const toggleSavedContactSelection = (contactId: string) => {
+        const newSelected = new Set(selectedSavedContacts);
+        if (newSelected.has(contactId)) {
+            newSelected.delete(contactId);
+        } else {
+            newSelected.add(contactId);
+        }
+        setSelectedSavedContacts(newSelected);
+    };
+
+    const toggleAllSavedContacts = () => {
+        if (selectedSavedContacts.size === contacts.length) {
+            setSelectedSavedContacts(new Set());
+        } else {
+            setSelectedSavedContacts(new Set(contacts.map(c => c.id)));
+        }
+    };
+
+    const handleDeleteSelectedContacts = async () => {
+        if (selectedSavedContacts.size === 0) {
+            setError("Please select at least one contact to delete");
+            return;
+        }
+
         setError(null);
         setSuccess(null);
-        setDeletingContactId(contactId);
+        setDeleting(true);
         
         try {
-            const response = await fetch(`/api/contacts?id=${contactId}`, {
-                method: "DELETE",
-            });
+            const contactIds = Array.from(selectedSavedContacts);
+            
+            // Delete all selected contacts
+            const deletePromises = contactIds.map(contactId =>
+                fetch(`/api/contacts?id=${contactId}`, {
+                    method: "DELETE",
+                })
+            );
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || "Failed to delete contact");
+            const results = await Promise.all(deletePromises);
+            const failed = results.some(r => !r.ok);
+
+            if (failed) {
+                throw new Error("Failed to delete some contacts");
             }
 
-            // Remove from local state and reload
-            setContacts(contacts.filter(c => c.id !== contactId));
-            setSuccess("Contact deleted successfully");
+            // Remove from local state
+            setContacts(contacts.filter(c => !selectedSavedContacts.has(c.id)));
+            setSelectedSavedContacts(new Set());
+            setSuccess(`Successfully deleted ${contactIds.length} contact(s)`);
         } catch (error) {
-            console.error("Error deleting contact:", error);
-            setError(error instanceof Error ? error.message : "Failed to delete contact");
+            console.error("Error deleting contacts:", error);
+            setError(error instanceof Error ? error.message : "Failed to delete contacts");
         } finally {
-            setDeletingContactId(null);
+            setDeleting(false);
         }
     };
 
@@ -367,19 +398,32 @@ export default function ContactsPage() {
                     <div className="mt-8">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-lg font-semibold text-primary">Your Contacts</h2>
-                            <Button
-                                color="secondary"
-                                size="sm"
-                                onClick={() => {
-                                    setParsedContacts([]);
-                                    setSelectedContacts(new Set());
-                                    setError(null);
-                                    setSuccess(null);
-                                }}
-                                iconLeading={UploadCloud02}
-                            >
-                                Upload More
-                            </Button>
+                            <div className="flex gap-3">
+                                {selectedSavedContacts.size > 0 && (
+                                    <Button
+                                        color="secondary"
+                                        size="sm"
+                                        onClick={handleDeleteSelectedContacts}
+                                        isDisabled={deleting}
+                                        iconLeading={Trash01}
+                                    >
+                                        {deleting ? "Deleting..." : `Delete ${selectedSavedContacts.size} Contact(s)`}
+                                    </Button>
+                                )}
+                                <Button
+                                    color="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                        setParsedContacts([]);
+                                        setSelectedContacts(new Set());
+                                        setError(null);
+                                        setSuccess(null);
+                                    }}
+                                    iconLeading={UploadCloud02}
+                                >
+                                    Upload More
+                                </Button>
+                            </div>
                         </div>
                         <div className="bg-primary border border-secondary rounded-2xl overflow-hidden">
                             {loading ? (
@@ -387,41 +431,49 @@ export default function ContactsPage() {
                                     <div className="text-tertiary">Loading contacts...</div>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-secondary">
-                                    {contacts.map((contact) => (
-                                        <div key={contact.id} className="p-4 hover:bg-secondary/5 transition-colors">
-                                            <div className="flex items-center gap-4">
-                                                <Avatar
-                                                    size="md"
-                                                    initials={getInitials(contact.first_name, contact.last_name)}
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="font-semibold text-sm text-primary">
-                                                        {contact.first_name} {contact.last_name}
-                                                    </div>
-                                                    <div className="text-sm text-secondary mt-1">
-                                                        {contact.email_address}
-                                                    </div>
-                                                    {(contact.company || contact.position) && (
-                                                        <div className="text-xs text-tertiary mt-1">
-                                                            {contact.position && contact.company
-                                                                ? `${contact.position} at ${contact.company}`
-                                                                : contact.position || contact.company}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <ButtonUtility
-                                                    color="tertiary"
-                                                    tooltip="Delete contact"
-                                                    icon={Trash01}
-                                                    size="sm"
-                                                    isDisabled={deletingContactId === contact.id}
-                                                    onClick={() => handleDeleteContact(contact.id)}
-                                                />
-                                            </div>
+                                <>
+                                    {contacts.length > 0 && (
+                                        <div className="p-4 border-b border-secondary">
+                                            <Checkbox
+                                                isSelected={selectedSavedContacts.size === contacts.length && contacts.length > 0}
+                                                isIndeterminate={selectedSavedContacts.size > 0 && selectedSavedContacts.size < contacts.length}
+                                                onChange={toggleAllSavedContacts}
+                                                label="Select All"
+                                            />
                                         </div>
-                                    ))}
-                                </div>
+                                    )}
+                                    <div className="divide-y divide-secondary">
+                                        {contacts.map((contact) => (
+                                            <div key={contact.id} className="p-4 hover:bg-secondary/5 transition-colors">
+                                                <div className="flex items-center gap-4">
+                                                    <Checkbox
+                                                        isSelected={selectedSavedContacts.has(contact.id)}
+                                                        onChange={() => toggleSavedContactSelection(contact.id)}
+                                                    />
+                                                    <Avatar
+                                                        size="md"
+                                                        initials={getInitials(contact.first_name, contact.last_name)}
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-semibold text-sm text-primary">
+                                                            {contact.first_name} {contact.last_name}
+                                                        </div>
+                                                        <div className="text-sm text-secondary mt-1">
+                                                            {contact.email_address}
+                                                        </div>
+                                                        {(contact.company || contact.position) && (
+                                                            <div className="text-xs text-tertiary mt-1">
+                                                                {contact.position && contact.company
+                                                                    ? `${contact.position} at ${contact.company}`
+                                                                    : contact.position || contact.company}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
