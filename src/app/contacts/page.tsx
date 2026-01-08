@@ -11,7 +11,7 @@ import { Input } from "@/components/base/input/input";
 import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List } from "@untitledui/icons";
+import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg } from "@untitledui/icons";
 import { Kanban } from "react-kanban-kit";
 
 interface ParsedContact {
@@ -72,6 +72,7 @@ export default function ContactsPage() {
     ]);
     const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
     const [newColumnName, setNewColumnName] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -263,10 +264,11 @@ export default function ContactsPage() {
     };
 
     const toggleAllSavedContacts = () => {
-        if (selectedSavedContacts.size === contacts.length) {
+        const filtered = filterContacts(contacts, searchQuery);
+        if (selectedSavedContacts.size === filtered.length) {
             setSelectedSavedContacts(new Set());
         } else {
-            setSelectedSavedContacts(new Set(contacts.map(c => c.id)));
+            setSelectedSavedContacts(new Set(filtered.map(c => c.id)));
         }
     };
 
@@ -407,8 +409,35 @@ export default function ContactsPage() {
         return phone;
     };
 
+    const filterContacts = (contacts: Contact[], query: string): Contact[] => {
+        if (!query.trim()) {
+            return contacts;
+        }
+
+        const searchTerm = query.toLowerCase().trim();
+        
+        return contacts.filter(contact => {
+            const searchableFields = [
+                contact.first_name,
+                contact.last_name,
+                contact.email_address,
+                contact.company,
+                contact.position,
+                contact.phone_number,
+                contact.status,
+                contact.notes,
+                contact.home_address,
+            ].filter(field => field !== null && field !== undefined);
+
+            return searchableFields.some(field => 
+                field.toLowerCase().includes(searchTerm)
+            );
+        });
+    };
+
     const buildKanbanData = (): any => {
         const rootChildren = kanbanColumns.map((col, idx) => `col-${idx}`);
+        const filteredContacts = filterContacts(contacts, searchQuery);
         
         const dataSource: any = {
             root: {
@@ -422,7 +451,7 @@ export default function ContactsPage() {
 
         kanbanColumns.forEach((columnTitle, idx) => {
             const columnId = `col-${idx}`;
-            const columnContacts = contacts.filter(
+            const columnContacts = filteredContacts.filter(
                 c => (c.status || "Active Prospecting") === columnTitle
             );
             const cardIds = columnContacts.map(c => `card-${c.id}`);
@@ -661,6 +690,14 @@ export default function ContactsPage() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-lg font-semibold text-primary">Your Contacts</h2>
                             <div className="flex gap-3">
+                                <Input
+                                    placeholder="Search contacts..."
+                                    value={searchQuery}
+                                    onChange={setSearchQuery}
+                                    icon={SearchLg}
+                                    size="sm"
+                                    className="w-64"
+                                />
                                 <div className="flex gap-1 bg-secondary/10 rounded-lg p-1">
                                     <Button
                                         color={viewMode === "list" ? "primary" : "secondary"}
@@ -711,18 +748,34 @@ export default function ContactsPage() {
                                     </div>
                                 ) : (
                                     <>
-                                        {contacts.length > 0 && (
-                                            <div className="p-4 border-b border-secondary">
-                                                <Checkbox
-                                                    isSelected={selectedSavedContacts.size === contacts.length && contacts.length > 0}
-                                                    isIndeterminate={selectedSavedContacts.size > 0 && selectedSavedContacts.size < contacts.length}
-                                                    onChange={toggleAllSavedContacts}
-                                                    label="Select All"
-                                                />
-                                            </div>
-                                        )}
-                                        <div className="divide-y divide-secondary">
-                                            {contacts.map((contact) => (
+                                        {(() => {
+                                            const filteredContacts = filterContacts(contacts, searchQuery);
+                                            return (
+                                                <>
+                                                    {filteredContacts.length > 0 && (
+                                                        <div className="p-4 border-b border-secondary">
+                                                            <Checkbox
+                                                                isSelected={selectedSavedContacts.size === filteredContacts.length && filteredContacts.length > 0}
+                                                                isIndeterminate={selectedSavedContacts.size > 0 && selectedSavedContacts.size < filteredContacts.length}
+                                                                onChange={() => {
+                                                                    const filtered = filterContacts(contacts, searchQuery);
+                                                                    if (selectedSavedContacts.size === filtered.length) {
+                                                                        setSelectedSavedContacts(new Set());
+                                                                    } else {
+                                                                        setSelectedSavedContacts(new Set(filtered.map(c => c.id)));
+                                                                    }
+                                                                }}
+                                                                label="Select All"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {filteredContacts.length === 0 ? (
+                                                        <div className="flex items-center justify-center py-12">
+                                                            <div className="text-tertiary">No contacts found matching your search.</div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="divide-y divide-secondary">
+                                                            {filteredContacts.map((contact) => (
                                                 <div key={contact.id} className="p-4 hover:bg-secondary/5 transition-colors">
                                                     <div className="flex items-center gap-4">
                                                         <Checkbox
@@ -762,8 +815,12 @@ export default function ContactsPage() {
                                                         />
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </>
                                 )}
                             </div>
