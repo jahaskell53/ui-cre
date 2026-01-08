@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
             position: contact.position?.trim() || null,
             phone_number: contact.phoneNumber?.trim() || null,
             notes: contact.notes?.trim() || null,
+            home_address: contact.homeAddress?.trim() || null,
             status: "Active Prospecting",
         })).filter((contact: any) => 
             contact.first_name && contact.last_name && contact.email_address
@@ -105,7 +106,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { first_name, last_name, email_address, company, position, phone_number, status, notes } = body;
+        const { first_name, last_name, email_address, company, position, phone_number, status, notes, home_address } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -118,6 +119,7 @@ export async function PUT(request: NextRequest) {
         if (phone_number !== undefined) updateData.phone_number = phone_number?.trim() || null;
         if (status !== undefined) updateData.status = status || null;
         if (notes !== undefined) updateData.notes = notes?.trim() || null;
+        if (home_address !== undefined) updateData.home_address = home_address?.trim() || null;
 
         // If updating required fields, validate them
         if (updateData.first_name !== undefined || updateData.last_name !== undefined || updateData.email_address !== undefined) {

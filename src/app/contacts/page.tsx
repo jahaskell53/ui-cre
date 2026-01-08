@@ -33,6 +33,7 @@ interface Contact {
     phone_number: string | null;
     status: string | null;
     notes: string | null;
+    home_address: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -58,6 +59,7 @@ export default function ContactsPage() {
         position: "",
         phone_number: "",
         notes: "",
+        home_address: "",
     });
     const [saving, setSaving] = useState(false);
     const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
@@ -317,6 +319,7 @@ export default function ContactsPage() {
             position: contact.position || "",
             phone_number: contact.phone_number || "",
             notes: contact.notes || "",
+            home_address: contact.home_address || "",
         });
         setError(null);
         setSuccess(null);
@@ -348,6 +351,7 @@ export default function ContactsPage() {
                     position: editFormData.position.trim() || null,
                     phone_number: editFormData.phone_number.trim() || null,
                     notes: editFormData.notes.trim() || null,
+                    home_address: editFormData.home_address.trim() || null,
                 }),
             });
 
@@ -368,6 +372,7 @@ export default function ContactsPage() {
                           position: editFormData.position.trim() || null,
                           phone_number: editFormData.phone_number.trim() || null,
                           notes: editFormData.notes.trim() || null,
+                          home_address: editFormData.home_address.trim() || null,
                       }
                     : c
             ));
@@ -886,6 +891,12 @@ export default function ContactsPage() {
                                                 value={editFormData.position}
                                                 onChange={(value) => setEditFormData({ ...editFormData, position: value })}
                                                 placeholder="Position"
+                                            />
+                                            <Input
+                                                label="Home Address"
+                                                value={editFormData.home_address}
+                                                onChange={(value) => setEditFormData({ ...editFormData, home_address: value })}
+                                                placeholder="123 Main St, Springfield"
                                             />
                                             <TextArea
                                                 label="Notes"
