@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -81,6 +81,7 @@ export default function ContactsPage() {
     const [editColumnName, setEditColumnName] = useState("");
     const [columnSaving, setColumnSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -867,15 +868,23 @@ export default function ContactsPage() {
                                     color="secondary"
                                     size="sm"
                                     onClick={() => {
-                                        setParsedContacts([]);
-                                        setSelectedContacts(new Set());
-                                        setError(null);
-                                        setSuccess(null);
+                                        fileInputRef.current?.click();
                                     }}
                                     iconLeading={UploadCloud02}
                                 >
                                     Upload
                                 </Button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".csv"
+                                    style={{ display: "none" }}
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files.length > 0) {
+                                            handleFileUpload(e.target.files);
+                                        }
+                                    }}
+                                />
                             </div>
                         </div>
                         {viewMode === "list" ? (
