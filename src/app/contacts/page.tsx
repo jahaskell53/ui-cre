@@ -368,6 +368,22 @@ export default function ContactsPage() {
         return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
     };
 
+    const formatPhoneNumber = (phone: string): string => {
+        // Remove all non-digit characters
+        const digits = phone.replace(/\D/g, "");
+        
+        // Remove leading 1 if present (US country code)
+        const cleaned = digits.startsWith("1") && digits.length === 11 ? digits.slice(1) : digits;
+        
+        // Format as (XXX) XXX-XXXX
+        if (cleaned.length === 10) {
+            return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+        }
+        
+        // If not 10 digits, return original
+        return phone;
+    };
+
     return (
         <MainLayout>
             <div className="max-w-6xl mx-auto">
@@ -547,6 +563,11 @@ export default function ContactsPage() {
                                                         <div className="text-sm text-secondary mt-1">
                                                             {contact.email_address}
                                                         </div>
+                                                        {contact.phone_number && (
+                                                            <div className="text-sm text-secondary mt-1">
+                                                                {formatPhoneNumber(contact.phone_number)}
+                                                            </div>
+                                                        )}
                                                         {(contact.company || contact.position) && (
                                                             <div className="text-xs text-tertiary mt-1">
                                                                 {contact.position && contact.company
@@ -623,9 +644,15 @@ export default function ContactsPage() {
                                             <Input
                                                 label="Phone Number"
                                                 type="tel"
-                                                value={editFormData.phone_number}
-                                                onChange={(value) => setEditFormData({ ...editFormData, phone_number: value })}
-                                                placeholder="+1 (555) 123-4567"
+                                                value={formatPhoneNumber(editFormData.phone_number)}
+                                                onChange={(value) => {
+                                                    // Remove all non-digit characters for storage
+                                                    const digits = value.replace(/\D/g, "");
+                                                    // Remove leading 1 if present
+                                                    const cleaned = digits.startsWith("1") && digits.length === 11 ? digits.slice(1) : digits;
+                                                    setEditFormData({ ...editFormData, phone_number: cleaned });
+                                                }}
+                                                placeholder="(555) 123-4567"
                                             />
                                             <Input
                                                 label="Company"
