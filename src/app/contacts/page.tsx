@@ -484,6 +484,12 @@ export default function ContactsPage() {
         return phone;
     };
 
+    const formatPropertyAddress = (address: string): string => {
+        // Extract just the street address (first part before comma)
+        const parts = address.split(',');
+        return parts[0]?.trim() || address;
+    };
+
     const filterContacts = (contacts: Contact[], query: string): Contact[] => {
         if (!query.trim()) {
             return contacts;
@@ -599,8 +605,18 @@ export default function ContactsPage() {
                                     </div>
                                 )}
                                 {contact.owned_properties && contact.owned_properties.length > 0 && (
-                                    <div className="text-xs text-tertiary mt-1">
-                                        {contact.owned_properties.length} owned propert{contact.owned_properties.length === 1 ? 'y' : 'ies'}
+                                    <div className="text-xs text-tertiary mt-1 space-y-0.5">
+                                        <div className="font-medium text-secondary">Properties:</div>
+                                        {contact.owned_properties.slice(0, 2).map((property, idx) => (
+                                            <div key={idx} className="pl-2 truncate">
+                                                • {formatPropertyAddress(property)}
+                                            </div>
+                                        ))}
+                                        {contact.owned_properties.length > 2 && (
+                                            <div className="pl-2 text-tertiary">
+                                                +{contact.owned_properties.length - 2} more
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -990,8 +1006,13 @@ export default function ContactsPage() {
                                                                 </div>
                                                             )}
                                                             {contact.owned_properties && contact.owned_properties.length > 0 && (
-                                                                <div className="text-xs text-tertiary mt-1">
-                                                                    {contact.owned_properties.length} owned propert{contact.owned_properties.length === 1 ? 'y' : 'ies'}
+                                                                <div className="text-xs text-tertiary mt-1 space-y-0.5">
+                                                                    <div className="font-medium text-secondary">Owned Properties:</div>
+                                                                    {contact.owned_properties.map((property, idx) => (
+                                                                        <div key={idx} className="pl-2">
+                                                                            • {formatPropertyAddress(property)}
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                             )}
                                                         </div>
