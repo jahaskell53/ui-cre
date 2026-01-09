@@ -14,7 +14,7 @@ import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus, Minus } from "@untitledui/icons";
+import { UploadCloud02, Download01, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus, Minus } from "@untitledui/icons";
 import { Kanban } from "react-kanban-kit";
 
 interface ParsedContact {
@@ -512,6 +512,59 @@ export default function ContactsPage() {
         });
     };
 
+    const handleDownloadCSV = () => {
+        const filteredContacts = filterContacts(contacts, searchQuery);
+        if (filteredContacts.length === 0) return;
+
+        const headers = [
+            "First Name",
+            "Last Name",
+            "Email Address",
+            "Company",
+            "Position",
+            "Phone Number",
+            "Status",
+            "Category",
+            "Home Address",
+            "Owned Properties",
+            "Notes",
+        ];
+
+        const escapeCSV = (value: string | null | undefined): string => {
+            if (value === null || value === undefined) return "";
+            const str = String(value);
+            if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const rows = filteredContacts.map(contact => [
+            escapeCSV(contact.first_name),
+            escapeCSV(contact.last_name),
+            escapeCSV(contact.email_address),
+            escapeCSV(contact.company),
+            escapeCSV(contact.position),
+            escapeCSV(contact.phone_number),
+            escapeCSV(contact.status),
+            escapeCSV(contact.category),
+            escapeCSV(contact.home_address),
+            escapeCSV(contact.owned_properties?.join("; ")),
+            escapeCSV(contact.notes),
+        ]);
+
+        const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `contacts-${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     const buildKanbanData = (): any => {
         const rootChildren = kanbanColumns.map((col, idx) => `col-${idx}`);
         const filteredContacts = filterContacts(contacts, searchQuery);
@@ -898,6 +951,15 @@ export default function ContactsPage() {
                                     className="!px-3"
                                 >
                                     New
+                                </Button>
+                                <Button
+                                    color="secondary"
+                                    size="sm"
+                                    onClick={handleDownloadCSV}
+                                    iconLeading={Download01}
+                                    isDisabled={filterContacts(contacts, searchQuery).length === 0}
+                                >
+                                    Download
                                 </Button>
                                 <Button
                                     color="secondary"
