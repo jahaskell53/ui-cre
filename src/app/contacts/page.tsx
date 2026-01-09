@@ -1088,6 +1088,7 @@ export default function ContactsPage() {
                                             columnStyle={() => ({
                                                 minHeight: "400px",
                                                 overflowY: "auto",
+                                                padding: "8px",
                                             })}
                                             cardsGap={8}
                                             rootStyle={{ width: "100%" }}
