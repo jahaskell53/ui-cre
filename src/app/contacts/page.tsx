@@ -10,6 +10,8 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { Input } from "@/components/base/input/input";
 import { AddressInput } from "@/components/base/input/address-input";
 import { TextArea } from "@/components/base/textarea/textarea";
+import { Select } from "@/components/base/select/select";
+import type { SelectItemType } from "@/components/base/select/select";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
 import { UploadCloud02, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus, Minus } from "@untitledui/icons";
@@ -36,6 +38,7 @@ interface Contact {
     notes: string | null;
     home_address: string | null;
     owned_properties: string[] | null;
+    category: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -50,6 +53,7 @@ const createEmptyContactForm = () => ({
     notes: "",
     home_address: "",
     owned_properties: [] as string[],
+    category: "",
 });
 
 export default function ContactsPage() {
@@ -341,6 +345,7 @@ export default function ContactsPage() {
             notes: contact.notes || "",
             home_address: contact.home_address || "",
             owned_properties: contact.owned_properties || [],
+            category: contact.category || "",
         });
         setError(null);
         setSuccess(null);
@@ -384,6 +389,7 @@ export default function ContactsPage() {
                         owned_properties: editFormData.owned_properties.filter(p => p.trim()).length > 0 
                             ? editFormData.owned_properties.filter(p => p.trim())
                             : null,
+                        category: editFormData.category.trim() || null,
                     }),
                 });
 
@@ -408,6 +414,7 @@ export default function ContactsPage() {
                               owned_properties: editFormData.owned_properties.filter(p => p.trim()).length > 0 
                                   ? editFormData.owned_properties.filter(p => p.trim())
                                   : null,
+                              category: editFormData.category.trim() || null,
                           }
                         : c
                 ));
@@ -433,6 +440,7 @@ export default function ContactsPage() {
                                 ownedProperties: editFormData.owned_properties.filter(p => p.trim()).length > 0 
                                     ? editFormData.owned_properties.filter(p => p.trim())
                                     : [],
+                                category: editFormData.category.trim() || null,
                             },
                         ],
                     }),
@@ -494,6 +502,7 @@ export default function ContactsPage() {
                 contact.status,
                 contact.notes,
                 contact.home_address,
+                contact.category,
                 ...(contact.owned_properties || []),
             ].filter(field => field !== null && field !== undefined);
 
@@ -582,6 +591,11 @@ export default function ContactsPage() {
                                         {contact.position && contact.company
                                             ? `${contact.position} at ${contact.company}`
                                             : contact.position || contact.company}
+                                    </div>
+                                )}
+                                {contact.category && (
+                                    <div className="text-xs text-tertiary mt-1">
+                                        {contact.category}
                                     </div>
                                 )}
                                 {contact.owned_properties && contact.owned_properties.length > 0 && (
@@ -970,6 +984,11 @@ export default function ContactsPage() {
                                                                         : contact.position || contact.company}
                                                                 </div>
                                                             )}
+                                                            {contact.category && (
+                                                                <div className="text-xs text-tertiary mt-1">
+                                                                    {contact.category}
+                                                                </div>
+                                                            )}
                                                             {contact.owned_properties && contact.owned_properties.length > 0 && (
                                                                 <div className="text-xs text-tertiary mt-1">
                                                                     {contact.owned_properties.length} owned propert{contact.owned_properties.length === 1 ? 'y' : 'ies'}
@@ -1137,6 +1156,18 @@ export default function ContactsPage() {
                                                 onChange={(value) => setEditFormData({ ...editFormData, position: value })}
                                                 placeholder="Position"
                                             />
+                                            <Select
+                                                label="Category"
+                                                selectedKey={editFormData.category || null}
+                                                onSelectionChange={(key) => setEditFormData({ ...editFormData, category: key as string || "" })}
+                                                items={[
+                                                    { id: "Realtor", label: "Realtor" },
+                                                    { id: "Property Owner", label: "Property Owner" },
+                                                    { id: "Lender", label: "Lender" },
+                                                ]}
+                                            >
+                                                {(item) => <Select.Item id={item.id} label={item.label} />}
+                                            </Select>
                                             <AddressInput
                                                 label="Home Address"
                                                 value={editFormData.home_address}

@@ -373,6 +373,9 @@ describe('POST /api/contacts', () => {
         position: 'Engineer',
         phone_number: '+1234567890',
         notes: 'Met at conference',
+        home_address: null,
+        owned_properties: null,
+        category: null,
         status: 'Active Prospecting',
       },
       {
@@ -384,8 +387,256 @@ describe('POST /api/contacts', () => {
         position: null,
         phone_number: null,
         notes: null,
+        home_address: null,
+        owned_properties: null,
+        category: null,
         status: 'Active Prospecting',
       },
+    ])
+  })
+
+  it('should successfully import contact with category', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockInsertedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Real Estate Co',
+      position: 'Agent',
+      phone_number: '+1234567890',
+      notes: 'Top realtor',
+      category: 'Realtor',
+      created_at: new Date().toISOString(),
+    }
+
+    const mockInsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        data: [mockInsertedContact],
+        error: null,
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      insert: mockInsert,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts', {
+      method: 'POST',
+      body: JSON.stringify({
+        contacts: [
+          {
+            firstName: 'John',
+            lastName: 'Doe',
+            emailAddress: 'john@example.com',
+            company: 'Real Estate Co',
+            position: 'Agent',
+            phoneNumber: '+1234567890',
+            notes: 'Top realtor',
+            category: 'Realtor',
+          },
+        ],
+      }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.count).toBe(1)
+    expect(mockInsert).toHaveBeenCalledWith([
+      {
+        user_id: 'user-123',
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        company: 'Real Estate Co',
+        position: 'Agent',
+        phone_number: '+1234567890',
+        notes: 'Top realtor',
+        home_address: null,
+        owned_properties: null,
+        category: 'Realtor',
+        status: 'Active Prospecting',
+      },
+    ])
+  })
+
+  it('should handle all category types (Realtor, Property Owner, Lender)', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockInsertedContacts = [
+      {
+        id: 'contact-1',
+        user_id: 'user-123',
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        category: 'Realtor',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'contact-2',
+        user_id: 'user-123',
+        first_name: 'Jane',
+        last_name: 'Smith',
+        email_address: 'jane@example.com',
+        category: 'Property Owner',
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 'contact-3',
+        user_id: 'user-123',
+        first_name: 'Bob',
+        last_name: 'Johnson',
+        email_address: 'bob@example.com',
+        category: 'Lender',
+        created_at: new Date().toISOString(),
+      },
+    ]
+
+    const mockInsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        data: mockInsertedContacts,
+        error: null,
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      insert: mockInsert,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts', {
+      method: 'POST',
+      body: JSON.stringify({
+        contacts: [
+          {
+            firstName: 'John',
+            lastName: 'Doe',
+            emailAddress: 'john@example.com',
+            category: 'Realtor',
+          },
+          {
+            firstName: 'Jane',
+            lastName: 'Smith',
+            emailAddress: 'jane@example.com',
+            category: 'Property Owner',
+          },
+          {
+            firstName: 'Bob',
+            lastName: 'Johnson',
+            emailAddress: 'bob@example.com',
+            category: 'Lender',
+          },
+        ],
+      }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.count).toBe(3)
+    expect(mockInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        user_id: 'user-123',
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        home_address: null,
+        owned_properties: null,
+        category: 'Realtor',
+        status: 'Active Prospecting',
+      }),
+      expect.objectContaining({
+        user_id: 'user-123',
+        first_name: 'Jane',
+        last_name: 'Smith',
+        email_address: 'jane@example.com',
+        home_address: null,
+        owned_properties: null,
+        category: 'Property Owner',
+        status: 'Active Prospecting',
+      }),
+      expect.objectContaining({
+        user_id: 'user-123',
+        first_name: 'Bob',
+        last_name: 'Johnson',
+        email_address: 'bob@example.com',
+        home_address: null,
+        owned_properties: null,
+        category: 'Lender',
+        status: 'Active Prospecting',
+      }),
+    ])
+  })
+
+  it('should trim whitespace from category field', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockInsertedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      category: 'Realtor',
+      created_at: new Date().toISOString(),
+    }
+
+    const mockInsert = vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({
+        data: [mockInsertedContact],
+        error: null,
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockReturnValue({
+      insert: mockInsert,
+    } as any)
+
+    const request = new NextRequest('http://localhost/api/contacts', {
+      method: 'POST',
+      body: JSON.stringify({
+        contacts: [
+          {
+            firstName: 'John',
+            lastName: 'Doe',
+            emailAddress: 'john@example.com',
+            category: '  Realtor  ',
+          },
+        ],
+      }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        user_id: 'user-123',
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        home_address: null,
+        owned_properties: null,
+        category: 'Realtor',
+        status: 'Active Prospecting',
+      }),
     ])
   })
 
@@ -460,6 +711,9 @@ describe('POST /api/contacts', () => {
         position: null,
         phone_number: null,
         notes: null,
+        home_address: null,
+        owned_properties: null,
+        category: null,
         status: 'Active Prospecting',
       },
     ])
@@ -528,6 +782,9 @@ describe('POST /api/contacts', () => {
         position: 'Engineer',
         phone_number: '+1234567890',
         notes: 'Important contact',
+        home_address: null,
+        owned_properties: null,
+        category: null,
         status: 'Active Prospecting',
       },
     ])
@@ -865,6 +1122,314 @@ describe('PUT /api/contacts', () => {
       position: 'Engineer',
       phone_number: '+1234567890',
       notes: 'Met at conference',
+    })
+  })
+
+  it('should successfully update contact with category', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Real Estate Co',
+      position: 'Agent',
+      phone_number: '+1234567890',
+      notes: 'Top realtor',
+      category: 'Realtor',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        company: 'Real Estate Co',
+        position: 'Agent',
+        phone_number: '+1234567890',
+        notes: 'Top realtor',
+        category: 'Realtor',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.id).toBe('contact-1')
+    expect(data.category).toBe('Realtor')
+    expect(mockUpdate).toHaveBeenCalledWith({
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      company: 'Real Estate Co',
+      position: 'Agent',
+      phone_number: '+1234567890',
+      notes: 'Top realtor',
+      category: 'Realtor',
+    })
+  })
+
+  it('should handle updating category to different values', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      category: 'Property Owner',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        category: 'Property Owner',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.category).toBe('Property Owner')
+    expect(mockUpdate).toHaveBeenCalledWith({
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      category: 'Property Owner',
+    })
+  })
+
+  it('should handle updating category to null', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      category: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        category: null,
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.category).toBeNull()
+    expect(mockUpdate).toHaveBeenCalledWith({
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      category: null,
+    })
+  })
+
+  it('should trim whitespace from category when updating', async () => {
+    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+      data: { user: mockUser },
+      error: null,
+    } as any)
+
+    const mockUpdatedContact = {
+      id: 'contact-1',
+      user_id: 'user-123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      category: 'Lender',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const mockSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: mockUpdatedContact,
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    })
+
+    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
+      if (table === 'contacts') {
+        return {
+          select: mockSelect,
+          update: mockUpdate,
+        } as any
+      }
+      return {} as any
+    })
+
+    const request = new NextRequest('http://localhost/api/contacts?id=contact-1', {
+      method: 'PUT',
+      body: JSON.stringify({
+        first_name: 'John',
+        last_name: 'Doe',
+        email_address: 'john@example.com',
+        category: '  Lender  ',
+      }),
+    })
+
+    const response = await PUT(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalledWith({
+      first_name: 'John',
+      last_name: 'Doe',
+      email_address: 'john@example.com',
+      category: 'Lender',
     })
   })
 

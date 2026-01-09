@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
             owned_properties: Array.isArray(contact.ownedProperties) && contact.ownedProperties.length > 0
                 ? contact.ownedProperties.filter((p: string) => p?.trim()).map((p: string) => p.trim())
                 : null,
+            category: contact.category?.trim() || null,
             status: "Active Prospecting",
         })).filter((contact: any) => 
             contact.first_name && contact.last_name && contact.email_address
@@ -109,7 +110,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { first_name, last_name, email_address, company, position, phone_number, status, notes, home_address, owned_properties } = body;
+        const { first_name, last_name, email_address, company, position, phone_number, status, notes, home_address, owned_properties, category } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -123,6 +124,7 @@ export async function PUT(request: NextRequest) {
         if (status !== undefined) updateData.status = status || null;
         if (notes !== undefined) updateData.notes = notes?.trim() || null;
         if (home_address !== undefined) updateData.home_address = home_address?.trim() || null;
+        if (category !== undefined) updateData.category = category?.trim() || null;
         if (owned_properties !== undefined) {
             updateData.owned_properties = Array.isArray(owned_properties) && owned_properties.length > 0
                 ? owned_properties.filter((p: string) => p?.trim()).map((p: string) => p.trim())
