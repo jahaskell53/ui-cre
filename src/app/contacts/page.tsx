@@ -578,9 +578,12 @@ export default function ContactsPage() {
                                 <div className="font-semibold text-sm text-primary">
                                     {contact.first_name} {contact.last_name}
                                 </div>
-                                <div className="text-xs text-secondary mt-1">
+                                <a 
+                                    href={`mailto:${contact.email_address}`}
+                                    className="text-xs text-secondary mt-1 underline decoration-transparent hover:decoration-current hover:text-primary transition-colors"
+                                >
                                     {contact.email_address}
-                                </div>
+                                </a>
                                 {contact.phone_number && (
                                     <div className="text-xs text-secondary mt-1">
                                         {formatPhoneNumber(contact.phone_number)}
@@ -969,9 +972,13 @@ export default function ContactsPage() {
                                                             <div className="font-semibold text-sm text-primary">
                                                                 {contact.first_name} {contact.last_name}
                                                             </div>
-                                                            <div className="text-sm text-secondary mt-1">
+                                                            <a 
+                                                                href={`mailto:${contact.email_address}`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="text-sm text-secondary mt-1 underline decoration-transparent hover:decoration-current hover:text-primary transition-colors"
+                                                            >
                                                                 {contact.email_address}
-                                                            </div>
+                                                            </a>
                                                             {contact.phone_number && (
                                                                 <div className="text-sm text-secondary mt-1">
                                                                     {formatPhoneNumber(contact.phone_number)}
