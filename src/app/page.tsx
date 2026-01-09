@@ -248,11 +248,11 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                         className="block border border-secondary rounded-xl overflow-hidden hover:border-tertiary transition-colors group"
                                     >
                                         {linkPreview.image && (
-                                            <div className="w-full h-48 bg-secondary relative overflow-hidden">
+                                            <div className="w-full bg-secondary relative overflow-hidden p-4">
                                                 <img
                                                     src={linkPreview.image}
                                                     alt={linkPreview.title}
-                                                    className="w-full h-full object-cover"
+                                                    className="w-full max-h-60 object-contain mx-auto"
                                                     onError={(e) => {
                                                         (e.target as HTMLImageElement).style.display = "none";
                                                     }}
