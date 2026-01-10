@@ -14,8 +14,9 @@ import { Select } from "@/components/base/select/select";
 import type { SelectItemType } from "@/components/base/select/select";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { useUser } from "@/hooks/use-user";
-import { UploadCloud02, Download01, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus, Minus } from "@untitledui/icons";
+import { UploadCloud02, Download01, Check, X, CheckCircle, Trash01, Edit01, LayoutGrid01, List, SearchLg, Plus, Minus, Map01, Loading03 } from "@untitledui/icons";
 import { Kanban } from "react-kanban-kit";
+import { ContactMap, type ContactLocation } from "@/components/application/map/contact-map";
 
 interface ParsedContact {
     firstName: string;
@@ -72,7 +73,7 @@ export default function ContactsPage() {
     const [editFormData, setEditFormData] = useState(createEmptyContactForm());
     const [saving, setSaving] = useState(false);
     const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+    const [viewMode, setViewMode] = useState<"list" | "kanban" | "map">("list");
     const [kanbanColumns, setKanbanColumns] = useState<string[]>([
         "Active Prospecting",
         "Offering Memorandum",
@@ -88,6 +89,10 @@ export default function ContactsPage() {
     const [columnSaving, setColumnSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+    const [geocoding, setGeocoding] = useState(false);
+    const addressCoordinatesRef = useRef<Record<string, [number, number] | null>>({});
+    const [addressCoordinatesVersion, setAddressCoordinatesVersion] = useState(0);
 
     const loadContacts = useCallback(async () => {
         if (!user) return;
@@ -512,6 +517,71 @@ export default function ContactsPage() {
         });
     };
 
+    useEffect(() => {
+        if (viewMode !== "map") return;
+
+        let cancelled = false;
+
+        const run = async () => {
+            const filteredContacts = filterContacts(contacts, searchQuery);
+
+            const addresses = filteredContacts
+                .flatMap((c) => {
+                    const owned = (c.owned_properties || []).filter((p) => p && p.trim());
+                    return [c.home_address || "", ...owned];
+                })
+                .map((a) => a.trim())
+                .filter(Boolean);
+
+            const uniqueAddresses = Array.from(new Set(addresses));
+
+            // Nothing to geocode
+            if (uniqueAddresses.length === 0) return;
+
+            setGeocoding(true);
+            try {
+                for (const address of uniqueAddresses) {
+                    if (cancelled) return;
+                    if (addressCoordinatesRef.current[address] !== undefined) continue;
+
+                    try {
+                        const response = await fetch(`/api/geocode?q=${encodeURIComponent(address)}`);
+                        if (!response.ok) {
+                            addressCoordinatesRef.current[address] = null;
+                            setAddressCoordinatesVersion((v) => v + 1);
+                            continue;
+                        }
+
+                        const data = await response.json();
+                        const coordsUnknown: unknown = data?.suggestions?.[0]?.coordinates;
+                        if (
+                            Array.isArray(coordsUnknown) &&
+                            coordsUnknown.length === 2 &&
+                            typeof coordsUnknown[0] === "number" &&
+                            typeof coordsUnknown[1] === "number"
+                        ) {
+                            addressCoordinatesRef.current[address] = [coordsUnknown[0], coordsUnknown[1]];
+                        } else {
+                            addressCoordinatesRef.current[address] = null;
+                        }
+                        setAddressCoordinatesVersion((v) => v + 1);
+                    } catch (e) {
+                        addressCoordinatesRef.current[address] = null;
+                        setAddressCoordinatesVersion((v) => v + 1);
+                    }
+                }
+            } finally {
+                if (!cancelled) setGeocoding(false);
+            }
+        };
+
+        run();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [viewMode, contacts, searchQuery]);
+
     const handleDownloadCSV = () => {
         const filteredContacts = filterContacts(contacts, searchQuery);
         if (filteredContacts.length === 0) return;
@@ -931,6 +1001,13 @@ export default function ContactsPage() {
                                         onClick={() => setViewMode("kanban")}
                                         className="!px-3"
                                     />
+                                    <Button
+                                        color={viewMode === "map" ? "primary" : "secondary"}
+                                        size="sm"
+                                        iconLeading={Map01}
+                                        onClick={() => setViewMode("map")}
+                                        className="!px-3"
+                                    />
                                 </div>
                                 {selectedSavedContacts.size > 0 && (
                                     <Button
@@ -1082,7 +1159,7 @@ export default function ContactsPage() {
                                     </>
                                 )}
                             </div>
-                        ) : (
+                        ) : viewMode === "kanban" ? (
                             <div className="bg-primary border border-secondary rounded-2xl overflow-hidden p-4">
                                 {loading ? (
                                     <div className="flex items-center justify-center py-12">
@@ -1143,6 +1220,140 @@ export default function ContactsPage() {
                                         />
                                     </div>
                                 )}
+                            </div>
+                        ) : (
+                            <div className="bg-primary border border-secondary rounded-2xl overflow-hidden">
+                                {loading ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <div className="text-tertiary">Loading contacts...</div>
+                                    </div>
+                                ) : (() => {
+                                    const filteredContacts = filterContacts(contacts, searchQuery);
+                                    // Ensure re-render as geocoding cache fills
+                                    void addressCoordinatesVersion;
+
+                                    const addressItems: Array<{
+                                        id: string;
+                                        name: string;
+                                        email: string;
+                                        addressLabel: "Home" | "Owned";
+                                        address: string;
+                                    }> = [];
+
+                                    filteredContacts.forEach((c) => {
+                                        if (c.home_address && c.home_address.trim()) {
+                                            addressItems.push({
+                                                id: `${c.id}-home`,
+                                                name: `${c.first_name} ${c.last_name}`,
+                                                email: c.email_address,
+                                                addressLabel: "Home",
+                                                address: c.home_address.trim(),
+                                            });
+                                        }
+
+                                        (c.owned_properties || []).forEach((p, idx) => {
+                                            if (!p || !p.trim()) return;
+                                            addressItems.push({
+                                                id: `${c.id}-owned-${idx}`,
+                                                name: `${c.first_name} ${c.last_name}`,
+                                                email: c.email_address,
+                                                addressLabel: "Owned",
+                                                address: p.trim(),
+                                            });
+                                        });
+                                    });
+
+                                    const locations: ContactLocation[] = addressItems
+                                        .map((item) => {
+                                            const coords = addressCoordinatesRef.current[item.address];
+                                            if (!coords) return null;
+                                            return {
+                                                id: item.id,
+                                                name: item.name,
+                                                email: item.email,
+                                                addressLabel: item.addressLabel,
+                                                address: item.address,
+                                                coordinates: coords,
+                                            };
+                                        })
+                                        .filter((x): x is ContactLocation => Boolean(x));
+
+                                    return (
+                                        <div className="flex flex-col-reverse lg:flex-row border border-secondary rounded-2xl overflow-hidden bg-primary shadow-sm relative h-[calc(100vh-20rem)] min-h-[520px]">
+                                            <div className="w-full lg:w-80 h-1/2 lg:h-auto border-t lg:border-t-0 lg:border-r border-secondary flex flex-col bg-primary z-10">
+                                                <div className="p-4 border-b border-secondary flex justify-between items-center bg-primary">
+                                                    <span className="text-sm font-semibold text-secondary uppercase tracking-wider">
+                                                        Contact Addresses
+                                                    </span>
+                                                    {geocoding && (
+                                                        <div className="flex items-center gap-2 text-tertiary text-xs">
+                                                            <Loading03 className="w-4 h-4 animate-spin" />
+                                                            <span>Geocoding…</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex-1 overflow-auto divide-y divide-secondary">
+                                                    {addressItems.length === 0 ? (
+                                                        <div className="p-8 text-center text-tertiary">
+                                                            <p>No home/owned addresses found for the current filter.</p>
+                                                        </div>
+                                                    ) : (
+                                                        addressItems.map((item) => {
+                                                            const hasCoords = Boolean(addressCoordinatesRef.current[item.address]);
+                                                            const isSelected = selectedLocationId === item.id;
+                                                            return (
+                                                                <button
+                                                                    key={item.id}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (hasCoords) setSelectedLocationId(item.id);
+                                                                    }}
+                                                                    className={[
+                                                                        "w-full text-left p-4 transition-colors",
+                                                                        hasCoords ? "hover:bg-secondary/5 cursor-pointer" : "cursor-not-allowed opacity-60",
+                                                                        isSelected ? "bg-secondary/10" : "",
+                                                                    ].join(" ")}
+                                                                >
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <div className="font-semibold text-primary truncate">{item.name}</div>
+                                                                        <span className="text-xs font-semibold text-tertiary bg-secondary-subtle px-2 py-0.5 rounded-md border border-secondary">
+                                                                            {item.addressLabel}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="text-xs text-secondary mt-1 truncate">{item.email}</div>
+                                                                    <div className="text-sm text-tertiary mt-2 line-clamp-2">{item.address}</div>
+                                                                    {!hasCoords && (
+                                                                        <div className="text-xs text-tertiary mt-2">No coordinates found</div>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 relative">
+                                                {locations.length === 0 ? (
+                                                    <div className="absolute inset-0 flex items-center justify-center text-tertiary">
+                                                        <div className="text-center max-w-md px-6">
+                                                            <div className="font-medium text-primary mb-2">No mappable addresses</div>
+                                                            <div className="text-sm">
+                                                                Add a contact home address and/or owned property address (or refine your search) to show markers.
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <ContactMap
+                                                        locations={locations}
+                                                        selectedId={selectedLocationId}
+                                                        className="absolute inset-0"
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
