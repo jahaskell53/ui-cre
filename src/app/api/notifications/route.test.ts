@@ -102,39 +102,51 @@ describe('GET /api/notifications', () => {
       },
     }
 
-    let callCount = 0
-    const mockSelect = vi.fn().mockImplementation(() => {
-      callCount++
-      if (callCount === 1) {
-        // First call for notifications
+    const mockFrom = vi.fn().mockImplementation((table: string) => {
+      if (table === 'notifications') {
         return {
-          eq: vi.fn().mockReturnValue({
-            is: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({
-                  data: mockNotifications,
-                  error: null,
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              is: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: mockNotifications,
+                    error: null,
+                  }),
                 }),
               }),
             }),
           }),
         }
-      } else {
-        // Second call for message
+      } else if (table === 'messages') {
         return {
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: mockMessage,
-              error: null,
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { sender_id: mockMessage.sender_id },
+                error: null,
+              }),
+            }),
+          }),
+        }
+      } else if (table === 'profiles') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: mockMessage.sender,
+                error: null,
+              }),
             }),
           }),
         }
       }
+      return {
+        select: vi.fn(),
+      }
     })
 
-    vi.mocked(mockSupabaseClient.from).mockReturnValue({
-      select: mockSelect,
-    } as any)
+    vi.mocked(mockSupabaseClient.from).mockImplementation(mockFrom)
 
     const request = new NextRequest('http://localhost/api/notifications')
 

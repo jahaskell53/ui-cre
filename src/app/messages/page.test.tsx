@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import MessagesPage from './page'
 import { useUser } from '@/hooks/use-user'
@@ -264,14 +264,31 @@ describe('MessagesPage', () => {
     }
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Message/i)).toBeInTheDocument()
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument()
     }, { timeout: 3000 })
 
-    const input = screen.getByLabelText(/Message/i)
+    const input = screen.getByPlaceholderText(/Type a message/i)
     await userEvent.type(input, 'Test message')
 
-    const sendButton = screen.getByText('Send')
-    await userEvent.click(sendButton)
+    // Find the send button - it's an icon-only button in the message input area
+    // The button should be enabled after typing
+    await waitFor(() => {
+      const messageInputArea = input.closest('[class*="border-t"]')
+      if (messageInputArea) {
+        const buttons = within(messageInputArea as HTMLElement).getAllByRole('button')
+        const sendButton = buttons.find(btn => !btn.hasAttribute('disabled'))
+        if (sendButton) {
+          return sendButton
+        }
+      }
+      throw new Error('Send button not found or not enabled')
+    }, { timeout: 3000 })
+    
+    const messageInputArea = input.closest('[class*="border-t"]')
+    const buttons = within(messageInputArea as HTMLElement).getAllByRole('button')
+    const sendButton = buttons.find(btn => !btn.hasAttribute('disabled'))
+    expect(sendButton).toBeDefined()
+    await userEvent.click(sendButton!)
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/messages', {
