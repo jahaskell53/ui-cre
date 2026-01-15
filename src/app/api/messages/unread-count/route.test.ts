@@ -124,7 +124,7 @@ describe('GET /api/messages/unread-count', () => {
     const data = await response.json()
 
     expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to count unread messages')
+    expect(data.error).toBe('Failed to count unread notifications')
   })
 
     it('should filter by user_id and read_at is null', async () => {
