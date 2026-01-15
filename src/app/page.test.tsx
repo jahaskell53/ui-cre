@@ -37,20 +37,37 @@ describe('FeedPage', () => {
   })
 
   it('should load posts on mount', async () => {
-    const mockSelect = vi.fn().mockReturnValue({
-      order: vi.fn().mockResolvedValue({
-        data: [],
-        error: null,
-      }),
-    })
+    // Create a mock that supports the full method chain
+    const createMockQuery = (table: string) => {
+      const mockIn = vi.fn().mockResolvedValue({ data: [], error: null })
+      const mockEq = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+      })
+      const mockSelect = vi.fn().mockReturnValue({
+        order: vi.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
+        eq: mockEq,
+        in: mockIn,
+      })
+      const mockDelete = vi.fn().mockReturnValue({
+        eq: mockEq,
+      })
+      const mockInsert = vi.fn().mockResolvedValue({ data: null, error: null })
+
+      return {
+        select: mockSelect,
+        delete: mockDelete,
+        insert: mockInsert,
+      }
+    }
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'posts') {
-        return { select: mockSelect } as any
-      }
-      return { 
-        select: vi.fn().mockResolvedValue({ data: [], error: null }) 
-      } as any
+      return createMockQuery(table) as any
     })
 
     render(<FeedPage />)
