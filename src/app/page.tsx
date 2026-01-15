@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -68,6 +68,13 @@ const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: strin
     );
 };
 
+interface UserSuggestion {
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+}
+
 const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: {
     post: Post;
     currentUserId: string | undefined;
@@ -85,6 +92,14 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
     const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const [showPdfPreview, setShowPdfPreview] = useState(true);
+    const [mentionSuggestions, setMentionSuggestions] = useState<UserSuggestion[]>([]);
+    const [mentionQuery, setMentionQuery] = useState("");
+    const [mentionPosition, setMentionPosition] = useState<number | null>(null);
+    const [selectedMentionIndex, setSelectedMentionIndex] = useState(-1);
+    const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+    const [cursorPosition, setCursorPosition] = useState(0);
+    const mentionInputRef = useRef<HTMLInputElement>(null);
+    const mentionDropdownRef = useRef<HTMLDivElement>(null);
     const isArticle = post.type !== "post";
     const isLink = post.type === "link";
     const authorName = post.profile?.full_name || post.profile?.username || "Anonymous User";
@@ -101,6 +116,27 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
             loadLinkPreview(post.content);
         }
     }, [isLink, post.content]);
+
+    // Close mention dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                mentionDropdownRef.current &&
+                !mentionDropdownRef.current.contains(event.target as Node) &&
+                mentionInputRef.current &&
+                !(mentionInputRef.current as HTMLElement).contains(event.target as Node)
+            ) {
+                setShowMentionDropdown(false);
+            }
+        };
+
+        if (showMentionDropdown) {
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => {
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }
+    }, [showMentionDropdown]);
 
     const loadComments = async () => {
         const { data, error } = await supabase
@@ -138,24 +174,185 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
         }
     };
 
+    const searchMentionUsers = useCallback(async (query: string) => {
+        if (!query.trim()) {
+            setMentionSuggestions([]);
+            setShowMentionDropdown(false);
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("id, username, full_name, avatar_url")
+                .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+                .neq("id", currentUserId || "")
+                .limit(10);
+
+            if (error) throw error;
+
+            setMentionSuggestions(data || []);
+            setShowMentionDropdown((data || []).length > 0);
+            setSelectedMentionIndex(-1);
+        } catch (error) {
+            console.error("Error searching users for mention:", error);
+            setMentionSuggestions([]);
+            setShowMentionDropdown(false);
+        }
+    }, [currentUserId]);
+
+    const handleCommentTextChange = (value: string) => {
+        setCommentText(value);
+
+        // Get cursor position after React updates
+        setTimeout(() => {
+            const input = mentionInputRef.current as HTMLInputElement | null;
+            if (!input) return;
+
+            const pos = input.selectionStart || value.length;
+            setCursorPosition(pos);
+            
+            const textBeforeCursor = value.substring(0, pos);
+            const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
+            if (lastAtIndex !== -1) {
+                const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+                // Check if there's a space after @ (meaning mention is complete)
+                if (textAfterAt.includes(" ") || textAfterAt.length === 0) {
+                    setShowMentionDropdown(false);
+                    setMentionQuery("");
+                    setMentionPosition(null);
+                } else {
+                    // Extract the query after @
+                    const query = textAfterAt.trim();
+                    setMentionQuery(query);
+                    setMentionPosition(lastAtIndex);
+                    searchMentionUsers(query);
+                }
+            } else {
+                setShowMentionDropdown(false);
+                setMentionQuery("");
+                setMentionPosition(null);
+            }
+        }, 0);
+    };
+
+    const insertMention = (username: string) => {
+        // If mentionPosition is null, try to find it from the current text
+        let pos = mentionPosition;
+        if (pos === null) {
+            const input = mentionInputRef.current as HTMLInputElement | null;
+            if (input) {
+                const cursorPos = input.selectionStart || commentText.length;
+                const textBeforeCursor = commentText.substring(0, cursorPos);
+                pos = textBeforeCursor.lastIndexOf("@");
+            }
+        }
+
+        if (pos === null || pos === -1) {
+            console.error("Could not find @ mention position");
+            return;
+        }
+
+        const textBefore = commentText.substring(0, pos);
+        const textAfter = commentText.substring(pos + 1 + (mentionQuery.length || 0));
+        const newText = `${textBefore}@${username} ${textAfter}`;
+        
+        setCommentText(newText);
+        setShowMentionDropdown(false);
+        setMentionQuery("");
+        setMentionPosition(null);
+        setSelectedMentionIndex(-1);
+        
+        // Focus back on input and set cursor position
+        setTimeout(() => {
+            const input = mentionInputRef.current as HTMLInputElement | null;
+            if (input) {
+                input.focus();
+                const newCursorPos = pos! + username.length + 2; // +2 for @ and space
+                input.setSelectionRange(newCursorPos, newCursorPos);
+            }
+        }, 0);
+    };
+
+    const handleCommentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Update cursor position on keydown
+        const input = e.currentTarget as HTMLInputElement;
+        setTimeout(() => {
+            setCursorPosition(input.selectionStart || 0);
+        }, 0);
+
+        if (showMentionDropdown && mentionSuggestions.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setSelectedMentionIndex(prev => 
+                    prev < mentionSuggestions.length - 1 ? prev + 1 : prev
+                );
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : -1);
+            } else if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                if (selectedMentionIndex >= 0 && selectedMentionIndex < mentionSuggestions.length) {
+                    const selectedUser = mentionSuggestions[selectedMentionIndex];
+                    const username = selectedUser.username || selectedUser.full_name || "";
+                    if (username) {
+                        insertMention(username);
+                    }
+                } else if (mentionSuggestions.length > 0) {
+                    // Select first suggestion if none selected
+                    const firstUser = mentionSuggestions[0];
+                    const username = firstUser.username || firstUser.full_name || "";
+                    if (username) {
+                        insertMention(username);
+                    }
+                }
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                setShowMentionDropdown(false);
+                setMentionQuery("");
+                setMentionPosition(null);
+            }
+        } else if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleComment();
+        }
+    };
+
     const handleComment = async () => {
         if (!commentText.trim() || !currentUserId) return;
 
         setIsSubmittingComment(true);
-        const { error } = await supabase
-            .from("comments")
-            .insert({
-                post_id: post.id,
-                user_id: currentUserId,
-                content: commentText.trim()
+        try {
+            const response = await fetch("/api/comments", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    post_id: post.id,
+                    content: commentText.trim(),
+                }),
             });
 
-        if (!error) {
-            setCommentText("");
-            loadComments();
-            onComment(post.id, commentText);
+            if (response.ok) {
+                setCommentText("");
+                setShowMentionDropdown(false);
+                setMentionQuery("");
+                setMentionPosition(null);
+                loadComments();
+                onComment(post.id, commentText);
+            } else {
+                const error = await response.json();
+                console.error("Error creating comment:", error);
+                alert(error.error || "Failed to create comment");
+            }
+        } catch (error) {
+            console.error("Error creating comment:", error);
+            alert("Failed to create comment");
+        } finally {
+            setIsSubmittingComment(false);
         }
-        setIsSubmittingComment(false);
     };
 
     return (
@@ -400,20 +597,67 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                     initials={currentUserProfile.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
                                     src={currentUserProfile.avatar_url || undefined}
                                 />
-                                <div className="flex-1 flex gap-2">
+                                <div className="flex-1 flex gap-2 relative">
                                     <Input
+                                        ref={mentionInputRef}
                                         placeholder="Write a comment..."
                                         className="flex-1"
                                         size="sm"
                                         value={commentText}
-                                        onChange={setCommentText}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleComment();
-                                            }
-                                        }}
+                                        onChange={handleCommentTextChange}
+                                        onKeyDown={handleCommentKeyDown}
                                     />
+                                    {showMentionDropdown && mentionSuggestions.length > 0 && (
+                                        <div
+                                            ref={mentionDropdownRef}
+                                            className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-white border border-secondary rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+                                        >
+                                            {mentionSuggestions.map((user, index) => {
+                                                const displayName = user.full_name || user.username || "Unknown";
+                                                const username = user.username || "";
+                                                const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
+                                                
+                                                return (
+                                                    <div
+                                                        key={user.id}
+                                                        className={`px-3 py-2 cursor-pointer flex items-center gap-2 hover:bg-secondary/50 ${
+                                                            index === selectedMentionIndex ? "bg-secondary/50" : ""
+                                                        }`}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            if (username) {
+                                                                insertMention(username);
+                                                            } else if (user.full_name) {
+                                                                // Fallback to full_name if username is not available
+                                                                insertMention(user.full_name);
+                                                            }
+                                                        }}
+                                                        onMouseDown={(e) => {
+                                                            // Prevent the click-outside handler from firing
+                                                            e.preventDefault();
+                                                        }}
+                                                    >
+                                                        <Avatar
+                                                            size="xs"
+                                                            initials={initials}
+                                                            src={user.avatar_url || undefined}
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-sm font-medium text-primary truncate">
+                                                                {displayName}
+                                                            </div>
+                                                            {username && username !== displayName && (
+                                                                <div className="text-xs text-tertiary truncate">
+                                                                    @{username}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                     <Button
                                         color="primary"
                                         size="sm"
