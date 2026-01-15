@@ -11,6 +11,7 @@ import { TextArea } from "@/components/base/textarea/textarea";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Dropdown } from "@/components/base/dropdown/dropdown";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { Toggle } from "@/components/base/toggle/toggle";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { formatDistanceToNow } from "date-fns";
@@ -444,6 +445,7 @@ export default function FeedPage() {
     const [showingLiked, setShowingLiked] = useState(false);
     const [attachedFileUrl, setAttachedFileUrl] = useState<string | null>(null);
     const [isUploadingFile, setIsUploadingFile] = useState(false);
+    const [postAsSystem, setPostAsSystem] = useState(false);
 
     useEffect(() => {
         if (!userLoading) {
@@ -629,10 +631,30 @@ export default function FeedPage() {
         if (postType === "link" && !postUrl.trim()) return;
 
         setIsSubmitting(true);
+        
+        let userIdToUse = user.id;
+        
+        // If admin wants to post as system account
+        if (postAsSystem && profile?.is_admin) {
+            // Fetch the system account (OpenMidmarket) profile
+            const { data: systemProfile, error: systemError } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("full_name", "OpenMidmarket")
+                .single();
+            
+            if (!systemError && systemProfile) {
+                userIdToUse = systemProfile.id;
+            } else {
+                console.error("Error fetching system account:", systemError);
+                alert("Failed to find system account. Posting as yourself.");
+            }
+        }
+        
         const { error } = await supabase
             .from("posts")
             .insert({
-                user_id: user.id,
+                user_id: userIdToUse,
                 type: postType,
                 content: postType === "link" ? postUrl.trim() : postContent.trim(),
                 file_url: attachedFileUrl,
@@ -644,6 +666,7 @@ export default function FeedPage() {
             setPostUrl("");
             setAttachedFileUrl(null);
             setPostType("post");
+            setPostAsSystem(false);
             loadPosts();
             close?.();
         }
@@ -742,6 +765,18 @@ export default function FeedPage() {
                                     </div>
 
                                     <div className="w-full flex flex-col gap-6">
+                                        {profile?.is_admin && (
+                                            <div className="flex items-center justify-between p-4 border border-secondary rounded-lg bg-secondary/5">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-sm font-medium text-primary">Post as OpenMidmarket</span>
+                                                    <span className="text-xs text-tertiary">Post on behalf of the system account</span>
+                                                </div>
+                                                <Toggle
+                                                    isSelected={postAsSystem}
+                                                    onChange={setPostAsSystem}
+                                                />
+                                            </div>
+                                        )}
                                         <div className="flex flex-col gap-3">
                                             <span className="text-sm font-medium text-secondary">Select post type</span>
                                             <div className="flex gap-2">
@@ -839,6 +874,7 @@ export default function FeedPage() {
                                                 setPostUrl("");
                                                 setAttachedFileUrl(null);
                                                 setPostType("post");
+                                                setPostAsSystem(false);
                                             }}
                                             className="flex-1 sm:flex-none"
                                         >

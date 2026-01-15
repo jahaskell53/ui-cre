@@ -11,6 +11,7 @@ interface Profile {
   avatar_url: string | null;
   website: string | null;
   roles: string[] | null;
+  is_admin: boolean | null;
   updated_at: string | null;
 }
 
