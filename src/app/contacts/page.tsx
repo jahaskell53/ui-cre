@@ -905,16 +905,16 @@ export default function ContactsPage() {
 
                 {contacts.length > 0 && (
                     <div className="mt-8">
-                        <div className="flex items-center justify-between mb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                             <h2 className="text-lg font-semibold text-primary">Your Contacts</h2>
-                            <div className="flex gap-3">
+                            <div className="flex flex-wrap gap-3">
                                 <Input
                                     placeholder="Search contacts..."
                                     value={searchQuery}
                                     onChange={setSearchQuery}
                                     icon={SearchLg}
                                     size="sm"
-                                    className="w-64"
+                                    className="w-full sm:w-64"
                                 />
                                 <div className="flex gap-1 bg-secondary/10 rounded-lg p-1">
                                     <Button
