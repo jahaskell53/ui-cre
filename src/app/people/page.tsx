@@ -203,7 +203,7 @@ export default function PeoplePage() {
       if (!isDragging) return;
       const newWidth = window.innerWidth - e.clientX;
       const minWidth = 340;
-      const maxWidth = 600;
+      const maxWidth = 800;
       setPanelWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
     };
 
