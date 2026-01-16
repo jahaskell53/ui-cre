@@ -294,14 +294,34 @@ export default function PeoplePage() {
   }, [isDragging]);
 
   useEffect(() => {
+    const tabs = ["people", "duplicates", "map", "archive", "board"];
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle arrow keys when People tab is active
-      if (selectedTab !== "people") return;
-      
       // Don't handle if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
+
+      // Handle Tab navigation between tabs
+      if (e.key === "Tab") {
+        const currentIndex = tabs.indexOf(selectedTab);
+        if (currentIndex !== -1) {
+          e.preventDefault();
+          let newIndex: number;
+          if (e.shiftKey) {
+            // Shift+Tab: go to previous tab
+            newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+          } else {
+            // Tab: go to next tab
+            newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
+          }
+          setSelectedTab(tabs[newIndex]);
+        }
+        return;
+      }
+
+      // Only handle arrow keys when People tab is active
+      if (selectedTab !== "people") return;
 
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
