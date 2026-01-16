@@ -7,7 +7,7 @@ create table people (
   name text not null,
   starred boolean default false not null,
   email text,
-  has_signal boolean default false not null,
+  signal boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

@@ -76,7 +76,7 @@ interface Person {
   name: string;
   starred: boolean;
   email: string | null;
-  has_signal: boolean;
+  signal: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -653,7 +653,7 @@ export default function PeoplePage() {
                         <div className="flex items-center gap-1">
                           {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
                           {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
-                          {person.has_signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+                          {person.signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                         </div>
                       </div>
                     </div>
@@ -731,7 +731,7 @@ export default function PeoplePage() {
                                 <div className="flex items-center gap-1 mt-1">
                                   {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
                                   {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
-                                  {person.has_signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+                                  {person.signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                                 </div>
                               </div>
                             </div>

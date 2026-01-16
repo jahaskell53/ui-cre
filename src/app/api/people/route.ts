@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, has_signal } = body;
+        const { name, starred, email, signal } = body;
 
         if (!name || typeof name !== "string" || name.trim().length === 0) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
                 name: name.trim(),
                 starred: starred ?? false,
                 email: email?.trim() || null,
-                has_signal: has_signal ?? false,
+                signal: signal ?? false,
             })
             .select()
             .single();
@@ -93,7 +93,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, has_signal } = body;
+        const { name, starred, email, signal } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -101,7 +101,7 @@ export async function PUT(request: NextRequest) {
         if (name !== undefined) updateData.name = name.trim();
         if (starred !== undefined) updateData.starred = starred;
         if (email !== undefined) updateData.email = email?.trim() || null;
-        if (has_signal !== undefined) updateData.has_signal = has_signal;
+        if (signal !== undefined) updateData.signal = signal;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
