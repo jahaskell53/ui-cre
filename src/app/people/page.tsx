@@ -148,6 +148,18 @@ function SignalIcon({ className }: { className?: string }) {
   );
 }
 
+function CellularIcon({ className, strength }: { className?: string; strength: "HIGH" | "MEDIUM" | "LOW" }) {
+  const colorClass = strength === "HIGH" ? "text-green-500" : strength === "MEDIUM" ? "text-orange-500" : "text-yellow-500";
+  return (
+    <svg className={cn(className, colorClass)} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="12" y="10" width="2" height="4" rx="0.5" fill="currentColor"/>
+      <rect x="9" y="7" width="2" height="7" rx="0.5" fill="currentColor"/>
+      <rect x="6" y="4" width="2" height="10" rx="0.5" fill="currentColor"/>
+      <rect x="3" y="1" width="2" height="13" rx="0.5" fill="currentColor"/>
+    </svg>
+  );
+}
+
 function PlusIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -692,9 +704,12 @@ export default function PeoplePage() {
             {/* Network Strength */}
             <div className="mb-6">
               <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Network Strength</h3>
-              <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5">
-                HIGH
-              </Badge>
+              <div className="flex items-center gap-2">
+                <CellularIcon strength="HIGH" className="w-4 h-4" />
+                <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5">
+                  HIGH
+                </Badge>
+              </div>
             </div>
 
             <Separator className="my-4" />
