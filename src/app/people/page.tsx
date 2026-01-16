@@ -250,7 +250,7 @@ export default function PeoplePage() {
   return (
     <div className="flex h-screen bg-white">
       {/* Left Sidebar */}
-      <div className="w-[180px] border-r border-gray-200 flex flex-col">
+      <div className="w-[180px] border-r border-gray-200 flex flex-col h-screen overflow-hidden">
         {/* Logo */}
         <div className="p-4 flex items-center gap-2">
           <div className="w-6 h-6 bg-gray-900 rounded flex items-center justify-center">
@@ -324,7 +324,7 @@ export default function PeoplePage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Header with Tabs */}
         <div className="border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
@@ -372,7 +372,7 @@ export default function PeoplePage() {
         </div>
 
         {/* People List */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-y-auto">
           <div className="divide-y divide-gray-100">
             {people.map((person) => (
               <div
@@ -418,8 +418,8 @@ export default function PeoplePage() {
       </div>
 
       {/* Right Detail Panel */}
-      <div className="flex flex-col bg-gray-50/50 flex-shrink-0" style={{ width: `${panelWidth}px` }}>
-        <ScrollArea className="flex-1">
+      <div className="flex flex-col bg-gray-50/50 flex-shrink-0 h-screen overflow-hidden" style={{ width: `${panelWidth}px` }}>
+        <ScrollArea className="flex-1 h-full">
           <div className="p-4">
             {/* Profile Header */}
             <div className="flex flex-col items-center mb-6">
