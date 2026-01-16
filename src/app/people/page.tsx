@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -140,6 +140,9 @@ function EmojiIcon({ className }: { className?: string }) {
 export default function PeoplePage() {
   const [selectedPerson, setSelectedPerson] = useState(people[0]);
   const [selectedTab, setSelectedTab] = useState("people");
+  const [panelWidth, setPanelWidth] = useState(280);
+  const [isDragging, setIsDragging] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   const getInitials = (name: string) => {
     const parts = name.split(/[\s@]+/).filter(Boolean);
@@ -147,6 +150,38 @@ export default function PeoplePage() {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
     return parts[0]?.slice(0, 2).toUpperCase() || "??";
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 200;
+      const maxWidth = 600;
+      setPanelWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isDragging]);
+
+  const handleMouseDown = () => {
+    setIsDragging(true);
   };
 
   return (
@@ -307,8 +342,17 @@ export default function PeoplePage() {
         </ScrollArea>
       </div>
 
+      {/* Resizable Divider */}
+      <div
+        ref={resizeRef}
+        onMouseDown={handleMouseDown}
+        className="w-1 flex items-center justify-center cursor-col-resize flex-shrink-0 group"
+      >
+        <div className="w-px h-full bg-gray-200 group-hover:bg-gray-300 transition-colors" />
+      </div>
+
       {/* Right Detail Panel */}
-      <div className="w-[280px] border-l border-gray-200 flex flex-col bg-gray-50/50">
+      <div className="flex flex-col bg-gray-50/50 flex-shrink-0" style={{ width: `${panelWidth}px` }}>
         <ScrollArea className="flex-1">
           <div className="p-4">
             {/* Profile Header */}
