@@ -506,6 +506,17 @@ export default function PeoplePage() {
   const handleToggleStar = async (person: Person, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click
     
+    const newStarredState = !person.starred;
+    
+    // Optimistic update: update UI immediately
+    const optimisticPerson = { ...person, starred: newStarredState };
+    setPeople(people.map(p => p.id === person.id ? optimisticPerson : p));
+    
+    // Update selected person if it's the one being toggled
+    if (selectedPerson?.id === person.id) {
+      setSelectedPerson(optimisticPerson);
+    }
+    
     try {
       const response = await fetch(`/api/people?id=${person.id}`, {
         method: 'PUT',
@@ -513,7 +524,7 @@ export default function PeoplePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          starred: !person.starred,
+          starred: newStarredState,
         }),
       });
 
@@ -523,15 +534,21 @@ export default function PeoplePage() {
 
       const updatedPerson = await response.json();
       
-      // Update the person in the local state
+      // Update with server response (in case server made any other changes)
       setPeople(people.map(p => p.id === person.id ? updatedPerson : p));
       
-      // Update selected person if it's the one being toggled
       if (selectedPerson?.id === person.id) {
         setSelectedPerson(updatedPerson);
       }
     } catch (error) {
       console.error('Error toggling star:', error);
+      
+      // Revert optimistic update on error
+      setPeople(people.map(p => p.id === person.id ? person : p));
+      
+      if (selectedPerson?.id === person.id) {
+        setSelectedPerson(person);
+      }
     }
   };
 
