@@ -494,25 +494,25 @@ export default function PeoplePage() {
               <TabsList className="bg-transparent h-auto p-0 space-x-4">
                 <TabsTrigger
                   value="people"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   People
                 </TabsTrigger>
                 <TabsTrigger
                   value="board"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   Board
                 </TabsTrigger>
                 <TabsTrigger
                   value="map"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   Map
                 </TabsTrigger>
                 <TabsTrigger
                   value="archive"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   Archive
                 </TabsTrigger>
