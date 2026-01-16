@@ -77,6 +77,23 @@ const people = [
   { id: 16, name: "Al Smail, Jad Alkarim", starred: true, hasEmail: true, hasSignal: true },
   { id: 17, name: "Gabriella Vulakh", starred: true, hasEmail: true, hasSignal: true },
   { id: 18, name: "ashura buckley", starred: true, hasEmail: true, hasSignal: true },
+  { id: 19, name: "Sarah Chen", starred: false, hasEmail: true, hasSignal: true },
+  { id: 20, name: "Michael Rodriguez", starred: true, hasEmail: true, hasSignal: false },
+  { id: 21, name: "emily.watson@techcorp.com", starred: true, hasEmail: true, hasSignal: true },
+  { id: 22, name: "James Park", starred: false, hasEmail: false, hasSignal: true },
+  { id: 23, name: "Lisa Anderson", starred: true, hasEmail: true, hasSignal: true },
+  { id: 24, name: "robert.martinez@startup.io", starred: false, hasEmail: true, hasSignal: false },
+  { id: 25, name: "Maria Garcia", starred: true, hasEmail: true, hasSignal: true },
+  { id: 26, name: "David Kim", starred: false, hasEmail: true, hasSignal: true },
+  { id: 27, name: "Jennifer Lee", starred: true, hasEmail: false, hasSignal: true },
+  { id: 28, name: "thomas.brown@company.com", starred: true, hasEmail: true, hasSignal: true },
+  { id: 29, name: "Amanda White", starred: false, hasEmail: true, hasSignal: false },
+  { id: 30, name: "Christopher Taylor", starred: true, hasEmail: true, hasSignal: true },
+  { id: 31, name: "Jessica Moore", starred: false, hasEmail: true, hasSignal: true },
+  { id: 32, name: "william.jones@enterprise.com", starred: true, hasEmail: true, hasSignal: false },
+  { id: 33, name: "Nicole Thompson", starred: true, hasEmail: true, hasSignal: true },
+  { id: 34, name: "Ryan Wilson", starred: false, hasEmail: false, hasSignal: true },
+  { id: 35, name: "Lauren Davis", starred: true, hasEmail: true, hasSignal: true },
 ];
 
 // Icons
