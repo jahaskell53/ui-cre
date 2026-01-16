@@ -440,8 +440,8 @@ export default function PeoplePage() {
                   <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
                     <CalendarIcon className="w-2.5 h-2.5 text-blue-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-700">You will meet with {selectedPerson.name.split(' ')[0]}...</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-700 break-words">You will meet with {selectedPerson.name.split(' ')[0]}</p>
                     <p className="text-xs text-gray-400 mt-0.5">January 19</p>
                   </div>
                 </div>
@@ -449,8 +449,8 @@ export default function PeoplePage() {
                   <div className="w-4 h-4 bg-orange-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
                     <CalendarIcon className="w-2.5 h-2.5 text-orange-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-700">{selectedPerson.name.split(' ')[0]} imported via...</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-700 break-words">{selectedPerson.name.split(' ')[0]} imported via</p>
                     <p className="text-xs text-gray-400 mt-0.5">1H</p>
                   </div>
                 </div>
@@ -458,8 +458,8 @@ export default function PeoplePage() {
                   <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
                     <CalendarIcon className="w-2.5 h-2.5 text-blue-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-700">You met with {selectedPerson.name.split(' ')[0]}...</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-700 break-words">You met with {selectedPerson.name.split(' ')[0]}</p>
                     <p className="text-xs text-gray-400 mt-0.5">January 12</p>
                   </div>
                 </div>
@@ -467,8 +467,8 @@ export default function PeoplePage() {
                   <div className="w-4 h-4 bg-purple-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
                     <MailIcon className="w-2.5 h-2.5 text-purple-600" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-700">You emailed {selectedPerson.name.split(' ')[0]}...</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-700 break-words">You emailed {selectedPerson.name.split(' ')[0]}</p>
                     <p className="text-xs text-gray-400 mt-0.5">January 3</p>
                   </div>
                 </div>
