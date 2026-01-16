@@ -417,7 +417,7 @@ export default function PeoplePage() {
               <h2 className="text-sm font-medium text-gray-900 text-center truncate max-w-full px-2">
                 {selectedPerson.name}
               </h2>
-              <Badge variant="secondary" className="mt-1.5 bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5">
+              <Badge variant="secondary" className="mt-1.5 text-xs font-medium px-2 py-0.5">
                 AUTO
               </Badge>
             </div>
@@ -425,7 +425,7 @@ export default function PeoplePage() {
             {/* Network Strength */}
             <div className="mb-6">
               <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Network Strength</h3>
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-xs font-medium px-2 py-0.5">
+              <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5">
                 HIGH
               </Badge>
             </div>
