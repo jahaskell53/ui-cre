@@ -10,48 +10,73 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-// Aurora gradient styles
-const auroraGradients = [
-  "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)", // Purple-pink
-  "linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #f093fb 100%)", // Pink-rose
-  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", // Blue-cyan
-  "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", // Green-teal
-  "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", // Pink-yellow
-  "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)", // Mint-pink
-  "linear-gradient(135deg, #667eea 0%, #43e97b 100%)", // Purple-green
-  "linear-gradient(135deg, #f5576c 0%, #f093fb 100%)", // Red-purple
-  "linear-gradient(135deg, #5ee7df 0%, #b490ca 100%)", // Teal-lavender
-  "linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)", // Mauve-cream
-  "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)", // Sky-blue
-  "linear-gradient(135deg, #fddb92 0%, #d1fdff 100%)", // Gold-ice
-  "linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)", // Light blue
-  "linear-gradient(135deg, #f6d365 0%, #fda085 100%)", // Sunset
-  "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)", // Peach
-  "linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)", // Mint-sky
-  "linear-gradient(135deg, #cfd9df 0%, #e2ebf0 100%)", // Silver
-  "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)", // Violet-pink
-];
+// Generate a deterministic hash from a string
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+}
+
+// Convert HSL to hex color
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// Generate an aurora gradient from any unique identifier (name, email, id)
+function generateAuroraGradient(identifier: string): string {
+  const hash = hashString(identifier);
+
+  // Use hash to generate two complementary hues for aurora effect
+  const hue1 = hash % 360;
+  const hue2 = (hue1 + 40 + (hash % 60)) % 360; // Offset by 40-100 degrees for nice color pairs
+
+  // Keep saturation high and lightness in a pleasant range
+  const saturation1 = 70 + (hash % 20); // 70-90%
+  const saturation2 = 65 + ((hash >> 8) % 25); // 65-90%
+  const lightness1 = 60 + (hash % 15); // 60-75%
+  const lightness2 = 55 + ((hash >> 4) % 20); // 55-75%
+
+  const color1 = hslToHex(hue1, saturation1, lightness1);
+  const color2 = hslToHex(hue2, saturation2, lightness2);
+
+  // Vary the gradient angle slightly based on hash
+  const angle = 120 + (hash % 40); // 120-160 degrees
+
+  return `linear-gradient(${angle}deg, ${color1} 0%, ${color2} 100%)`;
+}
 
 // Sample data matching the screenshot
 const people = [
-  { id: 1, name: "alon@greenpointcollection.com Collection", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[0] },
-  { id: 2, name: "Josh @ Realie", starred: true, hasEmail: true, hasSignal: false, gradient: auroraGradients[1] },
-  { id: 3, name: "Alon Carmel", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[2] },
-  { id: 4, name: "Drew Koch", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[3] },
-  { id: 5, name: "Soren Craig", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[4] },
-  { id: 6, name: "enock.kenani.nyakundi@gmail.com", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[5] },
-  { id: 7, name: "David Laidlaw", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[6] },
-  { id: 8, name: "Jakobi Jakobi", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[7] },
-  { id: 9, name: "He, Melvin", starred: true, hasEmail: true, hasSignal: false, gradient: auroraGradients[8] },
-  { id: 10, name: "vihaskell@gmail.com Haskell", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[9] },
-  { id: 11, name: "Russell Katz", starred: true, hasEmail: false, hasSignal: true, gradient: auroraGradients[10] },
-  { id: 12, name: "Otis Katz", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[11] },
-  { id: 13, name: "Omkar Podey", starred: true, hasEmail: true, hasSignal: false, gradient: auroraGradients[12] },
-  { id: 14, name: "Tianyou Xu", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[13] },
-  { id: 15, name: "christian_armstrong@brown.edu", starred: true, hasEmail: true, hasSignal: false, gradient: auroraGradients[14] },
-  { id: 16, name: "Al Smail, Jad Alkarim", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[15] },
-  { id: 17, name: "Gabriella Vulakh", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[16] },
-  { id: 18, name: "ashura buckley", starred: true, hasEmail: true, hasSignal: true, gradient: auroraGradients[17] },
+  { id: 1, name: "alon@greenpointcollection.com Collection", starred: true, hasEmail: true, hasSignal: true },
+  { id: 2, name: "Josh @ Realie", starred: true, hasEmail: true, hasSignal: false },
+  { id: 3, name: "Alon Carmel", starred: true, hasEmail: true, hasSignal: true },
+  { id: 4, name: "Drew Koch", starred: true, hasEmail: true, hasSignal: true },
+  { id: 5, name: "Soren Craig", starred: true, hasEmail: true, hasSignal: true },
+  { id: 6, name: "enock.kenani.nyakundi@gmail.com", starred: true, hasEmail: true, hasSignal: true },
+  { id: 7, name: "David Laidlaw", starred: true, hasEmail: true, hasSignal: true },
+  { id: 8, name: "Jakobi Jakobi", starred: true, hasEmail: true, hasSignal: true },
+  { id: 9, name: "He, Melvin", starred: true, hasEmail: true, hasSignal: false },
+  { id: 10, name: "vihaskell@gmail.com Haskell", starred: true, hasEmail: true, hasSignal: true },
+  { id: 11, name: "Russell Katz", starred: true, hasEmail: false, hasSignal: true },
+  { id: 12, name: "Otis Katz", starred: true, hasEmail: true, hasSignal: true },
+  { id: 13, name: "Omkar Podey", starred: true, hasEmail: true, hasSignal: false },
+  { id: 14, name: "Tianyou Xu", starred: true, hasEmail: true, hasSignal: true },
+  { id: 15, name: "christian_armstrong@brown.edu", starred: true, hasEmail: true, hasSignal: false },
+  { id: 16, name: "Al Smail, Jad Alkarim", starred: true, hasEmail: true, hasSignal: true },
+  { id: 17, name: "Gabriella Vulakh", starred: true, hasEmail: true, hasSignal: true },
+  { id: 18, name: "ashura buckley", starred: true, hasEmail: true, hasSignal: true },
 ];
 
 // Icons
@@ -355,7 +380,7 @@ export default function PeoplePage() {
                 <Avatar className="h-7 w-7 ml-2">
                   <AvatarFallback
                     className="text-white text-xs font-medium"
-                    style={{ background: person.gradient }}
+                    style={{ background: generateAuroraGradient(person.name) }}
                   >
                     {getInitials(person.name)}
                   </AvatarFallback>
@@ -384,7 +409,7 @@ export default function PeoplePage() {
               <Avatar className="h-20 w-20 mb-3">
                 <AvatarFallback
                   className="text-white text-2xl font-medium"
-                  style={{ background: selectedPerson.gradient }}
+                  style={{ background: generateAuroraGradient(selectedPerson.name) }}
                 >
                   {getInitials(selectedPerson.name)}
                 </AvatarFallback>
