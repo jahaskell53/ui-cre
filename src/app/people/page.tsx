@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 // Generate a deterministic hash from a string
@@ -200,12 +200,62 @@ function EmojiIcon({ className }: { className?: string }) {
   );
 }
 
+interface KanbanCard {
+  id: string;
+  personId: number;
+  personName: string;
+}
+
+interface KanbanColumn {
+  id: string;
+  title: string;
+  cards: KanbanCard[];
+}
+
 export default function PeoplePage() {
   const [selectedPerson, setSelectedPerson] = useState(people[0]);
   const [selectedTab, setSelectedTab] = useState("people");
   const [panelWidth, setPanelWidth] = useState(280);
   const [isDragging, setIsDragging] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const [draggedCard, setDraggedCard] = useState<string | null>(null);
+  const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
+  
+  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
+    {
+      id: "to-contact",
+      title: "To Contact",
+      cards: [
+        { id: "card-1", personId: 1, personName: people[0].name },
+        { id: "card-2", personId: 2, personName: people[1].name },
+        { id: "card-3", personId: 3, personName: people[2].name },
+      ],
+    },
+    {
+      id: "in-progress",
+      title: "In Progress",
+      cards: [
+        { id: "card-4", personId: 4, personName: people[3].name },
+        { id: "card-5", personId: 5, personName: people[4].name },
+      ],
+    },
+    {
+      id: "follow-up",
+      title: "Follow Up",
+      cards: [
+        { id: "card-6", personId: 6, personName: people[5].name },
+        { id: "card-7", personId: 7, personName: people[6].name },
+        { id: "card-8", personId: 8, personName: people[7].name },
+      ],
+    },
+    {
+      id: "done",
+      title: "Done",
+      cards: [
+        { id: "card-9", personId: 9, personName: people[8].name },
+      ],
+    },
+  ]);
 
   const getInitials = (name: string) => {
     const parts = name.split(/[\s@]+/).filter(Boolean);
@@ -245,6 +295,42 @@ export default function PeoplePage() {
 
   const handleMouseDown = () => {
     setIsDragging(true);
+  };
+
+  const handleCardDragStart = (cardId: string) => {
+    setDraggedCard(cardId);
+  };
+
+  const handleCardDragEnd = () => {
+    if (draggedCard && draggedOverColumn) {
+      const newColumns = kanbanColumns.map((column) => {
+        // Remove card from all columns
+        const filteredCards = column.cards.filter((card) => card.id !== draggedCard);
+        
+        // Add card to target column
+        if (column.id === draggedOverColumn) {
+          const card = kanbanColumns
+            .flatMap((col) => col.cards)
+            .find((c) => c.id === draggedCard);
+          if (card) {
+            return { ...column, cards: [...filteredCards, card] };
+          }
+        }
+        return { ...column, cards: filteredCards };
+      });
+      setKanbanColumns(newColumns);
+    }
+    setDraggedCard(null);
+    setDraggedOverColumn(null);
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
+    e.preventDefault();
+    setDraggedOverColumn(columnId);
+  };
+
+  const handleColumnDragLeave = () => {
+    setDraggedOverColumn(null);
   };
 
   return (
@@ -325,10 +411,10 @@ export default function PeoplePage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Header with Tabs */}
-        <div className="border-b border-gray-200 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col min-w-0">
+          {/* Header with Tabs */}
+          <div className="border-b border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between">
               <TabsList className="bg-transparent h-auto p-0 space-x-4">
                 <TabsTrigger
                   value="people"
@@ -354,58 +440,157 @@ export default function PeoplePage() {
                 >
                   Archive
                 </TabsTrigger>
+                <TabsTrigger
+                  value="board"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
+                >
+                  Board
+                </TabsTrigger>
               </TabsList>
-            </Tabs>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-900">
-                <span>Recency</span>
-                <SortIcon className="w-4 h-4" />
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-900">
+                  <span>Recency</span>
+                  <SortIcon className="w-4 h-4" />
+                </div>
+                <CheckIcon className="w-4 h-4 text-gray-400" />
               </div>
-              <CheckIcon className="w-4 h-4 text-gray-400" />
             </div>
           </div>
-        </div>
+        <TabsContent value="people" className="flex-1 flex flex-col min-w-0 m-0">
+          {/* People Count */}
+          <div className="px-4 py-2 border-b border-gray-100">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">347 People</span>
+          </div>
 
-        {/* People Count */}
-        <div className="px-4 py-2 border-b border-gray-100">
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">347 People</span>
-        </div>
-
-        {/* People List */}
-        <ScrollArea className="flex-1 overflow-y-auto">
-          <div className="divide-y divide-gray-100">
-            {people.map((person) => (
-              <div
-                key={person.id}
-                onClick={() => setSelectedPerson(person)}
-                className={cn(
-                  "flex items-center px-4 py-2.5 hover:bg-gray-50 cursor-pointer group",
-                  selectedPerson.id === person.id && "bg-gray-50"
-                )}
-              >
-                <Checkbox className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-900 truncate">{person.name}</span>
-                    <div className="flex items-center gap-1">
-                      {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
-                      {person.hasEmail && <MailIcon className="w-3 h-3 text-teal-500" />}
-                      {person.hasSignal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+          {/* People List */}
+          <ScrollArea className="flex-1 overflow-y-auto">
+            <div className="divide-y divide-gray-100">
+              {people.map((person) => (
+                <div
+                  key={person.id}
+                  onClick={() => setSelectedPerson(person)}
+                  className={cn(
+                    "flex items-center px-4 py-2.5 hover:bg-gray-50 cursor-pointer group",
+                    selectedPerson.id === person.id && "bg-gray-50"
+                  )}
+                >
+                  <Checkbox className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-900 truncate">{person.name}</span>
+                      <div className="flex items-center gap-1">
+                        {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
+                        {person.hasEmail && <MailIcon className="w-3 h-3 text-teal-500" />}
+                        {person.hasSignal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+                      </div>
                     </div>
                   </div>
+                  <Avatar className="h-7 w-7 ml-2">
+                    <AvatarFallback
+                      className="text-white text-xs font-medium"
+                      style={{ background: generateAuroraGradient(person.name) }}
+                    >
+                      {getInitials(person.name)}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
-                <Avatar className="h-7 w-7 ml-2">
-                  <AvatarFallback
-                    className="text-white text-xs font-medium"
-                    style={{ background: generateAuroraGradient(person.name) }}
-                  >
-                    {getInitials(person.name)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            ))}
+              ))}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="board" className="flex-1 flex flex-col min-w-0 m-0">
+          {/* Kanban Board */}
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-4 p-4 h-full min-w-fit">
+              {kanbanColumns.map((column) => (
+                <div
+                  key={column.id}
+                  className={cn(
+                    "flex flex-col w-64 bg-gray-50 rounded-lg border border-gray-200",
+                    draggedOverColumn === column.id && "ring-2 ring-blue-500"
+                  )}
+                  onDragOver={(e) => handleColumnDragOver(e, column.id)}
+                  onDragLeave={handleColumnDragLeave}
+                  onDrop={handleCardDragEnd}
+                >
+                  {/* Column Header */}
+                  <div className="px-4 py-3 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-gray-900">{column.title}</h3>
+                      <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                        {column.cards.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Column Cards */}
+                  <ScrollArea className="flex-1 p-2">
+                    <div className="space-y-2">
+                      {column.cards.map((card) => {
+                        const person = people.find((p) => p.id === card.personId);
+                        if (!person) return null;
+                        return (
+                          <div
+                            key={card.id}
+                            draggable
+                            onDragStart={() => handleCardDragStart(card.id)}
+                            onDragEnd={handleCardDragEnd}
+                            onClick={() => setSelectedPerson(person)}
+                            className={cn(
+                              "bg-white rounded-lg border border-gray-200 p-3 cursor-move hover:shadow-md transition-shadow",
+                              draggedCard === card.id && "opacity-50"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback
+                                  className="text-white text-xs font-medium"
+                                  style={{ background: generateAuroraGradient(person.name) }}
+                                >
+                                  {getInitials(person.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {person.name}
+                                </p>
+                                <div className="flex items-center gap-1 mt-1">
+                                  {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
+                                  {person.hasEmail && <MailIcon className="w-3 h-3 text-teal-500" />}
+                                  {person.hasSignal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </div>
+              ))}
+            </div>
           </div>
-        </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="duplicates" className="flex-1 flex flex-col min-w-0 m-0">
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm text-gray-500">Duplicates view coming soon</p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="map" className="flex-1 flex flex-col min-w-0 m-0">
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm text-gray-500">Map view coming soon</p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="archive" className="flex-1 flex flex-col min-w-0 m-0">
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm text-gray-500">Archive view coming soon</p>
+          </div>
+        </TabsContent>
+        </Tabs>
       </div>
 
       {/* Resizable Divider */}
