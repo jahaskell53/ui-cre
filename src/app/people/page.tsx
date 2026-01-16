@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useUser } from "@/hooks/use-user";
+import { supabase } from "@/utils/supabase";
+import { useRouter } from "next/navigation";
+import { ChevronDown, User, Settings, LogOut } from "lucide-react";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -222,6 +235,92 @@ interface KanbanColumn {
   id: string;
   title: string;
   cards: KanbanCard[];
+}
+
+function AccountCard() {
+  const router = useRouter();
+  const { user, profile, loading } = useUser();
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg p-2">
+        <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3 w-24 rounded bg-gray-200 animate-pulse" />
+          <div className="h-2.5 w-32 rounded bg-gray-200 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const displayName = profile?.full_name || user.email?.split("@")[0] || "User";
+  const email = user.email || "";
+  const avatarUrl = profile?.avatar_url || undefined;
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+  const initials = getInitials(displayName);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="w-full justify-start p-2 h-auto hover:bg-gray-100"
+        >
+          <div className="flex items-center gap-3 w-full">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={avatarUrl} alt={displayName} />
+              <AvatarFallback className="bg-gray-200 text-gray-700 text-xs">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {displayName}
+              </p>
+              <p className="text-xs text-gray-500 truncate">{email}</p>
+            </div>
+            <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => router.push("/profile")}>
+          <User className="mr-2 h-4 w-4" />
+          <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/settings")}>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-red-600 focus:text-red-600"
+          onClick={handleSignOut}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export default function PeoplePage() {
@@ -482,6 +581,11 @@ export default function PeoplePage() {
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer text-gray-600">
             <SettingsIcon className="w-4 h-4" />
           </div>
+        </div>
+
+        {/* Account Card */}
+        <div className="border-t border-gray-200 p-3">
+          <AccountCard />
         </div>
       </div>
 
