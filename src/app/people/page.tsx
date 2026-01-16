@@ -475,7 +475,7 @@ export default function PeoplePage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col min-w-0">
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Header with Tabs */}
           <div className="border-b border-gray-200 px-4 py-3">
             <div className="flex items-center justify-between">
@@ -520,7 +520,7 @@ export default function PeoplePage() {
               </div>
             </div>
           </div>
-        <TabsContent value="people" className="flex-1 flex flex-col min-w-0 m-0">
+        <TabsContent value="people" className="flex-1 flex flex-col min-w-0 m-0 overflow-hidden">
           {/* People Count */}
           <div className="px-4 py-2 border-b border-gray-100">
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">347 People</span>
