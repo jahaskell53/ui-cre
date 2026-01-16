@@ -70,44 +70,16 @@ function generateAuroraGradient(identifier: string): string {
   return `linear-gradient(${angle}deg, ${color1} 0%, ${color2} 100%)`;
 }
 
-// Sample data matching the screenshot
-const people = [
-  { id: 1, name: "alon@greenpointcollection.com Collection", starred: true, hasEmail: true, hasSignal: true },
-  { id: 2, name: "Josh @ Realie", starred: true, hasEmail: true, hasSignal: false },
-  { id: 3, name: "Alon Carmel", starred: true, hasEmail: true, hasSignal: true },
-  { id: 4, name: "Drew Koch", starred: true, hasEmail: true, hasSignal: true },
-  { id: 5, name: "Soren Craig", starred: true, hasEmail: true, hasSignal: true },
-  { id: 6, name: "enock.kenani.nyakundi@gmail.com", starred: true, hasEmail: true, hasSignal: true },
-  { id: 7, name: "David Laidlaw", starred: true, hasEmail: true, hasSignal: true },
-  { id: 8, name: "Jakobi Jakobi", starred: true, hasEmail: true, hasSignal: true },
-  { id: 9, name: "He, Melvin", starred: true, hasEmail: true, hasSignal: false },
-  { id: 10, name: "vihaskell@gmail.com Haskell", starred: true, hasEmail: true, hasSignal: true },
-  { id: 11, name: "Russell Katz", starred: true, hasEmail: false, hasSignal: true },
-  { id: 12, name: "Otis Katz", starred: true, hasEmail: true, hasSignal: true },
-  { id: 13, name: "Omkar Podey", starred: true, hasEmail: true, hasSignal: false },
-  { id: 14, name: "Tianyou Xu", starred: true, hasEmail: true, hasSignal: true },
-  { id: 15, name: "christian_armstrong@brown.edu", starred: true, hasEmail: true, hasSignal: false },
-  { id: 16, name: "Al Smail, Jad Alkarim", starred: true, hasEmail: true, hasSignal: true },
-  { id: 17, name: "Gabriella Vulakh", starred: true, hasEmail: true, hasSignal: true },
-  { id: 18, name: "ashura buckley", starred: true, hasEmail: true, hasSignal: true },
-  { id: 19, name: "Sarah Chen", starred: false, hasEmail: true, hasSignal: true },
-  { id: 20, name: "Michael Rodriguez", starred: true, hasEmail: true, hasSignal: false },
-  { id: 21, name: "emily.watson@techcorp.com", starred: true, hasEmail: true, hasSignal: true },
-  { id: 22, name: "James Park", starred: false, hasEmail: false, hasSignal: true },
-  { id: 23, name: "Lisa Anderson", starred: true, hasEmail: true, hasSignal: true },
-  { id: 24, name: "robert.martinez@startup.io", starred: false, hasEmail: true, hasSignal: false },
-  { id: 25, name: "Maria Garcia", starred: true, hasEmail: true, hasSignal: true },
-  { id: 26, name: "David Kim", starred: false, hasEmail: true, hasSignal: true },
-  { id: 27, name: "Jennifer Lee", starred: true, hasEmail: false, hasSignal: true },
-  { id: 28, name: "thomas.brown@company.com", starred: true, hasEmail: true, hasSignal: true },
-  { id: 29, name: "Amanda White", starred: false, hasEmail: true, hasSignal: false },
-  { id: 30, name: "Christopher Taylor", starred: true, hasEmail: true, hasSignal: true },
-  { id: 31, name: "Jessica Moore", starred: false, hasEmail: true, hasSignal: true },
-  { id: 32, name: "william.jones@enterprise.com", starred: true, hasEmail: true, hasSignal: false },
-  { id: 33, name: "Nicole Thompson", starred: true, hasEmail: true, hasSignal: true },
-  { id: 34, name: "Ryan Wilson", starred: false, hasEmail: false, hasSignal: true },
-  { id: 35, name: "Lauren Davis", starred: true, hasEmail: true, hasSignal: true },
-];
+// Person interface matching database schema
+interface Person {
+  id: string;
+  name: string;
+  starred: boolean;
+  has_email: boolean;
+  has_signal: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
 
 // Icons
 function SearchIcon({ className }: { className?: string }) {
@@ -227,7 +199,7 @@ function EmojiIcon({ className }: { className?: string }) {
 
 interface KanbanCard {
   id: string;
-  personId: number;
+  personId: string;
   personName: string;
 }
 
@@ -324,7 +296,9 @@ function AccountCard() {
 }
 
 export default function PeoplePage() {
-  const [selectedPerson, setSelectedPerson] = useState(people[0]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [selectedTab, setSelectedTab] = useState("people");
   const [panelWidth, setPanelWidth] = useState(340);
   const [isDragging, setIsDragging] = useState(false);
@@ -336,37 +310,48 @@ export default function PeoplePage() {
     {
       id: "to-contact",
       title: "To Contact",
-      cards: [
-        { id: "card-1", personId: 1, personName: people[0].name },
-        { id: "card-2", personId: 2, personName: people[1].name },
-        { id: "card-3", personId: 3, personName: people[2].name },
-      ],
+      cards: [],
     },
     {
       id: "in-progress",
       title: "In Progress",
-      cards: [
-        { id: "card-4", personId: 4, personName: people[3].name },
-        { id: "card-5", personId: 5, personName: people[4].name },
-      ],
+      cards: [],
     },
     {
       id: "follow-up",
       title: "Follow Up",
-      cards: [
-        { id: "card-6", personId: 6, personName: people[5].name },
-        { id: "card-7", personId: 7, personName: people[6].name },
-        { id: "card-8", personId: 8, personName: people[7].name },
-      ],
+      cards: [],
     },
     {
       id: "done",
       title: "Done",
-      cards: [
-        { id: "card-9", personId: 9, personName: people[8].name },
-      ],
+      cards: [],
     },
   ]);
+
+  // Fetch people from database
+  useEffect(() => {
+    const fetchPeople = async () => {
+      try {
+        const response = await fetch("/api/people");
+        if (!response.ok) {
+          throw new Error("Failed to fetch people");
+        }
+        const data = await response.json();
+        setPeople(data);
+        if (data.length > 0 && !selectedPerson) {
+          setSelectedPerson(data[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching people:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPeople();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getInitials = (name: string) => {
     const parts = name.split(/[\s@]+/).filter(Boolean);
@@ -436,6 +421,7 @@ export default function PeoplePage() {
 
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
+        if (!selectedPerson) return;
         const currentIndex = people.findIndex((p) => p.id === selectedPerson.id);
         
         if (currentIndex === -1) return;
@@ -633,44 +619,56 @@ export default function PeoplePage() {
         <TabsContent value="people" className="flex-1 flex flex-col min-w-0 m-0 overflow-hidden">
           {/* People Count */}
           <div className="px-4 py-2 border-b border-gray-100">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">347 People</span>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              {loading ? "Loading..." : `${people.length} People`}
+            </span>
           </div>
 
           {/* People List */}
           <ScrollArea className="flex-1 overflow-y-auto">
-            <div className="divide-y divide-gray-100">
-              {people.map((person) => (
-                <div
-                  key={person.id}
-                  data-person-id={person.id}
-                  onClick={() => setSelectedPerson(person)}
-                  className={cn(
-                    "flex items-center px-4 py-2.5 hover:bg-gray-50 cursor-pointer group",
-                    selectedPerson.id === person.id && "bg-gray-50"
-                  )}
-                >
-                  <Checkbox className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-900 truncate">{person.name}</span>
-                      <div className="flex items-center gap-1">
-                        {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
-                        {person.hasEmail && <MailIcon className="w-3 h-3 text-teal-500" />}
-                        {person.hasSignal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-gray-500">Loading people...</div>
+              </div>
+            ) : people.length === 0 ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-gray-500">No people found</div>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {people.map((person) => (
+                  <div
+                    key={person.id}
+                    data-person-id={person.id}
+                    onClick={() => setSelectedPerson(person)}
+                    className={cn(
+                      "flex items-center px-4 py-2.5 hover:bg-gray-50 cursor-pointer group",
+                      selectedPerson?.id === person.id && "bg-gray-50"
+                    )}
+                  >
+                    <Checkbox className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-900 truncate">{person.name}</span>
+                        <div className="flex items-center gap-1">
+                          {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
+                          {person.has_email && <MailIcon className="w-3 h-3 text-teal-500" />}
+                          {person.has_signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+                        </div>
                       </div>
                     </div>
+                    <Avatar className="h-7 w-7 ml-2">
+                      <AvatarFallback
+                        className="text-white text-xs font-medium"
+                        style={{ background: generateAuroraGradient(person.name) }}
+                      >
+                        {getInitials(person.name)}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
-                  <Avatar className="h-7 w-7 ml-2">
-                    <AvatarFallback
-                      className="text-white text-xs font-medium"
-                      style={{ background: generateAuroraGradient(person.name) }}
-                    >
-                      {getInitials(person.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
         </TabsContent>
 
@@ -732,8 +730,8 @@ export default function PeoplePage() {
                                 </p>
                                 <div className="flex items-center gap-1 mt-1">
                                   {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
-                                  {person.hasEmail && <MailIcon className="w-3 h-3 text-teal-500" />}
-                                  {person.hasSignal && <SignalIcon className="w-3 h-3 text-orange-400" />}
+                                  {person.has_email && <MailIcon className="w-3 h-3 text-teal-500" />}
+                                  {person.has_signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                                 </div>
                               </div>
                             </div>
@@ -775,19 +773,21 @@ export default function PeoplePage() {
       <div className="flex flex-col bg-gray-50/50 flex-shrink-0 h-screen overflow-hidden" style={{ width: `${panelWidth}px` }}>
         <ScrollArea className="flex-1 h-full">
           <div className="p-4">
-            {/* Profile Header */}
-            <div className="flex flex-col items-center mb-6">
-              <Avatar className="h-20 w-20 mb-3">
-                <AvatarFallback
-                  className="text-white text-2xl font-medium"
-                  style={{ background: generateAuroraGradient(selectedPerson.name) }}
-                >
-                  {getInitials(selectedPerson.name)}
-                </AvatarFallback>
-              </Avatar>
-              <h2 className="text-sm font-medium text-gray-900 text-center truncate max-w-full px-2">
-                {selectedPerson.name}
-              </h2>
+            {selectedPerson ? (
+              <>
+                {/* Profile Header */}
+                <div className="flex flex-col items-center mb-6">
+                  <Avatar className="h-20 w-20 mb-3">
+                    <AvatarFallback
+                      className="text-white text-2xl font-medium"
+                      style={{ background: generateAuroraGradient(selectedPerson.name) }}
+                    >
+                      {getInitials(selectedPerson.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <h2 className="text-sm font-medium text-gray-900 text-center truncate max-w-full px-2">
+                    {selectedPerson.name}
+                  </h2>
               <Badge variant="secondary" className="mt-1.5 text-xs font-medium px-2 py-0.5">
                 AUTO
               </Badge>
@@ -901,6 +901,12 @@ export default function PeoplePage() {
                 <span className="text-xs text-gray-400 ml-auto">Email</span>
               </div>
             </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-sm text-gray-500">Select a person to view details</div>
+              </div>
+            )}
           </div>
         </ScrollArea>
       </div>
