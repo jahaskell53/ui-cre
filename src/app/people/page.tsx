@@ -306,7 +306,7 @@ export default function PeoplePage() {
   }, [isDragging]);
 
   useEffect(() => {
-    const tabs = ["people", "duplicates", "map", "archive", "board"];
+    const tabs = ["people", "board", "duplicates", "map", "archive"];
     
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't handle if user is typing in an input
@@ -499,6 +499,12 @@ export default function PeoplePage() {
                   People
                 </TabsTrigger>
                 <TabsTrigger
+                  value="board"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
+                >
+                  Board
+                </TabsTrigger>
+                <TabsTrigger
                   value="duplicates"
                   className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
                 >
@@ -515,12 +521,6 @@ export default function PeoplePage() {
                   className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
                 >
                   Archive
-                </TabsTrigger>
-                <TabsTrigger
-                  value="board"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
-                >
-                  Board
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-3">
