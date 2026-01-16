@@ -293,6 +293,50 @@ export default function PeoplePage() {
     };
   }, [isDragging]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle arrow keys when People tab is active
+      if (selectedTab !== "people") return;
+      
+      // Don't handle if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const currentIndex = people.findIndex((p) => p.id === selectedPerson.id);
+        
+        if (currentIndex === -1) return;
+
+        let newIndex: number;
+        if (e.key === "ArrowDown") {
+          newIndex = currentIndex < people.length - 1 ? currentIndex + 1 : 0;
+        } else {
+          newIndex = currentIndex > 0 ? currentIndex - 1 : people.length - 1;
+        }
+
+        const newPerson = people[newIndex];
+        if (newPerson) {
+          setSelectedPerson(newPerson);
+          
+          // Scroll the selected item into view
+          setTimeout(() => {
+            const element = document.querySelector(`[data-person-id="${newPerson.id}"]`);
+            if (element) {
+              element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+          }, 0);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedTab, selectedPerson, people]);
+
   const handleMouseDown = () => {
     setIsDragging(true);
   };
@@ -468,6 +512,7 @@ export default function PeoplePage() {
               {people.map((person) => (
                 <div
                   key={person.id}
+                  data-person-id={person.id}
                   onClick={() => setSelectedPerson(person)}
                   className={cn(
                     "flex items-center px-4 py-2.5 hover:bg-gray-50 cursor-pointer group",
