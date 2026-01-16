@@ -215,7 +215,7 @@ interface KanbanColumn {
 export default function PeoplePage() {
   const [selectedPerson, setSelectedPerson] = useState(people[0]);
   const [selectedTab, setSelectedTab] = useState("people");
-  const [panelWidth, setPanelWidth] = useState(280);
+  const [panelWidth, setPanelWidth] = useState(340);
   const [isDragging, setIsDragging] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
