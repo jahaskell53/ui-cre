@@ -202,7 +202,7 @@ export default function PeoplePage() {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       const newWidth = window.innerWidth - e.clientX;
-      const minWidth = 200;
+      const minWidth = 340;
       const maxWidth = 600;
       setPanelWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
     };
