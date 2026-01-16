@@ -306,7 +306,7 @@ export default function PeoplePage() {
   }, [isDragging]);
 
   useEffect(() => {
-    const tabs = ["people", "board", "duplicates", "map", "archive"];
+    const tabs = ["people", "board", "map", "archive"];
     
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't handle if user is typing in an input
@@ -505,12 +505,6 @@ export default function PeoplePage() {
                   Board
                 </TabsTrigger>
                 <TabsTrigger
-                  value="duplicates"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
-                >
-                  Duplicates
-                </TabsTrigger>
-                <TabsTrigger
                   value="map"
                   className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none"
                 >
@@ -647,12 +641,6 @@ export default function PeoplePage() {
                 </div>
               ))}
             </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="duplicates" className="flex-1 flex flex-col min-w-0 m-0">
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-gray-500">Duplicates view coming soon</p>
           </div>
         </TabsContent>
 
