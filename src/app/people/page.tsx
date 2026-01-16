@@ -503,6 +503,38 @@ export default function PeoplePage() {
     setDraggedOverColumn(null);
   };
 
+  const handleToggleStar = async (person: Person, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
+    
+    try {
+      const response = await fetch(`/api/people?id=${person.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          starred: !person.starred,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update star status');
+      }
+
+      const updatedPerson = await response.json();
+      
+      // Update the person in the local state
+      setPeople(people.map(p => p.id === person.id ? updatedPerson : p));
+      
+      // Update selected person if it's the one being toggled
+      if (selectedPerson?.id === person.id) {
+        setSelectedPerson(updatedPerson);
+      }
+    } catch (error) {
+      console.error('Error toggling star:', error);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-white">
       {/* Left Sidebar */}
@@ -660,7 +692,19 @@ export default function PeoplePage() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-900 truncate">{person.name}</span>
                         <div className="flex items-center gap-1">
-                          {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
+                          <button
+                            onClick={(e) => handleToggleStar(person, e)}
+                            className="p-0.5 -m-0.5 hover:scale-110 transition-transform"
+                            aria-label={person.starred ? "Unstar" : "Star"}
+                          >
+                            <StarIcon 
+                              className={cn(
+                                "w-3 h-3 transition-colors",
+                                person.starred ? "text-amber-400" : "text-gray-300 hover:text-amber-400"
+                              )} 
+                              filled={person.starred} 
+                            />
+                          </button>
                           {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
                           {person.signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                         </div>
@@ -738,7 +782,22 @@ export default function PeoplePage() {
                                   {person.name}
                                 </p>
                                 <div className="flex items-center gap-1 mt-1">
-                                  {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleStar(person, e);
+                                    }}
+                                    className="p-0.5 -m-0.5"
+                                    aria-label={person.starred ? "Unstar" : "Star"}
+                                  >
+                                    <StarIcon 
+                                      className={cn(
+                                        "w-3 h-3 transition-colors",
+                                        person.starred ? "text-amber-400" : "text-gray-300 hover:text-amber-400"
+                                      )} 
+                                      filled={person.starred} 
+                                    />
+                                  </button>
                                   {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
                                   {person.signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                                 </div>
