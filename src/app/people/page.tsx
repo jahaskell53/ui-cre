@@ -237,9 +237,9 @@ export default function PeoplePage() {
         {/* Logo */}
         <div className="p-4 flex items-center gap-2">
           <div className="w-6 h-6 bg-gray-900 rounded flex items-center justify-center">
-            <span className="text-white text-xs font-bold">C</span>
+            <span className="text-white text-xs font-bold"></span>OM
           </div>
-          <span className="font-semibold text-gray-900 text-sm">clay</span>
+          <span className="font-semibold text-gray-900 text-sm">OM</span>
           <div className="ml-auto p-1 hover:bg-gray-100 rounded">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <rect x="2" y="2" width="4" height="4" rx="1" stroke="#9CA3AF" strokeWidth="1.5"/>
@@ -516,7 +516,14 @@ export default function PeoplePage() {
               </p>
               <div className="flex items-center gap-2 mt-3">
                 <MailIcon className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-xs text-blue-600">{selectedPerson.name.includes('@') ? selectedPerson.name.split(' ')[0] : `${selectedPerson.name.toLowerCase().replace(' ', '.')}@email.com`}</span>
+                <a 
+                  href={`mailto:${selectedPerson.name.includes('@') ? selectedPerson.name.split(' ')[0] : `${selectedPerson.name.toLowerCase().replace(' ', '.')}@email.com`}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  {selectedPerson.name.includes('@') ? selectedPerson.name.split(' ')[0] : `${selectedPerson.name.toLowerCase().replace(' ', '.')}@email.com`}
+                </a>
                 <span className="text-xs text-gray-400 ml-auto">Email</span>
               </div>
             </div>
