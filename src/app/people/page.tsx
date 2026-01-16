@@ -280,7 +280,7 @@ function AccountCard() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="w-full justify-start p-2 h-auto hover:bg-gray-100"
+          className="w-full justify-start p-2 h-auto hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-0"
         >
           <div className="flex items-center gap-3 w-full">
             <Avatar className="h-8 w-8">
