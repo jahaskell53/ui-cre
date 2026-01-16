@@ -75,7 +75,7 @@ interface Person {
   id: string;
   name: string;
   starred: boolean;
-  has_email: boolean;
+  email: string | null;
   has_signal: boolean;
   created_at?: string;
   updated_at?: string;
@@ -652,7 +652,7 @@ export default function PeoplePage() {
                         <span className="text-sm text-gray-900 truncate">{person.name}</span>
                         <div className="flex items-center gap-1">
                           {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
-                          {person.has_email && <MailIcon className="w-3 h-3 text-teal-500" />}
+                          {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
                           {person.has_signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                         </div>
                       </div>
@@ -730,7 +730,7 @@ export default function PeoplePage() {
                                 </p>
                                 <div className="flex items-center gap-1 mt-1">
                                   {person.starred && <StarIcon className="w-3 h-3 text-amber-400" filled />}
-                                  {person.has_email && <MailIcon className="w-3 h-3 text-teal-500" />}
+                                  {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
                                   {person.has_signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                                 </div>
                               </div>
@@ -888,18 +888,20 @@ export default function PeoplePage() {
               <p className="text-xs text-gray-600 leading-relaxed">
                 You last chatted with {selectedPerson.name.split(' ')[0]} 1 week ago via email. You've had 30 meetings, most recently 3 days ago, and emailed them 119 times, most recently 1 week ago.
               </p>
-              <div className="flex items-center gap-2 mt-3">
-                <MailIcon className="w-3.5 h-3.5 text-gray-400" />
-                <a 
-                  href={`mailto:${selectedPerson.name.includes('@') ? selectedPerson.name.split(' ')[0] : `${selectedPerson.name.toLowerCase().replace(' ', '.')}@email.com`}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  {selectedPerson.name.includes('@') ? selectedPerson.name.split(' ')[0] : `${selectedPerson.name.toLowerCase().replace(' ', '.')}@email.com`}
-                </a>
-                <span className="text-xs text-gray-400 ml-auto">Email</span>
-              </div>
+              {selectedPerson.email && (
+                <div className="flex items-center gap-2 mt-3">
+                  <MailIcon className="w-3.5 h-3.5 text-gray-400" />
+                  <a 
+                    href={`mailto:${selectedPerson.email}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    {selectedPerson.email}
+                  </a>
+                  <span className="text-xs text-gray-400 ml-auto">Email</span>
+                </div>
+              )}
             </div>
               </>
             ) : (
