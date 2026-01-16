@@ -70,6 +70,14 @@ function generateAuroraGradient(identifier: string): string {
   return `linear-gradient(${angle}deg, ${color1} 0%, ${color2} 100%)`;
 }
 
+// Timeline item interface
+interface TimelineItem {
+  type: 'meeting' | 'import' | 'email' | 'other';
+  text: string;
+  date: string;
+  iconColor?: 'blue' | 'orange' | 'purple' | 'green';
+}
+
 // Person interface matching database schema
 interface Person {
   id: string;
@@ -77,6 +85,7 @@ interface Person {
   starred: boolean;
   email: string | null;
   signal: boolean;
+  timeline?: TimelineItem[];
   created_at?: string;
   updated_at?: string;
 }
@@ -809,44 +818,40 @@ export default function PeoplePage() {
             {/* Timeline */}
             <div className="mb-6">
               <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Timeline</h3>
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CalendarIcon className="w-2.5 h-2.5 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-700 break-words">You will meet with {selectedPerson.name.split(' ')[0]}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">January 19</p>
-                  </div>
+              {selectedPerson.timeline && selectedPerson.timeline.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedPerson.timeline.map((item, index) => {
+                    const iconColor = item.iconColor || 'blue';
+                    const bgColorClass = {
+                      blue: 'bg-blue-100',
+                      orange: 'bg-orange-100',
+                      purple: 'bg-purple-100',
+                      green: 'bg-green-100',
+                    }[iconColor];
+                    const textColorClass = {
+                      blue: 'text-blue-600',
+                      orange: 'text-orange-600',
+                      purple: 'text-purple-600',
+                      green: 'text-green-600',
+                    }[iconColor];
+                    const Icon = item.type === 'email' ? MailIcon : CalendarIcon;
+                    
+                    return (
+                      <div key={index} className="flex gap-2">
+                        <div className={`w-4 h-4 ${bgColorClass} rounded flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                          <Icon className={`w-2.5 h-2.5 ${textColorClass}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-700 break-words">{item.text}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{item.date}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex gap-2">
-                  <div className="w-4 h-4 bg-orange-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CalendarIcon className="w-2.5 h-2.5 text-orange-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-700 break-words">{selectedPerson.name.split(' ')[0]} imported via</p>
-                    <p className="text-xs text-gray-400 mt-0.5">1H</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CalendarIcon className="w-2.5 h-2.5 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-700 break-words">You met with {selectedPerson.name.split(' ')[0]}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">January 12</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <div className="w-4 h-4 bg-purple-100 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <MailIcon className="w-2.5 h-2.5 text-purple-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-700 break-words">You emailed {selectedPerson.name.split(' ')[0]}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">January 3</p>
-                  </div>
-                </div>
-              </div>
+              ) : (
+                <p className="text-xs text-gray-500">No timeline events yet</p>
+              )}
             </div>
 
             <Separator className="my-4" />

@@ -51,3 +51,6 @@ create trigger on_people_updated
   before update on people
   for each row execute procedure update_people_updated_at();
 
+-- Add timeline column as JSONB array
+alter table people add column if not exists timeline jsonb default '[]'::jsonb;
+
