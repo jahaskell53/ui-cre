@@ -38,6 +38,8 @@ export default function PeopleLayout({
   const shouldHideDetailPanel = pathname === "/people/settings" || 
                                 pathname === "/people/create" || 
                                 isDetailPage;
+  
+  const shouldHideTabs = isDetailPage || pathname === "/people/settings" || pathname === "/people/create";
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -152,7 +154,7 @@ export default function PeopleLayout({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white dark:bg-gray-900">
-          {!isDetailPage && <TabNavigation />}
+          {!shouldHideTabs && <TabNavigation />}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {children}
           </div>

@@ -2,7 +2,16 @@
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+
+function BackIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function SunIcon({ className }: { className?: string }) {
   return (
@@ -21,6 +30,7 @@ function MoonIcon({ className }: { className?: string }) {
 }
 
 export default function PeopleSettingsPage() {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -33,7 +43,15 @@ export default function PeopleSettingsPage() {
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
       <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push("/people")}
+            className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+          >
+            <BackIcon className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
