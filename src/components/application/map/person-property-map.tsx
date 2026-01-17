@@ -136,9 +136,38 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
         </div>
       `);
 
-      const color = geocoded.label === "Home" ? "#0ea5e9" : "#7f56d9";
+      // Create custom HTML marker element - pin
+      const el = document.createElement('div');
+      el.className = 'custom-map-marker';
+      
+      const isHome = geocoded.label === "Home";
+      const pinColor = isHome ? '#0ea5e9' : '#7f56d9';
+      
+      // Container
+      el.style.width = '32px';
+      el.style.height = '40px';
+      el.style.position = 'relative';
+      el.style.cursor = 'pointer';
+      el.style.transition = 'transform 0.2s ease';
+      
+      // Create the pin SVG
+      el.innerHTML = `
+        <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 0C7.16 0 0 7.16 0 16C0 24.84 16 40 16 40C16 40 32 24.84 32 16C32 7.16 24.84 0 16 0Z" fill="${pinColor}"/>
+          <circle cx="16" cy="14" r="6" fill="white"/>
+        </svg>
+      `;
+      
+      // Add hover effect
+      el.addEventListener('mouseenter', () => {
+        el.style.transform = 'scale(1.1) translateY(-2px)';
+      });
+      
+      el.addEventListener('mouseleave', () => {
+        el.style.transform = 'scale(1) translateY(0)';
+      });
 
-      const marker = new mapboxgl.Marker({ color })
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat(geocoded.coordinates)
         .setPopup(popup)
         .addTo(map.current!);
