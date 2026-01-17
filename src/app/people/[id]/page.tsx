@@ -221,6 +221,7 @@ interface Person {
   starred: boolean;
   email: string | null;
   phone: string | null;
+  category: 'Property Owner' | 'Lender' | 'Realtor' | null;
   signal: boolean;
   address: string | null;
   owned_addresses?: string[];
@@ -488,9 +489,16 @@ export default function PersonDetailPage() {
             </Avatar>
             <div>
               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{person.name}</h1>
-              <Badge variant="secondary" className="mt-1 text-xs font-medium px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
-                AUTO
-              </Badge>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                  AUTO
+                </Badge>
+                {person.category && (
+                  <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                    {person.category}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
         </div>

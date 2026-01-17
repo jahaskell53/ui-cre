@@ -13,6 +13,7 @@ export interface Person {
   starred: boolean;
   email: string | null;
   phone: string | null;
+  category: 'Property Owner' | 'Lender' | 'Realtor' | null;
   signal: boolean;
   address: string | null;
   owned_addresses?: string[];

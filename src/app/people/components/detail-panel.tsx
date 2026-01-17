@@ -45,12 +45,22 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                 <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 text-center truncate max-w-full px-2">
                   {selectedPerson.name}
                 </h2>
-                <Badge
-                  variant="secondary"
-                  className="mt-1.5 text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                >
-                  AUTO
-                </Badge>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Badge
+                    variant="secondary"
+                    className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  >
+                    AUTO
+                  </Badge>
+                  {selectedPerson.category && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-medium px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                    >
+                      {selectedPerson.category}
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               {/* Network Strength */}

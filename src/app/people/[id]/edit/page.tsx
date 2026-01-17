@@ -14,6 +14,7 @@ interface Person {
   starred: boolean;
   email: string | null;
   phone: string | null;
+  category: 'Property Owner' | 'Lender' | 'Realtor' | null;
   signal: boolean;
   address: string | null;
   owned_addresses?: string[];
@@ -50,6 +51,7 @@ export default function EditPersonPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [category, setCategory] = useState<'Property Owner' | 'Lender' | 'Realtor' | ''>("");
   const [address, setAddress] = useState("");
   const [ownedAddresses, setOwnedAddresses] = useState<string[]>([]);
   const [newOwnedAddress, setNewOwnedAddress] = useState("");
@@ -69,6 +71,7 @@ export default function EditPersonPage() {
         setName(data.name || "");
         setEmail(data.email || "");
         setPhone(data.phone || "");
+        setCategory(data.category || "");
         setAddress(data.address || "");
         setOwnedAddresses(data.owned_addresses || []);
       } catch (err) {
@@ -115,6 +118,7 @@ export default function EditPersonPage() {
           name: name.trim(),
           email: email.trim() || null,
           phone: phone.trim() || null,
+          category: category || null,
           address: address.trim() || null,
           owned_addresses: ownedAddresses,
         }),
@@ -243,6 +247,23 @@ export default function EditPersonPage() {
                   placeholder="Enter phone number"
                   className="w-full"
                 />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Category
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as 'Property Owner' | 'Lender' | 'Realtor' | '')}
+                  className="w-full h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none dark:bg-input/30"
+                >
+                  <option value="">Select category</option>
+                  <option value="Property Owner">Property Owner</option>
+                  <option value="Lender">Lender</option>
+                  <option value="Realtor">Realtor</option>
+                </select>
               </div>
 
               {/* Address */}
