@@ -277,6 +277,45 @@ export default function PeoplePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fetch board assignments from database
+  useEffect(() => {
+    const fetchBoardAssignments = async () => {
+      try {
+        const response = await fetch("/api/people/board");
+        if (!response.ok) {
+          throw new Error("Failed to fetch board assignments");
+        }
+        const assignmentsByColumn = await response.json();
+        
+        // Update kanban columns with assignments
+        setKanbanColumns((prevColumns) =>
+          prevColumns.map((column) => {
+            const personIds = assignmentsByColumn[column.id] || [];
+            const cards: KanbanCard[] = personIds
+              .map((personId: string) => {
+                const person = people.find((p) => p.id === personId);
+                if (!person) return null;
+                return {
+                  id: `card-${personId}`,
+                  personId: person.id,
+                  personName: person.name,
+                };
+              })
+              .filter((card: KanbanCard | null): card is KanbanCard => card !== null);
+            
+            return { ...column, cards };
+          })
+        );
+      } catch (error) {
+        console.error("Error fetching board assignments:", error);
+      }
+    };
+
+    if (people.length > 0 && !loading) {
+      fetchBoardAssignments();
+    }
+  }, [people, loading]);
+
   const getInitials = (name: string) => {
     const parts = name.split(/[\s@]+/).filter(Boolean);
     if (parts.length >= 2) {
@@ -386,24 +425,102 @@ export default function PeoplePage() {
     setDraggedCard(cardId);
   };
 
-  const handleCardDragEnd = () => {
+  const handleCardDragEnd = async () => {
     if (draggedCard && draggedOverColumn) {
+      // Check if this is a new card being dragged from the people list
+      const isNewCard = draggedCard.startsWith("card-") && !kanbanColumns.some(col => 
+        col.cards.some(c => c.id === draggedCard)
+      );
+      
+      let card: KanbanCard | null = null;
+      let oldColumn: KanbanColumn | null = null;
+
+      if (isNewCard) {
+        // Extract person ID from card ID
+        const personId = draggedCard.replace("card-", "");
+        const person = people.find((p) => p.id === personId);
+        if (!person) {
+          setDraggedCard(null);
+          setDraggedOverColumn(null);
+          return;
+        }
+        card = {
+          id: draggedCard,
+          personId: person.id,
+          personName: person.name,
+        };
+      } else {
+        // Find the card being moved
+        card = kanbanColumns
+          .flatMap((col) => col.cards)
+          .find((c) => c.id === draggedCard) || null;
+        
+        if (!card) {
+          setDraggedCard(null);
+          setDraggedOverColumn(null);
+          return;
+        }
+
+        // Find the old column
+        oldColumn = kanbanColumns.find((col) => 
+          col.cards.some((c) => c.id === draggedCard)
+        ) || null;
+      }
+
+      // Optimistically update UI
       const newColumns = kanbanColumns.map((column) => {
         // Remove card from all columns
-        const filteredCards = column.cards.filter((card) => card.id !== draggedCard);
+        const filteredCards = column.cards.filter((c) => c.id !== draggedCard);
         
         // Add card to target column
-        if (column.id === draggedOverColumn) {
-          const card = kanbanColumns
-            .flatMap((col) => col.cards)
-            .find((c) => c.id === draggedCard);
-          if (card) {
-            return { ...column, cards: [...filteredCards, card] };
-          }
+        if (column.id === draggedOverColumn && card) {
+          return { ...column, cards: [...filteredCards, card] };
         }
         return { ...column, cards: filteredCards };
       });
       setKanbanColumns(newColumns);
+
+      // Save to database
+      try {
+        if (oldColumn && oldColumn.id !== draggedOverColumn && card) {
+          // Move card to new column
+          const response = await fetch("/api/people/board", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              personId: card.personId,
+              oldColumnId: oldColumn.id,
+              newColumnId: draggedOverColumn,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to update board assignment");
+          }
+        } else if (!oldColumn && card) {
+          // Add new card to column
+          const response = await fetch("/api/people/board", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              personId: card.personId,
+              columnId: draggedOverColumn,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to create board assignment");
+          }
+        }
+      } catch (error) {
+        console.error("Error saving board assignment:", error);
+        // Revert on error
+        setKanbanColumns(kanbanColumns);
+      }
     }
     setDraggedCard(null);
     setDraggedOverColumn(null);
@@ -653,6 +770,11 @@ export default function PeoplePage() {
                   <div
                     key={person.id}
                     data-person-id={person.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      setDraggedCard(`card-${person.id}`);
+                    }}
                     onClick={() => setSelectedPerson(person)}
                     className={cn(
                       "flex items-center px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group",
