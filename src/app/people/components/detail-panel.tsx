@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * DetailPanel - Resizable side panel for the People page
+ * 
+ * Used in: src/app/people/page.tsx
+ * 
+ * This component displays person details in a resizable side panel on the main People page.
+ * It shows profile information, network strength, timeline, related people, properties,
+ * and contact information. The panel width is adjustable via the panelWidth prop.
+ */
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
