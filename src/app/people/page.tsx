@@ -899,17 +899,35 @@ export default function PeoplePage() {
             {/* Properties */}
             <div className="mb-6">
               <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Properties</h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Last Updated</span>
+              <div className="space-y-4">
+                {/* Home Address */}
+                {selectedPerson.address && (
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Home</h4>
+                    <div className="flex items-start gap-2">
+                      <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                        {selectedPerson.address}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-700 dark:text-gray-300">1 hour ago</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">Created</span>
-                  <span className="text-xs text-gray-700 dark:text-gray-300">1 hour ago</span>
+                )}
+                {/* Metadata */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Last Updated</span>
+                    </div>
+                    <span className="text-xs text-gray-700 dark:text-gray-300">1 hour ago</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">Created</span>
+                    <span className="text-xs text-gray-700 dark:text-gray-300">1 hour ago</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -917,39 +935,27 @@ export default function PeoplePage() {
             <Separator className="my-4" />
 
             {/* Contact Information */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Contact Information</h3>
-              {selectedPerson.email && (
-                <div className="flex items-center gap-2 mb-3">
-                  <MailIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-                  <a 
-                    href={`mailto:${selectedPerson.email}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {selectedPerson.email}
-                  </a>
-                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">Email</span>
+            {selectedPerson.email && (
+              <>
+                <div className="mb-6">
+                  <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Contact Information</h3>
+                  <div className="flex items-center gap-2">
+                    <MailIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                    <a 
+                      href={`mailto:${selectedPerson.email}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {selectedPerson.email}
+                    </a>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">Email</span>
+                  </div>
                 </div>
-              )}
-              {selectedPerson.address && (
-                <div className="flex items-start gap-2">
-                  <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                    {selectedPerson.address}
-                  </p>
-                </div>
-              )}
-              {!selectedPerson.email && !selectedPerson.address && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">No contact information available</p>
-              )}
-            </div>
 
-            <Separator className="my-4" />
+                <Separator className="my-4" />
+              </>
+            )}
 
             {/* Sources */}
             <div className="mb-6">
