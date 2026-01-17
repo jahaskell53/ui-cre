@@ -82,6 +82,7 @@ interface Person {
   starred: boolean;
   email: string | null;
   signal: boolean;
+  address: string | null;
   timeline?: TimelineItem[];
   created_at?: string;
   updated_at?: string;
@@ -915,14 +916,11 @@ export default function PeoplePage() {
 
             <Separator className="my-4" />
 
-            {/* Sources */}
+            {/* Contact Information */}
             <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Sources</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                You last chatted with {selectedPerson.name.split(' ')[0]} 1 week ago via email. You've had 30 meetings, most recently 3 days ago, and emailed them 119 times, most recently 1 week ago.
-              </p>
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Contact Information</h3>
               {selectedPerson.email && (
-                <div className="flex items-center gap-2 mt-3">
+                <div className="flex items-center gap-2 mb-3">
                   <MailIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                   <a 
                     href={`mailto:${selectedPerson.email}`}
@@ -935,6 +933,30 @@ export default function PeoplePage() {
                   <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">Email</span>
                 </div>
               )}
+              {selectedPerson.address && (
+                <div className="flex items-start gap-2">
+                  <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                    {selectedPerson.address}
+                  </p>
+                </div>
+              )}
+              {!selectedPerson.email && !selectedPerson.address && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">No contact information available</p>
+              )}
+            </div>
+
+            <Separator className="my-4" />
+
+            {/* Sources */}
+            <div className="mb-6">
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Sources</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                You last chatted with {selectedPerson.name.split(' ')[0]} 1 week ago via email. You've had 30 meetings, most recently 3 days ago, and emailed them 119 times, most recently 1 week ago.
+              </p>
             </div>
               </>
             ) : (
