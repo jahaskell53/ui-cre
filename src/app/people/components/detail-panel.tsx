@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CellularIcon, MailIcon, CalendarIcon, EmojiIcon, LocationIcon } from "../icons";
+import { CellularIcon, MailIcon, CalendarIcon, LocationIcon } from "../icons";
 import { generateAuroraGradient, getInitials } from "../utils";
 import type { Person } from "../types";
 
@@ -159,19 +159,6 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                     </span>
                   </div>
                 </div>
-              </div>
-
-              <Separator className="my-4" />
-
-              {/* Related People */}
-              <div className="mb-6">
-                <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                  Related People
-                </h3>
-                <button className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                  <EmojiIcon className="w-4 h-4" />
-                  <span>Add related people</span>
-                </button>
               </div>
 
               <Separator className="my-4" />

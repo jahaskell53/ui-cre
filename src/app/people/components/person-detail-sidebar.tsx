@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { CellularIcon, MailIcon, EmojiIcon, LocationIcon } from "../icons";
+import { CellularIcon, MailIcon, LocationIcon } from "../icons";
 import type { Person } from "../types";
 
 // Helper function to extract street address (part before city)
@@ -75,17 +75,6 @@ export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidt
               <CellularIcon strength={networkStrength} className="w-4 h-4" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{networkStrength}</span>
             </div>
-          </div>
-
-          <Separator className="my-4" />
-
-          {/* Related People */}
-          <div className="mb-6">
-            <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Related People</h3>
-            <button className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-              <EmojiIcon className="w-4 h-4" />
-              <span>Add related people</span>
-            </button>
           </div>
 
           <Separator className="my-4" />
