@@ -225,6 +225,7 @@ export default function PersonDetailPage() {
   const [selectedTab, setSelectedTab] = useState("timeline");
   const [noteText, setNoteText] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isNoteFocused, setIsNoteFocused] = useState(false);
 
   const personId = params.id as string;
 
@@ -458,23 +459,26 @@ export default function PersonDetailPage() {
           <TabsContent value="timeline" className="flex-1 overflow-hidden m-0">
             <ScrollArea className="h-full">
               <div className="px-6 py-4">
-                {/* Add note input */}
-                <div className="flex items-start gap-3 mb-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                    <LabelIcon className="w-4 h-4" />
-                    <span>Adding a note...</span>
+                {/* Add note input header - only shown when editing or has text */}
+                {(isNoteFocused || noteText.trim()) && (
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      <LabelIcon className="w-4 h-4" />
+                      <span>Adding a note...</span>
+                    </div>
+                    <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">now</span>
                   </div>
-                  <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">now</span>
-                </div>
+                )}
 
                 {/* Note input box */}
                 <div className="mb-6 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-800/30">
                   <div className="flex items-start gap-3">
-                    <LabelIcon className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
                       <textarea
                         value={noteText}
                         onChange={(e) => setNoteText(e.target.value)}
+                        onFocus={() => setIsNoteFocused(true)}
+                        onBlur={() => setIsNoteFocused(false)}
                         placeholder="Add a note..."
                         className="w-full min-h-[80px] resize-none bg-transparent text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none"
                       />
