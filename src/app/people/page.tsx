@@ -226,6 +226,7 @@ export default function PeoplePage() {
   const resizeRef = useRef<HTMLDivElement>(null);
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
   
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
     {
@@ -426,7 +427,13 @@ export default function PeoplePage() {
     
     // Update selected person if it's the one being toggled
     if (selectedPerson?.id === person.id) {
-      setSelectedPerson(optimisticPerson);
+      // If we're showing starred only and person was unstarred, deselect or select next starred
+      if (showStarredOnly && !newStarredState) {
+        const starredPeople = people.filter(p => p.starred && p.id !== person.id);
+        setSelectedPerson(starredPeople.length > 0 ? starredPeople[0] : null);
+      } else {
+        setSelectedPerson(optimisticPerson);
+      }
     }
     
     try {
@@ -450,7 +457,13 @@ export default function PeoplePage() {
       setPeople(people.map(p => p.id === person.id ? updatedPerson : p));
       
       if (selectedPerson?.id === person.id) {
-        setSelectedPerson(updatedPerson);
+        // If we're showing starred only and person was unstarred, deselect or select next starred
+        if (showStarredOnly && !updatedPerson.starred) {
+          const starredPeople = people.filter(p => p.starred && p.id !== person.id);
+          setSelectedPerson(starredPeople.length > 0 ? starredPeople[0] : null);
+        } else {
+          setSelectedPerson(updatedPerson);
+        }
       }
     } catch (error) {
       console.error('Error toggling star:', error);
@@ -522,7 +535,28 @@ export default function PeoplePage() {
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Groups</span>
             <PlusIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300" />
           </div>
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400">
+          <div 
+            onClick={() => {
+              const newShowStarredOnly = !showStarredOnly;
+              setShowStarredOnly(newShowStarredOnly);
+              
+              // If switching to starred filter, ensure selected person is starred
+              // If switching away, keep selection if possible
+              if (newShowStarredOnly && selectedPerson && !selectedPerson.starred) {
+                const starredPeople = people.filter(p => p.starred);
+                setSelectedPerson(starredPeople.length > 0 ? starredPeople[0] : null);
+              } else if (!newShowStarredOnly && !selectedPerson) {
+                // If switching away from starred and no selection, select first person
+                setSelectedPerson(people.length > 0 ? people[0] : null);
+              }
+            }}
+            className={cn(
+              "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+              showStarredOnly 
+                ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100" 
+                : "text-gray-600 dark:text-gray-400"
+            )}
+          >
             <StarIcon className="w-3.5 h-3.5 text-amber-400" filled />
             <span className="text-sm">Starred</span>
           </div>
@@ -587,7 +621,10 @@ export default function PeoplePage() {
           {/* People Count */}
           <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              {loading ? "Loading..." : `${people.length} People`}
+              {loading ? "Loading..." : (() => {
+                const filteredPeople = showStarredOnly ? people.filter(p => p.starred) : people;
+                return `${filteredPeople.length} ${showStarredOnly ? 'Starred' : ''} People`;
+              })()}
             </span>
           </div>
 
@@ -597,13 +634,20 @@ export default function PeoplePage() {
               <div className="flex items-center justify-center py-8">
                 <div className="text-sm text-gray-500 dark:text-gray-400">Loading people...</div>
               </div>
-            ) : people.length === 0 ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-gray-500 dark:text-gray-400">No people found</div>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {people.map((person) => (
+            ) : (() => {
+              const filteredPeople = showStarredOnly ? people.filter(p => p.starred) : people;
+              if (filteredPeople.length === 0) {
+                return (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {showStarredOnly ? "No starred people found" : "No people found"}
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {filteredPeople.map((person) => (
                   <div
                     key={person.id}
                     data-person-id={person.id}
@@ -645,9 +689,10 @@ export default function PeoplePage() {
                       </AvatarFallback>
                     </Avatar>
                   </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </ScrollArea>
         </TabsContent>
 
