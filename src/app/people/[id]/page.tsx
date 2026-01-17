@@ -459,54 +459,60 @@ export default function PersonDetailPage() {
           <TabsContent value="timeline" className="flex-1 overflow-hidden m-0">
             <ScrollArea className="h-full">
               <div className="px-6 py-4">
-                {/* Add note input header - only shown when editing or has text */}
-                {(isNoteFocused || noteText.trim()) && (
-                  <div className="flex items-start gap-3 mb-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                      <LabelIcon className="w-4 h-4" />
-                      <span>Adding a note...</span>
-                    </div>
-                    <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">now</span>
-                  </div>
-                )}
-
-                {/* Note input box */}
-                <div className="mb-6 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-800/30">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1">
-                      <textarea
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        onFocus={() => setIsNoteFocused(true)}
-                        onBlur={() => setIsNoteFocused(false)}
-                        placeholder="Add a note..."
-                        className="w-full min-h-[80px] resize-none bg-transparent text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none"
-                      />
-                      <div className="flex items-center justify-end gap-2 mt-2">
-                        {noteText.trim() && (
-                          <button
-                            onClick={handleCancelNote}
-                            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-                          >
-                            Clear
-                          </button>
-                        )}
-                        <button
-                          onClick={handleSaveNote}
-                          disabled={!noteText.trim() || isSavingNote}
-                          className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 dark:bg-gray-100 rounded-md hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isSavingNote ? 'Saving...' : 'Save Note'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Timeline entries */}
                 <div className="relative space-y-0">
                   {/* Vertical line through icons */}
                   <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-gray-200 dark:bg-gray-800 -translate-x-1/2 z-0" />
+
+                  {/* Note Input Entry */}
+                  <div className="relative z-10 py-4">
+                    {/* Header - only shown when editing or has text */}
+                    {(isNoteFocused || noteText.trim()) && (
+                      <div className="flex items-center gap-3 mb-2 ml-9">
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                          <LabelIcon className="w-4 h-4" />
+                          <span>Adding a note...</span>
+                        </div>
+                        <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 mr-1">now</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-start gap-3">
+                      {/* Timeline Icon */}
+                      <div className="w-6 h-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded flex items-center justify-center flex-shrink-0 shadow-sm z-10">
+                        <NoteIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                      </div>
+
+                      {/* Input Box */}
+                      <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-800/30">
+                        <textarea
+                          value={noteText}
+                          onChange={(e) => setNoteText(e.target.value)}
+                          onFocus={() => setIsNoteFocused(true)}
+                          onBlur={() => setIsNoteFocused(false)}
+                          placeholder="Add a note..."
+                          className="w-full min-h-[80px] resize-none bg-transparent text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none"
+                        />
+                        <div className="flex items-center justify-end gap-2 mt-2">
+                          {noteText.trim() && (
+                            <button
+                              onClick={handleCancelNote}
+                              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                            >
+                              Clear
+                            </button>
+                          )}
+                          <button
+                            onClick={handleSaveNote}
+                            disabled={!noteText.trim() || isSavingNote}
+                            className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 dark:bg-gray-100 rounded-md hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSavingNote ? 'Saving...' : 'Save Note'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {displayTimeline.map((item, index) => {
                     let Icon;
