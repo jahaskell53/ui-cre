@@ -8,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
+import { Button } from "@/components/ui/button";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -193,8 +195,17 @@ function NoteIcon({ className }: { className?: string }) {
   );
 }
 
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 5H17M8 5V3.5C8 2.67 8.67 2 9.5 2H10.5C11.33 2 12 2.67 12 3.5V5M15.5 5V15.5C15.5 16.33 14.83 17 14 17H6C5.17 17 4.5 16.33 4.5 15.5V5H15.5ZM8.5 8.5V13.5M11.5 8.5V13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Timeline item interface
 interface TimelineItem {
+  id?: string;
   type: 'meeting' | 'import' | 'email' | 'note' | 'other';
   text: string;
   date: string;
@@ -226,6 +237,8 @@ export default function PersonDetailPage() {
   const [noteText, setNoteText] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isNoteFocused, setIsNoteFocused] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<{ id?: string, index: number } | null>(null);
+  const [isDeletingNote, setIsDeletingNote] = useState(false);
 
   const personId = params.id as string;
 
@@ -293,6 +306,7 @@ export default function PersonDetailPage() {
       const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       
       const newNote: TimelineItem = {
+        id: crypto.randomUUID(),
         type: 'note',
         text: noteTextToSave,
         date: dateStr,
@@ -316,10 +330,50 @@ export default function PersonDetailPage() {
       setNoteText("");
     } catch (error) {
       console.error('Error saving note:', error);
-      alert('Failed to save note. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to save note');
     } finally {
       setIsSavingNote(false);
     }
+  };
+
+  const confirmDeleteNote = async () => {
+    if (!person || !noteToDelete) return;
+    
+    setIsDeletingNote(true);
+    try {
+      const currentTimeline = [...(person.timeline || [])];
+      let updatedTimeline;
+      
+      if (noteToDelete.id) {
+        updatedTimeline = currentTimeline.filter(item => item.id !== noteToDelete.id);
+      } else {
+        // Fallback for notes created before IDs were added
+        updatedTimeline = currentTimeline.filter((_, i) => i !== noteToDelete.index);
+      }
+
+      const response = await fetch(`/api/people?id=${person.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeline: updatedTimeline }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete note');
+      }
+
+      const updatedPerson = await response.json();
+      setPerson(updatedPerson);
+      setNoteToDelete(null);
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete note');
+    } finally {
+      setIsDeletingNote(false);
+    }
+  };
+
+  const handleDeleteNote = (noteId: string | undefined, index: number) => {
+    setNoteToDelete({ id: noteId, index });
   };
 
   const handleCancelNote = () => {
@@ -535,7 +589,7 @@ export default function PersonDetailPage() {
 
                     if (item.type === 'note') {
                       return (
-                        <div key={index} className="relative z-10 py-4">
+                        <div key={index} className="relative z-10 py-4 group">
                           <div className="flex items-center gap-3 mb-2">
                             <div className={`w-6 h-6 ${iconBgColor} rounded flex items-center justify-center flex-shrink-0 shadow-sm`}>
                               <Icon className={`w-3.5 h-3.5 ${iconTextColor}`} />
@@ -543,9 +597,16 @@ export default function PersonDetailPage() {
                             <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                               You added a note
                             </span>
-                            <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">
+                            <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 mr-1 group-hover:hidden">
                               {item.date}
                             </span>
+                            <button
+                              onClick={() => handleDeleteNote(item.id, index)}
+                              className="ml-auto hidden group-hover:flex p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+                              title="Delete note"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
                           </div>
                           <div className="ml-9 p-4 bg-gray-50/80 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-xl">
                             <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
@@ -689,6 +750,37 @@ export default function PersonDetailPage() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ModalOverlay
+        isOpen={noteToDelete !== null}
+        onOpenChange={(isOpen) => !isOpen && setNoteToDelete(null)}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Delete Note</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Are you sure you want to delete this note? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setNoteToDelete(null)}
+                disabled={isDeletingNote}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteNote}
+                disabled={isDeletingNote}
+              >
+                {isDeletingNote ? "Deleting..." : "Delete Note"}
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </div>
   );
 }
