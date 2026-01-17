@@ -676,7 +676,6 @@ export default function PeoplePage() {
                             />
                           </button>
                           {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
-                          {person.signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                         </div>
                       </div>
                     </div>
@@ -770,7 +769,6 @@ export default function PeoplePage() {
                                     />
                                   </button>
                                   {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
-                                  {person.signal && <SignalIcon className="w-3 h-3 text-orange-400" />}
                                 </div>
                               </div>
                             </div>
