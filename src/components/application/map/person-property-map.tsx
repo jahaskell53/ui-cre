@@ -140,6 +140,7 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
 
     // Add new markers
     const bounds = new mapboxgl.LngLatBounds();
+    const popups: mapboxgl.Popup[] = [];
 
     geocodedAddresses.forEach((geocoded) => {
       // Create a container element for the React component
@@ -161,6 +162,17 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
         closeButton: true,
         closeOnClick: false,
       }).setDOMContent(popupContainer);
+
+      // Close other popups when this one opens
+      popup.on('open', () => {
+        popups.forEach((p) => {
+          if (p !== popup && p.isOpen()) {
+            p.remove();
+          }
+        });
+      });
+
+      popups.push(popup);
 
       // Create custom HTML marker element - pin
       const el = document.createElement('div');

@@ -170,6 +170,7 @@ export function PropertiesMapView({
     }
 
     const bounds = new mapboxgl.LngLatBounds();
+    const popups: mapboxgl.Popup[] = [];
 
     propertyLocations.forEach((location) => {
       // Create a container element for the React component
@@ -191,6 +192,17 @@ export function PropertiesMapView({
         closeButton: true,
         closeOnClick: false,
       }).setDOMContent(popupContainer);
+
+      // Close other popups when this one opens
+      popup.on('open', () => {
+        popups.forEach((p) => {
+          if (p !== popup && p.isOpen()) {
+            p.remove();
+          }
+        });
+      });
+
+      popups.push(popup);
 
       // Create custom pin marker
       const el = document.createElement('div');
