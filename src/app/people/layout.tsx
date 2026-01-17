@@ -27,7 +27,17 @@ export default function PeopleLayout({
   const [searchQuery, setSearchQuery] = useState("");
   const sidebarRef = useRef<SidebarRef>(null);
 
-  const shouldHideDetailPanel = pathname === "/people/settings" || pathname === "/people/create";
+  // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
+  const isDetailPage = pathname?.match(/^\/people\/[^/]+(\/.*)?$/) && 
+                       pathname !== "/people/settings" && 
+                       pathname !== "/people/create" &&
+                       pathname !== "/people/board" &&
+                       pathname !== "/people/map" &&
+                       pathname !== "/people/archive";
+  
+  const shouldHideDetailPanel = pathname === "/people/settings" || 
+                                pathname === "/people/create" || 
+                                isDetailPage;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -142,7 +152,7 @@ export default function PeopleLayout({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white dark:bg-gray-900">
-          <TabNavigation />
+          {!isDetailPage && <TabNavigation />}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {children}
           </div>
