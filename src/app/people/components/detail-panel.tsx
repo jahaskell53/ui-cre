@@ -24,6 +24,11 @@ function getStreetAddress(fullAddress: string): string {
   const parts = fullAddress.split(",");
   return parts[0]?.trim() || fullAddress;
 }
+
+// Helper function to generate Google Maps URL
+function getGoogleMapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
 import { PersonPropertyMap } from "@/components/application/map/person-property-map";
 
 interface DetailPanelProps {
@@ -177,9 +182,14 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                       </h4>
                       <div className="flex items-start gap-2">
                         <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                        <a
+                          href={getGoogleMapsUrl(selectedPerson.address)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline leading-relaxed flex-1"
+                        >
                           {getStreetAddress(selectedPerson.address)}
-                        </p>
+                        </a>
                       </div>
                     </div>
                   )}
@@ -194,9 +204,14 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                           {selectedPerson.owned_addresses.map((address, index) => (
                             <div key={index} className="flex items-start gap-2">
                               <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
-                              <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                              <a
+                                href={getGoogleMapsUrl(address)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 dark:text-blue-400 hover:underline leading-relaxed flex-1"
+                              >
                                 {getStreetAddress(address)}
-                              </p>
+                              </a>
                             </div>
                           ))}
                         </div>
