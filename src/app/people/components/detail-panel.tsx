@@ -17,6 +17,15 @@ import { CellularIcon, MailIcon, CalendarIcon, EmojiIcon, LocationIcon } from ".
 import { generateAuroraGradient, getInitials } from "../utils";
 import type { Person } from "../types";
 
+// Helper function to extract street address (part before city)
+function getStreetAddress(fullAddress: string): string {
+  if (!fullAddress) return "";
+  // Split by comma and take the first part (street address)
+  const parts = fullAddress.split(",");
+  return parts[0]?.trim() || fullAddress;
+}
+import { PersonPropertyMap } from "@/components/application/map/person-property-map";
+
 interface DetailPanelProps {
   selectedPerson: Person | null;
   panelWidth: number;
@@ -182,7 +191,7 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                       <div className="flex items-start gap-2">
                         <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                         <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                          {selectedPerson.address}
+                          {getStreetAddress(selectedPerson.address)}
                         </p>
                       </div>
                     </div>
@@ -199,7 +208,7 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                             <div key={index} className="flex items-start gap-2">
                               <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                               <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                                {address}
+                                {getStreetAddress(address)}
                               </p>
                             </div>
                           ))}
@@ -272,6 +281,25 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                   most recently 1 week ago.
                 </p>
               </div>
+
+              {/* Property Map */}
+              {((selectedPerson.address || (selectedPerson.owned_addresses && selectedPerson.owned_addresses.length > 0))) && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="mb-6">
+                    <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                      Property Map
+                    </h3>
+                    <PersonPropertyMap
+                      addresses={[
+                        ...(selectedPerson.address ? [selectedPerson.address] : []),
+                        ...(selectedPerson.owned_addresses || []),
+                      ]}
+                      personName={selectedPerson.name}
+                    />
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <div className="flex items-center justify-center py-8">

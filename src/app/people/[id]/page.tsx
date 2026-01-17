@@ -186,6 +186,14 @@ function CloseIcon({ className }: { className?: string }) {
   );
 }
 
+// Helper function to extract street address (part before city)
+function getStreetAddress(fullAddress: string): string {
+  if (!fullAddress) return "";
+  // Split by comma and take the first part (street address)
+  const parts = fullAddress.split(",");
+  return parts[0]?.trim() || fullAddress;
+}
+
 function NoteIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -741,7 +749,7 @@ export default function PersonDetailPage() {
                     <div className="flex items-start gap-2">
                       <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                        {person.address}
+                        {getStreetAddress(person.address)}
                       </p>
                     </div>
                   </div>
@@ -758,7 +766,7 @@ export default function PersonDetailPage() {
                           <div key={index} className="flex items-start gap-2">
                             <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                             <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                              {address}
+                              {getStreetAddress(address)}
                             </p>
                           </div>
                         ))}

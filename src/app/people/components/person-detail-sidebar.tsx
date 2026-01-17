@@ -16,6 +16,15 @@ import { Separator } from "@/components/ui/separator";
 import { CellularIcon, MailIcon, EmojiIcon, LocationIcon } from "../icons";
 import type { Person } from "../types";
 
+// Helper function to extract street address (part before city)
+function getStreetAddress(fullAddress: string): string {
+  if (!fullAddress) return "";
+  // Split by comma and take the first part (street address)
+  const parts = fullAddress.split(",");
+  return parts[0]?.trim() || fullAddress;
+}
+import { PersonPropertyMap } from "@/components/application/map/person-property-map";
+
 // Clock icon for the sidebar
 function ClockIcon({ className }: { className?: string }) {
   return (
@@ -111,7 +120,7 @@ export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSideba
                   <div className="flex items-start gap-2">
                     <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                      {person.address}
+                      {getStreetAddress(person.address)}
                     </p>
                   </div>
                 </div>
@@ -128,7 +137,7 @@ export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSideba
                         <div key={index} className="flex items-start gap-2">
                           <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
                           <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                            {address}
+                            {getStreetAddress(address)}
                           </p>
                         </div>
                       ))}
@@ -195,6 +204,23 @@ export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSideba
               </Badge>
             )}
           </div>
+
+          {/* Property Map */}
+          {((person.address || (person.owned_addresses && person.owned_addresses.length > 0))) && (
+            <>
+              <Separator className="my-4" />
+              <div className="mb-6">
+                <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Property Map</h3>
+                <PersonPropertyMap
+                  addresses={[
+                    ...(person.address ? [person.address] : []),
+                    ...(person.owned_addresses || []),
+                  ]}
+                  personName={person.name}
+                />
+              </div>
+            </>
+          )}
         </div>
       </ScrollArea>
     </div>
