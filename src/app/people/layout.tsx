@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar, type SidebarRef } from "./components/sidebar";
 import { DetailPanel } from "./components/detail-panel";
 import { TabNavigation } from "./components/tab-navigation";
 import { PeopleProvider } from "./people-context";
+import { useUser } from "@/hooks/use-user";
 import type { Person } from "./types";
 
 export default function PeopleLayout({
@@ -12,6 +14,8 @@ export default function PeopleLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const { user, loading: authLoading } = useUser();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
@@ -21,6 +25,13 @@ export default function PeopleLayout({
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const sidebarRef = useRef<SidebarRef>(null);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [authLoading, user, router]);
 
   // Fetch people from database
   useEffect(() => {
@@ -93,6 +104,11 @@ export default function PeopleLayout({
   const handleMouseDown = () => {
     setIsDragging(true);
   };
+
+  // Show nothing while checking authentication
+  if (authLoading || !user) {
+    return null;
+  }
 
   return (
     <PeopleProvider
