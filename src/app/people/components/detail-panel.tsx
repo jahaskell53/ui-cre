@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { formatDistanceToNow } from "date-fns";
 import { CellularIcon, MailIcon, CalendarIcon, LocationIcon } from "../icons";
 import { generateAuroraGradient, getInitials } from "../utils";
 import type { Person } from "../types";
@@ -152,7 +153,9 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                       </span>
                     </div>
                     <span className="text-xs text-gray-700 dark:text-gray-300">
-                      1 hour ago
+                      {selectedPerson.updated_at
+                        ? formatDistanceToNow(new Date(selectedPerson.updated_at), { addSuffix: true })
+                        : "Unknown"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -160,7 +163,9 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                       Created
                     </span>
                     <span className="text-xs text-gray-700 dark:text-gray-300">
-                      1 hour ago
+                      {selectedPerson.created_at
+                        ? formatDistanceToNow(new Date(selectedPerson.created_at), { addSuffix: true })
+                        : "Unknown"}
                     </span>
                   </div>
                 </div>

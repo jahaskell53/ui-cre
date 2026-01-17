@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
 import { CellularIcon, MailIcon, LocationIcon } from "../icons";
 import type { Person } from "../types";
 
@@ -93,11 +94,19 @@ export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidt
                   <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
                   <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Last Updated</span>
                 </div>
-                <span className="text-xs text-gray-700 dark:text-gray-300">1 DAY AGO</span>
+                <span className="text-xs text-gray-700 dark:text-gray-300 uppercase">
+                  {person.updated_at
+                    ? formatDistanceToNow(new Date(person.updated_at), { addSuffix: true }).toUpperCase()
+                    : "UNKNOWN"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-500 dark:text-gray-400 ml-3 uppercase">Created</span>
-                <span className="text-xs text-gray-700 dark:text-gray-300">1 DAY AGO</span>
+                <span className="text-xs text-gray-700 dark:text-gray-300 uppercase">
+                  {person.created_at
+                    ? formatDistanceToNow(new Date(person.created_at), { addSuffix: true }).toUpperCase()
+                    : "UNKNOWN"}
+                </span>
               </div>
             </div>
           </div>
