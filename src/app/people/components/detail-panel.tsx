@@ -196,6 +196,11 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                         </div>
                       </div>
                     )}
+                  {!selectedPerson.address && (!selectedPerson.owned_addresses || selectedPerson.owned_addresses.length === 0) && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      No properties yet
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Button } from "@/components/ui/button";
+import { LocationIcon } from "../icons";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -703,6 +704,55 @@ export default function PersonDetailPage() {
                   <span className="text-xs text-gray-500 dark:text-gray-400 ml-3 uppercase">Created</span>
                   <span className="text-xs text-gray-700 dark:text-gray-300">1 DAY AGO</span>
                 </div>
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            {/* Properties */}
+            <div className="mb-6">
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                Properties
+              </h3>
+              <div className="space-y-4">
+                {/* Home Address */}
+                {person.address && (
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Home
+                    </h4>
+                    <div className="flex items-start gap-2">
+                      <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                        {person.address}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {/* Owned Addresses */}
+                {person.owned_addresses &&
+                  person.owned_addresses.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Owned
+                      </h4>
+                      <div className="space-y-2">
+                        {person.owned_addresses.map((address, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                              {address}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                {!person.address && (!person.owned_addresses || person.owned_addresses.length === 0) && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    No properties yet
+                  </p>
+                )}
               </div>
             </div>
 

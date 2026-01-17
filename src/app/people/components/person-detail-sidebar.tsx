@@ -13,7 +13,7 @@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { CellularIcon, MailIcon, EmojiIcon } from "../icons";
+import { CellularIcon, MailIcon, EmojiIcon, LocationIcon } from "../icons";
 import type { Person } from "../types";
 
 // Clock icon for the sidebar
@@ -91,6 +91,55 @@ export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSideba
                 <span className="text-xs text-gray-500 dark:text-gray-400 ml-3 uppercase">Created</span>
                 <span className="text-xs text-gray-700 dark:text-gray-300">1 DAY AGO</span>
               </div>
+            </div>
+          </div>
+
+          <Separator className="my-4" />
+
+          {/* Properties */}
+          <div className="mb-6">
+            <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+              Properties
+            </h3>
+            <div className="space-y-4">
+              {/* Home Address */}
+              {person.address && (
+                <div>
+                  <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Home
+                  </h4>
+                  <div className="flex items-start gap-2">
+                    <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                      {person.address}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* Owned Addresses */}
+              {person.owned_addresses &&
+                person.owned_addresses.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Owned
+                    </h4>
+                    <div className="space-y-2">
+                      {person.owned_addresses.map((address, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
+                            {address}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              {!person.address && (!person.owned_addresses || person.owned_addresses.length === 0) && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  No properties yet
+                </p>
+              )}
             </div>
           </div>
 
