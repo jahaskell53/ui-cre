@@ -18,10 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
-import { useRouter } from "next/navigation";
-import { ChevronDown, User, Settings, LogOut } from "lucide-react";
+import AccountCard from "./account-card";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -218,91 +215,6 @@ interface KanbanColumn {
   cards: KanbanCard[];
 }
 
-function AccountCard() {
-  const router = useRouter();
-  const { user, profile, loading } = useUser();
-
-  if (loading) {
-    return (
-      <div className="flex items-center gap-3 rounded-lg p-2">
-        <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
-        <div className="flex-1 space-y-1.5">
-          <div className="h-3 w-24 rounded bg-gray-200 animate-pulse" />
-          <div className="h-2.5 w-32 rounded bg-gray-200 animate-pulse" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  const displayName = profile?.full_name || user.email?.split("@")[0] || "User";
-  const email = user.email || "";
-  const avatarUrl = profile?.avatar_url || undefined;
-
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
-  const initials = getInitials(displayName);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="w-full justify-start p-2 h-auto hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-0"
-        >
-          <div className="flex items-center gap-3 w-full">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={avatarUrl} alt={displayName} />
-              <AvatarFallback className="bg-gray-200 text-gray-700 text-xs">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {displayName}
-              </p>
-              <p className="text-xs text-gray-500 truncate">{email}</p>
-            </div>
-            <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/profile")}>
-          <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/settings")}>
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-red-600 focus:text-red-600"
-          onClick={handleSignOut}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Sign out</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 export default function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([]);
@@ -553,52 +465,52 @@ export default function PeoplePage() {
   };
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-white dark:bg-gray-900">
       {/* Left Sidebar */}
-      <div className="w-[180px] border-r border-gray-200 flex flex-col h-screen overflow-hidden">
+      <div className="w-[180px] border-r border-gray-200 dark:border-gray-800 flex flex-col h-screen overflow-hidden bg-white dark:bg-gray-900">
         {/* Logo */}
         <div className="p-4 flex items-center gap-2">
-          <div className="w-6 h-6 bg-gray-900 rounded flex items-center justify-center">
-            <span className="text-white text-xs font-bold"></span>OM
+          <div className="w-6 h-6 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
+            <span className="text-white dark:text-gray-900 text-xs font-bold"></span>OM
           </div>
-          <span className="font-semibold text-gray-900 text-sm">OM</span>
-          <div className="ml-auto p-1 hover:bg-gray-100 rounded">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="2" y="2" width="4" height="4" rx="1" stroke="#9CA3AF" strokeWidth="1.5"/>
-              <rect x="8" y="2" width="4" height="4" rx="1" stroke="#9CA3AF" strokeWidth="1.5"/>
-              <rect x="2" y="8" width="4" height="4" rx="1" stroke="#9CA3AF" strokeWidth="1.5"/>
-              <rect x="8" y="8" width="4" height="4" rx="1" stroke="#9CA3AF" strokeWidth="1.5"/>
+          <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">OM</span>
+          <div className="ml-auto p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-gray-400 dark:text-gray-500">
+              <rect x="2" y="2" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+              <rect x="8" y="2" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+              <rect x="2" y="8" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+              <rect x="8" y="8" width="4" height="4" rx="1" stroke="currentColor" strokeWidth="1.5"/>
             </svg>
           </div>
         </div>
 
         {/* My Workspace */}
         <div className="px-3 py-2">
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer">
             <div className="w-4 h-4 bg-emerald-500 rounded" />
-            <span className="text-sm text-gray-700">My Workspace</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">My Workspace</span>
           </div>
         </div>
 
         {/* Search */}
         <div className="px-3 py-2">
           <div className="relative">
-            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
             <Input
               type="text"
               placeholder="Search"
-              className="pl-8 h-8 text-sm bg-gray-50 border-gray-200"
+              className="pl-8 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="px-3 py-2 space-y-0.5">
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer text-gray-600">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400">
             <HomeIcon className="w-4 h-4" />
             <span className="text-sm">Home</span>
           </div>
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-100 cursor-pointer text-gray-900">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100">
             <PeopleIcon className="w-4 h-4" />
             <span className="text-sm font-medium">People</span>
           </div>
@@ -607,104 +519,104 @@ export default function PeoplePage() {
         {/* Groups */}
         <div className="px-3 py-4">
           <div className="flex items-center justify-between px-2 mb-2">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Groups</span>
-            <PlusIcon className="w-3.5 h-3.5 text-gray-400 cursor-pointer hover:text-gray-600" />
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Groups</span>
+            <PlusIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300" />
           </div>
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer text-gray-600">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400">
             <StarIcon className="w-3.5 h-3.5 text-amber-400" filled />
             <span className="text-sm">Starred</span>
           </div>
         </div>
 
         {/* Bottom Actions */}
-        <div className="mt-auto border-t border-gray-200 p-3">
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer text-gray-600">
+        <div className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400">
             <PlusIcon className="w-4 h-4" />
             <span className="text-sm">Create new</span>
           </div>
         </div>
 
         {/* Account Card */}
-        <div className="border-t border-gray-200 p-3">
+        <div className="border-t border-gray-200 dark:border-gray-800 p-3">
           <AccountCard />
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white dark:bg-gray-900">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Header with Tabs */}
-          <div className="border-b border-gray-200 px-4 py-3">
+          <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
             <div className="flex items-center justify-between">
               <TabsList className="bg-transparent h-auto p-0 space-x-4">
                 <TabsTrigger
                   value="people"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 border-b-2 border-transparent data-[state=active]:border-gray-900 dark:data-[state=active]:border-gray-100 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   People
                 </TabsTrigger>
                 <TabsTrigger
                   value="board"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 border-b-2 border-transparent data-[state=active]:border-gray-900 dark:data-[state=active]:border-gray-100 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   Board
                 </TabsTrigger>
                 <TabsTrigger
                   value="map"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 border-b-2 border-transparent data-[state=active]:border-gray-900 dark:data-[state=active]:border-gray-100 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   Map
                 </TabsTrigger>
                 <TabsTrigger
                   value="archive"
-                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 border-b-2 border-transparent data-[state=active]:border-gray-900 rounded-none focus-visible:outline-none focus-visible:ring-0"
+                  className="bg-transparent px-0 py-1 text-sm font-medium data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 border-b-2 border-transparent data-[state=active]:border-gray-900 dark:data-[state=active]:border-gray-100 rounded-none focus-visible:outline-none focus-visible:ring-0"
                 >
                   Archive
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer hover:text-gray-900">
+                <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100">
                   <span>Recency</span>
                   <SortIcon className="w-4 h-4" />
                 </div>
-                <CheckIcon className="w-4 h-4 text-gray-400" />
+                <CheckIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
           </div>
         <TabsContent value="people" className="flex-1 flex flex-col min-w-0 m-0 overflow-hidden">
           {/* People Count */}
-          <div className="px-4 py-2 border-b border-gray-100">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+          <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               {loading ? "Loading..." : `${people.length} People`}
             </span>
           </div>
 
           {/* People List */}
-          <ScrollArea className="flex-1 overflow-y-auto">
+          <ScrollArea className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-gray-500">Loading people...</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Loading people...</div>
               </div>
             ) : people.length === 0 ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-gray-500">No people found</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">No people found</div>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {people.map((person) => (
                   <div
                     key={person.id}
                     data-person-id={person.id}
                     onClick={() => setSelectedPerson(person)}
                     className={cn(
-                      "flex items-center px-4 py-2.5 hover:bg-gray-50 cursor-pointer group",
-                      selectedPerson?.id === person.id && "bg-gray-50"
+                      "flex items-center px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group",
+                      selectedPerson?.id === person.id && "bg-gray-50 dark:bg-gray-800"
                     )}
                   >
                     <Checkbox className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-900 truncate">{person.name}</span>
+                        <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{person.name}</span>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={(e) => handleToggleStar(person, e)}
@@ -741,13 +653,13 @@ export default function PeoplePage() {
 
         <TabsContent value="board" className="flex-1 flex flex-col min-w-0 m-0">
           {/* Kanban Board */}
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
             <div className="flex gap-4 p-4 h-full min-w-fit">
               {kanbanColumns.map((column) => (
                 <div
                   key={column.id}
                   className={cn(
-                    "flex flex-col w-64 bg-gray-50 rounded-lg border border-gray-200",
+                    "flex flex-col w-64 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
                     draggedOverColumn === column.id && "ring-2 ring-blue-500"
                   )}
                   onDragOver={(e) => handleColumnDragOver(e, column.id)}
@@ -755,10 +667,10 @@ export default function PeoplePage() {
                   onDrop={handleCardDragEnd}
                 >
                   {/* Column Header */}
-                  <div className="px-4 py-3 border-b border-gray-200">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-gray-900">{column.title}</h3>
-                      <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{column.title}</h3>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
                         {column.cards.length}
                       </span>
                     </div>
@@ -778,7 +690,7 @@ export default function PeoplePage() {
                             onDragEnd={handleCardDragEnd}
                             onClick={() => setSelectedPerson(person)}
                             className={cn(
-                              "bg-white rounded-lg border border-gray-200 p-3 cursor-move hover:shadow-md transition-shadow",
+                              "bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-move hover:shadow-md transition-shadow",
                               draggedCard === card.id && "opacity-50"
                             )}
                           >
@@ -792,7 +704,7 @@ export default function PeoplePage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                                   {person.name}
                                 </p>
                                 <div className="flex items-center gap-1 mt-1">
@@ -829,14 +741,14 @@ export default function PeoplePage() {
         </TabsContent>
 
         <TabsContent value="map" className="flex-1 flex flex-col min-w-0 m-0">
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-gray-500">Map view coming soon</p>
+          <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Map view coming soon</p>
           </div>
         </TabsContent>
 
         <TabsContent value="archive" className="flex-1 flex flex-col min-w-0 m-0">
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-gray-500">Archive view coming soon</p>
+          <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Archive view coming soon</p>
           </div>
         </TabsContent>
         </Tabs>
@@ -848,11 +760,11 @@ export default function PeoplePage() {
         onMouseDown={handleMouseDown}
         className="w-1 flex items-center justify-center cursor-col-resize flex-shrink-0 group"
       >
-        <div className="w-px h-full bg-gray-200 group-hover:bg-gray-300 transition-colors" />
+        <div className="w-px h-full bg-gray-200 dark:bg-gray-800 group-hover:bg-gray-300 dark:group-hover:bg-gray-700 transition-colors" />
       </div>
 
       {/* Right Detail Panel */}
-      <div className="flex flex-col bg-gray-50/50 flex-shrink-0 h-screen overflow-hidden" style={{ width: `${panelWidth}px` }}>
+      <div className="flex flex-col bg-gray-50/50 dark:bg-gray-800/50 flex-shrink-0 h-screen overflow-hidden" style={{ width: `${panelWidth}px` }}>
         <ScrollArea className="flex-1 h-full">
           <div className="p-4">
             {selectedPerson ? (
@@ -867,20 +779,20 @@ export default function PeoplePage() {
                       {getInitials(selectedPerson.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <h2 className="text-sm font-medium text-gray-900 text-center truncate max-w-full px-2">
+                  <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 text-center truncate max-w-full px-2">
                     {selectedPerson.name}
                   </h2>
-              <Badge variant="secondary" className="mt-1.5 text-xs font-medium px-2 py-0.5">
+              <Badge variant="secondary" className="mt-1.5 text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                 AUTO
               </Badge>
             </div>
 
             {/* Network Strength */}
             <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Network Strength</h3>
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Network Strength</h3>
               <div className="flex items-center gap-2">
                 <CellularIcon strength="HIGH" className="w-4 h-4" />
-                <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5">
+                <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                   HIGH
                 </Badge>
               </div>
@@ -890,22 +802,22 @@ export default function PeoplePage() {
 
             {/* Timeline */}
             <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Timeline</h3>
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Timeline</h3>
               {selectedPerson.timeline && selectedPerson.timeline.length > 0 ? (
                 <div className="space-y-3">
                   {selectedPerson.timeline.map((item, index) => {
                     const iconColor = item.iconColor || 'blue';
                     const bgColorClass = {
-                      blue: 'bg-blue-100',
-                      orange: 'bg-orange-100',
-                      purple: 'bg-purple-100',
-                      green: 'bg-green-100',
+                      blue: 'bg-blue-100 dark:bg-blue-900/30',
+                      orange: 'bg-orange-100 dark:bg-orange-900/30',
+                      purple: 'bg-purple-100 dark:bg-purple-900/30',
+                      green: 'bg-green-100 dark:bg-green-900/30',
                     }[iconColor];
                     const textColorClass = {
-                      blue: 'text-blue-600',
-                      orange: 'text-orange-600',
-                      purple: 'text-purple-600',
-                      green: 'text-green-600',
+                      blue: 'text-blue-600 dark:text-blue-400',
+                      orange: 'text-orange-600 dark:text-orange-400',
+                      purple: 'text-purple-600 dark:text-purple-400',
+                      green: 'text-green-600 dark:text-green-400',
                     }[iconColor];
                     const Icon = item.type === 'email' ? MailIcon : CalendarIcon;
                     
@@ -915,15 +827,15 @@ export default function PeoplePage() {
                           <Icon className={`w-2.5 h-2.5 ${textColorClass}`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-gray-700 break-words">{item.text}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{item.date}</p>
+                          <p className="text-xs text-gray-700 dark:text-gray-300 break-words">{item.text}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{item.date}</p>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <p className="text-xs text-gray-500">No timeline events yet</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">No timeline events yet</p>
               )}
             </div>
 
@@ -931,8 +843,8 @@ export default function PeoplePage() {
 
             {/* Related People */}
             <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Related People</h3>
-              <button className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700">
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Related People</h3>
+              <button className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
                 <EmojiIcon className="w-4 h-4" />
                 <span>Add related people</span>
               </button>
@@ -942,18 +854,18 @@ export default function PeoplePage() {
 
             {/* Properties */}
             <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Properties</h3>
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Properties</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                    <span className="text-xs text-gray-500">Last Updated</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Last Updated</span>
                   </div>
-                  <span className="text-xs text-gray-700">1 hour ago</span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300">1 hour ago</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 ml-3">Created</span>
-                  <span className="text-xs text-gray-700">1 hour ago</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">Created</span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300">1 hour ago</span>
                 </div>
               </div>
             </div>
@@ -962,29 +874,29 @@ export default function PeoplePage() {
 
             {/* Sources */}
             <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Sources</h3>
-              <p className="text-xs text-gray-600 leading-relaxed">
+              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Sources</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                 You last chatted with {selectedPerson.name.split(' ')[0]} 1 week ago via email. You've had 30 meetings, most recently 3 days ago, and emailed them 119 times, most recently 1 week ago.
               </p>
               {selectedPerson.email && (
                 <div className="flex items-center gap-2 mt-3">
-                  <MailIcon className="w-3.5 h-3.5 text-gray-400" />
+                  <MailIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                   <a 
                     href={`mailto:${selectedPerson.email}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     {selectedPerson.email}
                   </a>
-                  <span className="text-xs text-gray-400 ml-auto">Email</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">Email</span>
                 </div>
               )}
             </div>
               </>
             ) : (
               <div className="flex items-center justify-center py-8">
-                <div className="text-sm text-gray-500">Select a person to view details</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Select a person to view details</div>
               </div>
             )}
           </div>

@@ -12,6 +12,7 @@ interface Profile {
   website: string | null;
   roles: string[] | null;
   is_admin: boolean | null;
+  theme_preference: string | null;
   updated_at: string | null;
 }
 
@@ -65,5 +66,12 @@ export function useUser() {
     }
   }
 
-  return { user, profile, loading };
+  // Function to refresh profile (useful after updates)
+  async function refreshProfile() {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  }
+
+  return { user, profile, loading, refreshProfile };
 }
