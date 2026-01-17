@@ -76,9 +76,9 @@ export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSideba
 
           <Separator className="my-4" />
 
-          {/* Properties */}
+          {/* History */}
           <div className="mb-6">
-            <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Properties</h3>
+            <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">History</h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
