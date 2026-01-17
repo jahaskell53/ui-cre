@@ -229,6 +229,8 @@ export default function PeoplePage() {
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [addPersonSearch, setAddPersonSearch] = useState<Record<string, string>>({});
+  const [openAddDropdown, setOpenAddDropdown] = useState<string | null>(null);
   
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
     {
@@ -419,6 +421,62 @@ export default function PeoplePage() {
 
   const handleMouseDown = () => {
     setIsDragging(true);
+  };
+
+  const handleAddPersonToColumn = async (personId: string, columnId: string) => {
+    const person = people.find((p) => p.id === personId);
+    if (!person) return;
+
+    // Check if person is already in this column
+    const column = kanbanColumns.find((col) => col.id === columnId);
+    if (column?.cards.some((card) => card.personId === personId)) {
+      return; // Already in column
+    }
+
+    // Optimistically add to UI
+    const newCard: KanbanCard = {
+      id: `card-${personId}`,
+      personId: person.id,
+      personName: person.name,
+    };
+
+    setKanbanColumns((prevColumns) =>
+      prevColumns.map((col) =>
+        col.id === columnId ? { ...col, cards: [...col.cards, newCard] } : col
+      )
+    );
+
+    // Save to database
+    try {
+      const response = await fetch("/api/people/board", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personId: personId,
+          columnId: columnId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add person to board");
+      }
+    } catch (error) {
+      console.error("Error adding person to board:", error);
+      // Revert on error
+      setKanbanColumns((prevColumns) =>
+        prevColumns.map((col) =>
+          col.id === columnId
+            ? { ...col, cards: col.cards.filter((card) => card.id !== newCard.id) }
+            : col
+        )
+      );
+    }
+
+    // Close dropdown and clear search
+    setOpenAddDropdown(null);
+    setAddPersonSearch((prev) => ({ ...prev, [columnId]: "" }));
   };
 
   const handleCardDragStart = (cardId: string) => {
@@ -838,9 +896,79 @@ export default function PeoplePage() {
                   <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{column.title}</h3>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-                        {column.cards.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                          {column.cards.length}
+                        </span>
+                        <DropdownMenu open={openAddDropdown === column.id} onOpenChange={(open) => setOpenAddDropdown(open ? column.id : null)}>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <PlusIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-64 p-0">
+                            <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                              <Input
+                                type="text"
+                                placeholder="Search people..."
+                                value={addPersonSearch[column.id] || ""}
+                                onChange={(e) => setAddPersonSearch((prev) => ({ ...prev, [column.id]: e.target.value }))}
+                                className="h-8 text-sm"
+                                autoFocus
+                              />
+                            </div>
+                            <ScrollArea className="max-h-64">
+                              <div className="p-1">
+                                {(() => {
+                                  const filteredPeople = people.filter((person) => {
+                                    const searchTerm = (addPersonSearch[column.id] || "").toLowerCase();
+                                    const isInColumn = column.cards.some((card) => card.personId === person.id);
+                                    return !isInColumn && (searchTerm === "" || person.name.toLowerCase().includes(searchTerm));
+                                  });
+
+                                  if (filteredPeople.length === 0) {
+                                    return (
+                                      <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        No people found
+                                      </div>
+                                    );
+                                  }
+
+                                  return filteredPeople.map((person) => (
+                                    <DropdownMenuItem
+                                      key={person.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddPersonToColumn(person.id, column.id);
+                                      }}
+                                      className="cursor-pointer"
+                                    >
+                                      <div className="flex items-center gap-2 w-full">
+                                        <Avatar className="h-6 w-6">
+                                          <AvatarFallback
+                                            className="text-white text-xs font-medium"
+                                            style={{ background: generateAuroraGradient(person.name) }}
+                                          >
+                                            {getInitials(person.name)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                                          {person.name}
+                                        </span>
+                                      </div>
+                                    </DropdownMenuItem>
+                                  ));
+                                })()}
+                              </div>
+                            </ScrollArea>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
 
