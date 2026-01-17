@@ -158,13 +158,13 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
         </svg>
       `;
       
-      // Add hover effect
+      // Add hover effect (scale only, no movement)
       el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.1) translateY(-2px)';
+        el.style.transform = 'scale(1.1)';
       });
       
       el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1) translateY(0)';
+        el.style.transform = 'scale(1)';
       });
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
