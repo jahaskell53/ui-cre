@@ -31,6 +31,58 @@ export default function PeoplePage() {
     { id: "done", title: "Done", cards: [] },
   ]);
 
+  // Fetch kanban column titles from database
+  useEffect(() => {
+    const fetchKanbanColumns = async () => {
+      try {
+        const response = await fetch("/api/kanban-columns");
+        if (!response.ok) {
+          throw new Error("Failed to fetch kanban columns");
+        }
+        const data = await response.json();
+        const columnTitles = data.columns || [];
+        
+        // Update column titles while preserving IDs and cards
+        if (columnTitles.length > 0) {
+          setKanbanColumns((prevColumns) =>
+            prevColumns.map((col, index) => ({
+              ...col,
+              title: columnTitles[index] || col.title,
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching kanban columns:", error);
+      }
+    };
+
+    fetchKanbanColumns();
+  }, []);
+
+  // Save kanban column titles to database
+  const saveKanbanColumns = async (columns: KanbanColumn[]) => {
+    try {
+      const columnTitles = columns.map((col) => col.title);
+      const response = await fetch("/api/kanban-columns", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ columns: columnTitles }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save kanban columns");
+      }
+    } catch (error) {
+      console.error("Error saving kanban columns:", error);
+    }
+  };
+
+  // Wrapper for setKanbanColumns that also persists to database
+  const handleKanbanColumnsChange = (columns: KanbanColumn[]) => {
+    setKanbanColumns(columns);
+    saveKanbanColumns(columns);
+  };
+
   // Fetch people from database
   useEffect(() => {
     const fetchPeople = async () => {
@@ -501,7 +553,7 @@ export default function PeoplePage() {
               columns={kanbanColumns}
               draggedCard={draggedCard}
               draggedOverColumn={draggedOverColumn}
-              onColumnsChange={setKanbanColumns}
+              onColumnsChange={handleKanbanColumnsChange}
               onDragStart={handleCardDragStart}
               onDragEnd={handleCardDragEnd}
               onColumnDragOver={handleColumnDragOver}
