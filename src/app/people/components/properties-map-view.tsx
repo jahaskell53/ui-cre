@@ -180,19 +180,29 @@ export function PropertiesMapView({
       const isHome = location.label === "Home";
       const pinColor = isHome ? '#0ea5e9' : '#7f56d9';
       
+      // Set styles to prevent drift - let Mapbox handle positioning
       el.style.width = '32px';
       el.style.height = '40px';
-      el.style.position = 'relative';
+      el.style.margin = '0';
+      el.style.padding = '0';
+      el.style.border = 'none';
+      el.style.outline = 'none';
       el.style.cursor = 'pointer';
+      el.style.display = 'block';
+      el.style.boxSizing = 'border-box';
+      el.style.lineHeight = '0';
       
       el.innerHTML = `
-        <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block; margin: 0; padding: 0; width: 32px; height: 40px;">
           <path d="M16 0C7.16 0 0 7.16 0 16C0 24.84 16 40 16 40C16 40 32 24.84 32 16C32 7.16 24.84 0 16 0Z" fill="${pinColor}"/>
           <circle cx="16" cy="14" r="6" fill="white"/>
         </svg>
       `;
 
-      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+      const marker = new mapboxgl.Marker({ 
+        element: el, 
+        anchor: 'bottom'
+      })
         .setLngLat(location.coordinates)
         .setPopup(popup)
         .addTo(map.current!);
