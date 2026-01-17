@@ -44,15 +44,47 @@ export function KanbanBoard({
   onSelectPerson,
   onToggleStar,
   onAddPersonToColumn,
+  onColumnsChange,
 }: KanbanBoardProps) {
   const router = useRouter();
   const [addPersonSearch, setAddPersonSearch] = useState<Record<string, string>>({});
   const [openAddDropdown, setOpenAddDropdown] = useState<string | null>(null);
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState<string>("");
 
   const handleAddPerson = (personId: string, columnId: string) => {
     onAddPersonToColumn(personId, columnId);
     setOpenAddDropdown(null);
     setAddPersonSearch((prev) => ({ ...prev, [columnId]: "" }));
+  };
+
+  const handleStartEdit = (columnId: string, currentTitle: string) => {
+    setEditingColumnId(columnId);
+    setEditingTitle(currentTitle);
+  };
+
+  const handleSaveEdit = (columnId: string) => {
+    if (editingTitle.trim()) {
+      const updatedColumns = columns.map((col) =>
+        col.id === columnId ? { ...col, title: editingTitle.trim() } : col
+      );
+      onColumnsChange(updatedColumns);
+    }
+    setEditingColumnId(null);
+    setEditingTitle("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingColumnId(null);
+    setEditingTitle("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, columnId: string) => {
+    if (e.key === "Enter") {
+      handleSaveEdit(columnId);
+    } else if (e.key === "Escape") {
+      handleCancelEdit();
+    }
   };
 
   return (
@@ -72,9 +104,29 @@ export function KanbanBoard({
             {/* Column Header */}
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {column.title}
-                </h3>
+                {editingColumnId === column.id ? (
+                  <Input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onBlur={() => handleSaveEdit(column.id)}
+                    onKeyDown={(e) => handleKeyDown(e, column.id)}
+                    className="text-sm font-medium h-7 px-2 py-1"
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <h3
+                    className="text-sm font-medium text-gray-900 dark:text-gray-100 cursor-text hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded -mx-2 -my-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartEdit(column.id, column.title);
+                    }}
+                    title="Click to edit"
+                  >
+                    {column.title}
+                  </h3>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
                     {column.cards.length}
