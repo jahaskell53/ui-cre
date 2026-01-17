@@ -166,17 +166,17 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
       bounds.extend(geocoded.coordinates);
     });
 
-    // Fit map to bounds if we have multiple addresses
+    // Fit map to bounds if we have multiple addresses (no animation)
     if (geocodedAddresses.length > 1) {
       map.current.fitBounds(bounds, {
         padding: 50,
         maxZoom: 14,
+        animate: false,
       });
     } else if (geocodedAddresses.length === 1) {
-      map.current.flyTo({
+      map.current.jumpTo({
         center: geocodedAddresses[0].coordinates,
         zoom: 14,
-        essential: true,
       });
     }
   }, [geocodedAddresses, isLoading, personName]);
