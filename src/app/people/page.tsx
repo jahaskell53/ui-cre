@@ -1003,6 +1003,7 @@ export default function PeoplePage() {
                                   const isLoading = searchLoading[column.id] || false;
 
                                   // Use search results if searching and results exist, otherwise use all people
+                                  // If loading, keep showing previous results (searchResultsForColumn or people)
                                   const peopleToShow = isSearching && searchResultsForColumn !== undefined 
                                     ? searchResultsForColumn 
                                     : people;
@@ -1013,15 +1014,7 @@ export default function PeoplePage() {
                                     return !isInColumn;
                                   });
 
-                                  if (isLoading) {
-                                    return (
-                                      <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        Searching...
-                                      </div>
-                                    );
-                                  }
-
-                                  if (filteredPeople.length === 0) {
+                                  if (filteredPeople.length === 0 && !isLoading) {
                                     return (
                                       <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                                         {isSearching ? "No people found" : "No people available"}
@@ -1029,6 +1022,7 @@ export default function PeoplePage() {
                                     );
                                   }
 
+                                  // Show previous results even while loading
                                   return filteredPeople.map((person) => (
                                     <DropdownMenuItem
                                       key={person.id}
