@@ -6,6 +6,7 @@ import { Sidebar, type SidebarRef } from "./components/sidebar";
 import { PeopleList } from "./components/people-list";
 import { KanbanBoard } from "./components/kanban-board";
 import { DetailPanel } from "./components/detail-panel";
+import { PropertiesMapView } from "./components/properties-map-view";
 import { SortIcon, CheckIcon } from "./icons";
 import type { Person, KanbanColumn, KanbanCard } from "./types";
 
@@ -512,9 +513,12 @@ export default function PeoplePage() {
           </TabsContent>
 
           <TabsContent value="map" className="flex-1 flex flex-col min-w-0 m-0">
-            <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Map view coming soon</p>
-            </div>
+            <PropertiesMapView
+              people={people}
+              searchQuery={searchQuery}
+              showStarredOnly={showStarredOnly}
+              onSelectPerson={setSelectedPerson}
+            />
           </TabsContent>
 
           <TabsContent value="archive" className="flex-1 flex flex-col min-w-0 m-0">

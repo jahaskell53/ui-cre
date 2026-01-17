@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -236,6 +236,9 @@ export default function PersonDetailPage() {
   const [isNoteFocused, setIsNoteFocused] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<{ id?: string, index: number } | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(280);
+  const [isDragging, setIsDragging] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   const personId = params.id as string;
 
@@ -260,6 +263,39 @@ export default function PersonDetailPage() {
       fetchPerson();
     }
   }, [personId]);
+
+  // Handle resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 280;
+      const maxWidth = 800;
+      setPanelWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isDragging]);
+
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
 
   const handleBack = () => {
     router.push("/people");
@@ -667,11 +703,21 @@ export default function PersonDetailPage() {
         </Tabs>
       </div>
 
+      {/* Resizable Divider */}
+      <div
+        ref={resizeRef}
+        onMouseDown={handleMouseDown}
+        className="w-1 flex items-center justify-center cursor-col-resize flex-shrink-0 group"
+      >
+        <div className="w-px h-full bg-gray-200 dark:bg-gray-800 group-hover:bg-gray-300 dark:group-hover:bg-gray-700 transition-colors" />
+      </div>
+
       {/* Right Sidebar */}
       <PersonDetailSidebar
         person={person}
         onToggleStar={handleToggleStar}
         firstName={firstName}
+        panelWidth={panelWidth}
       />
 
       {/* Delete Confirmation Modal */}
