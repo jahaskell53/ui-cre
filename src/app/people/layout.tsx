@@ -27,7 +27,7 @@ export default function PeopleLayout({
   const [searchQuery, setSearchQuery] = useState("");
   const sidebarRef = useRef<SidebarRef>(null);
 
-  const isSettingsPage = pathname === "/people/settings";
+  const shouldHideDetailPanel = pathname === "/people/settings" || pathname === "/people/create";
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function PeopleLayout({
         </div>
 
         {/* Resizable Divider */}
-        {!isSettingsPage && (
+        {!shouldHideDetailPanel && (
           <div
             ref={resizeRef}
             onMouseDown={handleMouseDown}
@@ -160,7 +160,7 @@ export default function PeopleLayout({
         )}
 
         {/* Right Detail Panel */}
-        {!isSettingsPage && (
+        {!shouldHideDetailPanel && (
           <DetailPanel selectedPerson={selectedPerson} panelWidth={panelWidth} />
         )}
       </div>
