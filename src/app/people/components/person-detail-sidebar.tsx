@@ -1,14 +1,13 @@
 "use client";
 
 /**
- * PersonDetailSidebar - Fixed-width sidebar for the Person Detail View
+ * PersonDetailSidebar - Resizable sidebar for the Person Detail View
  * 
- * Used in: src/app/people/person-detail-view.tsx
+ * Used in: src/app/people/[id]/page.tsx
  * 
- * This component displays additional metadata and information in a fixed-width (280px)
- * sidebar on the Person Detail View page. It shows network strength, related people,
- * properties, sources, and groups. Unlike DetailPanel, this sidebar has a fixed width
- * and is part of the full-page person detail view layout.
+ * This component displays additional metadata and information in a resizable sidebar
+ * on the Person Detail View page. It shows network strength, related people,
+ * properties, sources, and groups. The panel width is adjustable via the panelWidth prop.
  */
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -49,13 +48,17 @@ interface PersonDetailSidebarProps {
   person: Person;
   onToggleStar: (e: React.MouseEvent) => void;
   firstName: string;
+  panelWidth: number;
 }
 
-export function PersonDetailSidebar({ person, onToggleStar, firstName }: PersonDetailSidebarProps) {
+export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidth }: PersonDetailSidebarProps) {
   const networkStrength: "HIGH" | "MEDIUM" | "LOW" = "MEDIUM";
 
   return (
-    <div className="w-[280px] border-l border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex-shrink-0">
+    <div
+      className="border-l border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex-shrink-0"
+      style={{ width: `${panelWidth}px` }}
+    >
       <ScrollArea className="h-full">
         <div className="p-4">
           {/* Clock icon top right */}
