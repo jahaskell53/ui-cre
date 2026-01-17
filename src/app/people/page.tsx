@@ -235,6 +235,7 @@ export default function PeoplePage() {
   const [viewingDetail, setViewingDetail] = useState(false);
   const [searchResults, setSearchResults] = useState<Record<string, Person[]>>({});
   const [searchLoading, setSearchLoading] = useState<Record<string, boolean>>({});
+  const searchInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
     {
@@ -983,13 +984,44 @@ export default function PeoplePage() {
                               <PlusIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-64 p-0">
+                          <DropdownMenuContent 
+                            align="end" 
+                            className="w-64 p-0"
+                            onPointerDownOutside={(e) => {
+                              // Prevent closing when clicking on the input or inside the dropdown
+                              const target = e.target as HTMLElement;
+                              if (target.closest('input') || target.closest('[role="menu"]')) {
+                                e.preventDefault();
+                              }
+                            }}
+                            onInteractOutside={(e) => {
+                              // Prevent closing when interacting with the input or inside the dropdown
+                              const target = e.target as HTMLElement;
+                              if (target.closest('input') || target.closest('[role="menu"]')) {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
                             <div className="p-2 border-b border-gray-200 dark:border-gray-700">
                               <Input
+                                ref={(el) => {
+                                  if (el) {
+                                    searchInputRefs.current[column.id] = el;
+                                  }
+                                }}
                                 type="text"
                                 placeholder="Search people..."
                                 value={addPersonSearch[column.id] || ""}
-                                onChange={(e) => setAddPersonSearch((prev) => ({ ...prev, [column.id]: e.target.value }))}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setAddPersonSearch((prev) => ({ ...prev, [column.id]: value }));
+                                }}
+                                onKeyDown={(e) => {
+                                  // Prevent dropdown from closing on Escape if there's text
+                                  if (e.key === 'Escape' && addPersonSearch[column.id]) {
+                                    e.stopPropagation();
+                                  }
+                                }}
                                 className="h-8 text-sm"
                                 autoFocus
                               />
