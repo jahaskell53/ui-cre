@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
+import { createRoot } from "react-dom/client";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapPopupContent } from "@/components/application/map/map-popup-content";
 import type { Person } from "../types";
 
 mapboxgl.accessToken = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
@@ -30,6 +32,7 @@ export function PropertiesMapView({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const popupRoots = useRef<ReturnType<typeof createRoot>[]>([]);
   const [propertyLocations, setPropertyLocations] = useState<PropertyLocation[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
@@ -141,37 +144,53 @@ export function PropertiesMapView({
   useEffect(() => {
     if (!map.current || isGeocoding) return;
 
-    // Remove existing markers
-    markers.current.forEach((marker) => marker.remove());
-    markers.current = [];
+    // Store previous roots for cleanup
+    const previousRoots = [...popupRoots.current];
+    const previousMarkers = [...markers.current];
 
-    if (propertyLocations.length === 0) return;
+    // Clear refs immediately
+    markers.current = [];
+    popupRoots.current = [];
+
+    // Remove existing markers
+    previousMarkers.forEach((marker) => marker.remove());
+
+    if (propertyLocations.length === 0) {
+      // Cleanup roots asynchronously to avoid race condition
+      setTimeout(() => {
+        previousRoots.forEach((root) => {
+          try {
+            root.unmount();
+          } catch (e) {
+            // Ignore errors if already unmounted
+          }
+        });
+      }, 0);
+      return;
+    }
 
     const bounds = new mapboxgl.LngLatBounds();
 
     propertyLocations.forEach((location) => {
-      const popup = new mapboxgl.Popup({ offset: 18, className: "property-popup" }).setHTML(`
-        <div style="padding: 8px; width: 220px;">
-          <div style="font-weight: 700; font-size: 13px; color: #101828; line-height: 1.2; margin-bottom: 4px;">
-            ${location.person.name}
-          </div>
-          ${location.person.category ? `
-            <div style="margin-bottom: 6px;">
-              <span style="font-size: 10px; font-weight: 700; color: #344054; background: #f2f4f7; border: 1px solid #d0d5dd; padding: 2px 6px; border-radius: 999px;">
-                ${location.person.category}
-              </span>
-            </div>
-          ` : ''}
-          <div style="margin-top: 8px;">
-            <span style="font-size: 10px; font-weight: 700; color: #344054; background: #f2f4f7; border: 1px solid #d0d5dd; padding: 2px 6px; border-radius: 999px;">
-              ${location.label}
-            </span>
-          </div>
-          <div style="font-size: 11px; color: #475467; margin-top: 6px; line-height: 1.3;">
-            ${location.address}
-          </div>
-        </div>
-      `);
+      // Create a container element for the React component
+      const popupContainer = document.createElement("div");
+      const root = createRoot(popupContainer);
+      popupRoots.current.push(root);
+      root.render(
+        <MapPopupContent
+          personName={location.person.name}
+          category={location.person.category}
+          label={location.label}
+          address={location.address}
+        />
+      );
+
+      const popup = new mapboxgl.Popup({ 
+        offset: 18, 
+        className: "property-popup",
+        closeButton: true,
+        closeOnClick: false,
+      }).setDOMContent(popupContainer);
 
       // Create custom pin marker
       const el = document.createElement('div');
@@ -223,6 +242,19 @@ export function PropertiesMapView({
         animate: false,
       });
     }
+
+    // Cleanup previous roots asynchronously after render
+    return () => {
+      setTimeout(() => {
+        previousRoots.forEach((root) => {
+          try {
+            root.unmount();
+          } catch (e) {
+            // Ignore errors if already unmounted
+          }
+        });
+      }, 0);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyLocations, isGeocoding]);
 

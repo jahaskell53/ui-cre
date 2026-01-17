@@ -179,3 +179,48 @@ input[type="search"]::-webkit-search-cancel-button {
     @apply bg-background text-foreground;
     }
 }
+
+/* Mapbox popup styling - ensure only our custom popup content shows */
+.property-popup.mapboxgl-popup .mapboxgl-popup-content {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.property-popup.mapboxgl-popup .mapboxgl-popup-close-button {
+  z-index: 10;
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 18px !important;
+  line-height: 24px !important;
+  color: #6b7280 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 6px !important;
+  border: 1px solid #e5e7eb !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+  right: 8px !important;
+  top: 8px !important;
+}
+
+.property-popup.mapboxgl-popup .mapboxgl-popup-close-button:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  color: #374151 !important;
+  border-color: #d1d5db !important;
+}
+
+.dark .property-popup.mapboxgl-popup .mapboxgl-popup-close-button {
+  color: #9ca3af !important;
+  background: rgba(31, 41, 55, 0.9) !important;
+  border-color: #374151 !important;
+}
+
+.dark .property-popup.mapboxgl-popup .mapboxgl-popup-close-button:hover {
+  background: rgba(31, 41, 55, 1) !important;
+  color: #d1d5db !important;
+  border-color: #4b5563 !important;
+}

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MapPopupContent } from "./map-popup-content";
 
 mapboxgl.accessToken = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
@@ -22,6 +24,7 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const popupRoots = useRef<ReturnType<typeof createRoot>[]>([]);
   const [geocodedAddresses, setGeocodedAddresses] = useState<GeocodedAddress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -110,31 +113,54 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
   useEffect(() => {
     if (!map.current || isLoading) return;
 
-    // Remove existing markers
-    markers.current.forEach((marker) => marker.remove());
-    markers.current = [];
+    // Store previous roots for cleanup
+    const previousRoots = [...popupRoots.current];
+    const previousMarkers = [...markers.current];
 
-    if (geocodedAddresses.length === 0) return;
+    // Clear refs immediately
+    markers.current = [];
+    popupRoots.current = [];
+
+    // Remove existing markers
+    previousMarkers.forEach((marker) => marker.remove());
+
+    if (geocodedAddresses.length === 0) {
+      // Cleanup roots asynchronously to avoid race condition
+      setTimeout(() => {
+        previousRoots.forEach((root) => {
+          try {
+            root.unmount();
+          } catch (e) {
+            // Ignore errors if already unmounted
+          }
+        });
+      }, 0);
+      return;
+    }
 
     // Add new markers
     const bounds = new mapboxgl.LngLatBounds();
 
     geocodedAddresses.forEach((geocoded) => {
-      const popup = new mapboxgl.Popup({ offset: 18, className: "property-popup" }).setHTML(`
-        <div style="padding: 8px; width: 220px;">
-          <div style="font-weight: 700; font-size: 13px; color: #101828; line-height: 1.2;">
-            ${personName}
-          </div>
-          <div style="margin-top: 8px;">
-            <span style="font-size: 10px; font-weight: 700; color: #344054; background: #f2f4f7; border: 1px solid #d0d5dd; padding: 2px 6px; border-radius: 999px;">
-              ${geocoded.label}
-            </span>
-          </div>
-          <div style="font-size: 11px; color: #475467; margin-top: 6px; line-height: 1.3;">
-            ${geocoded.address}
-          </div>
-        </div>
-      `);
+      // Create a container element for the React component
+      const popupContainer = document.createElement("div");
+      const root = createRoot(popupContainer);
+      popupRoots.current.push(root);
+      root.render(
+        <MapPopupContent
+          personName={personName}
+          category={null}
+          label={geocoded.label}
+          address={geocoded.address}
+        />
+      );
+
+      const popup = new mapboxgl.Popup({ 
+        offset: 18, 
+        className: "property-popup",
+        closeButton: true,
+        closeOnClick: false,
+      }).setDOMContent(popupContainer);
 
       // Create custom HTML marker element - pin
       const el = document.createElement('div');
@@ -179,6 +205,19 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
         zoom: 14,
       });
     }
+
+    // Cleanup previous roots asynchronously after render
+    return () => {
+      setTimeout(() => {
+        previousRoots.forEach((root) => {
+          try {
+            root.unmount();
+          } catch (e) {
+            // Ignore errors if already unmounted
+          }
+        });
+      }, 0);
+    };
   }, [geocodedAddresses, isLoading, personName]);
 
   if (addresses.length === 0) {
