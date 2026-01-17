@@ -12,23 +12,12 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Get search query parameter
-        const searchParams = request.nextUrl.searchParams;
-        const searchQuery = searchParams.get("search")?.trim();
-
-        // Build query
-        let query = supabase
+        // Fetch people for the current user
+        const { data, error } = await supabase
             .from("people")
             .select("*")
-            .eq("user_id", user.id);
-
-        // Apply search filter if provided
-        if (searchQuery && searchQuery.length > 0) {
-            query = query.ilike("name", `%${searchQuery}%`);
-        }
-
-        // Order and execute
-        const { data, error } = await query.order("created_at", { ascending: false });
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
 
         if (error) {
             console.error("Error fetching people:", error);

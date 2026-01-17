@@ -233,8 +233,6 @@ export default function PeoplePage() {
   const [addPersonSearch, setAddPersonSearch] = useState<Record<string, string>>({});
   const [openAddDropdown, setOpenAddDropdown] = useState<string | null>(null);
   const [viewingDetail, setViewingDetail] = useState(false);
-  const [searchResults, setSearchResults] = useState<Record<string, Person[]>>({});
-  const [searchLoading, setSearchLoading] = useState<Record<string, boolean>>({});
   
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
     {
@@ -427,62 +425,8 @@ export default function PeoplePage() {
     setIsDragging(true);
   };
 
-  // Debounced search function
-  useEffect(() => {
-    const searchTimeouts: Record<string, NodeJS.Timeout> = {};
-
-    Object.entries(addPersonSearch).forEach(([columnId, searchTerm]) => {
-      // Clear existing timeout for this column
-      if (searchTimeouts[columnId]) {
-        clearTimeout(searchTimeouts[columnId]);
-      }
-
-      // Set new timeout
-      searchTimeouts[columnId] = setTimeout(async () => {
-        const trimmedSearch = searchTerm.trim();
-        
-        if (trimmedSearch.length === 0) {
-          // Clear search results when search is empty
-          setSearchResults((prev) => {
-            const newResults = { ...prev };
-            delete newResults[columnId];
-            return newResults;
-          });
-          setSearchLoading((prev) => ({ ...prev, [columnId]: false }));
-          return;
-        }
-
-        setSearchLoading((prev) => ({ ...prev, [columnId]: true }));
-        try {
-          const response = await fetch(`/api/people?search=${encodeURIComponent(trimmedSearch)}`);
-          if (!response.ok) {
-            throw new Error("Failed to search people");
-          }
-          const results = await response.json();
-          setSearchResults((prev) => ({ ...prev, [columnId]: results }));
-        } catch (error) {
-          console.error("Error searching people:", error);
-          setSearchResults((prev) => ({ ...prev, [columnId]: [] }));
-        } finally {
-          setSearchLoading((prev) => ({ ...prev, [columnId]: false }));
-        }
-      }, 300); // 300ms debounce
-    });
-
-    // Cleanup function
-    return () => {
-      Object.values(searchTimeouts).forEach((timeout) => clearTimeout(timeout));
-    };
-  }, [addPersonSearch]);
-
   const handleAddPersonToColumn = async (personId: string, columnId: string) => {
-    // Try to find person in people list or search results
-    let person = people.find((p) => p.id === personId);
-    if (!person) {
-      // Check search results for this column
-      const searchResultsForColumn = searchResults[columnId] || [];
-      person = searchResultsForColumn.find((p) => p.id === personId);
-    }
+    const person = people.find((p) => p.id === personId);
     if (!person) return;
 
     // Check if person is already in this column
@@ -997,34 +941,16 @@ export default function PeoplePage() {
                             <ScrollArea className="max-h-64">
                               <div className="p-1">
                                 {(() => {
-                                  const searchTerm = addPersonSearch[column.id] || "";
-                                  const isSearching = searchTerm.trim().length > 0;
-                                  const searchResultsForColumn = searchResults[column.id];
-                                  const isLoading = searchLoading[column.id] || false;
-
-                                  // Use search results if searching and results exist, otherwise use all people
-                                  const peopleToShow = isSearching && searchResultsForColumn !== undefined 
-                                    ? searchResultsForColumn 
-                                    : people;
-
-                                  // Filter out people already in the column
-                                  const filteredPeople = peopleToShow.filter((person) => {
+                                  const filteredPeople = people.filter((person) => {
+                                    const searchTerm = (addPersonSearch[column.id] || "").toLowerCase();
                                     const isInColumn = column.cards.some((card) => card.personId === person.id);
-                                    return !isInColumn;
+                                    return !isInColumn && (searchTerm === "" || person.name.toLowerCase().includes(searchTerm));
                                   });
-
-                                  if (isLoading) {
-                                    return (
-                                      <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        Searching...
-                                      </div>
-                                    );
-                                  }
 
                                   if (filteredPeople.length === 0) {
                                     return (
                                       <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        {isSearching ? "No people found" : "No people available"}
+                                        No people found
                                       </div>
                                     );
                                   }
