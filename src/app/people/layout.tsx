@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Sidebar, type SidebarRef } from "./components/sidebar";
 import { DetailPanel } from "./components/detail-panel";
 import { TabNavigation } from "./components/tab-navigation";
@@ -15,6 +15,7 @@ export default function PeopleLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading: authLoading } = useUser();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,8 @@ export default function PeopleLayout({
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const sidebarRef = useRef<SidebarRef>(null);
+
+  const isSettingsPage = pathname === "/people/settings";
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -146,16 +149,20 @@ export default function PeopleLayout({
         </div>
 
         {/* Resizable Divider */}
-        <div
-          ref={resizeRef}
-          onMouseDown={handleMouseDown}
-          className="w-1 flex items-center justify-center cursor-col-resize flex-shrink-0 group"
-        >
-          <div className="w-px h-full bg-gray-200 dark:bg-gray-800 group-hover:bg-gray-300 dark:group-hover:bg-gray-700 transition-colors" />
-        </div>
+        {!isSettingsPage && (
+          <div
+            ref={resizeRef}
+            onMouseDown={handleMouseDown}
+            className="w-1 flex items-center justify-center cursor-col-resize flex-shrink-0 group"
+          >
+            <div className="w-px h-full bg-gray-200 dark:bg-gray-800 group-hover:bg-gray-300 dark:group-hover:bg-gray-700 transition-colors" />
+          </div>
+        )}
 
         {/* Right Detail Panel */}
-        <DetailPanel selectedPerson={selectedPerson} panelWidth={panelWidth} />
+        {!isSettingsPage && (
+          <DetailPanel selectedPerson={selectedPerson} panelWidth={panelWidth} />
+        )}
       </div>
     </PeopleProvider>
   );
