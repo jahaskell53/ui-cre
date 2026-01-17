@@ -935,7 +935,6 @@ export default function PeoplePage() {
                                   value={addPersonSearch[column.id] || ""}
                                   onChange={(e) => setAddPersonSearch((prev) => ({ ...prev, [column.id]: e.target.value }))}
                                   onKeyDown={(e) => e.stopPropagation()}
-                                  // onPointerDown={(e) => e.stopPropagation()}
                                   className="h-8 text-sm"
                                   autoFocus
                                 />
