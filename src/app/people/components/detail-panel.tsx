@@ -6,7 +6,7 @@
  * Used in: src/app/people/page.tsx
  * 
  * This component displays person details in a resizable side panel on the main People page.
- * It shows profile information, network strength, timeline, related people, properties,
+ * It shows profile information, network strength, history, related people, properties,
  * and contact information. The panel width is adjustable via the panelWidth prop.
  */
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -71,10 +71,10 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
 
               <Separator className="my-4" />
 
-              {/* Timeline */}
+              {/* History */}
               <div className="mb-6">
                 <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                  Timeline
+                  History
                 </h3>
                 {selectedPerson.timeline && selectedPerson.timeline.length > 0 ? (
                   <div className="space-y-3">
@@ -115,9 +115,31 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                   </div>
                 ) : (
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    No timeline events yet
+                    No history yet
                   </p>
                 )}
+                {/* Metadata */}
+                <div className="space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Last Updated
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-700 dark:text-gray-300">
+                      1 hour ago
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">
+                      Created
+                    </span>
+                    <span className="text-xs text-gray-700 dark:text-gray-300">
+                      1 hour ago
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <Separator className="my-4" />
@@ -174,28 +196,6 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                         </div>
                       </div>
                     )}
-                  {/* Metadata */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Last Updated
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-700 dark:text-gray-300">
-                        1 hour ago
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">
-                        Created
-                      </span>
-                      <span className="text-xs text-gray-700 dark:text-gray-300">
-                        1 hour ago
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </div>
 
