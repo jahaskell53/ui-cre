@@ -183,9 +183,19 @@ function CloseIcon({ className }: { className?: string }) {
   );
 }
 
+function NoteIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 6.5H10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M6 9.5H8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // Timeline item interface
 interface TimelineItem {
-  type: 'meeting' | 'import' | 'email' | 'other';
+  type: 'meeting' | 'import' | 'email' | 'note' | 'other';
   text: string;
   date: string;
   iconColor?: 'blue' | 'orange' | 'purple' | 'green';
@@ -213,6 +223,8 @@ export default function PersonDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState("timeline");
+  const [noteText, setNoteText] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   const personId = params.id as string;
 
@@ -268,6 +280,51 @@ export default function PersonDetailPage() {
     }
   };
 
+  const handleSaveNote = async () => {
+    if (!person || !noteText.trim() || isSavingNote) return;
+
+    setIsSavingNote(true);
+    const noteTextToSave = noteText.trim();
+
+    try {
+      const currentTimeline = person.timeline || [];
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      
+      const newNote: TimelineItem = {
+        type: 'note',
+        text: noteTextToSave,
+        date: dateStr,
+        iconColor: 'green',
+      };
+
+      const updatedTimeline = [newNote, ...currentTimeline];
+
+      const response = await fetch(`/api/people?id=${person.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeline: updatedTimeline }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save note');
+      }
+
+      const updatedPerson = await response.json();
+      setPerson(updatedPerson);
+      setNoteText("");
+    } catch (error) {
+      console.error('Error saving note:', error);
+      alert('Failed to save note. Please try again.');
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleCancelNote = () => {
+    setNoteText("");
+  };
+
   const getInitials = (name: string) => {
     const parts = name.split(/[\s@]+/).filter(Boolean);
     if (parts.length >= 2) {
@@ -300,11 +357,12 @@ export default function PersonDetailPage() {
     );
   }
 
-  // Mock timeline data for display
+  // Use saved timeline or fall back to mock data
   const nameParts = (person?.name || "").split(' ');
   const firstName = nameParts[0] || "Person";
 
-  const mockTimeline: TimelineItem[] = person.timeline && person.timeline.length > 0 ? person.timeline : [
+  const savedTimeline = person.timeline || [];
+  const displayTimeline: TimelineItem[] = savedTimeline.length > 0 ? savedTimeline : [
     { type: 'import', text: `${firstName} imported via Calendar`, date: '1d', iconColor: 'blue' },
     { type: 'meeting', text: `You met with ${firstName} Greenpoint <> Capitalize`, date: '28d', iconColor: 'blue', link: 'Greenpoint <> Capitalize' },
     { type: 'email', text: `You emailed ${firstName} Re: Follow-up`, date: 'Nov 21 2025', iconColor: 'purple', link: 'Re: Follow-up' },
@@ -401,39 +459,96 @@ export default function PersonDetailPage() {
             <ScrollArea className="h-full">
               <div className="px-6 py-4">
                 {/* Add note input */}
-                <div className="flex items-start gap-3 mb-6">
+                <div className="flex items-start gap-3 mb-2">
                   <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                     <LabelIcon className="w-4 h-4" />
-                    <span>Add a label</span>
-                    <span className="text-gray-300 dark:text-gray-600">|</span>
                     <span>Adding a note...</span>
                   </div>
                   <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">now</span>
                 </div>
 
                 {/* Note input box */}
-                <div className="mb-6 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <div className="mb-6 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50/30 dark:bg-gray-800/30">
                   <div className="flex items-start gap-3">
-                    <ClockIcon className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5" />
-                    <div className="flex-1 min-h-[60px]">
-                      {/* Empty note area */}
+                    <LabelIcon className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <textarea
+                        value={noteText}
+                        onChange={(e) => setNoteText(e.target.value)}
+                        placeholder="Add a note..."
+                        className="w-full min-h-[80px] resize-none bg-transparent text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none"
+                      />
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                        {noteText.trim() && (
+                          <button
+                            onClick={handleCancelNote}
+                            className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                          >
+                            Clear
+                          </button>
+                        )}
+                        <button
+                          onClick={handleSaveNote}
+                          disabled={!noteText.trim() || isSavingNote}
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 dark:bg-gray-100 rounded-md hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isSavingNote ? 'Saving...' : 'Save Note'}
+                        </button>
+                      </div>
                     </div>
-                    <button className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
-                      <CloseIcon className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
 
                 {/* Timeline entries */}
-                <div className="space-y-4">
-                  {mockTimeline.map((item, index) => {
-                    const Icon = item.type === 'email' ? MailIcon : CalendarIcon;
-                    const iconBgColor = item.iconColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-blue-100 dark:bg-blue-900/30';
-                    const iconTextColor = item.iconColor === 'purple' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400';
+                <div className="relative space-y-0">
+                  {/* Vertical line through icons */}
+                  <div className="absolute left-3 top-0 bottom-0 w-[1px] bg-gray-200 dark:bg-gray-800 -translate-x-1/2 z-0" />
+
+                  {displayTimeline.map((item, index) => {
+                    let Icon;
+                    let iconBgColor;
+                    let iconTextColor;
+
+                    if (item.type === 'email') {
+                      Icon = MailIcon;
+                      iconBgColor = item.iconColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-blue-100 dark:bg-blue-900/30';
+                      iconTextColor = item.iconColor === 'purple' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400';
+                    } else if (item.type === 'note') {
+                      Icon = NoteIcon;
+                      iconBgColor = 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700';
+                      iconTextColor = 'text-gray-500 dark:text-gray-400';
+                    } else {
+                      Icon = CalendarIcon;
+                      iconBgColor = item.iconColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-blue-100 dark:bg-blue-900/30';
+                      iconTextColor = item.iconColor === 'purple' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400';
+                    }
+
+                    if (item.type === 'note') {
+                      return (
+                        <div key={index} className="relative z-10 py-4">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className={`w-6 h-6 ${iconBgColor} rounded flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                              <Icon className={`w-3.5 h-3.5 ${iconTextColor}`} />
+                            </div>
+                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                              You added a note
+                            </span>
+                            <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">
+                              {item.date}
+                            </span>
+                          </div>
+                          <div className="ml-9 p-4 bg-gray-50/80 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-xl">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                              {item.text}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
 
                     return (
-                      <div key={index} className="flex items-start gap-3 py-2">
-                        <div className={`w-6 h-6 ${iconBgColor} rounded flex items-center justify-center flex-shrink-0`}>
+                      <div key={index} className="relative z-10 flex items-start gap-3 py-4">
+                        <div className={`w-6 h-6 ${iconBgColor} rounded flex items-center justify-center flex-shrink-0 shadow-sm`}>
                           <Icon className={`w-3.5 h-3.5 ${iconTextColor}`} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -450,7 +565,7 @@ export default function PersonDetailPage() {
                             )}
                           </p>
                         </div>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">{item.date}</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 mt-0.5">{item.date}</span>
                       </div>
                     );
                   })}
