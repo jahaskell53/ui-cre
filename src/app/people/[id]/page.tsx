@@ -220,6 +220,7 @@ interface Person {
   name: string;
   starred: boolean;
   email: string | null;
+  phone: string | null;
   signal: boolean;
   address: string | null;
   owned_addresses?: string[];
@@ -773,7 +774,7 @@ export default function PersonDetailPage() {
                 You last chatted with {firstName} 1 month ago via email. You've had two meetings, most recently 4 weeks ago, and emailed them 3 times, most recently 1 month ago.
               </p>
               {person.email && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-3">
                   <MailIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                   <a
                     href={`mailto:${person.email}`}
@@ -782,6 +783,20 @@ export default function PersonDetailPage() {
                     {person.email}
                   </a>
                   <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto uppercase">Email</span>
+                </div>
+              )}
+              {person.phone && (
+                <div className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <a
+                    href={`tel:${person.phone}`}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {person.phone}
+                  </a>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto uppercase">Phone</span>
                 </div>
               )}
             </div>

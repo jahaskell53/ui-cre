@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, signal, address, owned_addresses, timeline } = body;
+        const { name, starred, email, phone, signal, address, owned_addresses, timeline } = body;
 
         if (!name || typeof name !== "string" || name.trim().length === 0) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
                 name: name.trim(),
                 starred: starred ?? false,
                 email: email?.trim() || null,
+                phone: phone?.trim() || null,
                 signal: signal ?? false,
                 address: address?.trim() || null,
                 owned_addresses: owned_addresses || [],
@@ -109,7 +110,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, signal, address, owned_addresses, timeline } = body;
+        const { name, starred, email, phone, signal, address, owned_addresses, timeline } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -117,6 +118,7 @@ export async function PUT(request: NextRequest) {
         if (name !== undefined) updateData.name = name.trim();
         if (starred !== undefined) updateData.starred = starred;
         if (email !== undefined) updateData.email = email?.trim() || null;
+        if (phone !== undefined) updateData.phone = phone?.trim() || null;
         if (signal !== undefined) updateData.signal = signal;
         if (address !== undefined) updateData.address = address?.trim() || null;
         if (owned_addresses !== undefined) updateData.owned_addresses = owned_addresses || [];

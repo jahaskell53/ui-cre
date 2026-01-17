@@ -13,6 +13,7 @@ interface Person {
   name: string;
   starred: boolean;
   email: string | null;
+  phone: string | null;
   signal: boolean;
   address: string | null;
   owned_addresses?: string[];
@@ -48,6 +49,7 @@ export default function EditPersonPage() {
   // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [ownedAddresses, setOwnedAddresses] = useState<string[]>([]);
   const [newOwnedAddress, setNewOwnedAddress] = useState("");
@@ -66,6 +68,7 @@ export default function EditPersonPage() {
         setPerson(data);
         setName(data.name || "");
         setEmail(data.email || "");
+        setPhone(data.phone || "");
         setAddress(data.address || "");
         setOwnedAddresses(data.owned_addresses || []);
       } catch (err) {
@@ -111,6 +114,7 @@ export default function EditPersonPage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim() || null,
+          phone: phone.trim() || null,
           address: address.trim() || null,
           owned_addresses: ownedAddresses,
         }),
@@ -223,6 +227,20 @@ export default function EditPersonPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter email"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Phone
+                </label>
+                <Input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Enter phone number"
                   className="w-full"
                 />
               </div>

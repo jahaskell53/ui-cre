@@ -12,6 +12,7 @@ export interface Person {
   name: string;
   starred: boolean;
   email: string | null;
+  phone: string | null;
   signal: boolean;
   address: string | null;
   owned_addresses?: string[];
