@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { SearchIcon, HomeIcon, PeopleIcon, StarIcon, PlusIcon, GridIcon } from "../icons";
@@ -10,17 +11,32 @@ interface SidebarProps {
   people: Person[];
   selectedPerson: Person | null;
   showStarredOnly: boolean;
+  searchQuery: string;
   onToggleStarred: () => void;
   onSelectPerson: (person: Person | null) => void;
+  onSearchChange: (query: string) => void;
 }
 
-export function Sidebar({
+export interface SidebarRef {
+  focusSearch: () => void;
+}
+
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
   people,
   selectedPerson,
   showStarredOnly,
+  searchQuery,
   onToggleStarred,
   onSelectPerson,
-}: SidebarProps) {
+  onSearchChange,
+}, ref) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusSearch: () => {
+      searchInputRef.current?.focus();
+    },
+  }));
   const handleToggleStarred = () => {
     const newShowStarredOnly = !showStarredOnly;
     onToggleStarred();
@@ -61,8 +77,11 @@ export function Sidebar({
         <div className="relative">
           <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
           <Input
+            ref={searchInputRef}
             type="text"
             placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
             className="pl-8 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
           />
         </div>
@@ -114,4 +133,4 @@ export function Sidebar({
       </div>
     </div>
   );
-}
+});

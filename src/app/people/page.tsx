@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Sidebar } from "./components/sidebar";
+import { Sidebar, type SidebarRef } from "./components/sidebar";
 import { PeopleList } from "./components/people-list";
 import { KanbanBoard } from "./components/kanban-board";
 import { DetailPanel } from "./components/detail-panel";
@@ -20,6 +20,8 @@ export default function PeoplePage() {
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const sidebarRef = useRef<SidebarRef>(null);
 
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
     { id: "to-contact", title: "To Contact", cards: [] },
@@ -119,6 +121,58 @@ export default function PeoplePage() {
     };
   }, [isDragging]);
 
+  // Filter people based on search query and starred filter
+  const filteredPeople = people.filter((person) => {
+    // Apply starred filter
+    if (showStarredOnly && !person.starred) {
+      return false;
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const searchableFields = [
+        person.name,
+        person.email,
+        person.phone,
+        person.category,
+        person.address,
+        ...(person.owned_addresses || []),
+      ]
+        .filter(Boolean)
+        .map((field) => field?.toLowerCase() || "");
+
+      return searchableFields.some((field) => field.includes(query));
+    }
+
+    return true;
+  });
+
+  // Update selected person if they're filtered out
+  useEffect(() => {
+    if (selectedPerson && !filteredPeople.find((p) => p.id === selectedPerson.id)) {
+      setSelectedPerson(filteredPeople.length > 0 ? filteredPeople[0] : null);
+    } else if (!selectedPerson && filteredPeople.length > 0) {
+      setSelectedPerson(filteredPeople[0]);
+    }
+  }, [filteredPeople, selectedPerson]);
+
+  // Handle Cmd+F / Ctrl+F to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd+F (Mac) or Ctrl+F (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        sidebarRef.current?.focusSearch();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   // Handle keyboard navigation
   useEffect(() => {
     const tabs = ["people", "board", "map", "archive"];
@@ -148,18 +202,18 @@ export default function PeoplePage() {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         if (!selectedPerson) return;
-        const currentIndex = people.findIndex((p) => p.id === selectedPerson.id);
+        const currentIndex = filteredPeople.findIndex((p) => p.id === selectedPerson.id);
 
         if (currentIndex === -1) return;
 
         let newIndex: number;
         if (e.key === "ArrowDown") {
-          newIndex = currentIndex < people.length - 1 ? currentIndex + 1 : 0;
+          newIndex = currentIndex < filteredPeople.length - 1 ? currentIndex + 1 : 0;
         } else {
-          newIndex = currentIndex > 0 ? currentIndex - 1 : people.length - 1;
+          newIndex = currentIndex > 0 ? currentIndex - 1 : filteredPeople.length - 1;
         }
 
-        const newPerson = people[newIndex];
+        const newPerson = filteredPeople[newIndex];
         if (newPerson) {
           setSelectedPerson(newPerson);
           setTimeout(() => {
@@ -176,7 +230,7 @@ export default function PeoplePage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedTab, selectedPerson, people]);
+  }, [selectedTab, selectedPerson, filteredPeople]);
 
   const handleMouseDown = () => {
     setIsDragging(true);
@@ -372,11 +426,14 @@ export default function PeoplePage() {
     <div className="flex h-screen bg-white dark:bg-gray-900">
       {/* Left Sidebar */}
       <Sidebar
+        ref={sidebarRef}
         people={people}
         selectedPerson={selectedPerson}
         showStarredOnly={showStarredOnly}
+        searchQuery={searchQuery}
         onToggleStarred={() => setShowStarredOnly(!showStarredOnly)}
         onSelectPerson={setSelectedPerson}
+        onSearchChange={setSearchQuery}
       />
 
       {/* Main Content */}
@@ -427,7 +484,7 @@ export default function PeoplePage() {
 
           <TabsContent value="people" className="flex-1 flex flex-col min-w-0 m-0 overflow-hidden">
             <PeopleList
-              people={people}
+              people={filteredPeople}
               selectedPerson={selectedPerson}
               showStarredOnly={showStarredOnly}
               loading={loading}
