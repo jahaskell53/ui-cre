@@ -148,7 +148,6 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
       el.style.height = '40px';
       el.style.position = 'relative';
       el.style.cursor = 'pointer';
-      el.style.transition = 'transform 0.2s ease';
       
       // Create the pin SVG
       el.innerHTML = `
@@ -157,15 +156,6 @@ export const PersonPropertyMap = ({ className, addresses, personName }: PersonPr
           <circle cx="16" cy="14" r="6" fill="white"/>
         </svg>
       `;
-      
-      // Add hover effect (scale only, no movement)
-      el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.1)';
-      });
-      
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
-      });
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat(geocoded.coordinates)
