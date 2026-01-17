@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import AccountCard from "./account-card";
-import PersonDetailView from "./person-detail-view";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -220,6 +220,7 @@ interface KanbanColumn {
 
 
 export default function PeoplePage() {
+  const router = useRouter();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
@@ -232,7 +233,6 @@ export default function PeoplePage() {
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [addPersonSearch, setAddPersonSearch] = useState<Record<string, string>>({});
   const [openAddDropdown, setOpenAddDropdown] = useState<string | null>(null);
-  const [viewingDetail, setViewingDetail] = useState(false);
 
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
     {
@@ -656,17 +656,6 @@ export default function PeoplePage() {
     }
   };
 
-  // Show detail view when a person is selected and viewingDetail is true
-  if (viewingDetail && selectedPerson) {
-    return (
-      <PersonDetailView
-        person={selectedPerson}
-        onBack={() => setViewingDetail(false)}
-        onToggleStar={handleToggleStar}
-      />
-    );
-  }
-
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900">
       {/* Left Sidebar */}
@@ -848,7 +837,7 @@ export default function PeoplePage() {
                         }}
                         onClick={() => {
                           setSelectedPerson(person);
-                          setViewingDetail(true);
+                          router.push(`/people/${person.id}`);
                         }}
                         className={cn(
                           "flex items-center px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group",
@@ -1003,7 +992,7 @@ export default function PeoplePage() {
                               onDragEnd={handleCardDragEnd}
                               onClick={() => {
                                 setSelectedPerson(person);
-                                setViewingDetail(true);
+                                router.push(`/people/${person.id}`);
                               }}
                               className={cn(
                                 "bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-move hover:shadow-md transition-shadow",
