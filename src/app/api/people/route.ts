@@ -1,6 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
+
+// Helper function to geocode an address
+async function geocodeAddress(address: string): Promise<{ latitude: number | null; longitude: number | null }> {
+  if (!address || !address.trim()) {
+    return { latitude: null, longitude: null };
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=address`
+    );
+
+    if (!response.ok) {
+      console.error("Geocoding failed:", response.statusText);
+      return { latitude: null, longitude: null };
+    }
+
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      const [longitude, latitude] = data.features[0].center;
+      return { latitude, longitude };
+    }
+
+    return { latitude: null, longitude: null };
+  } catch (error) {
+    console.error("Error geocoding address:", error);
+    return { latitude: null, longitude: null };
+  }
+}
+
+// Helper function to geocode multiple addresses
+async function geocodeAddresses(addresses: string[]): Promise<Array<{ address: string; latitude: number | null; longitude: number | null }>> {
+  const results = await Promise.all(
+    addresses.map(async (address) => {
+      const coords = await geocodeAddress(address);
+      return {
+        address,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      };
+    })
+  );
+  return results;
+}
+
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
@@ -62,6 +108,15 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
 
+        // Geocode addresses
+        const addressTrimmed = address?.trim() || null;
+        const homeGeo = addressTrimmed ? await geocodeAddress(addressTrimmed) : { latitude: null, longitude: null };
+        
+        const ownedAddressesList = owned_addresses || [];
+        const ownedAddressesGeo = ownedAddressesList.length > 0 
+          ? await geocodeAddresses(ownedAddressesList)
+          : [];
+
         // Insert person
         const { data, error } = await supabase
             .from("people")
@@ -73,8 +128,11 @@ export async function POST(request: NextRequest) {
                 phone: phone?.trim() || null,
                 category: category || null,
                 signal: signal ?? false,
-                address: address?.trim() || null,
-                owned_addresses: owned_addresses || [],
+                address: addressTrimmed,
+                address_latitude: homeGeo.latitude,
+                address_longitude: homeGeo.longitude,
+                owned_addresses: ownedAddressesList,
+                owned_addresses_geo: ownedAddressesGeo,
                 timeline: timeline || [],
             })
             .select()
@@ -122,8 +180,29 @@ export async function PUT(request: NextRequest) {
         if (phone !== undefined) updateData.phone = phone?.trim() || null;
         if (category !== undefined) updateData.category = category || null;
         if (signal !== undefined) updateData.signal = signal;
-        if (address !== undefined) updateData.address = address?.trim() || null;
-        if (owned_addresses !== undefined) updateData.owned_addresses = owned_addresses || [];
+        if (address !== undefined) {
+          const addressTrimmed = address?.trim() || null;
+          updateData.address = addressTrimmed;
+          // Geocode the address if provided
+          if (addressTrimmed) {
+            const homeGeo = await geocodeAddress(addressTrimmed);
+            updateData.address_latitude = homeGeo.latitude;
+            updateData.address_longitude = homeGeo.longitude;
+          } else {
+            updateData.address_latitude = null;
+            updateData.address_longitude = null;
+          }
+        }
+        if (owned_addresses !== undefined) {
+          const ownedAddressesList = owned_addresses || [];
+          updateData.owned_addresses = ownedAddressesList;
+          // Geocode owned addresses if provided
+          if (ownedAddressesList.length > 0) {
+            updateData.owned_addresses_geo = await geocodeAddresses(ownedAddressesList);
+          } else {
+            updateData.owned_addresses_geo = [];
+          }
+        }
         if (timeline !== undefined) updateData.timeline = timeline;
 
         if (Object.keys(updateData).length === 0) {

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddressInput } from "@/components/ui/address-input";
 import { generateAuroraGradient, getInitials } from "../../utils";
 
 // Person interface
@@ -268,15 +269,11 @@ export default function EditPersonPage() {
 
               {/* Address */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Home Address
-                </label>
-                <Input
-                  type="text"
+                <AddressInput
+                  label="Home Address"
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Enter address"
-                  className="w-full"
+                  onChange={setAddress}
+                  placeholder="Search for an address..."
                 />
               </div>
 
@@ -287,21 +284,21 @@ export default function EditPersonPage() {
                 </label>
                 <div className="space-y-3">
                   {ownedAddresses.map((addr, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Input
-                        type="text"
-                        value={addr}
-                        onChange={(e) => {
-                          const updated = [...ownedAddresses];
-                          updated[index] = e.target.value;
-                          setOwnedAddresses(updated);
-                        }}
-                        placeholder="Enter address"
-                        className="flex-1"
-                      />
+                    <div key={index} className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <AddressInput
+                          value={addr}
+                          onChange={(value) => {
+                            const updated = [...ownedAddresses];
+                            updated[index] = value;
+                            setOwnedAddresses(updated);
+                          }}
+                          placeholder="Search for an address..."
+                        />
+                      </div>
                       <button
                         onClick={() => handleRemoveOwnedAddress(index)}
-                        className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                        className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 mt-1"
                         type="button"
                       >
                         <TrashIcon className="w-4 h-4" />
@@ -309,24 +306,19 @@ export default function EditPersonPage() {
                     </div>
                   ))}
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="text"
-                      value={newOwnedAddress}
-                      onChange={(e) => setNewOwnedAddress(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddOwnedAddress();
-                        }
-                      }}
-                      placeholder="Add owned address"
-                      className="flex-1"
-                    />
+                    <div className="flex-1">
+                      <AddressInput
+                        value={newOwnedAddress}
+                        onChange={setNewOwnedAddress}
+                        placeholder="Search for an address..."
+                      />
+                    </div>
                     <Button
                       onClick={handleAddOwnedAddress}
                       disabled={!newOwnedAddress.trim()}
                       type="button"
                       variant="outline"
+                      className="mt-1"
                     >
                       Add
                     </Button>
