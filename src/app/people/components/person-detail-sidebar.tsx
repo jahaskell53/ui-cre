@@ -13,6 +13,7 @@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { CellularIcon, MailIcon, EmojiIcon, LocationIcon } from "../icons";
 import type { Person } from "../types";
 
@@ -46,10 +47,11 @@ function StarIcon({ className, filled }: { className?: string; filled?: boolean 
 
 interface PersonDetailSidebarProps {
   person: Person;
-  onToggleStar: (person: Person, e: React.MouseEvent) => void;
+  onToggleStar: (e: React.MouseEvent) => void;
+  firstName: string;
 }
 
-export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSidebarProps) {
+export function PersonDetailSidebar({ person, onToggleStar, firstName }: PersonDetailSidebarProps) {
   const networkStrength: "HIGH" | "MEDIUM" | "LOW" = "MEDIUM";
 
   return (
@@ -158,7 +160,7 @@ export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSideba
           <div className="mb-6">
             <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Sources</h3>
             <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
-              You last chatted with {person.name.split(' ')[0]} 1 month ago via email. You've had two meetings, most recently 4 weeks ago, and emailed them 3 times, most recently 1 month ago.
+              You last chatted with {firstName} 1 month ago via email. You've had two meetings, most recently 4 weeks ago, and emailed them 3 times, most recently 1 month ago.
             </p>
             {person.email && (
               <div className="flex items-center gap-2 mb-3">
@@ -193,16 +195,19 @@ export function PersonDetailSidebar({ person, onToggleStar }: PersonDetailSideba
           {/* Groups */}
           <div className="mb-6">
             <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Groups</h3>
-            {person.starred && (
-              <Badge
-                variant="secondary"
-                className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-medium px-2 py-0.5 cursor-pointer"
-                onClick={(e) => onToggleStar(person, e)}
-              >
-                <StarIcon className="w-3 h-3 mr-1 text-amber-400" filled />
-                STARRED
-              </Badge>
-            )}
+            <Badge
+              variant="secondary"
+              className={cn(
+                "text-xs font-medium px-2 py-0.5 cursor-pointer",
+                person.starred
+                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+              )}
+              onClick={onToggleStar}
+            >
+              <StarIcon className={cn("w-3 h-3 mr-1", person.starred ? "text-amber-400" : "text-gray-400")} filled={person.starred} />
+              STARRED
+            </Badge>
           </div>
 
           {/* Property Map */}

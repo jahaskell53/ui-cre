@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Button } from "@/components/ui/button";
 import { LocationIcon } from "../icons";
+import { PersonDetailSidebar } from "../components/person-detail-sidebar";
+import type { Person, TimelineItem } from "../types";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -212,30 +214,14 @@ function TrashIcon({ className }: { className?: string }) {
   );
 }
 
-// Timeline item interface
-interface TimelineItem {
+// Extended TimelineItem interface for notes
+interface ExtendedTimelineItem {
   id?: string;
   type: 'meeting' | 'import' | 'email' | 'note' | 'other';
   text: string;
   date: string;
   iconColor?: 'blue' | 'orange' | 'purple' | 'green';
   link?: string;
-}
-
-// Person interface
-interface Person {
-  id: string;
-  name: string;
-  starred: boolean;
-  email: string | null;
-  phone: string | null;
-  category: 'Property Owner' | 'Lender' | 'Realtor' | null;
-  signal: boolean;
-  address: string | null;
-  owned_addresses?: string[];
-  timeline?: TimelineItem[];
-  created_at?: string;
-  updated_at?: string;
 }
 
 export default function PersonDetailPage() {
@@ -316,7 +302,7 @@ export default function PersonDetailPage() {
       const now = new Date();
       const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       
-      const newNote: TimelineItem = {
+      const newNote: ExtendedTimelineItem = {
         id: crypto.randomUUID(),
         type: 'note',
         text: noteTextToSave,
@@ -352,7 +338,7 @@ export default function PersonDetailPage() {
     
     setIsDeletingNote(true);
     try {
-      const currentTimeline = [...(person.timeline || [])];
+      const currentTimeline = [...(person.timeline || [])] as ExtendedTimelineItem[];
       let updatedTimeline;
       
       if (noteToDelete.id) {
@@ -428,7 +414,7 @@ export default function PersonDetailPage() {
   const firstName = nameParts[0] || "Person";
 
   const savedTimeline = person.timeline || [];
-  const displayTimeline: TimelineItem[] = savedTimeline.length > 0 ? savedTimeline : [
+  const displayTimeline: ExtendedTimelineItem[] = savedTimeline.length > 0 ? savedTimeline as ExtendedTimelineItem[] : [
     { type: 'import', text: `${firstName} imported via Calendar`, date: '1d', iconColor: 'blue' },
     { type: 'meeting', text: `You met with ${firstName} Greenpoint <> Capitalize`, date: '28d', iconColor: 'blue', link: 'Greenpoint <> Capitalize' },
     { type: 'email', text: `You emailed ${firstName} Re: Follow-up`, date: 'Nov 21 2025', iconColor: 'purple', link: 'Re: Follow-up' },
@@ -682,163 +668,11 @@ export default function PersonDetailPage() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-[280px] border-l border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex-shrink-0">
-        <ScrollArea className="h-full">
-          <div className="p-4">
-            {/* Clock icon top right */}
-            <div className="flex justify-end mb-4">
-              <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500">
-                <ClockIcon className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Network Strength */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Network Strength</h3>
-              <div className="flex items-center gap-2">
-                <CellularIcon strength={networkStrength} className="w-4 h-4" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{networkStrength}</span>
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* Related People */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Related People</h3>
-              <button className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                <EmojiIcon className="w-4 h-4" />
-                <span>Add related people</span>
-              </button>
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* History */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">History</h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Last Updated</span>
-                  </div>
-                  <span className="text-xs text-gray-700 dark:text-gray-300">1 DAY AGO</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-3 uppercase">Created</span>
-                  <span className="text-xs text-gray-700 dark:text-gray-300">1 DAY AGO</span>
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* Properties */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                Properties
-              </h3>
-              <div className="space-y-4">
-                {/* Home Address */}
-                {person.address && (
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Home
-                    </h4>
-                    <div className="flex items-start gap-2">
-                      <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                        {getStreetAddress(person.address)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {/* Owned Addresses */}
-                {person.owned_addresses &&
-                  person.owned_addresses.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Owned
-                      </h4>
-                      <div className="space-y-2">
-                        {person.owned_addresses.map((address, index) => (
-                          <div key={index} className="flex items-start gap-2">
-                            <LocationIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
-                            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed flex-1">
-                              {getStreetAddress(address)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                {!person.address && (!person.owned_addresses || person.owned_addresses.length === 0) && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    No properties yet
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* Sources */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Sources</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
-                You last chatted with {firstName} 1 month ago via email. You've had two meetings, most recently 4 weeks ago, and emailed them 3 times, most recently 1 month ago.
-              </p>
-              {person.email && (
-                <div className="flex items-center gap-2 mb-3">
-                  <MailIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-                  <a
-                    href={`mailto:${person.email}`}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {person.email}
-                  </a>
-                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto uppercase">Email</span>
-                </div>
-              )}
-              {person.phone && (
-                <div className="flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <a
-                    href={`tel:${person.phone}`}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {person.phone}
-                  </a>
-                  <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto uppercase">Phone</span>
-                </div>
-              )}
-            </div>
-
-            <Separator className="my-4" />
-
-            {/* Groups */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Groups</h3>
-              <Badge
-                variant="secondary"
-                className={cn(
-                  "text-xs font-medium px-2 py-0.5 cursor-pointer",
-                  person.starred
-                    ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-                )}
-                onClick={handleToggleStar}
-              >
-                <StarIcon className={cn("w-3 h-3 mr-1", person.starred ? "text-amber-400" : "text-gray-400")} filled={person.starred} />
-                STARRED
-              </Badge>
-            </div>
-          </div>
-        </ScrollArea>
-      </div>
+      <PersonDetailSidebar
+        person={person}
+        onToggleStar={handleToggleStar}
+        firstName={firstName}
+      />
 
       {/* Delete Confirmation Modal */}
       <ModalOverlay
