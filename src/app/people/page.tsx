@@ -622,9 +622,6 @@ export default function PeoplePage() {
             <PlusIcon className="w-4 h-4" />
             <span className="text-sm">Create new</span>
           </div>
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-100 cursor-pointer text-gray-600">
-            <SettingsIcon className="w-4 h-4" />
-          </div>
         </div>
 
         {/* Account Card */}
