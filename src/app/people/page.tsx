@@ -835,6 +835,7 @@ export default function PeoplePage() {
                           e.dataTransfer.effectAllowed = "move";
                           setDraggedCard(`card-${person.id}`);
                         }}
+                        onMouseEnter={() => setSelectedPerson(person)}
                         onClick={() => {
                           setSelectedPerson(person);
                           router.push(`/people/${person.id}`);
@@ -990,6 +991,7 @@ export default function PeoplePage() {
                               draggable
                               onDragStart={() => handleCardDragStart(card.id)}
                               onDragEnd={handleCardDragEnd}
+                              onMouseEnter={() => setSelectedPerson(person)}
                               onClick={() => {
                                 setSelectedPerson(person);
                                 router.push(`/people/${person.id}`);
