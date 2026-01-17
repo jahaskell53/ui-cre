@@ -33,13 +33,15 @@ export default function PeopleLayout({
                        pathname !== "/people/create" &&
                        pathname !== "/people/board" &&
                        pathname !== "/people/map" &&
-                       pathname !== "/people/archive";
+                       pathname !== "/people/archive" &&
+                       pathname !== "/people/profile";
   
   const shouldHideDetailPanel = pathname === "/people/settings" || 
                                 pathname === "/people/create" || 
+                                pathname === "/people/profile" ||
                                 isDetailPage;
   
-  const shouldHideTabs = isDetailPage || pathname === "/people/settings" || pathname === "/people/create";
+  const shouldHideTabs = isDetailPage || pathname === "/people/settings" || pathname === "/people/create" || pathname === "/people/profile";
 
   // Redirect to login if not authenticated
   useEffect(() => {
