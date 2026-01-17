@@ -14,7 +14,7 @@ export default function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [selectedTab, setSelectedTab] = useState("people");
+  const [selectedTab, setSelectedTab] = useState<string>("people");
   const [panelWidth, setPanelWidth] = useState(340);
   const [isDragging, setIsDragging] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -30,6 +30,14 @@ export default function PeoplePage() {
     { id: "follow-up", title: "Follow Up", cards: [] },
     { id: "done", title: "Done", cards: [] },
   ]);
+
+  // Load saved tab from localStorage after hydration
+  useEffect(() => {
+    const savedTab = localStorage.getItem("people-selected-tab");
+    if (savedTab && ["people", "board", "map", "archive"].includes(savedTab)) {
+      setSelectedTab(savedTab);
+    }
+  }, []);
 
   // Fetch kanban column titles from database
   useEffect(() => {
@@ -81,6 +89,14 @@ export default function PeoplePage() {
   const handleKanbanColumnsChange = (columns: KanbanColumn[]) => {
     setKanbanColumns(columns);
     saveKanbanColumns(columns);
+  };
+
+  // Helper function to change tab and save to localStorage
+  const handleTabChange = (value: string) => {
+    setSelectedTab(value);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("people-selected-tab", value);
+    }
   };
 
   // Fetch people from database
@@ -245,7 +261,7 @@ export default function PeoplePage() {
           } else {
             newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
           }
-          setSelectedTab(tabs[newIndex]);
+          handleTabChange(tabs[newIndex]);
         }
         return;
       }
@@ -491,11 +507,11 @@ export default function PeoplePage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white dark:bg-gray-900">
-        <Tabs
-          value={selectedTab}
-          onValueChange={setSelectedTab}
-          className="flex-1 flex flex-col min-w-0 overflow-hidden"
-        >
+         <Tabs
+           value={selectedTab}
+           onValueChange={handleTabChange}
+           className="flex-1 flex flex-col min-w-0 overflow-hidden"
+         >
           {/* Header with Tabs */}
           <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
             <div className="flex items-center justify-between">
