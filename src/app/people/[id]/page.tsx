@@ -457,7 +457,15 @@ export default function PersonDetailPage() {
             <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
               <CopyIcon className="w-5 h-5" />
             </button>
-            <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
+            <button
+              onClick={() => {
+                if (personId) {
+                  router.push(`/people/${personId}/edit`);
+                }
+              }}
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500"
+              title="Edit person"
+            >
               <PencilIcon className="w-5 h-5" />
             </button>
             <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
