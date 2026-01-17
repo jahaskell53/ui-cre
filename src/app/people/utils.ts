@@ -52,3 +52,59 @@ export function getInitials(name: string): string {
   }
   return parts[0]?.slice(0, 2).toUpperCase() || "??";
 }
+
+// Toggle star handler - needs to be used with context
+export function createToggleStarHandler(
+  people: any[],
+  setPeople: (people: any[]) => void,
+  selectedPerson: any,
+  setSelectedPerson: (person: any) => void,
+  showStarredOnly: boolean
+) {
+  return async (person: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const newStarredState = !person.starred;
+    const optimisticPerson = { ...person, starred: newStarredState };
+    setPeople(people.map((p) => (p.id === person.id ? optimisticPerson : p)));
+
+    if (selectedPerson?.id === person.id) {
+      if (showStarredOnly && !newStarredState) {
+        const starredPeople = people.filter((p) => p.starred && p.id !== person.id);
+        setSelectedPerson(starredPeople.length > 0 ? starredPeople[0] : null);
+      } else {
+        setSelectedPerson(optimisticPerson);
+      }
+    }
+
+    try {
+      const response = await fetch(`/api/people?id=${person.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ starred: newStarredState }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update star status");
+      }
+
+      const updatedPerson = await response.json();
+      setPeople(people.map((p) => (p.id === person.id ? updatedPerson : p)));
+
+      if (selectedPerson?.id === person.id) {
+        if (showStarredOnly && !updatedPerson.starred) {
+          const starredPeople = people.filter((p) => p.starred && p.id !== person.id);
+          setSelectedPerson(starredPeople.length > 0 ? starredPeople[0] : null);
+        } else {
+          setSelectedPerson(updatedPerson);
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling star:", error);
+      setPeople(people.map((p) => (p.id === person.id ? person : p)));
+      if (selectedPerson?.id === person.id) {
+        setSelectedPerson(person);
+      }
+    }
+  };
+}
