@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Download, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -37,6 +37,7 @@ export function PeopleList({
   const { setPeople, selectedIds, setSelectedIds } = usePeople();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const listContainerRef = useRef<HTMLDivElement>(null);
   const filteredPeople = showStarredOnly ? people.filter((p) => p.starred) : people;
 
   const toggleSelection = (personId: string, checked: boolean) => {
@@ -140,6 +141,63 @@ export function PeopleList({
     URL.revokeObjectURL(url);
   };
 
+  // Handle arrow key navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle arrow keys if user is typing in an input, textarea, or contenteditable
+      // const target = e.target as HTMLElement;
+      // if (
+      //   target.tagName === "INPUT" ||
+      //   target.tagName === "TEXTAREA" ||
+      //   target.isContentEditable ||
+      //   target.closest("input") ||
+      //   target.closest("textarea")
+      // ) {
+      //   return;
+      // }
+
+      // Don't handle if a modal is open
+      if (showDeleteModal) {
+        return;
+      }
+
+      if (filteredPeople.length === 0) {
+        return;
+      }
+
+      const currentIndex = selectedPerson
+        ? filteredPeople.findIndex((p) => p.id === selectedPerson.id)
+        : -1;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const nextIndex = currentIndex < filteredPeople.length - 1 ? currentIndex + 1 : 0;
+        onSelectPerson(filteredPeople[nextIndex]);
+        
+        // Scroll into view
+        const personElement = listContainerRef.current?.querySelector(
+          `[data-person-id="${filteredPeople[nextIndex].id}"]`
+        );
+        personElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : filteredPeople.length - 1;
+        onSelectPerson(filteredPeople[prevIndex]);
+        
+        // Scroll into view
+        const personElement = listContainerRef.current?.querySelector(
+          `[data-person-id="${filteredPeople[prevIndex].id}"]`
+        );
+        personElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [filteredPeople, selectedPerson, onSelectPerson, showDeleteModal]);
+
   return (
     <>
       {/* Selection Toolbar */}
@@ -200,7 +258,7 @@ export function PeopleList({
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          <div ref={listContainerRef} className="divide-y divide-gray-100 dark:divide-gray-800">
             {filteredPeople.map((person) => (
               <div
                 key={person.id}
