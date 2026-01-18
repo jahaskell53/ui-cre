@@ -13,10 +13,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, parse, isValid } from "date-fns";
 import { CellularIcon, MailIcon, CalendarIcon, LocationIcon } from "../icons";
 import { generateAuroraGradient, getInitials } from "../utils";
-import type { Person } from "../types";
+import type { Person, TimelineItem } from "../types";
 
 // Helper function to extract street address (part before city)
 function getStreetAddress(fullAddress: string): string {
@@ -30,6 +30,74 @@ function getStreetAddress(fullAddress: string): string {
 function getGoogleMapsUrl(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
+
+// Helper function to parse date strings from timeline
+function parseTimelineDate(dateStr: string): Date | null {
+  // Try parsing relative dates like "1d", "28d", "4 weeks ago"
+  if (dateStr.includes('ago')) {
+    // This is a relative date, we can't parse it accurately without context
+    // Return null to indicate we can't parse it
+    return null;
+  }
+  
+  // Try parsing formats like "Nov 21 2025"
+  const formats = [
+    'MMM d yyyy',
+    'MMM dd yyyy',
+    'MMM d, yyyy',
+    'MMM dd, yyyy',
+    'MMM d',
+    'MMM dd',
+  ];
+  
+  for (const format of formats) {
+    try {
+      const parsed = parse(dateStr, format, new Date());
+      if (isValid(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Continue to next format
+    }
+  }
+  
+  // Try ISO date format
+  const isoDate = new Date(dateStr);
+  if (isValid(isoDate)) {
+    return isoDate;
+  }
+  
+  return null;
+}
+
+// Calculate interaction stats from timeline
+function calculateInteractionStats(timeline: TimelineItem[] = []) {
+  const emails = timeline.filter(item => item.type === 'email');
+  const meetings = timeline.filter(item => item.type === 'meeting');
+  
+  // Parse dates and find most recent
+  const emailDates = emails
+    .map(item => parseTimelineDate(item.date))
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => b.getTime() - a.getTime());
+  
+  const meetingDates = meetings
+    .map(item => parseTimelineDate(item.date))
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => b.getTime() - a.getTime());
+  
+  const mostRecentEmail = emailDates[0] || null;
+  const mostRecentMeeting = meetingDates[0] || null;
+  
+  return {
+    emailCount: emails.length,
+    meetingCount: meetings.length,
+    mostRecentEmail,
+    mostRecentMeeting,
+    hasInteractions: emails.length > 0 || meetings.length > 0,
+  };
+}
+
 import { PersonPropertyMap } from "@/components/application/map/person-property-map";
 
 interface DetailPanelProps {
@@ -38,6 +106,66 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
+  // Format the sources text
+  const formatSourcesText = (person: Person) => {
+    const firstName = person.name.split(" ")[0];
+    const stats = calculateInteractionStats(person.timeline);
+    
+    if (!stats.hasInteractions) {
+      return "No interactions yet";
+    }
+    
+    const parts: string[] = [];
+    
+    // Determine most recent interaction overall (for "last chatted")
+    const mostRecentInteraction = stats.mostRecentEmail && stats.mostRecentMeeting
+      ? (stats.mostRecentEmail.getTime() > stats.mostRecentMeeting.getTime() 
+          ? { type: 'email' as const, date: stats.mostRecentEmail }
+          : { type: 'meeting' as const, date: stats.mostRecentMeeting })
+      : stats.mostRecentEmail 
+        ? { type: 'email' as const, date: stats.mostRecentEmail }
+        : stats.mostRecentMeeting
+          ? { type: 'meeting' as const, date: stats.mostRecentMeeting }
+          : null;
+    
+    // Last chat (most recent interaction)
+    if (mostRecentInteraction) {
+      const timeAgo = formatDistanceToNow(mostRecentInteraction.date, { addSuffix: true });
+      const via = mostRecentInteraction.type === 'email' ? 'via email' : 'in a meeting';
+      parts.push(`You last chatted with ${firstName} ${timeAgo} ${via}`);
+    }
+    
+    // Meetings count and most recent
+    if (stats.meetingCount > 0) {
+      const meetingText = stats.meetingCount === 1 
+        ? "1 meeting" 
+        : `${stats.meetingCount} meetings`;
+      
+      if (stats.mostRecentMeeting) {
+        const meetingTimeAgo = formatDistanceToNow(stats.mostRecentMeeting, { addSuffix: true });
+        parts.push(`You've had ${meetingText}, most recently ${meetingTimeAgo}`);
+      } else {
+        parts.push(`You've had ${meetingText}`);
+      }
+    }
+    
+    // Email count and most recent
+    if (stats.emailCount > 0) {
+      const emailText = stats.emailCount === 1 
+        ? "1 time" 
+        : `${stats.emailCount} times`;
+      
+      if (stats.mostRecentEmail) {
+        const emailTimeAgo = formatDistanceToNow(stats.mostRecentEmail, { addSuffix: true });
+        parts.push(`and emailed them ${emailText}, most recently ${emailTimeAgo}`);
+      } else {
+        parts.push(`and emailed them ${emailText}`);
+      }
+    }
+    
+    return parts.join(". ") + ".";
+  };
+
   return (
     <div
       className="flex flex-col bg-gray-50/50 dark:bg-gray-800/50 flex-shrink-0 h-screen overflow-hidden"
@@ -101,6 +229,14 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                 <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
                   History
                 </h3>
+                {(() => {
+                  const stats = calculateInteractionStats(selectedPerson.timeline);
+                  return stats.hasInteractions && (
+                    <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
+                      {formatSourcesText(selectedPerson)}
+                    </p>
+                  );
+                })()}
                 {selectedPerson.timeline && selectedPerson.timeline.length > 0 ? (
                   <div className="space-y-3">
                     {selectedPerson.timeline.map((item, index) => {
@@ -276,18 +412,6 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                   <Separator className="my-4" />
                 </>
               )}
-
-              {/* Sources */}
-              <div className="mb-6">
-                <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                  Sources
-                </h3>
-                <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                  You last chatted with {selectedPerson.name.split(" ")[0]} 1 week ago via email.
-                  You've had 30 meetings, most recently 3 days ago, and emailed them 119 times,
-                  most recently 1 week ago.
-                </p>
-              </div>
 
               {/* Property Map */}
               {((selectedPerson.address || (selectedPerson.owned_addresses && selectedPerson.owned_addresses.length > 0))) && (
