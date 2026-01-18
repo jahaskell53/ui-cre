@@ -33,7 +33,6 @@ export default function PeopleLayout({
                        pathname !== "/people/create" &&
                        pathname !== "/people/board" &&
                        pathname !== "/people/map" &&
-                       pathname !== "/people/archive" &&
                        pathname !== "/people/profile";
   
   const shouldHideDetailPanel = pathname === "/people/settings" || 
