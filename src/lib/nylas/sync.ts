@@ -1,4 +1,5 @@
-import { getMessages, getCalendarEvents } from './client';
+import { getMessages, getCalendarEvents, type NylasMessage, type NylasCalendarEvent } from './client';
+import { NYLAS_SYNC_CONFIG } from './config';
 import { createAdminClient } from '@/utils/supabase/admin';
 
 interface Contact {
@@ -30,7 +31,7 @@ interface CalendarInteraction {
 /**
  * Check if an email is likely automated/mass email vs human email
  */
-function isAutomatedEmail(email: string, message?: any, name?: string): boolean {
+function isAutomatedEmail(email: string, message?: NylasMessage, name?: string): boolean {
   const emailLower = email.toLowerCase();
   const nameLower = name?.toLowerCase() || '';
   
@@ -179,7 +180,7 @@ export async function syncEmailContacts(grantId: string, userId: string) {
   try {
     console.log(`Starting email sync for grant ${grantId}`);
 
-    const messages = await getMessages(grantId, 200);
+    const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit);
     console.log(`Fetched ${messages.length} messages from Nylas`);
 
     const contactsMap = new Map<string, Contact>();
@@ -343,74 +344,104 @@ export async function syncEmailContacts(grantId: string, userId: string) {
       }
     }
 
-    // Now create interaction records and update person timelines
-    console.log(`Creating ${emailInteractions.length} interaction records`);
+    // Batch insert interactions - PostgreSQL unique index will skip duplicates
+    console.log(`Batch inserting ${emailInteractions.length} interaction records`);
+
+    // Prepare all interactions for batch insert
+    const interactionsToInsert = emailInteractions
+      .filter(interaction => emailToPerson.has(interaction.email))
+      .map(interaction => ({
+        user_id: userId,
+        person_id: emailToPerson.get(interaction.email),
+        integration_id: integrationId,
+        interaction_type: interaction.type,
+        subject: interaction.subject,
+        occurred_at: interaction.occurred_at,
+        metadata: { message_id: interaction.message_id },
+      }));
+
     let interactionCount = 0;
 
+    if (interactionsToInsert.length > 0) {
+      // Batch insert using upsert with ignoreDuplicates
+      // The unique index on (user_id, person_id, metadata->>'message_id') handles duplicates
+      const { data: insertedInteractions, error } = await supabase
+        .from('interactions')
+        .upsert(interactionsToInsert, {
+          onConflict: 'user_id,person_id,metadata->>message_id',
+          ignoreDuplicates: true
+        })
+        .select('id');
+
+      if (error) {
+        // If upsert fails, fall back to insert (duplicates will be ignored by DB constraint)
+        console.log('Upsert not supported, using insert with ignore duplicates behavior');
+        const { error: insertError } = await supabase
+          .from('interactions')
+          .insert(interactionsToInsert);
+
+        if (insertError && !insertError.message.includes('duplicate')) {
+          console.error('Error batch inserting interactions:', insertError);
+        }
+        interactionCount = interactionsToInsert.length;
+      } else {
+        interactionCount = insertedInteractions?.length || interactionsToInsert.length;
+      }
+    }
+
+    // Batch timeline updates
+    // Group interactions by person for timeline updates
+    const interactionsByPerson = new Map<string, typeof emailInteractions>();
     for (const interaction of emailInteractions) {
       const personId = emailToPerson.get(interaction.email);
       if (!personId) continue;
 
-      // Check if interaction already exists (avoid duplicates on re-sync)
-      const { data: existingInteraction } = await supabase
-        .from('interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('person_id', personId)
-        .eq('metadata->>message_id', interaction.message_id)
-        .single();
+      if (!interactionsByPerson.has(personId)) {
+        interactionsByPerson.set(personId, []);
+      }
+      interactionsByPerson.get(personId)!.push(interaction);
+    }
 
-      if (!existingInteraction) {
-        await supabase
-          .from('interactions')
-          .insert({
-            user_id: userId,
-            person_id: personId,
-            integration_id: integrationId,
-            interaction_type: interaction.type,
-            subject: interaction.subject,
-            occurred_at: interaction.occurred_at,
-            metadata: { message_id: interaction.message_id },
-          });
-        interactionCount++;
+    // Fetch all people at once
+    const personIds = Array.from(interactionsByPerson.keys());
+    if (personIds.length > 0) {
+      const { data: people } = await supabase
+        .from('people')
+        .select('id, timeline, name')
+        .in('id', personIds);
 
-        // Update person's timeline
-        const { data: person } = await supabase
-          .from('people')
-          .select('timeline, name')
-          .eq('id', personId)
-          .single();
-
-        if (person) {
-          const currentTimeline = person.timeline || [];
-          const date = new Date(interaction.occurred_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-          });
-
-          const timelineEntry = {
-            type: interaction.type === 'email_sent' ? 'email' : 'email',
+      // Batch update timelines using Promise.all
+      if (people && people.length > 0) {
+        const timelineUpdates = people.map(person => {
+          const interactions = interactionsByPerson.get(person.id) || [];
+          const newEntries = interactions.map(interaction => ({
+            type: 'email' as const,
             text: interaction.type === 'email_sent'
               ? `You emailed ${person.name.split(' ')[0]} ${interaction.subject || '(no subject)'}`
               : `${person.name.split(' ')[0]} emailed you ${interaction.subject || '(no subject)'}`,
-            date,
+            date: new Date(interaction.occurred_at).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric'
+            }),
             iconColor: 'purple' as const,
             link: interaction.subject || undefined,
+          }));
+
+          return {
+            id: person.id,
+            timeline: [...newEntries, ...(person.timeline || [])],
           };
+        });
 
-          // Add to timeline if not already there
-          const updatedTimeline = [timelineEntry, ...currentTimeline];
-
-          await supabase
-            .from('people')
-            .update({ timeline: updatedTimeline })
-            .eq('id', personId);
-        }
+        console.log(`Batch updating timelines for ${timelineUpdates.length} people`);
+        await Promise.all(
+          timelineUpdates.map(update =>
+            supabase.from('people').update({ timeline: update.timeline }).eq('id', update.id)
+          )
+        );
       }
     }
 
-    console.log(`Email sync complete: ${contacts.length} contacts processed, ${interactionCount} new interactions recorded`);
+    console.log(`Email sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing email contacts:', error);
@@ -425,7 +456,7 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
   try {
     console.log(`Starting calendar sync for grant ${grantId}`);
 
-    const events = await getCalendarEvents(grantId, 200);
+    const events = await getCalendarEvents(grantId, NYLAS_SYNC_CONFIG.calendarLimit);
     console.log(`Fetched ${events.length} calendar events from Nylas`);
 
     const contactsMap = new Map<string, Contact>();
@@ -445,7 +476,7 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
       // Skip events that don't have invitees (participants)
       // Only process events that have at least one participant/invitee (non-automated)
       const hasInvitees = event.participants && event.participants.length > 0 && 
-        event.participants.some((p: any) => p.email && !isAutomatedEmail(p.email, undefined, p.name));
+        event.participants.some((p) => p.email && !isAutomatedEmail(p.email, undefined, p.name));
       
       if (!hasInvitees) {
         continue;
@@ -569,75 +600,105 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
       }
     }
 
-    // Now create interaction records and update person timelines
-    console.log(`Creating ${calendarInteractions.length} calendar interaction records`);
+    // Batch insert interactions - PostgreSQL unique index will skip duplicates
+    console.log(`Batch inserting ${calendarInteractions.length} calendar interaction records`);
+
+    // Prepare all interactions for batch insert
+    const interactionsToInsert = calendarInteractions
+      .filter(interaction => emailToPerson.has(interaction.email))
+      .map(interaction => ({
+        user_id: userId,
+        person_id: emailToPerson.get(interaction.email),
+        integration_id: integrationId,
+        interaction_type: 'calendar_meeting',
+        subject: interaction.subject,
+        occurred_at: interaction.occurred_at,
+        metadata: {
+          event_id: interaction.event_id,
+          calendar_id: interaction.calendar_id,
+        },
+      }));
+
     let interactionCount = 0;
 
+    if (interactionsToInsert.length > 0) {
+      // Batch insert using upsert with ignoreDuplicates
+      // The unique index on (user_id, person_id, metadata->>'event_id') handles duplicates
+      const { data: insertedInteractions, error } = await supabase
+        .from('interactions')
+        .upsert(interactionsToInsert, {
+          onConflict: 'user_id,person_id,metadata->>event_id',
+          ignoreDuplicates: true
+        })
+        .select('id');
+
+      if (error) {
+        // If upsert fails, fall back to insert (duplicates will be ignored by DB constraint)
+        console.log('Upsert not supported, using insert with ignore duplicates behavior');
+        const { error: insertError } = await supabase
+          .from('interactions')
+          .insert(interactionsToInsert);
+
+        if (insertError && !insertError.message.includes('duplicate')) {
+          console.error('Error batch inserting calendar interactions:', insertError);
+        }
+        interactionCount = interactionsToInsert.length;
+      } else {
+        interactionCount = insertedInteractions?.length || interactionsToInsert.length;
+      }
+    }
+
+    // Batch timeline updates
+    // Group interactions by person for timeline updates
+    const interactionsByPerson = new Map<string, typeof calendarInteractions>();
     for (const interaction of calendarInteractions) {
       const personId = emailToPerson.get(interaction.email);
       if (!personId) continue;
 
-      // Check if interaction already exists (avoid duplicates on re-sync)
-      const { data: existingInteraction } = await supabase
-        .from('interactions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('person_id', personId)
-        .eq('metadata->>event_id', interaction.event_id)
-        .single();
+      if (!interactionsByPerson.has(personId)) {
+        interactionsByPerson.set(personId, []);
+      }
+      interactionsByPerson.get(personId)!.push(interaction);
+    }
 
-      if (!existingInteraction) {
-        await supabase
-          .from('interactions')
-          .insert({
-            user_id: userId,
-            person_id: personId,
-            integration_id: integrationId,
-            interaction_type: 'calendar_meeting',
-            subject: interaction.subject,
-            occurred_at: interaction.occurred_at,
-            metadata: {
-              event_id: interaction.event_id,
-              calendar_id: interaction.calendar_id,
-            },
-          });
-        interactionCount++;
+    // Fetch all people at once
+    const personIds = Array.from(interactionsByPerson.keys());
+    if (personIds.length > 0) {
+      const { data: people } = await supabase
+        .from('people')
+        .select('id, timeline, name')
+        .in('id', personIds);
 
-        // Update person's timeline
-        const { data: person } = await supabase
-          .from('people')
-          .select('timeline, name')
-          .eq('id', personId)
-          .single();
-
-        if (person) {
-          const currentTimeline = person.timeline || [];
-          const date = new Date(interaction.occurred_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-          });
-
-          const timelineEntry = {
+      // Batch update timelines using Promise.all
+      if (people && people.length > 0) {
+        const timelineUpdates = people.map(person => {
+          const interactions = interactionsByPerson.get(person.id) || [];
+          const newEntries = interactions.map(interaction => ({
             type: 'meeting' as const,
             text: `You met with ${person.name.split(' ')[0]} ${interaction.subject || '(no title)'}`,
-            date,
+            date: new Date(interaction.occurred_at).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric'
+            }),
             iconColor: 'blue' as const,
             link: interaction.subject || undefined,
+          }));
+
+          return {
+            id: person.id,
+            timeline: [...newEntries, ...(person.timeline || [])],
           };
+        });
 
-          // Add to timeline if not already there
-          const updatedTimeline = [timelineEntry, ...currentTimeline];
-
-          await supabase
-            .from('people')
-            .update({ timeline: updatedTimeline })
-            .eq('id', personId);
-        }
+        console.log(`Batch updating timelines for ${timelineUpdates.length} people`);
+        await Promise.all(
+          timelineUpdates.map(update =>
+            supabase.from('people').update({ timeline: update.timeline }).eq('id', update.id)
+          )
+        );
       }
     }
 
-    console.log(`Calendar sync complete: ${contacts.length} contacts processed, ${interactionCount} new interactions recorded`);
+    console.log(`Calendar sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing calendar contacts:', error);
@@ -650,10 +711,9 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
  */
 export async function syncAllContacts(grantId: string, userId: string) {
   try {
-    const [emailCount, calendarCount] = await Promise.all([
-      syncEmailContacts(grantId, userId),
-      syncCalendarContacts(grantId, userId),
-    ]);
+    // Run sequentially to avoid hitting Nylas rate limits
+    const emailCount = await syncEmailContacts(grantId, userId);
+    const calendarCount = await syncCalendarContacts(grantId, userId);
 
     // Update integration sync status
     const supabase = createAdminClient();

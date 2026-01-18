@@ -1,4 +1,4 @@
-import { nylasClient, nylasConfig, NYLAS_SCOPES } from './config';
+import { nylasClient, nylasConfig, NYLAS_SCOPES, NYLAS_SYNC_CONFIG } from './config';
 import type { Provider } from './config';
 
 export interface NylasGrant {
@@ -8,6 +8,26 @@ export interface NylasGrant {
   grant_status: string;
   created_at: number;
   updated_at: number;
+}
+
+export interface NylasMessage {
+  id: string;
+  date?: number;
+  subject?: string | null;
+  to?: Array<{ name?: string; email: string }>;
+  from?: Array<{ name?: string; email: string }>;
+  headers?: Record<string, string>;
+}
+
+export interface NylasCalendarEvent {
+  id: string;
+  title?: string | null;
+  calendarId?: string;
+  when?: {
+    startTime?: number;
+  };
+  participants?: Array<{ name?: string; email?: string }>;
+  organizer?: { name?: string; email?: string };
 }
 
 /**
@@ -77,21 +97,59 @@ export async function revokeGrant(grantId: string) {
 }
 
 /**
+ * Collect paginated items from Nylas async iterator with retry logic
+ */
+async function collectPaginatedItems<T>(
+  asyncList: any,
+  maxItems: number
+): Promise<T[]> {
+  const items: T[] = [];
+  let pageCount = 0;
+
+  try {
+    for await (const page of asyncList) {
+      pageCount++;
+      items.push(...page.data);
+      console.log(`Fetched page ${pageCount}: ${page.data.length} items (total: ${items.length})`);
+
+      if (items.length >= maxItems) break;
+    }
+  } catch (error: any) {
+    console.error('Error during pagination:', error);
+
+    // If it's a rate limit error, log the details but return what we got
+    if (error?.statusCode === 429) {
+      console.log(`Rate limited after ${pageCount} pages. Returning ${items.length} items collected so far.`);
+      const retryAfter = error?.headers?.['retry-after'];
+      if (retryAfter) {
+        console.log(`Retry-After header suggests waiting ${retryAfter} seconds`);
+      }
+    }
+  }
+
+  return items.slice(0, maxItems);
+}
+
+/**
  * Get messages from a grant (for contact extraction)
  */
-export async function getMessages(grantId: string, limit = 200) {
+export async function getMessages(
+  grantId: string,
+  limit: number = NYLAS_SYNC_CONFIG.emailLimit
+): Promise<NylasMessage[]> {
   try {
-    // Nylas API limit is max 200 per request
-    const actualLimit = Math.min(limit, 200);
+    console.log(`Fetching up to ${limit} messages`);
 
-    const messages = await nylasClient.messages.list({
+    const asyncMessages = nylasClient.messages.list({
       identifier: grantId,
       queryParams: {
-        limit: actualLimit,
+        limit: Math.min(limit, NYLAS_SYNC_CONFIG.maxPerRequest),
       },
     });
 
-    return messages.data;
+    const allMessages = await collectPaginatedItems<NylasMessage>(asyncMessages, limit);
+    console.log(`Successfully fetched ${allMessages.length} messages`);
+    return allMessages;
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
@@ -101,36 +159,39 @@ export async function getMessages(grantId: string, limit = 200) {
 /**
  * Get calendar events from a grant (for contact extraction)
  */
-export async function getCalendarEvents(grantId: string, limit = 200) {
+export async function getCalendarEvents(
+  grantId: string,
+  limit: number = NYLAS_SYNC_CONFIG.calendarLimit
+): Promise<NylasCalendarEvent[]> {
   try {
-    // First get all calendars
+    console.log(`Fetching up to ${limit} calendar events`);
     const calendars = await getCalendars(grantId);
 
     if (calendars.length === 0) {
-      console.log('No calendars found for grant');
+      console.log('No calendars found');
       return [];
     }
 
-    // Fetch events from each calendar
-    const allEvents: any[] = [];
     const eventsPerCalendar = Math.ceil(limit / calendars.length);
+    const allEvents: NylasCalendarEvent[] = [];
 
     for (const calendar of calendars) {
+      const remainingQuota = limit - allEvents.length;
+      if (remainingQuota <= 0) break;
+
+      const calendarLimit = Math.min(eventsPerCalendar, remainingQuota);
+
       try {
-        const events = await nylasClient.events.list({
+        const asyncEvents = nylasClient.events.list({
           identifier: grantId,
           queryParams: {
             calendarId: calendar.id,
-            limit: Math.min(eventsPerCalendar, 200),
+            limit: Math.min(calendarLimit, NYLAS_SYNC_CONFIG.maxPerRequest),
           },
         });
 
-        allEvents.push(...events.data);
-
-        // Stop if we've reached the limit
-        if (allEvents.length >= limit) {
-          break;
-        }
+        const calendarEvents = await collectPaginatedItems<NylasCalendarEvent>(asyncEvents, calendarLimit);
+        allEvents.push(...calendarEvents);
       } catch (err) {
         console.error(`Error fetching events from calendar ${calendar.id}:`, err);
         continue;
