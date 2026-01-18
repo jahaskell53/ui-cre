@@ -28,6 +28,16 @@ export const NYLAS_SCOPES = [
   'contacts.read_only',
 ];
 
+// Sync configuration
+const emailLimit = parseInt(process.env.NYLAS_EMAIL_SYNC_LIMIT || '600', 10);
+const calendarLimit = parseInt(process.env.NYLAS_CALENDAR_SYNC_LIMIT || '600', 10);
+
+export const NYLAS_SYNC_CONFIG = {
+  emailLimit: Math.max(emailLimit, 1),
+  calendarLimit: Math.max(calendarLimit, 1),
+  maxPerRequest: 20, // Nylas API: use limit=20 or lower to avoid rate limit errors
+} as const;
+
 export const PROVIDER_CONFIG = {
   gmail: {
     name: 'Gmail',
