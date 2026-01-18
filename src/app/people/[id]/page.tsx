@@ -320,6 +320,38 @@ export default function PersonDetailPage() {
     router.push("/people");
   };
 
+  // Handle Escape key to exit detailed view
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle Escape if user is typing in an input, textarea, or contenteditable
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        target.closest("input") ||
+        target.closest("textarea")
+      ) {
+        return;
+      }
+
+      // Don't handle if a modal is open
+      if (showDeletePersonModal) {
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        router.push("/people");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [router, showDeletePersonModal]);
+
   const handleToggleStar = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!person) return;
