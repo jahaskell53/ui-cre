@@ -54,7 +54,7 @@ export async function syncEmailContacts(grantId: string, userId: string) {
   try {
     console.log(`Starting email sync for grant ${grantId}`);
 
-    const messages = await getMessages(grantId, 500);
+    const messages = await getMessages(grantId, 200);
     const contactsMap = new Map<string, Contact>();
 
     for (const message of messages) {
@@ -115,17 +115,39 @@ export async function syncEmailContacts(grantId: string, userId: string) {
     const contacts = Array.from(contactsMap.values());
 
     for (const contact of contacts) {
-      // Try to upsert - insert if new, update if exists
-      await supabase
-        .from('contacts')
-        .upsert({
-          user_id: userId,
-          ...contact,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,email_address',
-          ignoreDuplicates: false,
-        });
+      // Try to upsert to people table - insert if new, update if exists
+      const { data: existing } = await supabase
+        .from('people')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('email', contact.email_address)
+        .single();
+
+      if (existing) {
+        // Update existing person
+        await supabase
+          .from('people')
+          .update({
+            name: contact.first_name && contact.last_name
+              ? `${contact.first_name} ${contact.last_name}`
+              : contact.first_name || contact.email_address,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+      } else {
+        // Insert new person
+        await supabase
+          .from('people')
+          .insert({
+            user_id: userId,
+            name: contact.first_name && contact.last_name
+              ? `${contact.first_name} ${contact.last_name}`
+              : contact.first_name || contact.email_address,
+            email: contact.email_address,
+            starred: false,
+            signal: false,
+          });
+      }
     }
 
     console.log(`Email sync complete: ${contacts.length} contacts processed`);
@@ -143,7 +165,7 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
   try {
     console.log(`Starting calendar sync for grant ${grantId}`);
 
-    const events = await getCalendarEvents(grantId, 500);
+    const events = await getCalendarEvents(grantId, 200);
     const contactsMap = new Map<string, Contact>();
 
     for (const event of events) {
@@ -203,16 +225,39 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
     const contacts = Array.from(contactsMap.values());
 
     for (const contact of contacts) {
-      await supabase
-        .from('contacts')
-        .upsert({
-          user_id: userId,
-          ...contact,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,email_address',
-          ignoreDuplicates: false,
-        });
+      // Try to upsert to people table - insert if new, update if exists
+      const { data: existing } = await supabase
+        .from('people')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('email', contact.email_address)
+        .single();
+
+      if (existing) {
+        // Update existing person
+        await supabase
+          .from('people')
+          .update({
+            name: contact.first_name && contact.last_name
+              ? `${contact.first_name} ${contact.last_name}`
+              : contact.first_name || contact.email_address,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
+      } else {
+        // Insert new person
+        await supabase
+          .from('people')
+          .insert({
+            user_id: userId,
+            name: contact.first_name && contact.last_name
+              ? `${contact.first_name} ${contact.last_name}`
+              : contact.first_name || contact.email_address,
+            email: contact.email_address,
+            starred: false,
+            signal: false,
+          });
+      }
     }
 
     console.log(`Calendar sync complete: ${contacts.length} contacts processed`);
