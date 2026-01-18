@@ -248,7 +248,7 @@ export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidt
                 </div>
                 <span className="text-xs text-gray-700 dark:text-gray-300 uppercase">
                   {person.updated_at
-                    ? formatDistanceToNow(new Date(person.updated_at), { addSuffix: true }).toUpperCase()
+                    ? formatDistanceToNow(new Date(person.updated_at), { addSuffix: true }).replace(/^about /i, '').toUpperCase()
                     : "UNKNOWN"}
                 </span>
               </div>
@@ -256,7 +256,7 @@ export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidt
                 <span className="text-xs text-gray-500 dark:text-gray-400 ml-3 uppercase">Created</span>
                 <span className="text-xs text-gray-700 dark:text-gray-300 uppercase">
                   {person.created_at
-                    ? formatDistanceToNow(new Date(person.created_at), { addSuffix: true }).toUpperCase()
+                    ? formatDistanceToNow(new Date(person.created_at), { addSuffix: true }).replace(/^about /i, '').toUpperCase()
                     : "UNKNOWN"}
                 </span>
               </div>

@@ -323,7 +323,7 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                     </div>
                     <span className="text-xs text-gray-700 dark:text-gray-300">
                       {selectedPerson.updated_at
-                        ? formatDistanceToNow(new Date(selectedPerson.updated_at), { addSuffix: true })
+                        ? formatDistanceToNow(new Date(selectedPerson.updated_at), { addSuffix: true }).replace(/^about /i, '')
                         : "Unknown"}
                     </span>
                   </div>
@@ -333,7 +333,7 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                     </span>
                     <span className="text-xs text-gray-700 dark:text-gray-300">
                       {selectedPerson.created_at
-                        ? formatDistanceToNow(new Date(selectedPerson.created_at), { addSuffix: true })
+                        ? formatDistanceToNow(new Date(selectedPerson.created_at), { addSuffix: true }).replace(/^about /i, '')
                         : "Unknown"}
                     </span>
                   </div>
