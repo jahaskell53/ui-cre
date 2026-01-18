@@ -208,10 +208,13 @@ export async function syncEmailContacts(grantId: string, userId: string) {
 
     for (const message of messages) {
       // Check if THIS message was sent by the user
+      // Important: Only check 'from' field - if user is CC'd/BCC'd but not the sender,
+      // this will correctly identify it as NOT sent by user
       const senderEmail = message.from?.[0]?.email?.toLowerCase();
       const isSentByUser = senderEmail === userEmail;
 
       // Extract to addresses (email sent) - only for emails the USER sent
+      // We explicitly check sender, not CC/BCC, to ensure we only track emails actually sent by the user
       if (isSentByUser && message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
@@ -233,6 +236,8 @@ export async function syncEmailContacts(grantId: string, userId: string) {
       const isSentByUser = senderEmail === userEmail;
 
       // Case 1: User SENT this email
+      // Only process if user is the sender (from field), not if they're just CC'd/BCC'd
+      // This ensures we correctly distinguish emails sent by user vs emails where user was CC'd
       if (isSentByUser && message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);

@@ -16,6 +16,8 @@ export interface NylasMessage {
   subject?: string | null;
   to?: Array<{ name?: string; email: string }>;
   from?: Array<{ name?: string; email: string }>;
+  cc?: Array<{ name?: string; email: string }>;
+  bcc?: Array<{ name?: string; email: string }>;
   headers?: Record<string, string>;
 }
 
