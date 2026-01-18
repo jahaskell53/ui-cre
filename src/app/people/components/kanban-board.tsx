@@ -89,12 +89,12 @@ export function KanbanBoard({
 
   return (
     <div className="flex-1 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
-      <div className="flex gap-4 p-4 h-full min-w-fit">
+      <div className="flex gap-4 p-4 h-full">
         {columns.map((column) => (
           <div
             key={column.id}
             className={cn(
-              "flex flex-col w-64 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
+              "flex flex-col w-64 flex-shrink-0 overflow-hidden bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
               draggedOverColumn === column.id && "ring-2 ring-blue-500"
             )}
             onDragOver={(e) => onColumnDragOver(e, column.id)}
@@ -117,7 +117,7 @@ export function KanbanBoard({
                   />
                 ) : (
                   <h3
-                    className="text-sm font-medium text-gray-900 dark:text-gray-100 cursor-text hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded -mx-2 -my-1"
+                    className="text-sm font-medium text-gray-900 dark:text-gray-100 cursor-text hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded -mx-2 -my-1 truncate"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStartEdit(column.id, column.title);
@@ -221,7 +221,7 @@ export function KanbanBoard({
             </div>
 
             {/* Column Cards */}
-            <ScrollArea className="flex-1 p-2">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
               <div className="space-y-2">
                 {column.cards.map((card) => {
                   const person = people.find((p) => p.id === card.personId);
@@ -243,7 +243,7 @@ export function KanbanBoard({
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
+                        <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarFallback
                             className="text-white text-xs font-medium"
                             style={{ background: generateAuroraGradient(person.name) }}
@@ -251,7 +251,7 @@ export function KanbanBoard({
                             {getInitials(person.name)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                             {person.name}
                           </p>
@@ -261,7 +261,7 @@ export function KanbanBoard({
                                 e.stopPropagation();
                                 onToggleStar(person, e);
                               }}
-                              className="p-0.5 -m-0.5"
+                              className="p-0.5 -m-0.5 flex-shrink-0"
                               aria-label={person.starred ? "Unstar" : "Star"}
                             >
                               <StarIcon
@@ -274,7 +274,7 @@ export function KanbanBoard({
                                 filled={person.starred}
                               />
                             </button>
-                            {person.email && <MailIcon className="w-3 h-3 text-teal-500" />}
+                            {person.email && <MailIcon className="w-3 h-3 text-teal-500 flex-shrink-0" />}
                           </div>
                         </div>
                       </div>
@@ -282,7 +282,7 @@ export function KanbanBoard({
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         ))}
       </div>
