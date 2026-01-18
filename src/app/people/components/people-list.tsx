@@ -189,6 +189,11 @@ export function PeopleList({
           `[data-person-id="${filteredPeople[prevIndex].id}"]`
         );
         personElement?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } else if (e.key === "Enter") {
+        if (selectedPerson) {
+          e.preventDefault();
+          router.push(`/people/${selectedPerson.id}`);
+        }
       }
     };
 
@@ -196,7 +201,7 @@ export function PeopleList({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [filteredPeople, selectedPerson, onSelectPerson, showDeleteModal]);
+  }, [filteredPeople, selectedPerson, onSelectPerson, showDeleteModal, router]);
 
   return (
     <>
