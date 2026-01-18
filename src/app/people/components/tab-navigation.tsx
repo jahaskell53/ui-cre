@@ -14,7 +14,6 @@ export function TabNavigation() {
     { href: "/people", label: "People", value: "people" },
     { href: "/people/board", label: "Board", value: "board" },
     { href: "/people/map", label: "Map", value: "map" },
-    { href: "/people/archive", label: "Archive", value: "archive" },
   ];
 
   const isActive = (href: string) => {
