@@ -10,19 +10,19 @@ const providers = [
     id: 'gmail',
     name: 'Gmail',
     logo: 'https://www.google.com/gmail/about/static/images/logo-gmail.png',
-    color: 'bg-red-50 hover:bg-red-100 border-red-200',
+    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
   },
   {
     id: 'outlook',
     name: 'Outlook',
     logo: 'https://mailmeteor.com/logos/assets/PNG/Microsoft_Office_Outlook_Logo_512px.png',
-    color: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
+    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
   },
   {
     id: 'yahoo',
     name: 'Yahoo',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Yahoo%21_%282019%29.svg',
-    color: 'bg-purple-50 hover:bg-purple-100 border-purple-200',
+    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
   },
   {
     id: 'icloud',
