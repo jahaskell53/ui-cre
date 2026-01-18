@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForGrant } from '@/lib/nylas/client';
 import { createClient } from '@/utils/supabase/server';
+import { syncAllContacts } from '@/lib/nylas/sync';
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
         provider: grantResponse.provider,
         email_address: grantResponse.email,
         integration_type: 'both', // email and calendar
-        status: 'active',
+        status: 'syncing', // Will be updated to 'active' after sync completes
         metadata: {
           scopes: grantResponse.scope,
         },
@@ -58,18 +59,10 @@ export async function GET(request: NextRequest) {
       throw dbError;
     }
 
-    // Trigger background sync (we'll create this endpoint next)
-    // Don't await - let it run in background
-    fetch(new URL('/api/integrations/sync', request.url), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        grantId: grantResponse.grantId,
-        userId,
-      }),
-    }).catch((err) => console.error('Failed to trigger sync:', err));
+    // Trigger background sync - don't await to avoid blocking redirect
+    syncAllContacts(grantResponse.grantId, userId)
+      .then(() => console.log('Initial sync completed successfully'))
+      .catch((err) => console.error('Failed to trigger sync:', err));
 
     // Redirect to success page or back to where they came from
     return NextResponse.redirect(
