@@ -42,7 +42,7 @@ export default function SignUpPage() {
                     full_name: fullName || undefined,
                     roles: selectedRoles
                 },
-                emailRedirectTo: `${window.location.origin}/auth/callback?next=/people`,
+                emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding/connect-email`,
             }
         });
 
@@ -52,7 +52,7 @@ export default function SignUpPage() {
             setError(error.message);
         } else if (data.user && data.session) {
             // User is immediately logged in (email confirmation disabled)
-            router.push("/people");
+            router.push("/onboarding/connect-email");
         } else {
             setMessage("Check your email for a confirmation link!");
         }
