@@ -19,19 +19,12 @@ CREATE TABLE IF NOT EXISTS integrations (
 CREATE INDEX IF NOT EXISTS idx_integrations_user_id ON integrations(user_id);
 CREATE INDEX IF NOT EXISTS idx_integrations_nylas_grant_id ON integrations(nylas_grant_id);
 
--- Add source tracking columns to existing contacts table
-ALTER TABLE contacts
-  ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'manual',
-  ADD COLUMN IF NOT EXISTS first_interaction_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS last_interaction_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS interaction_count INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
-
 -- Create interactions table to track email/calendar interactions
+-- References people table instead of contacts
 CREATE TABLE IF NOT EXISTS interactions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
+  person_id UUID REFERENCES people(id) ON DELETE CASCADE,
   integration_id UUID REFERENCES integrations(id) ON DELETE SET NULL,
   interaction_type TEXT NOT NULL, -- 'email_sent', 'email_received', 'calendar_meeting'
   subject TEXT,
@@ -42,7 +35,7 @@ CREATE TABLE IF NOT EXISTS interactions (
 
 -- Create indexes for interactions
 CREATE INDEX IF NOT EXISTS idx_interactions_user_id ON interactions(user_id);
-CREATE INDEX IF NOT EXISTS idx_interactions_contact_id ON interactions(contact_id);
+CREATE INDEX IF NOT EXISTS idx_interactions_person_id ON interactions(person_id);
 CREATE INDEX IF NOT EXISTS idx_interactions_occurred_at ON interactions(occurred_at DESC);
 
 -- Enable Row Level Security
