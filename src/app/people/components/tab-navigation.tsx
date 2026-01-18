@@ -48,13 +48,29 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
     }
   }, [isSearchExpanded]);
 
-  // Handle Cmd+F / Ctrl+F to expand and focus search
+  // Handle Cmd+F / Ctrl+F to expand and focus search, and Escape to clear search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle Escape if user is typing in a textarea or contenteditable (but allow for inputs)
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "TEXTAREA" ||
+        (target.isContentEditable && target !== searchInputRef.current)
+      ) {
+        return;
+      }
+      
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
         if (pathname === "/people" || pathname === "/people/map") {
           e.preventDefault();
           setIsSearchExpanded(true);
+        }
+      } else if (e.key === "Escape") {
+        // Clear search if we're on people/map page and there's an active search query
+        if ((pathname === "/people" || pathname === "/people/map") && searchQuery.trim()) {
+          e.preventDefault();
+          setSearchQuery("");
+          setIsSearchExpanded(false);
         }
       }
     };
@@ -63,7 +79,7 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [pathname]);
+  }, [pathname, searchQuery, setSearchQuery]);
   
   const tabs = [
     { href: "/people", label: "People", value: "people" },
