@@ -113,6 +113,11 @@ function isAutomatedEmail(email: string, message?: any, name?: string): boolean 
     return true;
   }
   
+  // Exclude Apple Private Relay and Fastmail aliases (privacy/alias domains)
+  if (domain && (domain.endsWith('privaterelay.appleid.com') || domain.endsWith('fastmail.com'))) {
+    return true;
+  }
+  
   // Check for common newsletter/marketing platform domains
   const newsletterDomains = [
     'substack.com', 'mailchimp.com', 'constantcontact.com',
