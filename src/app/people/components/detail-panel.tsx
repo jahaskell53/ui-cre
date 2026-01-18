@@ -272,7 +272,7 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                 })()}
                 {selectedPerson.timeline && selectedPerson.timeline.length > 0 ? (
                   <div className="space-y-3">
-                    {selectedPerson.timeline.map((item, index) => {
+                    {selectedPerson.timeline.slice(-5).map((item, index) => {
                       const iconColor = item.iconColor || "blue";
                       const bgColorClass = {
                         blue: "bg-blue-100 dark:bg-blue-900/30",
