@@ -2,31 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Mail, Calendar, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
+import Image from 'next/image';
 
 const providers = [
   {
     id: 'gmail',
     name: 'Gmail',
-    icon: '📧',
+    logo: 'https://www.google.com/gmail/about/static/images/logo-gmail.png',
     color: 'bg-red-50 hover:bg-red-100 border-red-200',
   },
   {
     id: 'outlook',
     name: 'Outlook',
-    icon: '📨',
+    logo: 'https://mailmeteor.com/logos/assets/PNG/Microsoft_Office_Outlook_Logo_512px.png',
     color: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
   },
   {
     id: 'yahoo',
     name: 'Yahoo',
-    icon: '📮',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Yahoo%21_%282019%29.svg',
     color: 'bg-purple-50 hover:bg-purple-100 border-purple-200',
   },
   {
     id: 'icloud',
     name: 'iCloud',
-    icon: '☁️',
+    logo: 'https://pluspng.com/logo-img/ic169icl2bd3-icloud-logo-icloud-logopedia-.png',
     color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
   },
 ];
@@ -151,7 +152,15 @@ export function EmailIntegrations() {
                   className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{providerConfig.icon}</span>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <Image
+                        src={providerConfig.logo}
+                        alt={providerConfig.name}
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                      />
+                    </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900 dark:text-gray-100">
@@ -209,7 +218,15 @@ export function EmailIntegrations() {
               disabled={connecting !== null}
               className={`flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all ${provider.color} disabled:opacity-50`}
             >
-              <span className="text-2xl">{provider.icon}</span>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <Image
+                  src={provider.logo}
+                  alt={provider.name}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
+              </div>
               <div className="flex-1">
                 <div className="font-medium text-gray-900">{provider.name}</div>
               </div>

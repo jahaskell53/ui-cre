@@ -11,6 +11,7 @@
 !.yarn/versions
 
 har/
+test-emails/
 
 # testing
 /coverage
