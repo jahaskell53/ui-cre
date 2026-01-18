@@ -106,20 +106,6 @@ export default function PeopleLayout({
     };
   }, [isDragging]);
 
-  // Handle Cmd+F / Ctrl+F to focus search
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-        e.preventDefault();
-        sidebarRef.current?.focusSearch();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
 
   const handleMouseDown = () => {
     setIsDragging(true);
@@ -173,10 +159,8 @@ export default function PeopleLayout({
           people={people}
           selectedPerson={selectedPerson}
           showStarredOnly={showStarredOnly}
-          searchQuery={searchQuery}
           onToggleStarred={() => setShowStarredOnly(!showStarredOnly)}
           onSelectPerson={setSelectedPerson}
-          onSearchChange={setSearchQuery}
           onPeopleIconClick={handlePeopleIconClick}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

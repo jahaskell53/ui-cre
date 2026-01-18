@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import { forwardRef } from "react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { SearchIcon, HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "../icons";
+import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "../icons";
 import AccountCard from "../account-card";
 import type { Person } from "../types";
 
@@ -12,38 +11,27 @@ interface SidebarProps {
   people: Person[];
   selectedPerson: Person | null;
   showStarredOnly: boolean;
-  searchQuery: string;
   onToggleStarred: () => void;
   onSelectPerson: (person: Person | null) => void;
-  onSearchChange: (query: string) => void;
   onPeopleIconClick: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
 
 export interface SidebarRef {
-  focusSearch: () => void;
+  focusSearch?: () => void;
 }
 
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
   people,
   selectedPerson,
   showStarredOnly,
-  searchQuery,
   onToggleStarred,
   onSelectPerson,
-  onSearchChange,
   onPeopleIconClick,
   isCollapsed = false,
   onToggleCollapse,
 }, ref) {
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useImperativeHandle(ref, () => ({
-    focusSearch: () => {
-      searchInputRef.current?.focus();
-    },
-  }));
   const handleToggleStarred = () => {
     const newShowStarredOnly = !showStarredOnly;
     onToggleStarred();
@@ -105,26 +93,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
         </div>
       </div>
 
-      {/* Search */}
-      <div className={cn("py-2", isCollapsed ? "px-2" : "px-3")}>
-        {isCollapsed ? (
-          <div className="w-full flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-500">
-            <SearchIcon className="w-4 h-4" />
-          </div>
-        ) : (
-          <div className="relative">
-            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
-            <Input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-8 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-            />
-          </div>
-        )}
-      </div>
 
       {/* Navigation */}
       <nav className={cn("py-2 space-y-0.5", isCollapsed ? "px-2" : "px-3")}>
