@@ -28,6 +28,8 @@ export interface Person {
   owned_addresses?: string[];
   owned_addresses_geo?: GeoAddress[];
   timeline?: TimelineItem[];
+  bio: string | null;
+  birthday: string | null;
   created_at?: string;
   updated_at?: string;
 }

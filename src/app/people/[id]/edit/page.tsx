@@ -7,22 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddressInput } from "@/components/ui/address-input";
 import { generateAuroraGradient, getInitials } from "../../utils";
-
-// Person interface
-interface Person {
-  id: string;
-  name: string;
-  starred: boolean;
-  email: string | null;
-  phone: string | null;
-  category: 'Property Owner' | 'Lender' | 'Realtor' | null;
-  signal: boolean;
-  address: string | null;
-  owned_addresses?: string[];
-  timeline?: any[];
-  created_at?: string;
-  updated_at?: string;
-}
+import type { Person } from "../../types";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -56,6 +41,8 @@ export default function EditPersonPage() {
   const [address, setAddress] = useState("");
   const [ownedAddresses, setOwnedAddresses] = useState<string[]>([]);
   const [newOwnedAddress, setNewOwnedAddress] = useState("");
+  const [bio, setBio] = useState("");
+  const [birthday, setBirthday] = useState("");
 
   const personId = params.id as string;
 
@@ -75,6 +62,8 @@ export default function EditPersonPage() {
         setCategory(data.category || "");
         setAddress(data.address || "");
         setOwnedAddresses(data.owned_addresses || []);
+        setBio(data.bio || "");
+        setBirthday(data.birthday || "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load person");
       } finally {
@@ -122,6 +111,8 @@ export default function EditPersonPage() {
           category: category || null,
           address: address.trim() || null,
           owned_addresses: ownedAddresses,
+          bio: bio.trim() || null,
+          birthday: birthday || null,
         }),
       });
 
@@ -265,6 +256,33 @@ export default function EditPersonPage() {
                   <option value="Lender">Lender</option>
                   <option value="Realtor">Realtor</option>
                 </select>
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Bio
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Enter bio"
+                  rows={4}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none dark:bg-input/30 resize-none"
+                />
+              </div>
+
+              {/* Birthday */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Birthday
+                </label>
+                <Input
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  className="w-full"
+                />
               </div>
 
               {/* Address */}

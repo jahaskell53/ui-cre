@@ -19,6 +19,7 @@ import {
 import { LocationIcon } from "../icons";
 import { PersonDetailSidebar } from "../components/person-detail-sidebar";
 import type { Person, TimelineItem } from "../types";
+import { Cake } from "lucide-react";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -146,6 +147,7 @@ function CalendarIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
 
 function MailIcon({ className }: { className?: string }) {
   return (
@@ -619,6 +621,30 @@ export default function PersonDetailPage() {
                     {person.category}
                   </Badge>
                 )}
+                {person.birthday && (() => {
+                  const birthday = new Date(person.birthday);
+                  const today = new Date();
+                  const age = today.getFullYear() - birthday.getFullYear();
+                  const monthDiff = today.getMonth() - birthday.getMonth();
+                  const dayDiff = today.getDate() - birthday.getDate();
+                  const actualAge = (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) ? age - 1 : age;
+                  const dateStr = birthday.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                  });
+                  
+                  return (
+                    <Badge 
+                      variant="secondary" 
+                      className="text-xs font-medium px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 flex items-center gap-1 group cursor-default"
+                      title={`${dateStr} - ${actualAge} years old`}
+                    >
+                      <Cake className="w-3 h-3 group-hover:hidden" />
+                      <span className="group-hover:hidden">{dateStr}</span>
+                      <span className="hidden group-hover:inline">{actualAge} years</span>
+                    </Badge>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -786,8 +812,18 @@ export default function PersonDetailPage() {
 
           <TabsContent value="about" className="flex-1 overflow-hidden m-0">
             <ScrollArea className="h-full">
-              <div className="px-6 py-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">About information coming soon...</p>
+              <div className="px-6 py-4 space-y-6">
+                {/* Bio Section */}
+                {person.bio && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{person.bio}</p>
+                  </div>
+                )}
+                
+                {!person.bio && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No information available.</p>
+                )}
               </div>
             </ScrollArea>
           </TabsContent>

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline } = body;
+        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline, bio, birthday } = body;
 
         if (!name || typeof name !== "string" || name.trim().length === 0) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -134,6 +134,8 @@ export async function POST(request: NextRequest) {
                 owned_addresses: ownedAddressesList,
                 owned_addresses_geo: ownedAddressesGeo,
                 timeline: timeline || [],
+                bio: bio?.trim() || null,
+                birthday: birthday || null,
             })
             .select()
             .single();
@@ -169,7 +171,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline } = body;
+        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline, bio, birthday } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -204,6 +206,8 @@ export async function PUT(request: NextRequest) {
           }
         }
         if (timeline !== undefined) updateData.timeline = timeline;
+        if (bio !== undefined) updateData.bio = bio?.trim() || null;
+        if (birthday !== undefined) updateData.birthday = birthday || null;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
