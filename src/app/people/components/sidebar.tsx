@@ -4,7 +4,7 @@ import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { SearchIcon, HomeIcon, PeopleIcon, StarIcon, PlusIcon, GridIcon } from "../icons";
+import { SearchIcon, HomeIcon, PeopleIcon, StarIcon, PlusIcon } from "../icons";
 import AccountCard from "../account-card";
 import type { Person } from "../types";
 
@@ -62,9 +62,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
           <span className="text-white dark:text-gray-900 text-xs font-bold"></span>OM
         </div>
         <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">OM</span>
-        <div className="ml-auto p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
-          <GridIcon className="text-gray-400 dark:text-gray-500" />
-        </div>
       </div>
 
       {/* My Workspace */}
