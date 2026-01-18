@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { StarIcon, MailIcon } from "../icons";
@@ -28,7 +30,20 @@ export function PeopleList({
   onDragStart,
 }: PeopleListProps) {
   const router = useRouter();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const filteredPeople = showStarredOnly ? people.filter((p) => p.starred) : people;
+
+  const toggleSelection = (personId: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(personId);
+      } else {
+        next.delete(personId);
+      }
+      return next;
+    });
+  };
 
   return (
     <>
@@ -74,6 +89,15 @@ export function PeopleList({
                   selectedPerson?.id === person.id && "bg-gray-50 dark:bg-gray-800"
                 )}
               >
+                <Checkbox
+                  className={cn(
+                    "mr-3 transition-opacity",
+                    selectedIds.has(person.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  )}
+                  checked={selectedIds.has(person.id)}
+                  onCheckedChange={(checked) => toggleSelection(person.id, checked as boolean)}
+                  onClick={(e) => e.stopPropagation()}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-900 dark:text-gray-100 truncate">
