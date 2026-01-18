@@ -7,7 +7,11 @@ import { supabase } from '@/utils/supabase'
 // Mock dependencies
 vi.mock('@/hooks/use-user')
 vi.mock('@/utils/supabase')
-vi.mock('next/navigation')
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}))
 vi.mock('@/components/layout/main-layout', () => ({
   MainLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))

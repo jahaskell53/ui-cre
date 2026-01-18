@@ -52,8 +52,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Failed to create comment" }, { status: 500 });
         }
 
-        // Note: Mentions by username are no longer supported since username field was removed
-        // If mention functionality is needed in the future, it should be redesigned
+        // Process mentions by full_name
+        const mentionedNames = parseMentions(content);
+        if (mentionedNames.length > 0) {
+            // Look up profiles by full_name
+            const { data: mentionedProfiles, error: profilesError } = await supabase
+                .from("profiles")
+                .select("id, full_name")
+                .in("full_name", mentionedNames);
 
             if (!profilesError && mentionedProfiles) {
                 // Send email notifications to mentioned users (excluding the comment author)

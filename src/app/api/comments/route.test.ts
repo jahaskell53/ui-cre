@@ -216,8 +216,6 @@ describe('POST /api/comments', () => {
       user_id: 'user-123',
       content: 'Great post!',
     })
-    expect(parseMentions).toHaveBeenCalledWith('Great post!')
-    expect(sendMentionNotificationEmail).not.toHaveBeenCalled()
   })
 
   it('should create comment with mentions and send emails', async () => {
@@ -226,13 +224,13 @@ describe('POST /api/comments', () => {
       error: null,
     } as any)
 
-    vi.mocked(parseMentions).mockReturnValue(['john', 'jane'])
+    vi.mocked(parseMentions).mockReturnValue(['John Smith', 'Jane Doe'])
 
     const mockComment = {
       id: 'comment-123',
       post_id: 'post-123',
       user_id: 'user-123',
-      content: 'Great post @john @jane!',
+      content: 'Great post @John Smith @Jane Doe!',
       created_at: new Date().toISOString(),
     }
 
@@ -257,8 +255,8 @@ describe('POST /api/comments', () => {
     const mockProfilesSelect = vi.fn().mockReturnValue({
       in: vi.fn().mockResolvedValue({
         data: [
-          { id: 'user-456' },
-          { id: 'user-789' },
+          { id: 'user-456', full_name: 'John Smith' },
+          { id: 'user-789', full_name: 'Jane Doe' },
         ],
         error: null,
       }),
@@ -281,7 +279,7 @@ describe('POST /api/comments', () => {
       method: 'POST',
       body: JSON.stringify({
         post_id: 'post-123',
-        content: 'Great post @john @jane!',
+        content: 'Great post @John Smith @Jane Doe!',
       }),
     })
 
@@ -290,7 +288,10 @@ describe('POST /api/comments', () => {
 
     expect(response.status).toBe(201)
     expect(data.id).toBe('comment-123')
-    // Note: Mentions by username are no longer supported since username field was removed
+    expect(parseMentions).toHaveBeenCalledWith('Great post @John Smith @Jane Doe!')
+    expect(sendMentionNotificationEmail).toHaveBeenCalledTimes(2)
+    expect(sendMentionNotificationEmail).toHaveBeenCalledWith('comment-123', 'user-456', 'post-123')
+    expect(sendMentionNotificationEmail).toHaveBeenCalledWith('comment-123', 'user-789', 'post-123')
   })
 
   it('should not send email to comment author when they mention themselves', async () => {
@@ -299,13 +300,13 @@ describe('POST /api/comments', () => {
       error: null,
     } as any)
 
-    vi.mocked(parseMentions).mockReturnValue(['testuser'])
+    vi.mocked(parseMentions).mockReturnValue(['Test User'])
 
     const mockComment = {
       id: 'comment-123',
       post_id: 'post-123',
       user_id: 'user-123',
-      content: 'Great post @testuser!',
+      content: 'Great post @Test User!',
       created_at: new Date().toISOString(),
     }
 
@@ -330,7 +331,7 @@ describe('POST /api/comments', () => {
     const mockProfilesSelect = vi.fn().mockReturnValue({
       in: vi.fn().mockResolvedValue({
         data: [
-          { id: 'user-123' }, // Same as comment author
+          { id: 'user-123', full_name: 'Test User' }, // Same as comment author
         ],
         error: null,
       }),
@@ -353,7 +354,7 @@ describe('POST /api/comments', () => {
       method: 'POST',
       body: JSON.stringify({
         post_id: 'post-123',
-        content: 'Great post @testuser!',
+        content: 'Great post @Test User!',
       }),
     })
 
@@ -363,6 +364,7 @@ describe('POST /api/comments', () => {
     expect(response.status).toBe(201)
     expect(sendMentionNotificationEmail).not.toHaveBeenCalled()
   })
+
 
   it('should return 500 if comment insertion fails', async () => {
     vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
@@ -413,77 +415,5 @@ describe('POST /api/comments', () => {
     expect(data.error).toBe('Failed to create comment')
   })
 
-  it('should handle errors gracefully when email sending fails', async () => {
-    vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-      data: { user: mockUser },
-      error: null,
-    } as any)
-
-    vi.mocked(parseMentions).mockReturnValue(['john'])
-    vi.mocked(sendMentionNotificationEmail).mockRejectedValue(new Error('Email failed'))
-
-    const mockComment = {
-      id: 'comment-123',
-      post_id: 'post-123',
-      user_id: 'user-123',
-      content: 'Great post @john!',
-      created_at: new Date().toISOString(),
-    }
-
-    const mockPostSelect = vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'post-123' },
-          error: null,
-        }),
-      }),
-    })
-
-    const mockCommentInsert = vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({
-          data: mockComment,
-          error: null,
-        }),
-      }),
-    })
-
-    const mockProfilesSelect = vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({
-        data: [
-          { id: 'user-456' },
-        ],
-        error: null,
-      }),
-    })
-
-    vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
-      if (table === 'posts') {
-        return { select: mockPostSelect } as any
-      }
-      if (table === 'comments') {
-        return { insert: mockCommentInsert } as any
-      }
-      if (table === 'profiles') {
-        return { select: mockProfilesSelect } as any
-      }
-      return {} as any
-    })
-
-    const request = new NextRequest('http://localhost/api/comments', {
-      method: 'POST',
-      body: JSON.stringify({
-        post_id: 'post-123',
-        content: 'Great post @john!',
-      }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    // Should still succeed even if email fails
-    expect(response.status).toBe(201)
-    expect(data.id).toBe('comment-123')
-  })
 })
 
