@@ -7,6 +7,7 @@ import { supabase } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmailIntegrations } from "@/components/integrations/EmailIntegrations";
 import { cn } from "@/lib/utils";
 
 export default function SignUpPage() {
@@ -162,6 +163,17 @@ export default function SignUpPage() {
                         {isLoading ? "Signing up..." : "Sign Up"}
                     </Button>
                 </div>
+
+                {/* Email & Calendar Integration */}
+                <section className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                    <div className="flex flex-col gap-1 mb-6">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Email & Calendar</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Connect your email and calendar to automatically import and sync your contacts.
+                        </p>
+                    </div>
+                    <EmailIntegrations />
+                </section>
 
                 {/* Log In Link */}
                 <div className="text-center text-sm text-gray-500 dark:text-gray-400">
