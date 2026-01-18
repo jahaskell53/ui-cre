@@ -437,6 +437,15 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
     const integrationId = integration?.id;
 
     for (const event of events) {
+      // Skip events that don't have invitees (participants)
+      // Only process events that have at least one participant/invitee (non-automated)
+      const hasInvitees = event.participants && event.participants.length > 0 && 
+        event.participants.some((p: any) => p.email && !isAutomatedEmail(p.email, undefined, p.name));
+      
+      if (!hasInvitees) {
+        continue;
+      }
+
       const date = event.when?.startTime
         ? new Date(event.when.startTime * 1000).toISOString()
         : new Date().toISOString();
