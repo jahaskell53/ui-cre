@@ -1,19 +1,17 @@
 export interface MessageNotificationData {
   senderName: string;
-  senderUsername?: string;
   messageContent: string;
   messageUrl: string;
 }
 
 export interface MentionNotificationData {
   senderName: string;
-  senderUsername?: string;
   commentContent: string;
   postUrl: string;
 }
 
 export function generateMessageNotificationEmail(data: MessageNotificationData): { subject: string; html: string; text: string } {
-  const senderDisplay = data.senderName || data.senderUsername || 'Someone';
+  const senderDisplay = data.senderName || 'Someone';
   const subject = `New message from ${senderDisplay}`;
 
   const html = `
@@ -78,7 +76,7 @@ This is an automated notification. You can reply to this message in the app.
 }
 
 export function generateMentionNotificationEmail(data: MentionNotificationData): { subject: string; html: string; text: string } {
-  const senderDisplay = data.senderName || data.senderUsername || 'Someone';
+  const senderDisplay = data.senderName || 'Someone';
   const subject = `${senderDisplay} mentioned you in a comment`;
 
   const html = `

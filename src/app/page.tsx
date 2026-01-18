@@ -31,7 +31,6 @@ interface Post {
     user_id: string;
     profile?: {
         full_name: string | null;
-        username: string | null;
         avatar_url: string | null;
     };
     likes_count?: number;
@@ -46,7 +45,6 @@ interface Comment {
     user_id: string;
     profile?: {
         full_name: string | null;
-        username: string | null;
         avatar_url: string | null;
     };
 }
@@ -70,7 +68,6 @@ const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: strin
 
 interface UserSuggestion {
     id: string;
-    username: string | null;
     full_name: string | null;
     avatar_url: string | null;
 }
@@ -102,7 +99,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
     const mentionDropdownRef = useRef<HTMLDivElement>(null);
     const isArticle = post.type !== "post";
     const isLink = post.type === "link";
-    const authorName = post.profile?.full_name || post.profile?.username || "Anonymous User";
+    const authorName = post.profile?.full_name || "Anonymous User";
     const initials = authorName === "Anonymous User" ? "AU" : authorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
     useEffect(() => {
@@ -143,7 +140,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
             .from("comments")
             .select(`
                 *,
-                profile:profiles(full_name, username, avatar_url)
+                profile:profiles(full_name, avatar_url)
             `)
             .eq("post_id", post.id)
             .order("created_at", { ascending: true });
@@ -184,8 +181,8 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
         try {
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, username, full_name, avatar_url")
-                .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+                .select("id, full_name, avatar_url")
+                .ilike("full_name", `%${query}%`)
                 .neq("id", currentUserId || "")
                 .limit(10);
 
@@ -295,16 +292,16 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                 e.preventDefault();
                 if (selectedMentionIndex >= 0 && selectedMentionIndex < mentionSuggestions.length) {
                     const selectedUser = mentionSuggestions[selectedMentionIndex];
-                    const username = selectedUser.username || selectedUser.full_name || "";
-                    if (username) {
-                        insertMention(username);
+                    const name = selectedUser.full_name || "";
+                    if (name) {
+                        insertMention(name);
                     }
                 } else if (mentionSuggestions.length > 0) {
                     // Select first suggestion if none selected
                     const firstUser = mentionSuggestions[0];
-                    const username = firstUser.username || firstUser.full_name || "";
-                    if (username) {
-                        insertMention(username);
+                    const name = firstUser.full_name || "";
+                    if (name) {
+                        insertMention(name);
                     }
                 }
             } else if (e.key === "Escape") {
@@ -542,7 +539,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                     <div className="flex flex-col gap-6">
                         <div className="flex flex-col gap-4">
                             {comments.map((comment) => {
-                                const commentAuthorName = comment.profile?.full_name || comment.profile?.username || "Anonymous";
+                                const commentAuthorName = comment.profile?.full_name || "Anonymous";
                                 const commentInitials = commentAuthorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
                                 return (
                                     <div key={comment.id} className="flex gap-3">
@@ -613,8 +610,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                             className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-white border border-secondary rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
                                         >
                                             {mentionSuggestions.map((user, index) => {
-                                                const displayName = user.full_name || user.username || "Unknown";
-                                                const username = user.username || "";
+                                                const displayName = user.full_name || "Unknown";
                                                 const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
                                                 
                                                 return (
@@ -626,10 +622,7 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                                         onClick={(e) => {
                                                             e.preventDefault();
                                                             e.stopPropagation();
-                                                            if (username) {
-                                                                insertMention(username);
-                                                            } else if (user.full_name) {
-                                                                // Fallback to full_name if username is not available
+                                                            if (user.full_name) {
                                                                 insertMention(user.full_name);
                                                             }
                                                         }}
@@ -647,11 +640,6 @@ const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, 
                                                             <div className="text-sm font-medium text-primary truncate">
                                                                 {displayName}
                                                             </div>
-                                                            {username && username !== displayName && (
-                                                                <div className="text-xs text-tertiary truncate">
-                                                                    @{username}
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 );
@@ -703,7 +691,7 @@ export default function FeedPage() {
             .from("posts")
             .select(`
                 *,
-                profile:profiles(full_name, username, avatar_url)
+                profile:profiles(full_name, avatar_url)
             `)
             .order("created_at", { ascending: false });
 

@@ -27,7 +27,6 @@ const mockCurrentUser = {
 
 const mockProfile = {
   id: 'user-123',
-  username: 'testuser',
   full_name: 'Test User',
   avatar_url: 'https://example.com/avatar.jpg',
   website: 'https://example.com',
@@ -77,7 +76,6 @@ describe('UserProfilePage', () => {
       expect(screen.getByText('Test User')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('@testuser')).toBeInTheDocument()
     expect(screen.getByText('Property Owner')).toBeInTheDocument()
     expect(screen.getByText('Broker')).toBeInTheDocument()
   })

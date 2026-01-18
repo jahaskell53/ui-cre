@@ -20,7 +20,6 @@ export default function ProfilePage() {
     const [error, setError] = useState<string | null>(null);
 
     const [fullName, setFullName] = useState("");
-    const [username, setUsername] = useState("");
     const [website, setWebsite] = useState("");
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -39,7 +38,6 @@ export default function ProfilePage() {
     useEffect(() => {
         if (profile) {
             setFullName(profile.full_name || "");
-            setUsername(profile.username || "");
             setWebsite(profile.website || "");
             setAvatarUrl(profile.avatar_url || null);
             setSelectedRoles(profile.roles || []);
@@ -78,7 +76,6 @@ export default function ProfilePage() {
                 .from("profiles")
                 .update({
                     full_name: fullName || null,
-                    username: username || null,
                     website: website || null,
                     avatar_url: avatarUrl,
                     roles: selectedRoles,
@@ -201,16 +198,6 @@ export default function ProfilePage() {
                                 value={fullName}
                                 onChange={setFullName}
                                 placeholder="Enter your full name"
-                            />
-                        </div>
-
-                        <div>
-                            <Input
-                                label="Username"
-                                value={username}
-                                onChange={setUsername}
-                                placeholder="Enter a username"
-                                hint="Must be at least 3 characters"
                             />
                         </div>
 

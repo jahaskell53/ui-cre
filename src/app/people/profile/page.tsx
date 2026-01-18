@@ -29,7 +29,6 @@ export default function PeopleProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
   const [website, setWebsite] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -48,7 +47,6 @@ export default function PeopleProfilePage() {
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
-      setUsername(profile.username || "");
       setWebsite(profile.website || "");
       setAvatarUrl(profile.avatar_url || null);
       setSelectedRoles(profile.roles || []);
@@ -96,7 +94,6 @@ export default function PeopleProfilePage() {
         .from("profiles")
         .update({
           full_name: fullName || null,
-          username: username || null,
           website: website || null,
           avatar_url: avatarUrl,
           roles: selectedRoles,
@@ -291,21 +288,6 @@ export default function PeopleProfilePage() {
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Enter your full name"
                 />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                  Username
-                </label>
-                <Input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter a username"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Must be at least 3 characters
-                </p>
               </div>
 
               <div>

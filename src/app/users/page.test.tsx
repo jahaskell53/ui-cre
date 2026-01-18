@@ -30,18 +30,17 @@ describe('UsersPage', () => {
 
   it('should render search input', () => {
     render(<UsersPage />)
-    expect(screen.getByPlaceholderText(/search by username or name/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/search by name/i)).toBeInTheDocument()
   })
 
   it('should search for users when typing', async () => {
     const user = userEvent.setup()
     const mockSelect = vi.fn().mockReturnValue({
-      or: vi.fn().mockReturnValue({
+      ilike: vi.fn().mockReturnValue({
         limit: vi.fn().mockResolvedValue({
           data: [
             {
               id: 'user-1',
-              username: 'johndoe',
               full_name: 'John Doe',
               avatar_url: null,
               website: null,
@@ -59,7 +58,7 @@ describe('UsersPage', () => {
 
     render(<UsersPage />)
     
-    const searchInput = screen.getByPlaceholderText(/search by username or name/i)
+    const searchInput = screen.getByPlaceholderText(/search by name/i)
     await user.type(searchInput, 'john')
 
     await waitFor(() => {
@@ -69,12 +68,11 @@ describe('UsersPage', () => {
 
   it('should display search results', async () => {
     const mockSelect = vi.fn().mockReturnValue({
-      or: vi.fn().mockReturnValue({
+      ilike: vi.fn().mockReturnValue({
         limit: vi.fn().mockResolvedValue({
           data: [
             {
               id: 'user-1',
-              username: 'johndoe',
               full_name: 'John Doe',
               avatar_url: null,
               website: null,
@@ -92,7 +90,7 @@ describe('UsersPage', () => {
 
     render(<UsersPage />)
     
-    const searchInput = screen.getByPlaceholderText(/search by username or name/i)
+    const searchInput = screen.getByPlaceholderText(/search by name/i)
     await userEvent.type(searchInput, 'john')
 
     await waitFor(() => {
@@ -108,7 +106,7 @@ describe('UsersPage', () => {
   it('should show no results message when search returns empty', async () => {
     const user = userEvent.setup()
     const mockSelect = vi.fn().mockReturnValue({
-      or: vi.fn().mockReturnValue({
+      ilike: vi.fn().mockReturnValue({
         limit: vi.fn().mockResolvedValue({
           data: [],
           error: null,
@@ -122,7 +120,7 @@ describe('UsersPage', () => {
 
     render(<UsersPage />)
     
-    const searchInput = screen.getByPlaceholderText(/search by username or name/i)
+    const searchInput = screen.getByPlaceholderText(/search by name/i)
     await user.type(searchInput, 'nonexistent')
 
     await waitFor(() => {

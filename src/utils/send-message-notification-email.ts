@@ -23,7 +23,7 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
         // Get sender profile (sender_id references auth.users.id, and profiles.id = auth.users.id)
         const { data: senderProfile, error: profileError } = await supabase
             .from("profiles")
-            .select("id, username, full_name, avatar_url")
+            .select("id, full_name, avatar_url")
             .eq("id", message.sender_id)
             .single();
 
@@ -43,12 +43,11 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
         const recipientEmail = recipientUser.user.email;
 
         // Generate email content
-        const senderName = senderProfile?.full_name || senderProfile?.username || "Someone";
+        const senderName = senderProfile?.full_name || "Someone";
         const messageUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/messages?user_id=${message.sender_id}`;
         
         const emailContent = generateMessageNotificationEmail({
             senderName,
-            senderUsername: senderProfile?.username || undefined,
             messageContent: message.content,
             messageUrl,
         });

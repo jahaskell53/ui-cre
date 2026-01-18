@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
                     if (message?.sender_id) {
                         const { data: profile } = await supabase
                             .from("profiles")
-                            .select("id, username, full_name, avatar_url")
+                            .select("id, full_name, avatar_url")
                             .eq("id", message.sender_id)
                             .single();
                         senderProfile = profile;
@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
                         read_at: notification.read_at,
                         sender: senderProfile ? {
                             id: senderProfile.id,
-                            username: senderProfile.username,
                             full_name: senderProfile.full_name,
                             avatar_url: senderProfile.avatar_url,
                         } : null,

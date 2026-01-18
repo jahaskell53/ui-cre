@@ -11,7 +11,6 @@ import { useUser } from "@/hooks/use-user";
 
 interface UserProfile {
     id: string;
-    username: string | null;
     full_name: string | null;
     avatar_url: string | null;
     website: string | null;
@@ -59,8 +58,8 @@ export default function UsersPage() {
         try {
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, username, full_name, avatar_url, website, roles")
-                .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+                .select("id, full_name, avatar_url, website, roles")
+                .ilike("full_name", `%${query}%`)
                 .limit(20);
 
             if (error) throw error;
@@ -86,7 +85,7 @@ export default function UsersPage() {
 
                 <div className="mb-6">
                     <Input
-                        placeholder="Search by username or name..."
+                        placeholder="Search by name..."
                         value={searchQuery}
                         onChange={setSearchQuery}
                         icon={SearchLg}
@@ -109,7 +108,7 @@ export default function UsersPage() {
                 {!loading && users.length > 0 && (
                     <div className="space-y-2">
                         {users.map((userProfile) => {
-                            const displayName = userProfile.full_name || userProfile.username || "Unknown User";
+                            const displayName = userProfile.full_name || "Unknown User";
                             const initials = displayName
                                 .split(" ")
                                 .map(n => n[0])
@@ -132,11 +131,6 @@ export default function UsersPage() {
                                         <div className="font-semibold text-primary">
                                             {displayName}
                                         </div>
-                                        {userProfile.username && userProfile.username !== displayName && (
-                                            <div className="text-sm text-tertiary">
-                                                @{userProfile.username}
-                                            </div>
-                                        )}
                                         {userProfile.roles && userProfile.roles.length > 0 && (
                                             <div className="flex flex-wrap gap-2 mt-2">
                                                 {userProfile.roles.map((role) => (
@@ -160,7 +154,7 @@ export default function UsersPage() {
                     <div className="flex items-center justify-center py-12">
                         <div className="text-tertiary text-center">
                             <p className="mb-2">Start typing to search for users</p>
-                            <p className="text-sm">Search by username or full name</p>
+                            <p className="text-sm">Search by full name</p>
                         </div>
                     </div>
                 )}

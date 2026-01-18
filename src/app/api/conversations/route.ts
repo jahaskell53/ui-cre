@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
         const { data: profiles, error: profilesError } = await supabase
             .from("profiles")
-            .select("id, username, full_name, avatar_url")
+            .select("id, full_name, avatar_url")
             .in("id", otherUserIds);
 
         if (profilesError) {
@@ -83,7 +83,6 @@ export async function GET(request: NextRequest) {
                     other_user_id: conv.other_user_id,
                     other_user: profile ? {
                         id: profile.id,
-                        username: profile.username,
                         full_name: profile.full_name,
                         avatar_url: profile.avatar_url,
                     } : null,

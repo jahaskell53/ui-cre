@@ -27,7 +27,6 @@ const mockUser = {
 const mockProfile = {
   id: 'user-123',
   full_name: 'Test User',
-  username: 'testuser',
   website: 'https://example.com',
   avatar_url: 'https://example.com/avatar.jpg',
   roles: ['Property Owner'],
@@ -51,7 +50,6 @@ describe('ProfilePage', () => {
   it('should load profile data into form', () => {
     render(<ProfilePage />)
     expect(screen.getByDisplayValue('Test User')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('testuser')).toBeInTheDocument()
     expect(screen.getByDisplayValue('https://example.com')).toBeInTheDocument()
   })
 

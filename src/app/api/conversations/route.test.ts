@@ -98,7 +98,6 @@ describe('GET /api/conversations', () => {
     const mockProfiles = [
       {
         id: 'user-456',
-        username: 'johndoe',
         full_name: 'John Doe',
         avatar_url: 'https://example.com/avatar.jpg',
       },
@@ -142,7 +141,7 @@ describe('GET /api/conversations', () => {
     expect(data.length).toBe(1)
     expect(data[0].other_user_id).toBe('user-456')
     expect(data[0].other_user).toBeDefined()
-    expect(data[0].other_user?.username).toBe('johndoe')
+    expect(data[0].other_user?.full_name).toBe('John Doe')
     expect(data[0].last_message).toBeDefined()
     expect(data[0].unread_count).toBeGreaterThanOrEqual(0)
   })

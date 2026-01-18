@@ -27,7 +27,7 @@ export async function sendMentionNotificationEmail(
         // Get sender profile
         const { data: senderProfile, error: profileError } = await supabase
             .from("profiles")
-            .select("id, username, full_name, avatar_url")
+            .select("id, full_name, avatar_url")
             .eq("id", comment.user_id)
             .single();
 
@@ -47,12 +47,11 @@ export async function sendMentionNotificationEmail(
         const mentionedUserEmail = mentionedUser.user.email;
 
         // Generate email content
-        const senderName = senderProfile?.full_name || senderProfile?.username || "Someone";
+        const senderName = senderProfile?.full_name || "Someone";
         const postUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}`;
         
         const emailContent = generateMentionNotificationEmail({
             senderName,
-            senderUsername: senderProfile?.username || undefined,
             commentContent: comment.content,
             postUrl,
         });

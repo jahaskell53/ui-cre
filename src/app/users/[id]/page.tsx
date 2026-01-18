@@ -13,7 +13,6 @@ import { formatDistanceToNow } from "date-fns";
 
 interface UserProfile {
     id: string;
-    username: string | null;
     full_name: string | null;
     avatar_url: string | null;
     website: string | null;
@@ -55,7 +54,7 @@ export default function UserProfilePage() {
         try {
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, username, full_name, avatar_url, website, roles")
+                .select("id, full_name, avatar_url, website, roles")
                 .eq("id", userId)
                 .single();
 
@@ -166,7 +165,7 @@ export default function UserProfilePage() {
         );
     }
 
-    const displayName = profile.full_name || profile.username || "Unknown User";
+    const displayName = profile.full_name || "Unknown User";
     const initials = displayName
         .split(" ")
         .map(n => n[0])
@@ -196,9 +195,6 @@ export default function UserProfilePage() {
                         <h1 className="text-display-sm font-semibold text-primary mb-2">
                             {displayName}
                         </h1>
-                        {profile.username && (
-                            <p className="text-lg text-tertiary mb-4">@{profile.username}</p>
-                        )}
                         {profile.roles && profile.roles.length > 0 && (
                             <div className="flex flex-wrap gap-2 justify-center mb-4">
                                 {profile.roles.map((role) => (

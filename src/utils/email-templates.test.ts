@@ -18,10 +18,9 @@ describe('generateMessageNotificationEmail', () => {
         expect(result.text).toContain('https://example.com/messages?user_id=123');
     });
 
-    it('should generate email with sender username when name is not provided', () => {
+    it('should generate email with sender name', () => {
         const result = generateMessageNotificationEmail({
             senderName: 'johndoe',
-            senderUsername: 'johndoe',
             messageContent: 'Test message',
             messageUrl: 'https://example.com/messages?user_id=123',
         });

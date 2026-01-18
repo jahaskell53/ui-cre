@@ -96,7 +96,6 @@ describe('GET /api/notifications', () => {
       sender_id: 'user-456',
       sender: {
         id: 'user-456',
-        username: 'johndoe',
         full_name: 'John Doe',
         avatar_url: 'https://example.com/avatar.jpg',
       },
@@ -158,7 +157,7 @@ describe('GET /api/notifications', () => {
     expect(data.length).toBe(1)
     expect(data[0].type).toBe('message')
     expect(data[0].sender).toBeDefined()
-    expect(data[0].sender?.username).toBe('johndoe')
+    expect(data[0].sender?.full_name).toBe('John Doe')
     expect(data[0].content).toBe('Hello there!')
   })
 

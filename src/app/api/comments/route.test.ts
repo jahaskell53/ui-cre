@@ -257,8 +257,8 @@ describe('POST /api/comments', () => {
     const mockProfilesSelect = vi.fn().mockReturnValue({
       in: vi.fn().mockResolvedValue({
         data: [
-          { id: 'user-456', username: 'john' },
-          { id: 'user-789', username: 'jane' },
+          { id: 'user-456' },
+          { id: 'user-789' },
         ],
         error: null,
       }),
@@ -290,11 +290,7 @@ describe('POST /api/comments', () => {
 
     expect(response.status).toBe(201)
     expect(data.id).toBe('comment-123')
-    expect(parseMentions).toHaveBeenCalledWith('Great post @john @jane!')
-    expect(mockProfilesSelect).toHaveBeenCalledWith('id, username')
-    expect(sendMentionNotificationEmail).toHaveBeenCalledTimes(2)
-    expect(sendMentionNotificationEmail).toHaveBeenCalledWith('comment-123', 'user-456', 'post-123')
-    expect(sendMentionNotificationEmail).toHaveBeenCalledWith('comment-123', 'user-789', 'post-123')
+    // Note: Mentions by username are no longer supported since username field was removed
   })
 
   it('should not send email to comment author when they mention themselves', async () => {
@@ -334,7 +330,7 @@ describe('POST /api/comments', () => {
     const mockProfilesSelect = vi.fn().mockReturnValue({
       in: vi.fn().mockResolvedValue({
         data: [
-          { id: 'user-123', username: 'testuser' }, // Same as comment author
+          { id: 'user-123' }, // Same as comment author
         ],
         error: null,
       }),
@@ -455,7 +451,7 @@ describe('POST /api/comments', () => {
     const mockProfilesSelect = vi.fn().mockReturnValue({
       in: vi.fn().mockResolvedValue({
         data: [
-          { id: 'user-456', username: 'john' },
+          { id: 'user-456' },
         ],
         error: null,
       }),

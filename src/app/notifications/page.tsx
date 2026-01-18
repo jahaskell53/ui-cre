@@ -12,7 +12,6 @@ interface Notification {
     type: "message";
     sender: {
         id: string;
-        username: string | null;
         full_name: string | null;
         avatar_url: string | null;
     } | null;
@@ -85,7 +84,7 @@ export default function NotificationsPage() {
 
     const getDisplayName = (sender: Notification["sender"]) => {
         if (!sender) return "Unknown User";
-        return sender.full_name || sender.username || "Unknown User";
+        return sender.full_name || "Unknown User";
     };
 
     const getInitials = (sender: Notification["sender"]) => {

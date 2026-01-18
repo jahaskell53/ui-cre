@@ -52,7 +52,6 @@ describe('MessagesPage', () => {
         other_user_id: 'user-456',
         other_user: {
           id: 'user-456',
-          username: 'johndoe',
           full_name: 'John Doe',
           avatar_url: null,
         },
@@ -104,7 +103,6 @@ describe('MessagesPage', () => {
         other_user_id: 'user-456',
         other_user: {
           id: 'user-456',
-          username: 'johndoe',
           full_name: 'John Doe',
           avatar_url: null,
         },
@@ -165,7 +163,6 @@ describe('MessagesPage', () => {
         other_user_id: 'user-456',
         other_user: {
           id: 'user-456',
-          username: 'johndoe',
           full_name: 'John Doe',
           avatar_url: null,
         },
@@ -211,7 +208,6 @@ describe('MessagesPage', () => {
         other_user_id: 'user-456',
         other_user: {
           id: 'user-456',
-          username: 'johndoe',
           full_name: 'John Doe',
           avatar_url: null,
         },
@@ -310,7 +306,6 @@ describe('MessagesPage', () => {
         other_user_id: 'user-456',
         other_user: {
           id: 'user-456',
-          username: 'johndoe',
           full_name: 'John Doe',
           avatar_url: null,
         },

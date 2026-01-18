@@ -16,7 +16,6 @@ interface Conversation {
     other_user_id: string;
     other_user: {
         id: string;
-        username: string | null;
         full_name: string | null;
         avatar_url: string | null;
     } | null;
@@ -40,7 +39,6 @@ interface Message {
 
 interface UserProfile {
     id: string;
-    username: string | null;
     full_name: string | null;
     avatar_url: string | null;
     website: string | null;
@@ -57,7 +55,7 @@ export default function MessagesPage() {
         try {
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, username, full_name, avatar_url, website, roles")
+                .select("id, full_name, avatar_url, website, roles")
                 .eq("id", userId)
                 .single();
 
@@ -230,7 +228,7 @@ export default function MessagesPage() {
 
     const getDisplayName = (user: Conversation["other_user"]) => {
         if (!user) return "Unknown User";
-        return user.full_name || user.username || "Unknown User";
+        return user.full_name || "Unknown User";
     };
 
     const getInitials = (user: Conversation["other_user"]) => {
@@ -253,8 +251,8 @@ export default function MessagesPage() {
         try {
             const { data, error } = await supabase
                 .from("profiles")
-                .select("id, username, full_name, avatar_url, website, roles")
-                .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+                .select("id, full_name, avatar_url, website, roles")
+                .ilike("full_name", `%${query}%`)
                 .neq("id", user?.id || "")
                 .limit(20);
 
@@ -298,7 +296,7 @@ export default function MessagesPage() {
     }, [selectedUserId, conversations, selectedUserProfile, fetchUserProfile]);
 
     const getInitialsFromUser = (user: UserProfile | Conversation["other_user"]) => {
-        const name = user?.full_name || user?.username || "Unknown User";
+        const name = user?.full_name || "Unknown User";
         return name
             .split(" ")
             .map(n => n[0])
@@ -358,7 +356,7 @@ export default function MessagesPage() {
                                 ) : (
                                     <div className="divide-y divide-secondary">
                                         {searchResults.map((userProfile) => {
-                                            const displayName = userProfile.full_name || userProfile.username || "Unknown User";
+                                            const displayName = userProfile.full_name || "Unknown User";
                                             const initials = getInitialsFromUser(userProfile);
                                             const isExistingConversation = conversations.some(
                                                 c => c.other_user_id === userProfile.id
@@ -380,11 +378,6 @@ export default function MessagesPage() {
                                                             <div className="font-semibold text-sm text-primary truncate">
                                                                 {displayName}
                                                             </div>
-                                                            {userProfile.username && userProfile.username !== displayName && (
-                                                                <div className="text-xs text-tertiary truncate">
-                                                                    @{userProfile.username}
-                                                                </div>
-                                                            )}
                                                             {isExistingConversation && (
                                                                 <div className="text-xs text-tertiary mt-1">
                                                                     Existing conversation
@@ -487,7 +480,7 @@ export default function MessagesPage() {
                                         // If no conversation exists, use selected user profile from search
                                         if (!conversation?.other_user) {
                                             if (selectedUserProfile) {
-                                                const displayName = selectedUserProfile.full_name || selectedUserProfile.username || "Unknown User";
+                                                const displayName = selectedUserProfile.full_name || "Unknown User";
                                                 const initials = getInitialsFromUser(selectedUserProfile);
                                                 
                                                 return (
@@ -499,9 +492,6 @@ export default function MessagesPage() {
                                                         />
                                                         <div>
                                                             <h3 className="font-semibold text-primary">{displayName}</h3>
-                                                            {selectedUserProfile.username && (
-                                                                <p className="text-sm text-tertiary">@{selectedUserProfile.username}</p>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 );
@@ -521,9 +511,6 @@ export default function MessagesPage() {
                                                 />
                                                 <div>
                                                     <h3 className="font-semibold text-primary">{displayName}</h3>
-                                                    {conversation.other_user.username && (
-                                                        <p className="text-sm text-tertiary">@{conversation.other_user.username}</p>
-                                                    )}
                                                 </div>
                                             </div>
                                         );
