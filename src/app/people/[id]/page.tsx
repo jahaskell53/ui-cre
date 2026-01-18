@@ -242,6 +242,8 @@ export default function PersonDetailPage() {
   const [isNoteFocused, setIsNoteFocused] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<{ id?: string, index: number } | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
+  const [isDeletingPerson, setIsDeletingPerson] = useState(false);
+  const [showDeletePersonModal, setShowDeletePersonModal] = useState(false);
   const [panelWidth, setPanelWidth] = useState(280);
   const [isDragging, setIsDragging] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -419,6 +421,27 @@ export default function PersonDetailPage() {
     setNoteText("");
   };
 
+  const handleDeletePerson = async () => {
+    if (!person) return;
+    
+    setIsDeletingPerson(true);
+    try {
+      const response = await fetch(`/api/people?id=${person.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete person');
+      }
+
+      router.push('/people');
+    } catch (error) {
+      console.error('Error deleting person:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete person');
+      setIsDeletingPerson(false);
+    }
+  };
+
   const handleCopy = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -555,9 +578,22 @@ export default function PersonDetailPage() {
             >
               <PencilIcon className="w-5 h-5" />
             </button>
-            <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
-              <MoreIcon className="w-5 h-5" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
+                  <MoreIcon className="w-5 h-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => setShowDeletePersonModal(true)}
+                  className="flex items-center gap-2 cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  <span>Delete person</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -775,7 +811,7 @@ export default function PersonDetailPage() {
         panelWidth={panelWidth}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Note Confirmation Modal */}
       <ModalOverlay
         isOpen={noteToDelete !== null}
         onOpenChange={(isOpen) => !isOpen && setNoteToDelete(null)}
@@ -800,6 +836,37 @@ export default function PersonDetailPage() {
                 disabled={isDeletingNote}
               >
                 {isDeletingNote ? "Deleting..." : "Delete Note"}
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
+      {/* Delete Person Confirmation Modal */}
+      <ModalOverlay
+        isOpen={showDeletePersonModal}
+        onOpenChange={(isOpen) => !isOpen && setShowDeletePersonModal(false)}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Delete Person</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Are you sure you want to delete {person?.name}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeletePersonModal(false)}
+                disabled={isDeletingPerson}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeletePerson}
+                disabled={isDeletingPerson}
+              >
+                {isDeletingPerson ? "Deleting..." : "Delete Person"}
               </Button>
             </div>
           </Dialog>
