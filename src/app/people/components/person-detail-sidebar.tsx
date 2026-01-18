@@ -9,6 +9,7 @@
  * on the Person Detail View page. It shows network strength, related people,
  * properties, sources, and groups. The panel width is adjustable via the panelWidth prop.
  */
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -125,7 +126,26 @@ interface PersonDetailSidebarProps {
 }
 
 export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidth }: PersonDetailSidebarProps) {
-  const networkStrength: "HIGH" | "MEDIUM" | "LOW" = "MEDIUM";
+  const [networkStrength, setNetworkStrength] = useState<"HIGH" | "MEDIUM" | "LOW">("MEDIUM");
+
+  // Fetch network strength from backend
+  useEffect(() => {
+    const fetchNetworkStrength = async () => {
+      try {
+        const response = await fetch(`/api/people/network-strength?id=${person.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setNetworkStrength(data.networkStrength || "MEDIUM");
+        }
+      } catch (error) {
+        console.error("Error fetching network strength:", error);
+      }
+    };
+
+    if (person?.id) {
+      fetchNetworkStrength();
+    }
+  }, [person?.id]);
   
   // Calculate interaction stats from timeline
   const stats = calculateInteractionStats(person.timeline);

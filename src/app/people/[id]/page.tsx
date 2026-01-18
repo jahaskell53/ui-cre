@@ -498,8 +498,6 @@ export default function PersonDetailPage() {
     { type: 'email', text: `You emailed ${firstName} Re: Follow-up`, date: 'Nov 5 2025', iconColor: 'purple', link: 'Re: Follow-up' },
   ];
 
-  const networkStrength: "HIGH" | "MEDIUM" | "LOW" = "MEDIUM";
-
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900">
       {/* Main Content Area */}

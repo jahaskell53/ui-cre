@@ -34,6 +34,7 @@ export interface Person {
   twitter_url: string | null;
   instagram_url: string | null;
   facebook_url: string | null;
+  network_strength?: 'HIGH' | 'MEDIUM' | 'LOW';
   created_at?: string;
   updated_at?: string;
 }

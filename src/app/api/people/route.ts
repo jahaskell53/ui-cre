@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { recalculateNetworkStrengthForUser } from "@/lib/network-strength";
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
@@ -233,6 +234,11 @@ export async function PUT(request: NextRequest) {
         if (error) {
             console.error("Error updating person:", error);
             return NextResponse.json({ error: "Failed to update person" }, { status: 500 });
+        }
+
+        // Recalculate network strength if timeline was updated
+        if (timeline !== undefined) {
+            await recalculateNetworkStrengthForUser(supabase, user.id);
         }
 
         return NextResponse.json(data);

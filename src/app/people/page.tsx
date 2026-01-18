@@ -30,6 +30,14 @@ export default function PeoplePage() {
         const aDate = a.updated_at || a.created_at || '';
         const bDate = b.updated_at || b.created_at || '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
+      } else if (sortBy === 'network-strength') {
+        // Network strength order: HIGH > MEDIUM > LOW
+        const strengthOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+        const aStrength = a.network_strength || 'MEDIUM';
+        const bStrength = b.network_strength || 'MEDIUM';
+        const aOrder = strengthOrder[aStrength as keyof typeof strengthOrder] || 2;
+        const bOrder = strengthOrder[bStrength as keyof typeof strengthOrder] || 2;
+        return bOrder - aOrder;
       } else {
         // alphabetical
         const aName = (a.name || '').toLowerCase();

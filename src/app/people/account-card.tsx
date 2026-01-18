@@ -16,7 +16,11 @@ import { supabase } from "@/utils/supabase";
 import { ChevronDown, User, Settings, LogOut } from "lucide-react";
 import { generateAuroraGradient } from "./utils";
 
-export default function AccountCard() {
+interface AccountCardProps {
+  isCollapsed?: boolean;
+}
+
+export default function AccountCard({ isCollapsed = false }: AccountCardProps) {
   const router = useRouter();
   const { user, profile, loading } = useUser();
 
@@ -54,33 +58,77 @@ export default function AccountCard() {
     router.push("/login");
   };
 
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start p-2 h-auto hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-0"
-                >
-                  <div className="flex items-center gap-3 w-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={avatarUrl} alt={displayName} />
-                      <AvatarFallback
-                        className="text-white text-xs font-medium"
-                        style={{ background: generateAuroraGradient(displayName) }}
-                      >
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {displayName}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{email}</p>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
+  if (isCollapsed) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-center p-2 h-auto hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-0"
+            title={displayName}
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={avatarUrl} alt={displayName} />
+              <AvatarFallback
+                className="text-white text-xs font-medium"
+                style={{ background: generateAuroraGradient(displayName) }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push("/people/profile")}>
+            <User className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/people/settings")}>
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Settings</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-red-600 focus:text-red-600"
+            onClick={handleSignOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sign out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="w-full justify-start p-2 h-auto hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-0"
+        >
+          <div className="flex items-center gap-3 w-full">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={avatarUrl} alt={displayName} />
+              <AvatarFallback
+                className="text-white text-xs font-medium"
+                style={{ background: generateAuroraGradient(displayName) }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {displayName}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{email}</p>
+            </div>
+            <ChevronDown className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />

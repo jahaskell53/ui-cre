@@ -1,6 +1,7 @@
 import { getMessages, getCalendarEvents, type NylasMessage, type NylasCalendarEvent } from './client';
 import { NYLAS_SYNC_CONFIG } from './config';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { recalculateNetworkStrengthForUser } from '@/lib/network-strength';
 
 interface Contact {
   email_address: string;
@@ -460,6 +461,9 @@ export async function syncEmailContacts(grantId: string, userId: string) {
       }
     }
 
+    // Recalculate network strength for all people after timeline updates
+    await recalculateNetworkStrengthForUser(supabase, userId);
+
     console.log(`Email sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
@@ -721,6 +725,9 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
         );
       }
     }
+
+    // Recalculate network strength for all people after timeline updates
+    await recalculateNetworkStrengthForUser(supabase, userId);
 
     console.log(`Calendar sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;

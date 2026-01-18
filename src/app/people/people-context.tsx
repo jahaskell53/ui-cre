@@ -3,7 +3,7 @@
 import { createContext, useContext, ReactNode } from "react";
 import type { Person } from "./types";
 
-export type SortBy = 'recency' | 'alphabetical';
+export type SortBy = 'recency' | 'alphabetical' | 'network-strength';
 
 interface PeopleContextType {
   people: Person[];

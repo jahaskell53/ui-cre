@@ -9,6 +9,7 @@
  * It shows profile information, network strength, history, related people, properties,
  * and contact information. The panel width is adjustable via the panelWidth prop.
  */
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -106,6 +107,30 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
+  const [networkStrength, setNetworkStrength] = useState<"HIGH" | "MEDIUM" | "LOW">("MEDIUM");
+
+  // Fetch network strength from backend
+  useEffect(() => {
+    if (!selectedPerson?.id) {
+      setNetworkStrength("MEDIUM");
+      return;
+    }
+
+    const fetchNetworkStrength = async () => {
+      try {
+        const response = await fetch(`/api/people/network-strength?id=${selectedPerson.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setNetworkStrength(data.networkStrength || "MEDIUM");
+        }
+      } catch (error) {
+        console.error("Error fetching network strength:", error);
+      }
+    };
+
+    fetchNetworkStrength();
+  }, [selectedPerson?.id]);
+
   // Check if person was imported via mail (has email interactions in timeline)
   const isImportedViaMail = (person: Person | null): boolean => {
     if (!person || !person.timeline) return false;
@@ -220,12 +245,12 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                   Network Strength
                 </h3>
                 <div className="flex items-center gap-2">
-                  <CellularIcon strength="HIGH" className="w-4 h-4" />
+                  <CellularIcon strength={networkStrength} className="w-4 h-4" />
                   <Badge
                     variant="secondary"
                     className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                   >
-                    HIGH
+                    {networkStrength}
                   </Badge>
                 </div>
               </div>

@@ -29,6 +29,7 @@ export default function PeopleLayout({
   const [reverse, setReverse] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const sidebarRef = useRef<SidebarRef>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
   const isDetailPage = pathname?.match(/^\/people\/[^/]+(\/.*)?$/) && 
@@ -177,6 +178,8 @@ export default function PeopleLayout({
           onSelectPerson={setSelectedPerson}
           onSearchChange={setSearchQuery}
           onPeopleIconClick={handlePeopleIconClick}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
 
         {/* Main Content */}

@@ -92,9 +92,32 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
           })}
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100">
-            <span>{sortBy === 'recency' ? 'Recency' : 'Alphabetical'}</span>
-            <SortIcon className={cn("w-4 h-4", reverse && "rotate-180")} />
+          <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+            <span 
+              className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+              onClick={() => {
+                // Cycle through sort options: recency -> alphabetical -> network-strength -> recency
+                if (sortBy === 'recency') {
+                  onSortChange('alphabetical');
+                } else if (sortBy === 'alphabetical') {
+                  onSortChange('network-strength');
+                } else {
+                  onSortChange('recency');
+                }
+              }}
+            >
+              {sortBy === 'recency' ? 'Recency' : 
+               sortBy === 'alphabetical' ? 'Alphabetical' : 
+               'Network Strength'}
+            </span>
+            <button
+              type="button"
+              className="p-0 border-0 bg-transparent cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
+              onClick={() => onReverseChange(!reverse)}
+              aria-label="Reverse sort order"
+            >
+              <SortIcon className={cn("w-4 h-4", reverse && "rotate-180")} />
+            </button>
           </div>
           <button
             onClick={handleSelectAll}
