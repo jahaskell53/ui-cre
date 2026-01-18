@@ -208,7 +208,7 @@ export async function syncEmailContacts(grantId: string, userId: string) {
       }
     }
 
-    // Now create interaction records
+    // Now create interaction records and update person timelines
     console.log(`Creating ${emailInteractions.length} interaction records`);
     let interactionCount = 0;
 
@@ -238,6 +238,40 @@ export async function syncEmailContacts(grantId: string, userId: string) {
             metadata: { message_id: interaction.message_id },
           });
         interactionCount++;
+
+        // Update person's timeline
+        const { data: person } = await supabase
+          .from('people')
+          .select('timeline, name')
+          .eq('id', personId)
+          .single();
+
+        if (person) {
+          const currentTimeline = person.timeline || [];
+          const date = new Date(interaction.occurred_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+
+          const timelineEntry = {
+            type: interaction.type === 'email_sent' ? 'email' : 'email',
+            text: interaction.type === 'email_sent'
+              ? `You emailed ${person.name.split(' ')[0]} ${interaction.subject || '(no subject)'}`
+              : `${person.name.split(' ')[0]} emailed you ${interaction.subject || '(no subject)'}`,
+            date,
+            iconColor: 'purple' as const,
+            link: interaction.subject || undefined,
+          };
+
+          // Add to timeline if not already there
+          const updatedTimeline = [timelineEntry, ...currentTimeline];
+
+          await supabase
+            .from('people')
+            .update({ timeline: updatedTimeline })
+            .eq('id', personId);
+        }
       }
     }
 
@@ -391,7 +425,7 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
       }
     }
 
-    // Now create interaction records
+    // Now create interaction records and update person timelines
     console.log(`Creating ${calendarInteractions.length} calendar interaction records`);
     let interactionCount = 0;
 
@@ -424,6 +458,38 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
             },
           });
         interactionCount++;
+
+        // Update person's timeline
+        const { data: person } = await supabase
+          .from('people')
+          .select('timeline, name')
+          .eq('id', personId)
+          .single();
+
+        if (person) {
+          const currentTimeline = person.timeline || [];
+          const date = new Date(interaction.occurred_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+
+          const timelineEntry = {
+            type: 'meeting' as const,
+            text: `You met with ${person.name.split(' ')[0]} ${interaction.subject || '(no title)'}`,
+            date,
+            iconColor: 'blue' as const,
+            link: interaction.subject || undefined,
+          };
+
+          // Add to timeline if not already there
+          const updatedTimeline = [timelineEntry, ...currentTimeline];
+
+          await supabase
+            .from('people')
+            .update({ timeline: updatedTimeline })
+            .eq('id', personId);
+        }
       }
     }
 

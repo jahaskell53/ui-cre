@@ -22,7 +22,7 @@ export function generateAuthUrl(provider: Provider, state?: string) {
     state: state || generateRandomState(),
   };
 
-  const url = nylasClient.auth.urlForOAuth2(config);
+  const url = nylasClient.auth.urlForOAuth2(config as any);
   return { url, state: config.state };
 }
 
@@ -50,7 +50,7 @@ export async function exchangeCodeForGrant(code: string) {
  */
 export async function getGrant(grantId: string): Promise<NylasGrant | null> {
   try {
-    const grant = await nylasClient.auth.grants.find({
+    const grant = await (nylasClient.auth as any).grants.find({
       grantId,
     });
 
@@ -66,7 +66,7 @@ export async function getGrant(grantId: string): Promise<NylasGrant | null> {
  */
 export async function revokeGrant(grantId: string) {
   try {
-    await nylasClient.auth.grants.destroy({
+    await (nylasClient.auth as any).grants.destroy({
       grantId,
     });
     return true;
@@ -120,7 +120,7 @@ export async function getCalendarEvents(grantId: string, limit = 200) {
         const events = await nylasClient.events.list({
           identifier: grantId,
           queryParams: {
-            calendar_id: calendar.id,
+            calendarId: calendar.id,
             limit: Math.min(eventsPerCalendar, 200),
           },
         });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +37,7 @@ const providers = [
   },
 ];
 
-export default function ConnectEmailPage() {
+function ConnectEmailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -216,5 +216,24 @@ export default function ConnectEmailPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ConnectEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+            <CardTitle className="text-2xl">Loading...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <ConnectEmailPageContent />
+    </Suspense>
   );
 }
