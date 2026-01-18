@@ -136,7 +136,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
       {/* Logo and Toggle */}
       <div className="p-4 flex items-center gap-2">
         <div className="w-6 h-6 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
-          <span className="text-white dark:text-gray-900 text-xs font-bold">OM</span>
+          {/* <span className="text-white dark:text-gray-900 text-xs font-bold">OM</span> */}
         </div>
         {!isCollapsed && (
           <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">OM</span>
