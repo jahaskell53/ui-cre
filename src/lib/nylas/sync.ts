@@ -190,44 +190,32 @@ export async function syncEmailContacts(grantId: string, userId: string) {
 
     const integrationId = integration?.id;
 
+    // First pass: Identify contacts we've emailed (from "to" addresses)
+    // This determines which contacts to include
+    const contactsWeveEmailed = new Set<string>();
+    
     for (const message of messages) {
       const date = message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString();
       const subject = message.subject || null;
 
-      // Extract from address (email received)
-      if (message.from && message.from.length > 0) {
-        const from = message.from[0];
-        const parsed = parseEmailAddress(`${from.name || ''} <${from.email}>`);
+      // Extract to addresses (email sent) - these are contacts we've emailed
+      if (message.to && message.to.length > 0) {
+        for (const to of message.to) {
+          const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
-        if (parsed.email && !isAutomatedEmail(parsed.email, message, parsed.name)) {
-          const existing = contactsMap.get(parsed.email);
-
-          contactsMap.set(parsed.email, {
-            email_address: parsed.email,
-            first_name: parsed.firstName || existing?.first_name,
-            last_name: parsed.lastName || existing?.last_name,
-            first_interaction_at: existing?.first_interaction_at
-              ? (new Date(existing.first_interaction_at) < new Date(date) ? existing.first_interaction_at : date)
-              : date,
-            last_interaction_at: existing?.last_interaction_at
-              ? (new Date(existing.last_interaction_at) > new Date(date) ? existing.last_interaction_at : date)
-              : date,
-            interaction_count: (existing?.interaction_count || 0) + 1,
-            source: 'email',
-          });
-
-          // Track email received interaction
-          emailInteractions.push({
-            email: parsed.email,
-            subject,
-            occurred_at: date,
-            type: 'email_received',
-            message_id: message.id,
-          });
+          if (parsed.email && !isAutomatedEmail(parsed.email, message, parsed.name)) {
+            contactsWeveEmailed.add(parsed.email.toLowerCase());
+          }
         }
       }
+    }
 
-      // Extract to addresses (email sent)
+    // Second pass: Process all messages and track interactions for contacts we've emailed
+    for (const message of messages) {
+      const date = message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString();
+      const subject = message.subject || null;
+
+      // Process "to" addresses (emails sent) - only for contacts we've emailed
       if (message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
@@ -258,6 +246,44 @@ export async function syncEmailContacts(grantId: string, userId: string) {
               message_id: message.id,
             });
           }
+        }
+      }
+
+      // Process "from" addresses (emails received) - only for contacts we've emailed
+      if (message.from && message.from.length > 0) {
+        const from = message.from[0];
+        const parsed = parseEmailAddress(`${from.name || ''} <${from.email}>`);
+
+        // Only process if we've emailed this contact at least once
+        if (parsed.email && 
+            !isAutomatedEmail(parsed.email, message, parsed.name) &&
+            contactsWeveEmailed.has(parsed.email.toLowerCase())) {
+          
+          const existing = contactsMap.get(parsed.email);
+
+          // Update contact info if we have better name info from received email
+          contactsMap.set(parsed.email, {
+            email_address: parsed.email,
+            first_name: parsed.firstName || existing?.first_name,
+            last_name: parsed.lastName || existing?.last_name,
+            first_interaction_at: existing?.first_interaction_at
+              ? (new Date(existing.first_interaction_at) < new Date(date) ? existing.first_interaction_at : date)
+              : date,
+            last_interaction_at: existing?.last_interaction_at
+              ? (new Date(existing.last_interaction_at) > new Date(date) ? existing.last_interaction_at : date)
+              : date,
+            interaction_count: (existing?.interaction_count || 0) + 1,
+            source: 'email',
+          });
+
+          // Track email received interaction
+          emailInteractions.push({
+            email: parsed.email,
+            subject,
+            occurred_at: date,
+            type: 'email_received',
+            message_id: message.id,
+          });
         }
       }
     }
