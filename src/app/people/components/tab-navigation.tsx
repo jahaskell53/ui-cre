@@ -35,6 +35,13 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
     setSelectedIds(new Set(people.map((p) => p.id)));
   };
 
+  // Automatically expand search bar when there's an active search query
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      setIsSearchExpanded(true);
+    }
+  }, [searchQuery]);
+
   useEffect(() => {
     if (isSearchExpanded && searchInputRef.current) {
       searchInputRef.current.focus();
