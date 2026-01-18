@@ -39,6 +39,7 @@
         "next": "^16.0.10",
         "next-themes": "^0.4.6",
         "nodemailer": "^7.0.12",
+        "nylas": "^8.0.0",
         "qr-code-styling": "^1.9.2",
         "react": "^19.2.3",
         "react-aria": "^3.44.0",
