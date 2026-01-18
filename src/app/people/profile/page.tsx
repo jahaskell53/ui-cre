@@ -10,6 +10,7 @@ import { supabase } from "@/utils/supabase";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Upload } from "lucide-react";
 import { EmailIntegrations } from "@/components/integrations/EmailIntegrations";
+import { generateAuroraGradient } from "../utils";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -145,6 +146,32 @@ export default function PeopleProfilePage() {
     }
   };
 
+  const handleRemoveAvatar = async () => {
+    setIsUploading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          avatar_url: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(null);
+      setMessage("Profile photo removed successfully!");
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to remove profile photo");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
@@ -192,7 +219,10 @@ export default function PeopleProfilePage() {
               <div className="flex items-center gap-6">
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={avatarUrl || undefined} alt={fullName || user.email || ""} />
-                  <AvatarFallback className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-lg">
+                  <AvatarFallback
+                    className="text-white text-lg font-medium"
+                    style={{ background: generateAuroraGradient(fullName || user.email || "User") }}
+                  >
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -220,7 +250,7 @@ export default function PeopleProfilePage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setAvatarUrl(null)}
+                        onClick={handleRemoveAvatar}
                         disabled={isUploading}
                       >
                         Remove

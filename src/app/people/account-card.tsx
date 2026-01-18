@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { ChevronDown, User, Settings, LogOut } from "lucide-react";
+import { generateAuroraGradient } from "./utils";
 
 export default function AccountCard() {
   const router = useRouter();
@@ -63,7 +64,10 @@ export default function AccountCard() {
                   <div className="flex items-center gap-3 w-full">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={avatarUrl} alt={displayName} />
-                      <AvatarFallback className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs">
+                      <AvatarFallback
+                        className="text-white text-xs font-medium"
+                        style={{ background: generateAuroraGradient(displayName) }}
+                      >
                         {initials}
                       </AvatarFallback>
                     </Avatar>
