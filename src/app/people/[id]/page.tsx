@@ -613,9 +613,11 @@ export default function PersonDetailPage() {
             <div>
               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{person.name}</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
-                  AUTO
-                </Badge>
+                {person.timeline && person.timeline.some(item => item.type === 'email') && (
+                  <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                    AUTO
+                  </Badge>
+                )}
                 {person.category && (
                   <Badge variant="secondary" className="text-xs font-medium px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                     {person.category}

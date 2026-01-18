@@ -106,6 +106,12 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
+  // Check if person was imported via mail (has email interactions in timeline)
+  const isImportedViaMail = (person: Person | null): boolean => {
+    if (!person || !person.timeline) return false;
+    return person.timeline.some(item => item.type === 'email');
+  };
+
   // Format the sources text
   const formatSourcesText = (person: Person) => {
     const firstName = person.name.split(" ")[0];
@@ -189,12 +195,14 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                   {selectedPerson.name}
                 </h2>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <Badge
-                    variant="secondary"
-                    className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                  >
-                    AUTO
-                  </Badge>
+                  {isImportedViaMail(selectedPerson) && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    >
+                      AUTO
+                    </Badge>
+                  )}
                   {selectedPerson.category && (
                     <Badge
                       variant="secondary"
