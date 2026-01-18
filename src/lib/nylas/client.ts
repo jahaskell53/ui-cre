@@ -79,12 +79,15 @@ export async function revokeGrant(grantId: string) {
 /**
  * Get messages from a grant (for contact extraction)
  */
-export async function getMessages(grantId: string, limit = 100) {
+export async function getMessages(grantId: string, limit = 200) {
   try {
+    // Nylas API limit is max 200 per request
+    const actualLimit = Math.min(limit, 200);
+
     const messages = await nylasClient.messages.list({
       identifier: grantId,
       queryParams: {
-        limit,
+        limit: actualLimit,
       },
     });
 
@@ -98,16 +101,43 @@ export async function getMessages(grantId: string, limit = 100) {
 /**
  * Get calendar events from a grant (for contact extraction)
  */
-export async function getCalendarEvents(grantId: string, limit = 100) {
+export async function getCalendarEvents(grantId: string, limit = 200) {
   try {
-    const events = await nylasClient.events.list({
-      identifier: grantId,
-      queryParams: {
-        limit,
-      },
-    });
+    // First get all calendars
+    const calendars = await getCalendars(grantId);
 
-    return events.data;
+    if (calendars.length === 0) {
+      console.log('No calendars found for grant');
+      return [];
+    }
+
+    // Fetch events from each calendar
+    const allEvents: any[] = [];
+    const eventsPerCalendar = Math.ceil(limit / calendars.length);
+
+    for (const calendar of calendars) {
+      try {
+        const events = await nylasClient.events.list({
+          identifier: grantId,
+          queryParams: {
+            calendar_id: calendar.id,
+            limit: Math.min(eventsPerCalendar, 200),
+          },
+        });
+
+        allEvents.push(...events.data);
+
+        // Stop if we've reached the limit
+        if (allEvents.length >= limit) {
+          break;
+        }
+      } catch (err) {
+        console.error(`Error fetching events from calendar ${calendar.id}:`, err);
+        continue;
+      }
+    }
+
+    return allEvents.slice(0, limit);
   } catch (error) {
     console.error('Error fetching calendar events:', error);
     return [];
