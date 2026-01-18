@@ -566,12 +566,6 @@ export default function PersonDetailPage() {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
-              <ClockIcon className="w-5 h-5" />
-            </button>
-            <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
-              <TargetIcon className="w-5 h-5" />
-            </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
