@@ -28,6 +28,110 @@ interface CalendarInteraction {
 }
 
 /**
+ * Check if an email is likely automated/mass email vs human email
+ */
+function isAutomatedEmail(email: string, message?: any, name?: string): boolean {
+  const emailLower = email.toLowerCase();
+  const nameLower = name?.toLowerCase() || '';
+  
+  // Check display name for "Do Not Reply" and similar patterns
+  const namePatterns = [
+    'do not reply', 'don\'t reply', 'do not respond',
+    'don\'t respond', 'no reply', 'no response',
+    'automated', 'automatic', 'system', 'notification',
+    'mailer', 'unsubscribe',
+  ];
+  
+  if (nameLower && namePatterns.some(pattern => nameLower.includes(pattern))) {
+    return true;
+  }
+  
+  // Common automated email patterns
+  const automatedPatterns = [
+    'noreply', 'no-reply', 'donotreply', 'do-not-reply',
+    'no_reply', 'donotreply', 'automated', 'automatic',
+    'mailer', 'mailer-daemon', 'postmaster', 'daemon',
+    'notification', 'notifications', 'alerts', 'alert',
+    'system', 'systems', 'service', 'services',
+    'bounce', 'bounces', 'unsubscribe', 'unsub',
+  ];
+  
+  // Check if email contains automated patterns
+  if (automatedPatterns.some(pattern => emailLower.includes(pattern))) {
+    return true;
+  }
+  
+  // Role-based email addresses (common for automated/mass emails)
+  const roleBasedPrefixes = [
+    'info@', 'support@', 'sales@', 'marketing@', 'newsletter@',
+    'news@', 'updates@', 'updates@', 'team@', 'hello@',
+    'contact@', 'help@', 'admin@', 'administrator@',
+    'webmaster@', 'abuse@', 'security@', 'privacy@',
+  ];
+  
+  if (roleBasedPrefixes.some(prefix => emailLower.startsWith(prefix))) {
+    return true;
+  }
+  
+  // Check email headers if available (Nylas may provide these)
+  if (message?.headers) {
+    const headers = message.headers;
+    
+    // Check for List-Unsubscribe header (indicates marketing/newsletter)
+    if (headers['list-unsubscribe'] || headers['List-Unsubscribe']) {
+      return true;
+    }
+    
+    // Check for bulk email indicators
+    if (headers['precedence']?.toLowerCase() === 'bulk' ||
+        headers['Precedence']?.toLowerCase() === 'bulk') {
+      return true;
+    }
+    
+    // Check for auto-submitted header
+    if (headers['auto-submitted'] || headers['Auto-Submitted']) {
+      const autoSubmitted = (headers['auto-submitted'] || headers['Auto-Submitted']).toLowerCase();
+      if (autoSubmitted !== 'no') {
+        return true;
+      }
+    }
+    
+    // Check for X-Auto-Response header
+    if (headers['x-auto-response'] || headers['X-Auto-Response']) {
+      return true;
+    }
+  }
+  
+  // Check for common disposable email domains
+  const disposableDomains = [
+    'mailinator.com', 'guerrillamail.com', '10minutemail.com',
+    'tempmail.com', 'throwaway.email', 'getnada.com',
+  ];
+  
+  const domain = emailLower.split('@')[1];
+  if (domain && disposableDomains.some(d => domain.includes(d))) {
+    return true;
+  }
+  
+  // Check for common newsletter/marketing platform domains
+  const newsletterDomains = [
+    'substack.com', 'mailchimp.com', 'constantcontact.com',
+    'campaignmonitor.com', 'sendgrid.com', 'mailgun.com',
+    'sendinblue.com', 'getresponse.com', 'aweber.com',
+    'convertkit.com', 'drip.com', 'activecampaign.com',
+    'hubspot.com', 'marketo.com', 'pardot.com',
+    'mailjet.com', 'sparkpost.com', 'postmarkapp.com',
+    'mandrill.com', 'pepipost.com', 'postal.io',
+  ];
+  
+  if (domain && newsletterDomains.some(d => domain.includes(d))) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Parse email address and extract name components
  */
 function parseEmailAddress(emailString: string): {
@@ -95,7 +199,7 @@ export async function syncEmailContacts(grantId: string, userId: string) {
         const from = message.from[0];
         const parsed = parseEmailAddress(`${from.name || ''} <${from.email}>`);
 
-        if (parsed.email && !parsed.email.includes('noreply')) {
+        if (parsed.email && !isAutomatedEmail(parsed.email, message, parsed.name)) {
           const existing = contactsMap.get(parsed.email);
 
           contactsMap.set(parsed.email, {
@@ -128,7 +232,7 @@ export async function syncEmailContacts(grantId: string, userId: string) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
-          if (parsed.email && !parsed.email.includes('noreply')) {
+          if (parsed.email && !isAutomatedEmail(parsed.email, message, parsed.name)) {
             const existing = contactsMap.get(parsed.email);
 
             contactsMap.set(parsed.email, {
@@ -315,7 +419,7 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
       // Extract participants
       if (event.participants && event.participants.length > 0) {
         for (const participant of event.participants) {
-          if (!participant.email || participant.email.includes('noreply')) {
+          if (!participant.email || isAutomatedEmail(participant.email, undefined, participant.name)) {
             continue;
           }
 
@@ -348,7 +452,7 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
       }
 
       // Extract organizer
-      if (event.organizer?.email && !event.organizer.email.includes('noreply')) {
+      if (event.organizer?.email && !isAutomatedEmail(event.organizer.email, undefined, event.organizer.name)) {
         const parsed = parseEmailAddress(`${event.organizer.name || ''} <${event.organizer.email}>`);
         const existing = contactsMap.get(parsed.email);
 
