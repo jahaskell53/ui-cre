@@ -11,6 +11,22 @@ interface Contact {
   source?: string;
 }
 
+interface EmailInteraction {
+  email: string;
+  subject: string | null;
+  occurred_at: string;
+  type: 'email_sent' | 'email_received';
+  message_id: string;
+}
+
+interface CalendarInteraction {
+  email: string;
+  subject: string | null;
+  occurred_at: string;
+  event_id: string;
+  calendar_id: string;
+}
+
 /**
  * Parse email address and extract name components
  */
@@ -55,12 +71,26 @@ export async function syncEmailContacts(grantId: string, userId: string) {
     console.log(`Starting email sync for grant ${grantId}`);
 
     const messages = await getMessages(grantId, 200);
+    console.log(`Fetched ${messages.length} messages from Nylas`);
+
     const contactsMap = new Map<string, Contact>();
+    const emailInteractions: EmailInteraction[] = [];
+
+    // Get integration ID for tracking
+    const supabase = createAdminClient();
+    const { data: integration } = await supabase
+      .from('integrations')
+      .select('id')
+      .eq('nylas_grant_id', grantId)
+      .single();
+
+    const integrationId = integration?.id;
 
     for (const message of messages) {
       const date = message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString();
+      const subject = message.subject || null;
 
-      // Extract from address
+      // Extract from address (email received)
       if (message.from && message.from.length > 0) {
         const from = message.from[0];
         const parsed = parseEmailAddress(`${from.name || ''} <${from.email}>`);
@@ -81,10 +111,19 @@ export async function syncEmailContacts(grantId: string, userId: string) {
             interaction_count: (existing?.interaction_count || 0) + 1,
             source: 'email',
           });
+
+          // Track email received interaction
+          emailInteractions.push({
+            email: parsed.email,
+            subject,
+            occurred_at: date,
+            type: 'email_received',
+            message_id: message.id,
+          });
         }
       }
 
-      // Extract to addresses
+      // Extract to addresses (email sent)
       if (message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
@@ -105,14 +144,25 @@ export async function syncEmailContacts(grantId: string, userId: string) {
               interaction_count: (existing?.interaction_count || 0) + 1,
               source: 'email',
             });
+
+            // Track email sent interaction
+            emailInteractions.push({
+              email: parsed.email,
+              subject,
+              occurred_at: date,
+              type: 'email_sent',
+              message_id: message.id,
+            });
           }
         }
       }
     }
 
-    // Store contacts in database
-    const supabase = createAdminClient();
+    // Store contacts in database and get their IDs
     const contacts = Array.from(contactsMap.values());
+    console.log(`Extracted ${contacts.length} unique contacts from emails`);
+
+    const emailToPerson = new Map<string, string>(); // email -> person_id
 
     for (const contact of contacts) {
       // Try to upsert to people table - insert if new, update if exists
@@ -134,9 +184,11 @@ export async function syncEmailContacts(grantId: string, userId: string) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', existing.id);
+
+        emailToPerson.set(contact.email_address, existing.id);
       } else {
         // Insert new person
-        await supabase
+        const { data: newPerson } = await supabase
           .from('people')
           .insert({
             user_id: userId,
@@ -146,11 +198,50 @@ export async function syncEmailContacts(grantId: string, userId: string) {
             email: contact.email_address,
             starred: false,
             signal: false,
-          });
+          })
+          .select('id')
+          .single();
+
+        if (newPerson) {
+          emailToPerson.set(contact.email_address, newPerson.id);
+        }
       }
     }
 
-    console.log(`Email sync complete: ${contacts.length} contacts processed`);
+    // Now create interaction records
+    console.log(`Creating ${emailInteractions.length} interaction records`);
+    let interactionCount = 0;
+
+    for (const interaction of emailInteractions) {
+      const personId = emailToPerson.get(interaction.email);
+      if (!personId) continue;
+
+      // Check if interaction already exists (avoid duplicates on re-sync)
+      const { data: existingInteraction } = await supabase
+        .from('interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('person_id', personId)
+        .eq('metadata->>message_id', interaction.message_id)
+        .single();
+
+      if (!existingInteraction) {
+        await supabase
+          .from('interactions')
+          .insert({
+            user_id: userId,
+            person_id: personId,
+            integration_id: integrationId,
+            interaction_type: interaction.type,
+            subject: interaction.subject,
+            occurred_at: interaction.occurred_at,
+            metadata: { message_id: interaction.message_id },
+          });
+        interactionCount++;
+      }
+    }
+
+    console.log(`Email sync complete: ${contacts.length} contacts processed, ${interactionCount} new interactions recorded`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing email contacts:', error);
@@ -166,12 +257,26 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
     console.log(`Starting calendar sync for grant ${grantId}`);
 
     const events = await getCalendarEvents(grantId, 200);
+    console.log(`Fetched ${events.length} calendar events from Nylas`);
+
     const contactsMap = new Map<string, Contact>();
+    const calendarInteractions: CalendarInteraction[] = [];
+
+    // Get integration ID for tracking
+    const supabase = createAdminClient();
+    const { data: integration } = await supabase
+      .from('integrations')
+      .select('id')
+      .eq('nylas_grant_id', grantId)
+      .single();
+
+    const integrationId = integration?.id;
 
     for (const event of events) {
       const date = event.when?.startTime
         ? new Date(event.when.startTime * 1000).toISOString()
         : new Date().toISOString();
+      const subject = event.title || null;
 
       // Extract participants
       if (event.participants && event.participants.length > 0) {
@@ -196,6 +301,15 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
             interaction_count: (existing?.interaction_count || 0) + 1,
             source: existing?.source === 'email' ? 'email' : 'calendar',
           });
+
+          // Track calendar meeting interaction
+          calendarInteractions.push({
+            email: parsed.email,
+            subject,
+            occurred_at: date,
+            event_id: event.id,
+            calendar_id: event.calendarId || '',
+          });
         }
       }
 
@@ -217,12 +331,21 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
           interaction_count: (existing?.interaction_count || 0) + 1,
           source: existing?.source === 'email' ? 'email' : 'calendar',
         });
+
+        // Track calendar meeting interaction for organizer too
+        calendarInteractions.push({
+          email: parsed.email,
+          subject,
+          occurred_at: date,
+          event_id: event.id,
+          calendar_id: event.calendarId || '',
+        });
       }
     }
 
-    // Store contacts in database
-    const supabase = createAdminClient();
+    // Store contacts in database and get their IDs
     const contacts = Array.from(contactsMap.values());
+    const emailToPerson = new Map<string, string>(); // email -> person_id
 
     for (const contact of contacts) {
       // Try to upsert to people table - insert if new, update if exists
@@ -244,9 +367,11 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', existing.id);
+
+        emailToPerson.set(contact.email_address, existing.id);
       } else {
         // Insert new person
-        await supabase
+        const { data: newPerson } = await supabase
           .from('people')
           .insert({
             user_id: userId,
@@ -256,11 +381,53 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
             email: contact.email_address,
             starred: false,
             signal: false,
-          });
+          })
+          .select('id')
+          .single();
+
+        if (newPerson) {
+          emailToPerson.set(contact.email_address, newPerson.id);
+        }
       }
     }
 
-    console.log(`Calendar sync complete: ${contacts.length} contacts processed`);
+    // Now create interaction records
+    console.log(`Creating ${calendarInteractions.length} calendar interaction records`);
+    let interactionCount = 0;
+
+    for (const interaction of calendarInteractions) {
+      const personId = emailToPerson.get(interaction.email);
+      if (!personId) continue;
+
+      // Check if interaction already exists (avoid duplicates on re-sync)
+      const { data: existingInteraction } = await supabase
+        .from('interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('person_id', personId)
+        .eq('metadata->>event_id', interaction.event_id)
+        .single();
+
+      if (!existingInteraction) {
+        await supabase
+          .from('interactions')
+          .insert({
+            user_id: userId,
+            person_id: personId,
+            integration_id: integrationId,
+            interaction_type: 'calendar_meeting',
+            subject: interaction.subject,
+            occurred_at: interaction.occurred_at,
+            metadata: {
+              event_id: interaction.event_id,
+              calendar_id: interaction.calendar_id,
+            },
+          });
+        interactionCount++;
+      }
+    }
+
+    console.log(`Calendar sync complete: ${contacts.length} contacts processed, ${interactionCount} new interactions recorded`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing calendar contacts:', error);
