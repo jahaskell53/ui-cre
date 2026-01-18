@@ -186,26 +186,33 @@ export async function syncEmailContacts(grantId: string, userId: string) {
     const contactsMap = new Map<string, Contact>();
     const emailInteractions: EmailInteraction[] = [];
 
-    // Get integration ID for tracking
+    // Get integration ID and user email for tracking
     const supabase = createAdminClient();
     const { data: integration } = await supabase
       .from('integrations')
-      .select('id')
+      .select('id, email_address')
       .eq('nylas_grant_id', grantId)
       .single();
 
     const integrationId = integration?.id;
+    const userEmail = integration?.email_address?.toLowerCase();
+
+    if (!userEmail) {
+      console.error('No email address found for integration');
+      return 0;
+    }
 
     // First pass: Identify contacts we've emailed (from "to" addresses)
     // This determines which contacts to include
     const contactsWeveEmailed = new Set<string>();
-    
-    for (const message of messages) {
-      const date = message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString();
-      const subject = message.subject || null;
 
-      // Extract to addresses (email sent) - these are contacts we've emailed
-      if (message.to && message.to.length > 0) {
+    for (const message of messages) {
+      // Check if THIS message was sent by the user
+      const senderEmail = message.from?.[0]?.email?.toLowerCase();
+      const isSentByUser = senderEmail === userEmail;
+
+      // Extract to addresses (email sent) - only for emails the USER sent
+      if (isSentByUser && message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
@@ -220,9 +227,11 @@ export async function syncEmailContacts(grantId: string, userId: string) {
     for (const message of messages) {
       const date = message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString();
       const subject = message.subject || null;
+      const senderEmail = message.from?.[0]?.email?.toLowerCase();
+      const isSentByUser = senderEmail === userEmail;
 
-      // Process "to" addresses (emails sent) - only for contacts we've emailed
-      if (message.to && message.to.length > 0) {
+      // Case 1: User SENT this email
+      if (isSentByUser && message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
@@ -255,16 +264,16 @@ export async function syncEmailContacts(grantId: string, userId: string) {
         }
       }
 
-      // Process "from" addresses (emails received) - only for contacts we've emailed
-      if (message.from && message.from.length > 0) {
+      // Case 2: User RECEIVED this email (from someone we've emailed before)
+      if (!isSentByUser && message.from && message.from.length > 0) {
         const from = message.from[0];
         const parsed = parseEmailAddress(`${from.name || ''} <${from.email}>`);
 
         // Only process if we've emailed this contact at least once
-        if (parsed.email && 
+        if (parsed.email &&
             !isAutomatedEmail(parsed.email, message, parsed.name) &&
             contactsWeveEmailed.has(parsed.email.toLowerCase())) {
-          
+
           const existing = contactsMap.get(parsed.email);
 
           // Update contact info if we have better name info from received email
