@@ -30,6 +30,10 @@ export interface Person {
   timeline?: TimelineItem[];
   bio: string | null;
   birthday: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline, bio, birthday } = body;
+        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline, bio, birthday, linkedin_url, twitter_url, instagram_url, facebook_url } = body;
 
         if (!name || typeof name !== "string" || name.trim().length === 0) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -136,6 +136,10 @@ export async function POST(request: NextRequest) {
                 timeline: timeline || [],
                 bio: bio?.trim() || null,
                 birthday: birthday || null,
+                linkedin_url: linkedin_url?.trim() || null,
+                twitter_url: twitter_url?.trim() || null,
+                instagram_url: instagram_url?.trim() || null,
+                facebook_url: facebook_url?.trim() || null,
             })
             .select()
             .single();
@@ -171,7 +175,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline, bio, birthday } = body;
+        const { name, starred, email, phone, category, signal, address, owned_addresses, timeline, bio, birthday, linkedin_url, twitter_url, instagram_url, facebook_url } = body;
 
         // Build update object - only include fields that are provided
         const updateData: any = {};
@@ -208,6 +212,10 @@ export async function PUT(request: NextRequest) {
         if (timeline !== undefined) updateData.timeline = timeline;
         if (bio !== undefined) updateData.bio = bio?.trim() || null;
         if (birthday !== undefined) updateData.birthday = birthday || null;
+        if (linkedin_url !== undefined) updateData.linkedin_url = linkedin_url?.trim() || null;
+        if (twitter_url !== undefined) updateData.twitter_url = twitter_url?.trim() || null;
+        if (instagram_url !== undefined) updateData.instagram_url = instagram_url?.trim() || null;
+        if (facebook_url !== undefined) updateData.facebook_url = facebook_url?.trim() || null;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });

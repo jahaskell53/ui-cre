@@ -821,7 +821,68 @@ export default function PersonDetailPage() {
                   </div>
                 )}
                 
-                {!person.bio && (
+                {/* Social Media Section */}
+                {(person.linkedin_url || person.twitter_url || person.instagram_url || person.facebook_url) && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Social Media</h3>
+                    <div className="space-y-2">
+                      {person.linkedin_url && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[80px]">LinkedIn</span>
+                          <a 
+                            href={person.linkedin_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {person.linkedin_url}
+                          </a>
+                        </div>
+                      )}
+                      {person.twitter_url && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[80px]">Twitter/X</span>
+                          <a 
+                            href={person.twitter_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {person.twitter_url}
+                          </a>
+                        </div>
+                      )}
+                      {person.instagram_url && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[80px]">Instagram</span>
+                          <a 
+                            href={`https://instagram.com/${person.instagram_url}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            @{person.instagram_url}
+                          </a>
+                        </div>
+                      )}
+                      {person.facebook_url && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[80px]">Facebook</span>
+                          <a 
+                            href={person.facebook_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {person.facebook_url}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {!person.bio && !person.linkedin_url && !person.twitter_url && !person.instagram_url && !person.facebook_url && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">No information available.</p>
                 )}
               </div>

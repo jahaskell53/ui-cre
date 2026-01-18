@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddressInput } from "@/components/ui/address-input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { generateAuroraGradient, getInitials } from "../../utils";
 import type { Person } from "../../types";
 
@@ -32,6 +33,7 @@ export default function EditPersonPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("details");
 
   // Form state
   const [name, setName] = useState("");
@@ -43,6 +45,10 @@ export default function EditPersonPage() {
   const [newOwnedAddress, setNewOwnedAddress] = useState("");
   const [bio, setBio] = useState("");
   const [birthday, setBirthday] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
 
   const personId = params.id as string;
 
@@ -64,6 +70,10 @@ export default function EditPersonPage() {
         setOwnedAddresses(data.owned_addresses || []);
         setBio(data.bio || "");
         setBirthday(data.birthday || "");
+        setLinkedinUrl(data.linkedin_url || "");
+        setTwitterUrl(data.twitter_url || "");
+        setInstagramUrl(data.instagram_url ? `@${data.instagram_url}` : "");
+        setFacebookUrl(data.facebook_url || "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load person");
       } finally {
@@ -113,6 +123,10 @@ export default function EditPersonPage() {
           owned_addresses: ownedAddresses,
           bio: bio.trim() || null,
           birthday: birthday || null,
+          linkedin_url: linkedinUrl.trim() || null,
+          twitter_url: twitterUrl.trim() || null,
+          instagram_url: instagramUrl.trim() ? (instagramUrl.trim().startsWith('@') ? instagramUrl.trim().substring(1) : instagramUrl.trim()) : null,
+          facebook_url: facebookUrl.trim() || null,
         }),
       });
 
@@ -197,8 +211,27 @@ export default function EditPersonPage() {
               </div>
             )}
 
-            {/* Form Fields */}
-            <div className="space-y-6">
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <div className="mb-6 border-b border-gray-200 dark:border-gray-800">
+                <TabsList className="bg-transparent h-auto p-0 space-x-6">
+                  <TabsTrigger 
+                    value="details"
+                    className="bg-transparent px-0 py-2 text-sm font-medium data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 border-b-2 border-transparent data-[state=active]:border-blue-600 dark:data-[state=active]:border-blue-400 rounded-none"
+                  >
+                    Details
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="social"
+                    className="bg-transparent px-0 py-2 text-sm font-medium data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 border-b-2 border-transparent data-[state=active]:border-blue-600 dark:data-[state=active]:border-blue-400 rounded-none"
+                  >
+                    Social
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Details Tab */}
+              <TabsContent value="details" className="space-y-6 mt-0">
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -343,7 +376,67 @@ export default function EditPersonPage() {
                   </div>
                 </div>
               </div>
-            </div>
+              </TabsContent>
+
+              {/* Social Tab */}
+              <TabsContent value="social" className="space-y-4 mt-0">
+                {/* LinkedIn */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    LinkedIn
+                  </label>
+                  <Input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="https://linkedin.com/in/username"
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Twitter/X */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Twitter/X
+                  </label>
+                  <Input
+                    type="url"
+                    value={twitterUrl}
+                    onChange={(e) => setTwitterUrl(e.target.value)}
+                    placeholder="https://twitter.com/username"
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Instagram */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Instagram
+                  </label>
+                  <Input
+                    type="text"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    placeholder="@username"
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Facebook */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Facebook
+                  </label>
+                  <Input
+                    type="url"
+                    value={facebookUrl}
+                    onChange={(e) => setFacebookUrl(e.target.value)}
+                    placeholder="https://facebook.com/username"
+                    className="w-full"
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
 
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-gray-800">
