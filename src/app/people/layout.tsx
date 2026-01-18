@@ -122,6 +122,22 @@ export default function PeopleLayout({
     setIsDragging(true);
   };
 
+  const handlePeopleIconClick = () => {
+    // Check if we're already on a people route
+    const isOnPeopleRoute = pathname?.startsWith("/people");
+    
+    if (isOnPeopleRoute) {
+      // Reset to default view
+      setSearchQuery("");
+      setShowStarredOnly(false);
+      setSelectedPerson(null);
+      router.push("/people");
+    } else {
+      // Navigate to people page
+      router.push("/people");
+    }
+  };
+
   // Show nothing while checking authentication
   if (authLoading || !user) {
     return null;
@@ -152,6 +168,7 @@ export default function PeopleLayout({
           onToggleStarred={() => setShowStarredOnly(!showStarredOnly)}
           onSelectPerson={setSelectedPerson}
           onSearchChange={setSearchQuery}
+          onPeopleIconClick={handlePeopleIconClick}
         />
 
         {/* Main Content */}

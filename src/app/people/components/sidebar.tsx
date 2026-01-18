@@ -16,6 +16,7 @@ interface SidebarProps {
   onToggleStarred: () => void;
   onSelectPerson: (person: Person | null) => void;
   onSearchChange: (query: string) => void;
+  onPeopleIconClick: () => void;
 }
 
 export interface SidebarRef {
@@ -30,6 +31,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
   onToggleStarred,
   onSelectPerson,
   onSearchChange,
+  onPeopleIconClick,
 }, ref) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,7 +96,10 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
           <HomeIcon className="w-4 h-4" />
           <span className="text-sm">Home</span>
         </div>
-        <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100">
+        <div 
+          onClick={onPeopleIconClick}
+          className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-gray-100 dark:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
+        >
           <PeopleIcon className="w-4 h-4" />
           <span className="text-sm font-medium">People</span>
         </div>
