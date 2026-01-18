@@ -257,6 +257,7 @@ export default function PersonDetailPage() {
   const [panelWidth, setPanelWidth] = useState(280);
   const [isDragging, setIsDragging] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const [timelineFilter, setTimelineFilter] = useState<'all' | 'meeting' | 'email' | 'note'>('all');
 
   const personId = params.id as string;
 
@@ -498,13 +499,18 @@ export default function PersonDetailPage() {
   const firstName = nameParts[0] || "Person";
 
   const savedTimeline = person.timeline || [];
-  const displayTimeline: ExtendedTimelineItem[] = savedTimeline.length > 0 ? savedTimeline as ExtendedTimelineItem[] : [
+  const allTimeline: ExtendedTimelineItem[] = savedTimeline.length > 0 ? savedTimeline as ExtendedTimelineItem[] : [
     { type: 'import', text: `${firstName} imported via Calendar`, date: '1d', iconColor: 'blue' },
     { type: 'meeting', text: `You met with ${firstName} Greenpoint <> Capitalize`, date: '28d', iconColor: 'blue', link: 'Greenpoint <> Capitalize' },
     { type: 'email', text: `You emailed ${firstName} Re: Follow-up`, date: 'Nov 21 2025', iconColor: 'purple', link: 'Re: Follow-up' },
     { type: 'meeting', text: `You met with ${firstName} Reconnect`, date: 'Nov 7 2025', iconColor: 'blue', link: 'Reconnect' },
     { type: 'email', text: `You emailed ${firstName} Re: Follow-up`, date: 'Nov 5 2025', iconColor: 'purple', link: 'Re: Follow-up' },
   ];
+
+  // Filter timeline based on selected filter
+  const displayTimeline = timelineFilter === 'all' 
+    ? allTimeline 
+    : allTimeline.filter(item => item.type === timelineFilter);
 
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900">
@@ -710,10 +716,52 @@ export default function PersonDetailPage() {
                   About
                 </TabsTrigger>
               </TabsList>
-              <button className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                <FilterIcon className="w-4 h-4" />
-                <span>FILTER</span>
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                    <FilterIcon className="w-4 h-4" />
+                    <span>FILTER</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() => setTimelineFilter('all')}
+                    className={cn(
+                      "cursor-pointer",
+                      timelineFilter === 'all' && "bg-gray-100 dark:bg-gray-800"
+                    )}
+                  >
+                    All
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setTimelineFilter('meeting')}
+                    className={cn(
+                      "cursor-pointer",
+                      timelineFilter === 'meeting' && "bg-gray-100 dark:bg-gray-800"
+                    )}
+                  >
+                    Calendar Events
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setTimelineFilter('email')}
+                    className={cn(
+                      "cursor-pointer",
+                      timelineFilter === 'email' && "bg-gray-100 dark:bg-gray-800"
+                    )}
+                  >
+                    Emails
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setTimelineFilter('note')}
+                    className={cn(
+                      "cursor-pointer",
+                      timelineFilter === 'note' && "bg-gray-100 dark:bg-gray-800"
+                    )}
+                  >
+                    Notes
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
