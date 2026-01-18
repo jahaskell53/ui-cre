@@ -109,7 +109,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
       <div className="px-3 py-4">
         <div className="flex items-center justify-between px-2 mb-2">
           <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Groups</span>
-          <PlusIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300" />
         </div>
         <div
           onClick={handleToggleStarred}
