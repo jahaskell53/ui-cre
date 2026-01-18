@@ -100,41 +100,43 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
             );
           })}
         </div>
-        <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
-                <span>
-                  {sortBy === 'recency' ? 'Recency' : 
-                   sortBy === 'alphabetical' ? 'Alphabetical' : 
-                   'Network Strength'}
-                </span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuRadioGroup value={sortBy} onValueChange={(value) => onSortChange(value as SortBy)}>
-                <DropdownMenuRadioItem value="recency">Recency</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="alphabetical">Alphabetical</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="network-strength">Network Strength</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onReverseChange(!reverse)}>
-                <SortIcon className={cn("w-4 h-4 mr-2", reverse && "rotate-180")} />
-                {reverse ? 'Ascending' : 'Descending'}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            onClick={handleSelectAll}
-            className="p-0 border-0 bg-transparent cursor-pointer hover:opacity-70 transition-opacity"
-            aria-label="Select all contacts"
-          >
-            <CheckIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-          </button>
-        </div>
+        {pathname === "/people" && (
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
+                  <span>
+                    {sortBy === 'recency' ? 'Recency' : 
+                     sortBy === 'alphabetical' ? 'Alphabetical' : 
+                     'Network Strength'}
+                  </span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuRadioGroup value={sortBy} onValueChange={(value) => onSortChange(value as SortBy)}>
+                  <DropdownMenuRadioItem value="recency">Recency</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="alphabetical">Alphabetical</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="network-strength">Network Strength</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onReverseChange(!reverse)}>
+                  <SortIcon className={cn("w-4 h-4 mr-2", reverse && "rotate-180")} />
+                  {reverse ? 'Ascending' : 'Descending'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              onClick={handleSelectAll}
+              className="p-0 border-0 bg-transparent cursor-pointer hover:opacity-70 transition-opacity"
+              aria-label="Select all contacts"
+            >
+              <CheckIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
