@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { StarIcon, MailIcon } from "../icons";
@@ -75,7 +74,6 @@ export function PeopleList({
                   selectedPerson?.id === person.id && "bg-gray-50 dark:bg-gray-800"
                 )}
               >
-                <Checkbox className="mr-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-900 dark:text-gray-100 truncate">
