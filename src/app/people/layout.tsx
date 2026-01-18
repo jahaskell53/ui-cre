@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Sidebar, type SidebarRef } from "./components/sidebar";
 import { DetailPanel } from "./components/detail-panel";
 import { TabNavigation } from "./components/tab-navigation";
-import { PeopleProvider } from "./people-context";
+import { PeopleProvider, type SortBy } from "./people-context";
 import { useUser } from "@/hooks/use-user";
 import type { Person } from "./types";
 
@@ -25,6 +25,8 @@ export default function PeopleLayout({
   const resizeRef = useRef<HTMLDivElement>(null);
   const [showStarredOnly, setShowStarredOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortBy>('recency');
+  const [reverse, setReverse] = useState(false);
   const sidebarRef = useRef<SidebarRef>(null);
 
   // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
@@ -154,6 +156,10 @@ export default function PeopleLayout({
         setShowStarredOnly,
         searchQuery,
         setSearchQuery,
+        sortBy,
+        setSortBy,
+        reverse,
+        setReverse,
       }}
     >
       <div className="flex h-screen bg-white dark:bg-gray-900">
@@ -172,7 +178,7 @@ export default function PeopleLayout({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white dark:bg-gray-900">
-          {!shouldHideTabs && <TabNavigation />}
+          {!shouldHideTabs && <TabNavigation sortBy={sortBy} reverse={reverse} onSortChange={setSortBy} onReverseChange={setReverse} />}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {children}
           </div>

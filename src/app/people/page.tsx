@@ -14,6 +14,8 @@ export default function PeoplePage() {
     loading,
     showStarredOnly,
     searchQuery,
+    sortBy,
+    reverse,
   } = usePeople();
 
   const handleToggleStar = useMemo(
@@ -21,8 +23,26 @@ export default function PeoplePage() {
     [people, setPeople, selectedPerson, setSelectedPerson, showStarredOnly]
   );
 
+  // Sort people based on sortBy and reverse
+  const sortedPeople = useMemo(() => {
+    const sorted = [...people].sort((a, b) => {
+      if (sortBy === 'recency') {
+        const aDate = a.updated_at || a.created_at || '';
+        const bDate = b.updated_at || b.created_at || '';
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      } else {
+        // alphabetical
+        const aName = (a.name || '').toLowerCase();
+        const bName = (b.name || '').toLowerCase();
+        return aName.localeCompare(bName);
+      }
+    });
+
+    return reverse ? sorted.reverse() : sorted;
+  }, [people, sortBy, reverse]);
+
   // Filter people based on search query and starred filter
-  const filteredPeople = people.filter((person) => {
+  const filteredPeople = sortedPeople.filter((person) => {
     // Apply starred filter
     if (showStarredOnly && !person.starred) {
       return false;
