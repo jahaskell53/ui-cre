@@ -157,6 +157,14 @@ function MailIcon({ className }: { className?: string }) {
   );
 }
 
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  );
+}
+
 function EmojiIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -515,9 +523,43 @@ export default function PersonDetailPage() {
             <button className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800">
               INVITE
             </button>
-            <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
-              <MessageIcon className="w-5 h-5" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
+                  <MessageIcon className="w-5 h-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <div className="px-2 py-1.5">
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Contact Information
+                  </div>
+                </div>
+                {person.email && (
+                  <DropdownMenuItem
+                    onClick={() => window.open(`mailto:${person.email}`, '_blank', 'noopener,noreferrer')}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <MailIcon className="w-4 h-4" />
+                    <span className="text-sm truncate">{person.email}</span>
+                  </DropdownMenuItem>
+                )}
+                {person.phone && (
+                  <DropdownMenuItem
+                    onClick={() => window.location.href = `tel:${person.phone}`}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <PhoneIcon className="w-4 h-4" />
+                    <span className="text-sm truncate">{person.phone}</span>
+                  </DropdownMenuItem>
+                )}
+                {!person.email && !person.phone && (
+                  <DropdownMenuItem disabled className="text-gray-400 dark:text-gray-500">
+                    No contact information available
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
               <ClockIcon className="w-5 h-5" />
             </button>

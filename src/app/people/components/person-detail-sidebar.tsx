@@ -118,6 +118,15 @@ function StarIcon({ className, filled }: { className?: string; filled?: boolean 
   );
 }
 
+// Phone icon for contact information
+function PhoneIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  );
+}
+
 interface PersonDetailSidebarProps {
   person: Person;
   onToggleStar: (e: React.MouseEvent) => void;
@@ -264,6 +273,49 @@ export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidt
           </div>
 
           <Separator className="my-4" />
+
+          {/* Contact Information */}
+          {(person.email || person.phone) && (
+            <>
+              <div className="mb-6">
+                <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                  Contact Information
+                </h3>
+                {person.email && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <MailIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                    <a
+                      href={`mailto:${person.email}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {person.email}
+                    </a>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+                      Email
+                    </span>
+                  </div>
+                )}
+                {person.phone && (
+                  <div className="flex items-center gap-2">
+                    <PhoneIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                    <a
+                      href={`tel:${person.phone}`}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {person.phone}
+                    </a>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">
+                      Phone
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="my-4" />
+            </>
+          )}
 
           {/* Properties */}
           <div className="mb-6">
