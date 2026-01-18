@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Invalid request: contacts array required" }, { status: 400 });
         }
 
+        // Get user email for exclusion
+        const userEmail = user.email?.toLowerCase();
+
         // Validate and format contacts
         const contactsToInsert = contacts.map((contact: any) => ({
             user_id: user.id,
@@ -66,7 +69,10 @@ export async function POST(request: NextRequest) {
             category: contact.category?.trim() || null,
             status: "Active Prospecting",
         })).filter((contact: any) => 
-            contact.first_name && contact.last_name && contact.email_address
+            contact.first_name && 
+            contact.last_name && 
+            contact.email_address &&
+            (!userEmail || contact.email_address.toLowerCase() !== userEmail)
         );
 
         if (contactsToInsert.length === 0) {

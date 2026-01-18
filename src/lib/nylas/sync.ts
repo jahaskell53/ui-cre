@@ -216,7 +216,9 @@ export async function syncEmailContacts(grantId: string, userId: string) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
-          if (parsed.email && !isAutomatedEmail(parsed.email, message, parsed.name)) {
+          if (parsed.email && 
+              !isAutomatedEmail(parsed.email, message, parsed.name) &&
+              parsed.email.toLowerCase() !== userEmail) {
             contactsWeveEmailed.add(parsed.email.toLowerCase());
           }
         }
@@ -235,7 +237,9 @@ export async function syncEmailContacts(grantId: string, userId: string) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
-          if (parsed.email && !isAutomatedEmail(parsed.email, message, parsed.name)) {
+          if (parsed.email && 
+              !isAutomatedEmail(parsed.email, message, parsed.name) &&
+              parsed.email.toLowerCase() !== userEmail) {
             const existing = contactsMap.get(parsed.email);
 
             contactsMap.set(parsed.email, {
@@ -272,6 +276,7 @@ export async function syncEmailContacts(grantId: string, userId: string) {
         // Only process if we've emailed this contact at least once
         if (parsed.email &&
             !isAutomatedEmail(parsed.email, message, parsed.name) &&
+            parsed.email.toLowerCase() !== userEmail &&
             contactsWeveEmailed.has(parsed.email.toLowerCase())) {
 
           const existing = contactsMap.get(parsed.email);
@@ -471,15 +476,16 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
     const contactsMap = new Map<string, Contact>();
     const calendarInteractions: CalendarInteraction[] = [];
 
-    // Get integration ID for tracking
+    // Get integration ID and user email for tracking
     const supabase = createAdminClient();
     const { data: integration } = await supabase
       .from('integrations')
-      .select('id')
+      .select('id, email_address')
       .eq('nylas_grant_id', grantId)
       .single();
 
     const integrationId = integration?.id;
+    const userEmail = integration?.email_address?.toLowerCase();
 
     for (const event of events) {
       // Skip events that don't have invitees (participants)
@@ -499,7 +505,9 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
       // Extract participants
       if (event.participants && event.participants.length > 0) {
         for (const participant of event.participants) {
-          if (!participant.email || isAutomatedEmail(participant.email, undefined, participant.name)) {
+          if (!participant.email || 
+              isAutomatedEmail(participant.email, undefined, participant.name) ||
+              (!userEmail || participant.email.toLowerCase() === userEmail)) {
             continue;
           }
 
@@ -532,7 +540,9 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
       }
 
       // Extract organizer
-      if (event.organizer?.email && !isAutomatedEmail(event.organizer.email, undefined, event.organizer.name)) {
+      if (event.organizer?.email && 
+          !isAutomatedEmail(event.organizer.email, undefined, event.organizer.name) &&
+          (!userEmail || event.organizer.email.toLowerCase() !== userEmail)) {
         const parsed = parseEmailAddress(`${event.organizer.name || ''} <${event.organizer.email}>`);
         const existing = contactsMap.get(parsed.email);
 
