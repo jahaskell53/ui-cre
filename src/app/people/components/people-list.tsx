@@ -34,8 +34,7 @@ export function PeopleList({
   onDragStart,
 }: PeopleListProps) {
   const router = useRouter();
-  const { setPeople } = usePeople();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { setPeople, selectedIds, setSelectedIds } = usePeople();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const filteredPeople = showStarredOnly ? people.filter((p) => p.starred) : people;

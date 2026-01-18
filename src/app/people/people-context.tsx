@@ -19,6 +19,8 @@ interface PeopleContextType {
   setSortBy: (sortBy: SortBy) => void;
   reverse: boolean;
   setReverse: (reverse: boolean) => void;
+  selectedIds: Set<string>;
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
 const PeopleContext = createContext<PeopleContextType | undefined>(undefined);

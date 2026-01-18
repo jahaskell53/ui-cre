@@ -5,13 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SortIcon, CheckIcon } from "../icons";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { SortBy } from "../people-context";
+import { usePeople, type SortBy } from "../people-context";
 
 interface TabNavigationProps {
   sortBy: SortBy;
@@ -23,6 +17,11 @@ interface TabNavigationProps {
 export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }: TabNavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { people, setSelectedIds } = usePeople();
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(people.map((p) => p.id)));
+  };
   
   const tabs = [
     { href: "/people", label: "People", value: "people" },
@@ -93,44 +92,17 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
           })}
         </div>
         <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100">
-                <span>{sortBy === 'recency' ? 'Recency' : 'Alphabetical'}</span>
-                <SortIcon className={cn("w-4 h-4", reverse && "rotate-180")} />
-              </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={() => {
-                  if (sortBy === 'recency') {
-                    onReverseChange(!reverse);
-                  } else {
-                    onSortChange('recency');
-                    onReverseChange(false);
-                  }
-                }}
-                className="flex items-center justify-between"
-              >
-                <span>Recency</span>
-                {sortBy === 'recency' && <CheckIcon className="w-4 h-4" />}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  if (sortBy === 'alphabetical') {
-                    onReverseChange(!reverse);
-                  } else {
-                    onSortChange('alphabetical');
-                    onReverseChange(false);
-                  }
-                }}
-                className="flex items-center justify-between"
-              >
-                <span>Alphabetical</span>
-                {sortBy === 'alphabetical' && <CheckIcon className="w-4 h-4" />}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100">
+            <span>{sortBy === 'recency' ? 'Recency' : 'Alphabetical'}</span>
+            <SortIcon className={cn("w-4 h-4", reverse && "rotate-180")} />
+          </div>
+          <button
+            onClick={handleSelectAll}
+            className="p-0 border-0 bg-transparent cursor-pointer hover:opacity-70 transition-opacity"
+            aria-label="Select all contacts"
+          >
+            <CheckIcon className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+          </button>
         </div>
       </div>
     </div>

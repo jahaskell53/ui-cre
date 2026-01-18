@@ -27,6 +27,7 @@ export default function PeopleLayout({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>('recency');
   const [reverse, setReverse] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const sidebarRef = useRef<SidebarRef>(null);
 
   // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
@@ -160,6 +161,8 @@ export default function PeopleLayout({
         setSortBy,
         reverse,
         setReverse,
+        selectedIds,
+        setSelectedIds,
       }}
     >
       <div className="flex h-screen bg-white dark:bg-gray-900">
