@@ -6,6 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { SortIcon, CheckIcon } from "../icons";
 import { cn } from "@/lib/utils";
 import { usePeople, type SortBy } from "../people-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TabNavigationProps {
   sortBy: SortBy;
@@ -92,33 +101,32 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
           })}
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
-            <span 
-              className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
-              onClick={() => {
-                // Cycle through sort options: recency -> alphabetical -> network-strength -> recency
-                if (sortBy === 'recency') {
-                  onSortChange('alphabetical');
-                } else if (sortBy === 'alphabetical') {
-                  onSortChange('network-strength');
-                } else {
-                  onSortChange('recency');
-                }
-              }}
-            >
-              {sortBy === 'recency' ? 'Recency' : 
-               sortBy === 'alphabetical' ? 'Alphabetical' : 
-               'Network Strength'}
-            </span>
-            <button
-              type="button"
-              className="p-0 border-0 bg-transparent cursor-pointer hover:text-gray-900 dark:hover:text-gray-100"
-              onClick={() => onReverseChange(!reverse)}
-              aria-label="Reverse sort order"
-            >
-              <SortIcon className={cn("w-4 h-4", reverse && "rotate-180")} />
-            </button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
+                <span>
+                  {sortBy === 'recency' ? 'Recency' : 
+                   sortBy === 'alphabetical' ? 'Alphabetical' : 
+                   'Network Strength'}
+                </span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuRadioGroup value={sortBy} onValueChange={(value) => onSortChange(value as SortBy)}>
+                <DropdownMenuRadioItem value="recency">Recency</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="alphabetical">Alphabetical</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="network-strength">Network Strength</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onReverseChange(!reverse)}>
+                <SortIcon className={cn("w-4 h-4 mr-2", reverse && "rotate-180")} />
+                {reverse ? 'Ascending' : 'Descending'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={handleSelectAll}
             className="p-0 border-0 bg-transparent cursor-pointer hover:opacity-70 transition-opacity"
