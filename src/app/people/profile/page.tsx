@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,9 +9,11 @@ import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Upload, ArrowLeft } from "lucide-react";
+import { EmailIntegrations } from "@/components/integrations/EmailIntegrations";
 
 export default function PeopleProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile, loading } = useUser();
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -43,6 +45,17 @@ export default function PeopleProfilePage() {
       setSelectedRoles(profile.roles || []);
     }
   }, [profile]);
+
+  // Check for email integration success
+  useEffect(() => {
+    const success = searchParams.get('success');
+    if (success === 'true') {
+      setMessage('Email account connected successfully!');
+      setTimeout(() => setMessage(null), 5000);
+      // Clean up URL
+      window.history.replaceState({}, '', '/people/profile');
+    }
+  }, [searchParams]);
 
   if (loading) {
     return (
@@ -299,6 +312,17 @@ export default function PeopleProfilePage() {
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* Email & Calendar Integrations */}
+          <section className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+            <div className="flex flex-col gap-1 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Email & Calendar</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Connect your email and calendar to automatically import and sync your contacts.
+              </p>
+            </div>
+            <EmailIntegrations />
           </section>
 
           {/* Actions */}
