@@ -254,6 +254,8 @@ export default function PersonDetailPage() {
   const [isDeletingNote, setIsDeletingNote] = useState(false);
   const [isDeletingPerson, setIsDeletingPerson] = useState(false);
   const [showDeletePersonModal, setShowDeletePersonModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [panelWidth, setPanelWidth] = useState(280);
   const [isDragging, setIsDragging] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -453,6 +455,31 @@ export default function PersonDetailPage() {
     }
   };
 
+  const handleSendInvite = async () => {
+    if (!person) return;
+    
+    setIsSendingInvite(true);
+    try {
+      const response = await fetch('/api/people/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personId: person.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send invitation');
+      }
+
+      setShowInviteModal(false);
+    } catch (error) {
+      console.error('Error sending invite:', error);
+      setError(error instanceof Error ? error.message : 'Failed to send invitation');
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
   const handleCopy = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -526,7 +553,10 @@ export default function PersonDetailPage() {
           </button>
 
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800">
+            <button 
+              onClick={() => setShowInviteModal(true)}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
               INVITE
             </button>
             <DropdownMenu>
@@ -1048,6 +1078,36 @@ export default function PersonDetailPage() {
                 disabled={isDeletingPerson}
               >
                 {isDeletingPerson ? "Deleting..." : "Delete Person"}
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
+      {/* Send Invite Confirmation Modal */}
+      <ModalOverlay
+        isOpen={showInviteModal}
+        onOpenChange={(isOpen) => !isOpen && setShowInviteModal(false)}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Send Invite</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              We will email {person?.name} a personalized invitation to OM.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowInviteModal(false)}
+                disabled={isSendingInvite}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendInvite}
+                disabled={isSendingInvite}
+              >
+                {isSendingInvite ? "Sending..." : "Send Invite"}
               </Button>
             </div>
           </Dialog>

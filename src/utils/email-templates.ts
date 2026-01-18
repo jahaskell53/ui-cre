@@ -12,6 +12,10 @@ export interface MentionNotificationData {
   postUrl: string;
 }
 
+export interface InvitationData {
+  personName: string;
+}
+
 export function generateMessageNotificationEmail(data: MessageNotificationData): { subject: string; html: string; text: string } {
   const senderDisplay = data.senderName || data.senderUsername || 'Someone';
   const subject = `New message from ${senderDisplay}`;
@@ -137,6 +141,59 @@ ${data.commentContent}
 View the comment: ${data.postUrl}
 
 This is an automated notification. You can reply to this comment in the app.
+  `.trim();
+
+  return { subject, html, text };
+}
+
+export function generateInvitationEmail(data: InvitationData): { subject: string; html: string; text: string } {
+  const subject = `Invitation to OM`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #e5e5e5;">
+          <tr>
+            <td style="padding: 40px 30px;">
+              <h1 style="margin: 0 0 20px 0; font-size: 24px; font-weight: 600; color: #1a1a1a;">
+                Invitation to OM
+              </h1>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 24px; color: #4a4a4a;">
+                Hi <strong>${escapeHtml(data.personName)}</strong>,
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 24px; color: #4a4a4a;">
+                You're invited to join OM! We'd love to have you as part of our community.
+              </p>
+              <p style="margin: 20px 0 0 0; font-size: 14px; line-height: 20px; color: #8a8a8a;">
+                This is a personalized invitation sent to you.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+Invitation to OM
+
+Hi ${data.personName},
+
+You're invited to join OM! We'd love to have you as part of our community.
+
+This is a personalized invitation sent to you.
   `.trim();
 
   return { subject, html, text };
