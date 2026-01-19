@@ -3,7 +3,7 @@
 import { forwardRef, useState, useRef, useImperativeHandle, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Users, MessageSquare } from "lucide-react";
+import { Bell, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon, SearchIcon } from "@/app/people/icons";
 import AccountCard from "@/app/people/account-card";
@@ -355,22 +355,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           <MessageSquare className="w-4 h-4" />
           {!isCollapsed && (
             <span className={cn("text-sm", isActive("/messages") && "font-medium")}>Messages</span>
-          )}
-        </Link>
-        <Link
-          href="/users"
-          className={cn(
-            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
-            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
-            isActive("/users")
-              ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              : "text-gray-600 dark:text-gray-400"
-          )}
-          title={isCollapsed ? "Users" : undefined}
-        >
-          <Users className="w-4 h-4" />
-          {!isCollapsed && (
-            <span className={cn("text-sm", isActive("/users") && "font-medium")}>Users</span>
           )}
         </Link>
       </nav>
