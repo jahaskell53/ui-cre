@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
+import { Modal, ModalOverlay, Dialog } from '@/components/application/modals/modal';
 
 const providers = [
   {
@@ -48,6 +49,9 @@ export function EmailIntegrations() {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [integrationToDelete, setIntegrationToDelete] = useState<Integration | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadIntegrations();
@@ -95,21 +99,29 @@ export function EmailIntegrations() {
     }
   }
 
-  async function handleDisconnect(integration: Integration) {
-    if (!confirm(`Disconnect ${integration.email_address}?`)) {
-      return;
-    }
+  function handleDisconnectClick(integration: Integration) {
+    setIntegrationToDelete(integration);
+    setShowDeleteModal(true);
+  }
 
+  async function handleDisconnect() {
+    if (!integrationToDelete) return;
+
+    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/integrations/${integration.id}`, {
+      const response = await fetch(`/api/integrations/${integrationToDelete.id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
         await loadIntegrations();
+        setShowDeleteModal(false);
+        setIntegrationToDelete(null);
       }
     } catch (error) {
       console.error('Error disconnecting:', error);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -193,7 +205,7 @@ export function EmailIntegrations() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDisconnect(integration)}
+                      onClick={() => handleDisconnectClick(integration)}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -240,6 +252,47 @@ export function EmailIntegrations() {
           Import contacts from your emails and calendar events automatically
         </p>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ModalOverlay
+        isOpen={showDeleteModal}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setShowDeleteModal(false);
+            setIntegrationToDelete(null);
+          }
+        }}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Disconnect Email
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Are you sure you want to disconnect {integrationToDelete?.email_address}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setIntegrationToDelete(null);
+                }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDisconnect}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Disconnecting..." : "Disconnect"}
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </div>
   );
 }
