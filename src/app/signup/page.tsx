@@ -98,6 +98,11 @@ export default function SignUpPage() {
                             placeholder="Enter your full name"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !isLoading) {
+                                    handleSignUp();
+                                }
+                            }}
                             disabled={isLoading}
                             className="h-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
@@ -112,6 +117,11 @@ export default function SignUpPage() {
                             placeholder="Enter your email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !isLoading) {
+                                    handleSignUp();
+                                }
+                            }}
                             disabled={isLoading}
                             className="h-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
@@ -126,6 +136,11 @@ export default function SignUpPage() {
                             placeholder="Create a password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !isLoading) {
+                                    handleSignUp();
+                                }
+                            }}
                             disabled={isLoading}
                             className="h-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
