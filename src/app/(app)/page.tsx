@@ -232,8 +232,8 @@ export default function FeedPage() {
         <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3 flex flex-col gap-6">
-                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-4">
-                        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                    <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
+                        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">
                             {showingLiked ? "Liked Posts" : "Posts"}
                         </h2>
                         <div className="flex gap-2">
@@ -284,8 +284,8 @@ export default function FeedPage() {
 
                 <div className="lg:col-span-1">
                     <div className="flex flex-col gap-4">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Notifications</h2>
+                        <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
+                            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">Notifications</h2>
                             <Link
                                 href="/notifications"
                                 className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
