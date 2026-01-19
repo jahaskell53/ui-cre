@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { MapPin, Edit, Trash2 } from "lucide-react";
+import { MapPin, Edit, Trash2, Check, Users } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
@@ -50,10 +50,56 @@ export default function EventDetailsPage() {
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isRegistered, setIsRegistered] = useState(false);
+    const [registrationCount, setRegistrationCount] = useState(0);
+    const [isRegistering, setIsRegistering] = useState(false);
 
     useEffect(() => {
         fetchEvent();
+        fetchRegistrationStatus();
     }, [eventId]);
+
+    const fetchRegistrationStatus = async () => {
+        try {
+            const response = await fetch(`/api/events/registrations?event_id=${eventId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setIsRegistered(data.is_registered);
+                setRegistrationCount(data.count);
+            }
+        } catch (err) {
+            console.error("Error fetching registration status:", err);
+        }
+    };
+
+    const handleToggleRegistration = async () => {
+        setIsRegistering(true);
+        try {
+            if (isRegistered) {
+                const response = await fetch(`/api/events/registrations?event_id=${eventId}`, {
+                    method: "DELETE",
+                });
+                if (response.ok) {
+                    setIsRegistered(false);
+                    setRegistrationCount((prev) => Math.max(0, prev - 1));
+                }
+            } else {
+                const response = await fetch("/api/events/registrations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ event_id: eventId }),
+                });
+                if (response.ok) {
+                    setIsRegistered(true);
+                    setRegistrationCount((prev) => prev + 1);
+                }
+            }
+        } catch (err) {
+            console.error("Error toggling registration:", err);
+        } finally {
+            setIsRegistering(false);
+        }
+    };
 
     const fetchEvent = async () => {
         try {
@@ -283,6 +329,37 @@ export default function EventDetailsPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* RSVP Section */}
+                                {!isPastEvent && (
+                                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                                <Users className="size-4" />
+                                                <span>{registrationCount} {registrationCount === 1 ? 'person' : 'people'} going</span>
+                                            </div>
+                                            <Button
+                                                onClick={handleToggleRegistration}
+                                                disabled={isRegistering}
+                                                className={isRegistered
+                                                    ? "bg-green-600 hover:bg-green-700 text-white"
+                                                    : "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
+                                                }
+                                            >
+                                                {isRegistering ? (
+                                                    "..."
+                                                ) : isRegistered ? (
+                                                    <>
+                                                        <Check className="size-4 mr-2" />
+                                                        Going
+                                                    </>
+                                                ) : (
+                                                    "RSVP"
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {event.description && (
