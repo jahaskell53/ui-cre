@@ -192,7 +192,6 @@ export default function FeedPage() {
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Feed</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Industry Intelligence and community insights.</p>
                     </div>
                     <div className="flex gap-2 w-full lg:w-auto">
                         <button

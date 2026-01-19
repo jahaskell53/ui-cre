@@ -40,7 +40,6 @@ describe('MessagesPage', () => {
 
     render(<MessagesPage />)
     expect(screen.getByText('Messages')).toBeInTheDocument()
-    expect(screen.getByText(/Chat with other users/i)).toBeInTheDocument()
   })
 
   it('should display conversations list', async () => {

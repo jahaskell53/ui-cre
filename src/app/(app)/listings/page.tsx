@@ -93,7 +93,6 @@ export default function MapPage() {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Property Map</h1>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Discover {totalCount} multi-family opportunities across the Bay Area.</p>
                         </div>
                         <div className="flex gap-2 w-full sm:w-auto">
                             <div className="relative w-full sm:w-32 lg:w-64">

@@ -104,7 +104,6 @@ export default function NotificationsPage() {
                 <div className="max-w-3xl mx-auto w-full">
                     <div className="mb-8">
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Stay updated with your professional network and activity.</p>
                     </div>
 
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">

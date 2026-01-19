@@ -83,7 +83,6 @@ export default function UsersPage() {
                 <div className="max-w-5xl mx-auto w-full">
                     <div className="mb-8">
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Search Users</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Find and view user profiles across the platform.</p>
                     </div>
 
                     <div className="mb-8 relative">

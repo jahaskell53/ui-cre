@@ -262,7 +262,6 @@ export default function CalendarPage() {
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Seminar Calendar</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Expert-led training for institutional-grade property management.</p>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
                         <Button variant="outline">
