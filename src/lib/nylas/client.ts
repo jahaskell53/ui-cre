@@ -1,4 +1,4 @@
-import { nylasClient, nylasConfig, NYLAS_SCOPES, NYLAS_SYNC_CONFIG } from './config';
+import { nylasClient, nylasConfig, NYLAS_SYNC_CONFIG, getProviderScopes } from './config';
 import type { Provider } from './config';
 
 export interface NylasGrant {
@@ -36,11 +36,13 @@ export interface NylasCalendarEvent {
  * Generate OAuth URL for email/calendar provider
  */
 export function generateAuthUrl(provider: Provider, state?: string) {
+  const providerScopes = getProviderScopes(provider);
+  
   const config = {
     clientId: nylasConfig.clientId,
     redirectUri: nylasConfig.redirectUri,
     provider: getProviderString(provider),
-    scopes: NYLAS_SCOPES,
+    scopes: providerScopes,
     state: state || generateRandomState(),
   };
 

@@ -20,13 +20,39 @@ export const nylasConfig = {
   apiKey: process.env.NYLAS_API_KEY,
 };
 
-// Scopes needed for email and calendar access
-export const NYLAS_SCOPES = [
-  'email.read_only',
-  'email.metadata',
-  'calendar.read_only',
-  'contacts.read_only',
-];
+// Provider-specific scopes for Nylas v3 (read-only, no send permissions)
+// These are the correct v3 scopes that won't trigger "send email" permissions
+export function getProviderScopes(provider: Provider): string[] {
+  switch (provider) {
+    case 'gmail':
+      return [
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/contacts.readonly',
+      ];
+    case 'outlook':
+      return [
+        'https://graph.microsoft.com/Mail.Read',
+        'https://graph.microsoft.com/Calendars.Read',
+        'https://graph.microsoft.com/Contacts.Read',
+      ];
+    case 'yahoo':
+    case 'icloud':
+      // Yahoo and iCloud may use different scope formats or Nylas may handle them differently
+      // Using generic format - Nylas SDK may translate these
+      return [
+        'email.read_only',
+        'calendar.read_only',
+        'contacts.read_only',
+      ];
+    default:
+      return [
+        'email.read_only',
+        'calendar.read_only',
+        'contacts.read_only',
+      ];
+  }
+}
 
 // Sync configuration
 const emailLimit = parseInt(process.env.NYLAS_EMAIL_SYNC_LIMIT || '600', 10);
