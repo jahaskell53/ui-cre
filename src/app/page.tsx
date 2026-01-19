@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Button } from "@/components/base/buttons/button";
-import { Heart, MessageChatSquare } from "@untitledui/icons";
+import { Button } from "@/components/ui/button";
+import { Heart, MessageSquare } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { FeedItem, Post } from "@/components/feed/feed-item";
@@ -201,19 +201,18 @@ export default function FeedPage() {
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
                         <Button
-                            color={showingLiked ? "primary" : "secondary"}
-                            iconLeading={(props) => <HeartIcon isLiked={showingLiked} {...props} />}
+                            variant={showingLiked ? "default" : "outline"}
                             className="flex-1 lg:flex-none"
                             onClick={() => setShowingLiked(!showingLiked)}
                         >
+                            <HeartIcon isLiked={showingLiked} className="size-4" />
                             Liked
                         </Button>
                         <Button
-                            color="primary"
-                            iconLeading={MessageChatSquare}
                             className="flex-1 lg:flex-none"
                             onClick={() => setShowPostModal(true)}
                         >
+                            <MessageSquare className="size-4" />
                             New Post
                         </Button>
                     </div>
