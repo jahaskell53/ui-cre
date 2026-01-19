@@ -531,13 +531,7 @@ export default function PersonDetailPage() {
   const firstName = nameParts[0] || "Person";
 
   const savedTimeline = person.timeline || [];
-  const allTimeline: ExtendedTimelineItem[] = savedTimeline.length > 0 ? savedTimeline as ExtendedTimelineItem[] : [
-    { type: 'import', text: `${firstName} imported via Calendar`, date: '1d', iconColor: 'blue' },
-    { type: 'meeting', text: `You met with ${firstName} Greenpoint <> Capitalize`, date: '28d', iconColor: 'blue', link: 'Greenpoint <> Capitalize' },
-    { type: 'email', text: `You emailed ${firstName} Re: Follow-up`, date: 'Nov 21 2025', iconColor: 'purple', link: 'Re: Follow-up' },
-    { type: 'meeting', text: `You met with ${firstName} Reconnect`, date: 'Nov 7 2025', iconColor: 'blue', link: 'Reconnect' },
-    { type: 'email', text: `You emailed ${firstName} Re: Follow-up`, date: 'Nov 5 2025', iconColor: 'purple', link: 'Re: Follow-up' },
-  ];
+  const allTimeline: ExtendedTimelineItem[] = savedTimeline as ExtendedTimelineItem[];
 
   // Filter timeline based on selected filter
   const displayTimeline = timelineFilter === 'all' 
