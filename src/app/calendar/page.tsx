@@ -11,8 +11,8 @@ export default function CalendarPage() {
             <div className="flex flex-col gap-8 p-6">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
                     <div>
-                        <h1 className="text-display-sm font-semibold text-gray-900 dark:text-gray-100">Seminar Calendar</h1>
-                        <p className="text-lg text-gray-500 dark:text-gray-400">Expert-led training for institutional-grade property management.</p>
+                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Seminar Calendar</h1>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Expert-led training for institutional-grade property management.</p>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
                         <Button variant="outline">
@@ -28,7 +28,7 @@ export default function CalendarPage() {
 
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                     <div className="xl:col-span-3">
-                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-x-auto shadow-sm">
+                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-x-auto shadow-sm">
                             {/* Calendar Header */}
                             <div className="border-b border-gray-200 dark:border-gray-800 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-gray-900 min-w-[700px]">
                                 <div className="flex items-center gap-4">
@@ -96,7 +96,7 @@ export default function CalendarPage() {
                                 { title: 'Advanced Underwriting', speaker: 'David Goggins', time: 'Dec 22, 10:00 AM', attendees: '45/50', initials: 'DG' },
                                 { title: 'Legal Compliance 2026', speaker: 'Sarah Jenkins', time: 'Jan 5, 2:00 PM', attendees: '128/200', initials: 'SJ' },
                             ].map((sem, i) => (
-                                <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm flex flex-col gap-4">
+                                <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-xl shadow-sm flex flex-col gap-4">
                                     <div>
                                         <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-1">{sem.title}</h4>
                                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
@@ -123,7 +123,7 @@ export default function CalendarPage() {
                             ))}
                         </section>
 
-                        <section className="bg-gray-50 dark:bg-gray-800/40 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 border-dashed flex flex-col items-center text-center gap-3">
+                        <section className="bg-gray-50 dark:bg-gray-800/40 rounded-xl p-6 border border-gray-200 dark:border-gray-800 border-dashed flex flex-col items-center text-center gap-3">
                             <div className="p-3 bg-white dark:bg-gray-900 rounded-full shadow-sm">
                                 <MapPin className="size-6 text-purple-600 dark:text-purple-400" />
                             </div>
