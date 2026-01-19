@@ -1,6 +1,6 @@
 // Timeline item interface
 export interface TimelineItem {
-  type: 'meeting' | 'import' | 'email' | 'other';
+  type: 'meeting' | 'import' | 'email' | 'note' | 'other';
   text: string;
   date: string;
   iconColor?: 'blue' | 'orange' | 'purple' | 'green';

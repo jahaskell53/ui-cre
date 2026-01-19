@@ -19,6 +19,17 @@ import { CellularIcon, MailIcon, CalendarIcon, LocationIcon } from "../icons";
 import { generateAuroraGradient, getInitials } from "../utils";
 import type { Person, TimelineItem } from "../types";
 
+// Note icon for notes
+function NoteIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 6.5H10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M6 9.5H8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // Helper function to extract street address (part before city)
 function getStreetAddress(fullAddress: string): string {
   if (!fullAddress) return "";
@@ -273,20 +284,25 @@ export function DetailPanel({ selectedPerson, panelWidth }: DetailPanelProps) {
                 {selectedPerson.timeline && selectedPerson.timeline.length > 0 ? (
                   <div className="space-y-3">
                     {selectedPerson.timeline.slice(-5).map((item, index) => {
-                      const iconColor = item.iconColor || "blue";
-                      const bgColorClass = {
-                        blue: "bg-blue-100 dark:bg-blue-900/30",
-                        orange: "bg-orange-100 dark:bg-orange-900/30",
-                        purple: "bg-purple-100 dark:bg-purple-900/30",
-                        green: "bg-green-100 dark:bg-green-900/30",
-                      }[iconColor];
-                      const textColorClass = {
-                        blue: "text-blue-600 dark:text-blue-400",
-                        orange: "text-orange-600 dark:text-orange-400",
-                        purple: "text-purple-600 dark:text-purple-400",
-                        green: "text-green-600 dark:text-green-400",
-                      }[iconColor];
-                      const Icon = item.type === "email" ? MailIcon : CalendarIcon;
+                      let Icon;
+                      let bgColorClass;
+                      let textColorClass;
+
+                      if (item.type === "email") {
+                        Icon = MailIcon;
+                        const iconColor = item.iconColor || "blue";
+                        bgColorClass = iconColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-blue-100 dark:bg-blue-900/30';
+                        textColorClass = iconColor === 'purple' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400';
+                      } else if (item.type === "note") {
+                        Icon = NoteIcon;
+                        bgColorClass = 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700';
+                        textColorClass = 'text-gray-500 dark:text-gray-400';
+                      } else {
+                        Icon = CalendarIcon;
+                        const iconColor = item.iconColor || "blue";
+                        bgColorClass = iconColor === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-blue-100 dark:bg-blue-900/30';
+                        textColorClass = iconColor === 'purple' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400';
+                      }
 
                       return (
                         <div key={index} className="flex gap-2">
