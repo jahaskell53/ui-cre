@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/utils/supabase";
@@ -138,17 +137,15 @@ export default function UserProfilePage() {
 
     if (loading) {
         return (
-            <MainLayout>
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="text-tertiary">Loading...</div>
-                </div>
-            </MainLayout>
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+            </div>
         );
     }
 
     if (!profile) {
         return (
-            <MainLayout>
+            <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900 p-6">
                 <div className="max-w-2xl">
                     <Button
                         variant="ghost"
@@ -159,11 +156,11 @@ export default function UserProfilePage() {
                         <ArrowLeft className="size-4" />
                     </Button>
                     <div className="text-center py-12">
-                        <h2 className="text-xl font-semibold text-primary mb-2">User not found</h2>
-                        <p className="text-tertiary">The user profile you're looking for doesn't exist.</p>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">User not found</h2>
+                        <p className="text-gray-500 dark:text-gray-400">The user profile you&apos;re looking for doesn&apos;t exist.</p>
                     </div>
                 </div>
-            </MainLayout>
+            </div>
         );
     }
 
@@ -177,9 +174,9 @@ export default function UserProfilePage() {
     const isOwnProfile = currentUser?.id === profile.id;
 
     return (
-        <MainLayout>
-            <div className="bg-white dark:bg-gray-900 -mx-4 -my-8 px-4 py-8 sm:-mx-6 lg:-mx-8 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
-                <div className="max-w-3xl mx-auto">
+        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-8 p-6">
+                <div className="max-w-3xl mx-auto w-full">
                     <button
                         onClick={() => router.back()}
                         className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors mb-8 group"
@@ -350,6 +347,6 @@ export default function UserProfilePage() {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </div>
     );
 }

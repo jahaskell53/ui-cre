@@ -12,9 +12,6 @@ vi.mock('next/navigation', () => ({
     push: vi.fn(),
   }),
 }))
-vi.mock('@/components/layout/main-layout', () => ({
-  MainLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}))
 vi.mock('next/dynamic', () => ({
   default: () => () => <div>PDF Viewer</div>,
 }))

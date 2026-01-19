@@ -12,9 +12,6 @@ vi.mock('next/navigation', () => ({
     back: vi.fn(),
   }),
 }))
-vi.mock('@/components/layout/main-layout', () => ({
-  MainLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}))
 
 // Mock fetch
 global.fetch = vi.fn()

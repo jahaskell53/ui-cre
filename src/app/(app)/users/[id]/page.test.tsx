@@ -16,9 +16,6 @@ vi.mock('next/navigation', () => ({
     id: 'user-123',
   }),
 }))
-vi.mock('@/components/layout/main-layout', () => ({
-  MainLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}))
 
 const mockCurrentUser = {
   id: 'current-user',

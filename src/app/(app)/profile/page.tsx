@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,11 +46,9 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <MainLayout>
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="text-tertiary">Loading...</div>
-                </div>
-            </MainLayout>
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+            </div>
         );
     }
 
@@ -129,10 +126,11 @@ export default function ProfilePage() {
     const initials = fullName?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
 
     return (
-        <MainLayout>
-            <div className="max-w-2xl">
-                <h1 className="text-display-sm font-semibold text-primary mb-2">Profile</h1>
-                <p className="text-lg text-tertiary mb-8">Manage your account information and preferences.</p>
+        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-8 p-6">
+                <div className="max-w-2xl w-full">
+                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Profile</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Manage your account information and preferences.</p>
 
                 {error && (
                     <div className="mb-6 p-4 rounded-lg bg-error-primary/10 text-error-primary text-sm">
@@ -254,8 +252,9 @@ export default function ProfilePage() {
                             Cancel
                         </Button>
                     </div>
+                    </div>
                 </div>
             </div>
-        </MainLayout>
+        </div>
     );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { MainLayout } from "@/components/layout/main-layout";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import {
     Select,
@@ -165,9 +164,9 @@ export default function MarketIntelligencePage() {
     };
 
     return (
-        <MainLayout>
-            <div className="bg-white dark:bg-gray-900 -mx-4 -my-8 px-4 py-8 sm:-mx-6 lg:-mx-8 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
-                <div className="max-w-7xl mx-auto flex flex-col gap-10">
+        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-8 p-6">
+                <div className="max-w-7xl mx-auto w-full flex flex-col gap-10">
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Market Intelligence</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Deep insights into regional multi-family market trends.</p>
@@ -449,6 +448,6 @@ export default function MarketIntelligencePage() {
                     )}
                 </div>
             </div>
-        </MainLayout>
+        </div>
     );
 }

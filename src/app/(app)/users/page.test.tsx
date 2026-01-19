@@ -9,9 +9,6 @@ import { supabase } from '@/utils/supabase'
 vi.mock('@/hooks/use-user')
 vi.mock('@/utils/supabase')
 vi.mock('next/navigation')
-vi.mock('@/components/layout/main-layout', () => ({
-  MainLayout: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}))
 
 const mockUser = {
   id: 'user-123',
@@ -100,7 +97,7 @@ describe('UsersPage', () => {
 
   it('should show empty state when no search query', () => {
     render(<UsersPage />)
-    expect(screen.getByText(/start typing to search for users/i)).toBeInTheDocument()
+    expect(screen.getByText(/enter a name to find people/i)).toBeInTheDocument()
   })
 
   it('should show no results message when search returns empty', async () => {

@@ -1,14 +1,13 @@
 "use client";
 
-import { MainLayout } from "@/components/layout/main-layout";
 import { ArrowUp, BarChart2, Building2, PieChart, Users, Download, Filter, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function HoldingsPage() {
     return (
-        <MainLayout>
-            <div className="bg-white dark:bg-gray-900 -mx-4 -my-8 px-4 py-8 sm:-mx-6 lg:-mx-8 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
-                <div className="max-w-7xl mx-auto flex flex-col gap-10">
+        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-8 p-6">
+                <div className="max-w-7xl mx-auto w-full flex flex-col gap-10">
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Portfolio Intelligence</h1>
@@ -187,6 +186,6 @@ export default function HoldingsPage() {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </div>
     );
 }
