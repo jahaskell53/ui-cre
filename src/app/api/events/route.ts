@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { title, description, start_time, end_time, location, color } = body;
+        const { title, description, start_time, end_time, location, color, image_url } = body;
 
         if (!title || typeof title !== "string" || title.trim().length === 0) {
             return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
                 end_time,
                 location: location?.trim() || null,
                 color: color || "blue",
+                image_url: image_url || null,
             })
             .select()
             .single();
@@ -117,7 +118,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { title, description, start_time, end_time, location, color } = body;
+        const { title, description, start_time, end_time, location, color, image_url } = body;
 
         const updateData: any = {};
 
@@ -127,6 +128,7 @@ export async function PUT(request: NextRequest) {
         if (end_time !== undefined) updateData.end_time = end_time;
         if (location !== undefined) updateData.location = location?.trim() || null;
         if (color !== undefined) updateData.color = color;
+        if (image_url !== undefined) updateData.image_url = image_url || null;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });

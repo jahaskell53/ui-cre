@@ -18,6 +18,7 @@ interface Event {
     end_time: string;
     location: string | null;
     color: string;
+    image_url: string | null;
     user_id: string;
     created_at: string;
     updated_at: string;
@@ -179,6 +180,16 @@ export default function EventDetailsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+                {event.image_url && (
+                    <div className="w-full h-64 md:h-80 relative">
+                        <img
+                            src={event.image_url}
+                            alt={event.title}
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                    </div>
+                )}
                 <div className="max-w-2xl mx-auto px-6 py-6">
                     <div className={`border-l-4 rounded-lg p-6 ${colorInfo.bgClass}`}>
                         <div className="flex items-center gap-2 mb-4">

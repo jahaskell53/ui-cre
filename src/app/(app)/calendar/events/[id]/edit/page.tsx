@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Palette } from "lucide-react";
+import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,10 +36,42 @@ export default function EditEventPage() {
     const [endTime, setEndTime] = useState("");
     const [location, setLocation] = useState("");
     const [color, setColor] = useState("blue");
+    const [imageUrl, setImageUrl] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
         fetchEvent();
     }, [eventId]);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setError(null);
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to upload image");
+            }
+
+            setImageUrl(data.url);
+        } catch (err: any) {
+            setError(err.message || "Failed to upload image");
+        } finally {
+            setIsUploading(false);
+        }
+    };
 
     const fetchEvent = async () => {
         try {
@@ -51,6 +83,7 @@ export default function EditEventPage() {
             setDescription(data.description || "");
             setLocation(data.location || "");
             setColor(data.color || "blue");
+            setImageUrl(data.image_url || "");
 
             const start = new Date(data.start_time);
             const end = new Date(data.end_time);
@@ -106,6 +139,7 @@ export default function EditEventPage() {
                     end_time: endDateTime.toISOString(),
                     location,
                     color,
+                    image_url: imageUrl || null,
                 }),
             });
 
@@ -273,6 +307,50 @@ export default function EditEventPage() {
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                            <ImagePlus className="size-4" />
+                            Cover Image
+                        </Label>
+                        {imageUrl ? (
+                            <div className="relative">
+                                <img
+                                    src={imageUrl}
+                                    alt="Event cover"
+                                    className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setImageUrl("")}
+                                    className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                                >
+                                    <X className="size-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="cursor-pointer">
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    disabled={isUploading}
+                                />
+                                <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-gray-400 dark:hover:border-gray-600 transition-colors bg-gray-50 dark:bg-gray-800/50">
+                                    {isUploading ? (
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">Uploading...</span>
+                                    ) : (
+                                        <>
+                                            <ImagePlus className="size-8 text-gray-400 dark:text-gray-500 mb-2" />
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">Click to upload cover image</span>
+                                            <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG up to 10MB</span>
+                                        </>
+                                    )}
+                                </div>
+                            </label>
+                        )}
                     </div>
 
                     <div className="flex gap-3 pt-4">
