@@ -3,7 +3,7 @@
 import { forwardRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "../icons";
+import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon } from "../icons";
 import AccountCard from "../account-card";
 import type { Person } from "../types";
 
@@ -90,6 +90,19 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
           <HomeIcon className="w-4 h-4" />
           {!isCollapsed && (
             <span className="text-sm">Home</span>
+          )}
+        </Link>
+        <Link
+          href="/listings"
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5"
+          )}
+          title={isCollapsed ? "Listings" : undefined}
+        >
+          <LocationIcon className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className="text-sm">Listings</span>
           )}
         </Link>
         <div 
