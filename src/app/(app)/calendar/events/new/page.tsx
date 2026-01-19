@@ -137,15 +137,13 @@ export default function NewEventPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create New Event</h1>
+                <div className="w-9" /> {/* Spacer for centering */}
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
                 <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
-                    <div>
-                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Create New Event</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Add a new event to your calendar</p>
-                    </div>
 
                 {error && (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
