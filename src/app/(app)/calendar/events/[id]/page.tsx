@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Edit, Trash2, FileText } from "lucide-react";
+import { Calendar, Clock, MapPin, Edit, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import Link from "next/link";
 
 interface Event {
@@ -36,6 +37,7 @@ export default function EventDetailsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     useEffect(() => {
         fetchEvent();
@@ -55,8 +57,6 @@ export default function EventDetailsPage() {
     };
 
     const handleDelete = async () => {
-        if (!confirm("Are you sure you want to delete this event?")) return;
-
         setIsDeleting(true);
         try {
             const response = await fetch(`/api/events?id=${eventId}`, { method: "DELETE" });
@@ -89,32 +89,23 @@ export default function EventDetailsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-gray-500 dark:text-gray-400">Loading event...</div>
-                </div>
+            <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
             </div>
         );
     }
 
     if (error || !event) {
         return (
-            <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-                <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
-                    <div className="flex items-center gap-4">
-                        <Link href="/calendar">
-                            <Button variant="ghost" size="icon">
-                                <ArrowLeft className="size-5" />
-                            </Button>
-                        </Link>
-                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Event Not Found</h1>
-                    </div>
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                        <p className="text-sm text-red-600 dark:text-red-400">{error || "This event does not exist or you don't have permission to view it."}</p>
-                    </div>
-                    <Link href="/calendar">
-                        <Button variant="outline">Back to Calendar</Button>
-                    </Link>
+            <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+                <div className="text-center">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">{error || "Event not found"}</div>
+                    <button
+                        onClick={() => router.push("/calendar")}
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                        Back to Calendar
+                    </button>
                 </div>
             </div>
         );
@@ -123,117 +114,143 @@ export default function EventDetailsPage() {
     const colorInfo = colorLabels[event.color] || colorLabels.blue;
 
     return (
-        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-            <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto w-full">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href="/calendar">
-                            <Button variant="ghost" size="icon">
-                                <ArrowLeft className="size-5" />
-                            </Button>
-                        </Link>
-                        <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Event Details</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Link href={`/calendar/events/${event.id}/edit`}>
-                            <Button variant="outline" size="sm">
-                                <Edit className="size-4 mr-2" />
-                                Edit
-                            </Button>
-                        </Link>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                        >
-                            <Trash2 className="size-4 mr-2" />
-                            {isDeleting ? "Deleting..." : "Delete"}
-                        </Button>
-                    </div>
+        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+            {/* Top Header Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <button
+                    onClick={() => router.push("/calendar")}
+                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+
+                <div className="flex items-center gap-2">
+                    <Link href={`/calendar/events/${event.id}/edit`}>
+                        <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors" title="Edit event">
+                            <Edit className="w-5 h-5" />
+                        </button>
+                    </Link>
+                    <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500 transition-colors"
+                        title="Delete event"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                    </button>
                 </div>
+            </div>
 
-                <div className={`border-l-4 rounded-xl p-6 ${colorInfo.bgClass}`}>
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className={`w-3 h-3 rounded-full ${colorInfo.class}`} />
-                                {isPastEvent && (
-                                    <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
-                                        Past Event
-                                    </span>
-                                )}
-                            </div>
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                                {event.title}
-                            </h1>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+                <div className="max-w-2xl mx-auto px-6 py-6">
+                    <div className={`border-l-4 rounded-lg p-6 ${colorInfo.bgClass}`}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className={`w-3 h-3 rounded-full ${colorInfo.class}`} />
+                            {isPastEvent && (
+                                <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                                    Past Event
+                                </span>
+                            )}
                         </div>
-                    </div>
+                        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+                            {event.title}
+                        </h1>
 
-                    <div className="flex flex-col gap-4">
-                        <div className="flex items-start gap-3">
-                            <Calendar className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
-                            <div>
-                                <p className="font-medium text-gray-900 dark:text-gray-100">
-                                    {formatDate(event.start_time)}
-                                </p>
-                                {formatDate(event.start_time) !== formatDate(event.end_time) && (
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        to {formatDate(event.end_time)}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex items-start gap-3">
-                            <Clock className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
-                            <div>
-                                <p className="font-medium text-gray-900 dark:text-gray-100">
-                                    {formatTime(event.start_time)} - {formatTime(event.end_time)}
-                                </p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {(() => {
-                                        const start = new Date(event.start_time);
-                                        const end = new Date(event.end_time);
-                                        const durationMs = end.getTime() - start.getTime();
-                                        const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                                        const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                                        if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
-                                        if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
-                                        return `${minutes} minutes`;
-                                    })()}
-                                </p>
-                            </div>
-                        </div>
-
-                        {event.location && (
+                        <div className="flex flex-col gap-4">
                             <div className="flex items-start gap-3">
-                                <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
+                                <Calendar className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
                                 <div>
                                     <p className="font-medium text-gray-900 dark:text-gray-100">
-                                        {event.location}
+                                        {formatDate(event.start_time)}
+                                    </p>
+                                    {formatDate(event.start_time) !== formatDate(event.end_time) && (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            to {formatDate(event.end_time)}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-3">
+                                <Clock className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                                        {formatTime(event.start_time)} - {formatTime(event.end_time)}
+                                    </p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        {(() => {
+                                            const start = new Date(event.start_time);
+                                            const end = new Date(event.end_time);
+                                            const durationMs = end.getTime() - start.getTime();
+                                            const hours = Math.floor(durationMs / (1000 * 60 * 60));
+                                            const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+                                            if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+                                            if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
+                                            return `${minutes} minutes`;
+                                        })()}
                                     </p>
                                 </div>
                             </div>
-                        )}
-                    </div>
-                </div>
 
-                {event.description && (
-                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
-                        <div className="flex items-center gap-2 mb-3">
-                            <FileText className="size-5 text-gray-500 dark:text-gray-400" />
-                            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Description</h2>
+                            {event.location && (
+                                <div className="flex items-start gap-3">
+                                    <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                                            {event.location}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                            {event.description}
-                        </p>
                     </div>
-                )}
+
+                    {event.description && (
+                        <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+                            <div className="flex items-center gap-2 mb-3">
+                                <FileText className="size-5 text-gray-500 dark:text-gray-400" />
+                                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Description</h2>
+                            </div>
+                            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                {event.description}
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Delete Event Confirmation Modal */}
+            <ModalOverlay
+                isOpen={showDeleteModal}
+                onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
+            >
+                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+                    <Dialog className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Delete Event</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                            Are you sure you want to delete "{event?.title}"? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? "Deleting..." : "Delete Event"}
+                            </Button>
+                        </div>
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
         </div>
     );
 }
