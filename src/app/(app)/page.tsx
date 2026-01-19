@@ -216,12 +216,6 @@ export default function FeedPage() {
                 </div>
 
                 <div className="flex flex-col gap-6">
-                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-4">
-                        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                            {showingLiked ? "Liked Posts" : "Posts"}
-                        </h2>
-                    </div>
-
                     <div className="grid gap-6">
                         {posts.filter(p => !showingLiked || p.is_liked).length === 0 ? (
                             <div className="text-center py-12 text-sm text-gray-500 dark:text-gray-400">
