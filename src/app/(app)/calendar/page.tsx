@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, MapPin } from "lucide-react";
+import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
@@ -469,8 +470,17 @@ export default function CalendarPage() {
                                                     </div>
                                                     {event.location && (
                                                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                                            <MapPin className="size-3" />
-                                                            <span className="truncate">{event.location}</span>
+                                                            {event.location.includes('meet.google.com') || event.location.includes('meet') ? (
+                                                                <>
+                                                                    <SiGooglemeet className="size-3" />
+                                                                    <span className="truncate">Google Meet</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <MapPin className="size-3" />
+                                                                    <span className="truncate">{event.location}</span>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
