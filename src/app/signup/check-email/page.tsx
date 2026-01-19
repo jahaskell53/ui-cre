@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/utils/supabase";
+import { CheckCircle2 } from "lucide-react";
 
 function CheckEmailContent() {
     const router = useRouter();
@@ -68,20 +69,12 @@ function CheckEmailContent() {
                 </div>
 
                 {/* Success Message */}
-                <div className="w-full p-4 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+                <div className="w-full p-4 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                     <p className="text-green-600 dark:text-green-400 text-sm">
                         Check your email for a confirmation link!
                     </p>
                 </div>
-
-                {/* Checking Status */}
-                {isChecking && (
-                    <div className="w-full p-3 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
-                        <p className="text-blue-600 dark:text-blue-400 text-sm text-center">
-                            Waiting for email confirmation...
-                        </p>
-                    </div>
-                )}
 
                 {/* Instructions */}
                 <div className="space-y-4 text-sm text-gray-600 dark:text-gray-400">
@@ -89,9 +82,7 @@ function CheckEmailContent() {
                         Click the confirmation link in the email to verify your account and complete your signup.
                     </p>
                     <p>
-                        {isChecking 
-                            ? "This page will automatically redirect you once you've confirmed your email."
-                            : "Didn't receive the email? Check your spam folder or try signing up again."}
+                        This page will automatically redirect you once you've confirmed your email.
                     </p>
                 </div>
 
