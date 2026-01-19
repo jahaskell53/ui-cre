@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Clock, MapPin } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { generateAuroraGradient } from "@/app/people/utils";
@@ -401,15 +401,6 @@ export default function CalendarPage() {
                                     <Button variant="outline" size="sm" className="w-full">Register Now</Button>
                                 </div>
                             ))}
-                        </section>
-
-                        <section className="bg-gray-50 dark:bg-gray-800/40 rounded-xl p-6 border border-gray-200 dark:border-gray-800 border-dashed flex flex-col items-center text-center gap-3">
-                            <div className="p-3 bg-white dark:bg-gray-900 rounded-full shadow-sm">
-                                <MapPin className="size-6 text-gray-900 dark:text-gray-100" />
-                            </div>
-                            <h4 className="font-bold text-gray-900 dark:text-gray-100">In-Person Meetups</h4>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Discover owners in your city for local networking events.</p>
-                            <Button variant="link" size="sm">Explore local groups</Button>
                         </section>
                     </div>
                 </div>
