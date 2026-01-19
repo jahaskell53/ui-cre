@@ -178,168 +178,176 @@ export default function UserProfilePage() {
 
     return (
         <MainLayout>
-            <div className="max-w-2xl">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => router.back()}
-                    className="mb-6"
-                >
-                    <ArrowLeft className="size-4" />
-                </Button>
+            <div className="bg-white dark:bg-gray-900 -mx-4 -my-8 px-4 py-8 sm:-mx-6 lg:-mx-8 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
+                <div className="max-w-3xl mx-auto">
+                    <button
+                        onClick={() => router.back()}
+                        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors mb-8 group"
+                    >
+                        <ArrowLeft className="size-4 group-hover:-translate-x-1 transition-transform" />
+                        Back to Directory
+                    </button>
 
-                <div className="bg-primary border border-secondary rounded-2xl p-8">
-                    <div className="flex flex-col items-center text-center mb-8">
-                        <Avatar className="h-20 w-20 mb-4">
-                            <AvatarImage src={profile.avatar_url || undefined} />
-                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xl text-white">
-                                {initials}
-                            </AvatarFallback>
-                        </Avatar>
-                        <h1 className="text-display-sm font-semibold text-primary mb-2">
-                            {displayName}
-                        </h1>
-                        {profile.roles && profile.roles.length > 0 && (
-                            <div className="flex flex-wrap gap-2 justify-center mb-4">
-                                {profile.roles.map((role) => (
-                                    <span
-                                        key={role}
-                                        className="text-sm font-medium text-brand-solid bg-brand-primary/10 px-3 py-1 rounded-lg"
-                                    >
-                                        {role}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                        {profile.website && (
-                            <a
-                                href={profile.website}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-brand-solid hover:underline"
-                            >
-                                {profile.website}
-                            </a>
-                        )}
-                    </div>
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8 shadow-sm">
+                        <div className="flex flex-col items-center text-center">
+                            <Avatar className="h-24 w-24 mb-6 ring-4 ring-gray-50 dark:ring-gray-800">
+                                <AvatarImage src={profile.avatar_url || undefined} />
+                                <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-2xl font-bold text-white">
+                                    {initials}
+                                </AvatarFallback>
+                            </Avatar>
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                                {displayName}
+                            </h1>
+                            {profile.roles && profile.roles.length > 0 && (
+                                <div className="flex flex-wrap gap-2 justify-center mb-6">
+                                    {profile.roles.map((role) => (
+                                        <span
+                                            key={role}
+                                            className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700"
+                                        >
+                                            {role}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            {profile.website && (
+                                <a
+                                    href={profile.website}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                                >
+                                    <ArrowUpRight className="size-4" />
+                                    {profile.website.replace(/^https?:\/\//, '')}
+                                </a>
+                            )}
+                        </div>
 
-                    <div className="border-t border-secondary pt-6">
-                        <div className="grid grid-cols-1 gap-4">
-                            <div className="flex justify-between items-center p-4 bg-secondary/5 rounded-xl">
-                                <span className="text-secondary">Posts</span>
-                                <span className="text-lg font-semibold text-primary">{postsCount}</span>
+                        <div className="grid grid-cols-1 gap-4 mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
+                            <div className="flex items-center justify-center gap-8 text-center">
+                                <div>
+                                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{postsCount}</div>
+                                    <div className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mt-1">Posts</div>
+                                </div>
                             </div>
+                        </div>
+
+                        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
+                            {isOwnProfile ? (
+                                <Button
+                                    onClick={() => router.push("/profile")}
+                                    variant="outline"
+                                    className="w-full h-11 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 font-semibold"
+                                >
+                                    Edit Profile
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={() => router.push(`/messages?user_id=${profile.id}`)}
+                                    className="w-full h-11 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 font-semibold gap-2"
+                                >
+                                    <MessageSquare className="size-4" />
+                                    Send Message
+                                </Button>
+                            )}
                         </div>
                     </div>
 
-                    <div className="mt-6 pt-6 border-t border-secondary">
-                        {isOwnProfile ? (
-                            <Button
-                                onClick={() => router.push("/profile")}
-                                variant="outline"
-                                className="w-full"
-                            >
-                                Edit Profile
-                            </Button>
+                    {/* User Activity Section */}
+                    <div className="mt-12">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Activity</h2>
+                            <div className="h-px flex-1 bg-gray-100 dark:bg-gray-800 ml-6" />
+                        </div>
+
+                        {loadingPosts ? (
+                            <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
+                                <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                                <div className="text-sm">Loading activity...</div>
+                            </div>
+                        ) : posts.length === 0 ? (
+                            <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-2xl">
+                                <p className="text-gray-500 dark:text-gray-400 font-medium">No activity to show yet</p>
+                            </div>
                         ) : (
-                            <Button
-                                onClick={() => router.push(`/messages?user_id=${profile.id}`)}
-                                className="w-full"
-                            >
-                                <MessageSquare className="size-4" />
-                                Message
-                            </Button>
+                            <div className="space-y-6">
+                                {posts.map((post) => {
+                                    const isLink = post.type === "link";
+                                    return (
+                                        <div
+                                            key={post.id}
+                                            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition-all"
+                                        >
+                                            <div className="flex items-center justify-between mb-4">
+                                                <span className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                                                    {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                                                </span>
+                                                <div className="flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400">
+                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded-md">
+                                                        <Heart className="w-3.5 h-3.5" />
+                                                        <span>{post.likes_count || 0}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded-md">
+                                                        <MessageCircle className="w-3.5 h-3.5" />
+                                                        <span>{post.comments_count || 0}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {!isLink && (
+                                                <p className="text-gray-700 dark:text-gray-300 text-[15px] leading-relaxed mb-4">
+                                                    {post.content}
+                                                </p>
+                                            )}
+
+                                            {isLink && post.content && (
+                                                <a
+                                                    href={post.content}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block border border-gray-200 dark:border-gray-800 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group mb-4"
+                                                >
+                                                    <div className="flex items-center gap-3 text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                        <div className="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+                                                            <ArrowUpRight className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="truncate font-medium text-sm">{post.content}</span>
+                                                    </div>
+                                                </a>
+                                            )}
+
+                                            {post.file_url && (
+                                                <div className="mt-4">
+                                                    {post.file_url.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
+                                                        <img
+                                                            src={post.file_url}
+                                                            alt="Post attachment"
+                                                            className="w-full rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                                                            <div className="size-10 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400">
+                                                                <File className="size-5" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                                                    {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
+                                                                </p>
+                                                                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mt-0.5">
+                                                                    {post.file_url.split('.').pop()?.toUpperCase()} File
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
-                </div>
-
-                {/* User Activity Section */}
-                <div className="mt-8">
-                    <h2 className="text-lg font-semibold text-primary mb-6">Activity</h2>
-
-                    {loadingPosts ? (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="text-tertiary">Loading posts...</div>
-                        </div>
-                    ) : posts.length === 0 ? (
-                        <div className="text-center py-12 bg-primary border border-secondary rounded-2xl">
-                            <p className="text-tertiary">No posts yet</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {posts.map((post) => {
-                                const isLink = post.type === "link";
-                                return (
-                                    <div
-                                        key={post.id}
-                                        className="bg-primary border border-secondary rounded-xl p-6 hover:border-tertiary transition-colors"
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-sm text-tertiary">
-                                                {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                                            </span>
-                                            <div className="flex items-center gap-4 text-sm text-tertiary">
-                                                <div className="flex items-center gap-1">
-                                                    <Heart className="w-4 h-4" />
-                                                    <span>{post.likes_count || 0}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <MessageCircle className="w-4 h-4" />
-                                                    <span>{post.comments_count || 0}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {!isLink && (
-                                            <p className="text-secondary text-base leading-relaxed mb-4">
-                                                {post.content}
-                                            </p>
-                                        )}
-
-                                        {isLink && post.content && (
-                                            <a
-                                                href={post.content}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="block border border-secondary rounded-xl p-4 hover:border-tertiary transition-colors group"
-                                            >
-                                                <div className="flex items-center gap-2 text-primary group-hover:text-brand-solid transition-colors">
-                                                    <ArrowUpRight className="w-4 h-4" />
-                                                    <span className="truncate">{post.content}</span>
-                                                </div>
-                                            </a>
-                                        )}
-
-                                        {post.file_url && (
-                                            <div className="mt-4">
-                                                {post.file_url.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
-                                                    <img
-                                                        src={post.file_url}
-                                                        alt="Post attachment"
-                                                        className="w-full rounded-xl border border-secondary"
-                                                    />
-                                                ) : (
-                                                    <div className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5">
-                                                        <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary">
-                                                            <File className="size-5" />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium text-primary truncate">
-                                                                {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
-                                                            </p>
-                                                            <p className="text-xs text-tertiary uppercase tracking-wider">
-                                                                {post.file_url.split('.').pop()?.toUpperCase()} File
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
                 </div>
             </div>
         </MainLayout>
