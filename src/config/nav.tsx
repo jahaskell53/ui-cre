@@ -9,7 +9,7 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         href: "/",
     },
     {
-        label: "Property Map",
+        label: "Listings",
         icon: Map01,
         href: "/map",
     },
