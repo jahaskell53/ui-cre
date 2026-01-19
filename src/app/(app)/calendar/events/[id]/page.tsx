@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { MapPin, Edit, Trash2, FileText } from "lucide-react";
+import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import Link from "next/link";
@@ -190,13 +191,33 @@ export default function EventDetailsPage() {
 
                         <div className="flex flex-col gap-4">
                             {event.location && (
-                                <div className="flex items-start gap-3">
-                                    <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="font-medium text-gray-900 dark:text-gray-100">
-                                            {event.location}
-                                        </p>
-                                    </div>
+                                <div className="flex items-center gap-4">
+                                    {event.location.includes('meet.google.com') || event.location.includes('meet') ? (
+                                        <>
+                                            <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
+                                                <SiGooglemeet className="size-6 text-gray-600 dark:text-gray-300" />
+                                            </div>
+                                            <div>
+                                                <a
+                                                    href={event.location.startsWith('http') ? event.location : `https://${event.location}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xl font-bold text-gray-900 dark:text-gray-100 hover:underline leading-tight"
+                                                >
+                                                    Google Meet
+                                                </a>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
+                                            <div>
+                                                <p className="font-medium text-gray-900 dark:text-gray-100">
+                                                    {event.location}
+                                                </p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
