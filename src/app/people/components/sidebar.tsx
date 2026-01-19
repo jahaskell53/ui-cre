@@ -79,6 +79,19 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
 
       {/* Navigation */}
       <nav className={cn("py-2 space-y-0.5", isCollapsed ? "px-2" : "px-3")}>
+        <Link
+          href="/"
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5"
+          )}
+          title={isCollapsed ? "Home" : undefined}
+        >
+          <HomeIcon className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className="text-sm">Home</span>
+          )}
+        </Link>
         <div 
           onClick={onPeopleIconClick}
           className={cn(
