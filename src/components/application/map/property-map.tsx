@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { PropertyPopupContent } from './property-popup-content';
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
@@ -29,62 +31,19 @@ export const PropertyMap = ({ className, properties, selectedId }: MapProps) => 
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
+    const popupRoots = useRef<ReturnType<typeof createRoot>[]>([]);
 
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
-            style: 'mapbox://styles/mapbox/streets-v12',
+            style: 'mapbox://styles/mapbox/light-v11', // Cleaner style
             center: [-122.4194, 37.7749],
             zoom: 10,
         });
 
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-        // Initial markers
-        properties.forEach((property) => {
-            const popup = new mapboxgl.Popup({ offset: 25, className: 'property-popup' })
-                .setHTML(`
-                    <div style="padding: 0px; width: 200px;">
-                        ${property.thumbnailUrl ? `
-                            <div style="width: 100%; height: 100px; border-radius: 8px 8px 0 0; overflow: hidden; background: #f2f4f7;">
-                                <img src="${property.thumbnailUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="${property.name}" />
-                            </div>
-                        ` : ''}
-                        <div style="padding: 8px;">
-                            <h3 style="font-weight: 700; font-size: 14px; margin-bottom: 2px; color: #101828; line-height: 1.2;">${property.name}</h3>
-                            <p style="font-size: 11px; color: #475467; margin-bottom: 2px; line-height: 1.3;">${property.address}</p>
-                            ${property.location ? `<p style="font-size: 11px; color: #667085; font-weight: 500; margin-bottom: 6px;">${property.location}</p>` : '<div style="margin-bottom: 6px;"></div>'}
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                ${property.units && property.units > 0 ? `<span style="font-size: 11px; font-weight: 600; color: #7f56d9;">${property.units} Units</span>` : '<span></span>'}
-                                <span style="font-size: 13px; font-weight: 700; color: #101828;">${property.price}</span>
-                            </div>
-                            ${property.capRate || property.squareFootage ? `
-                                <div style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center;">
-                                    ${property.capRate ? `
-                                        <span style="font-size: 10px; font-weight: 600; color: #344054; background: #f2f4f7; border: 1px solid #d0d5dd; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">
-                                            ${property.capRate}
-                                        </span>
-                                    ` : ''}
-                                    ${property.squareFootage ? `
-                                        <span style="font-size: 10px; font-weight: 600; color: #344054; background: #f2f4f7; border: 1px solid #d0d5dd; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">
-                                            ${property.squareFootage}
-                                        </span>
-                                    ` : ''}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `);
-
-            const marker = new mapboxgl.Marker({ color: '#7f56d9' })
-                .setLngLat(property.coordinates)
-                .setPopup(popup)
-                .addTo(map.current!);
-
-            markers.current[property.id] = marker;
-        });
 
         map.current.on('load', () => {
             map.current?.resize();
@@ -95,6 +54,60 @@ export const PropertyMap = ({ className, properties, selectedId }: MapProps) => 
                 map.current.remove();
                 map.current = null;
             }
+        };
+    }, []);
+
+    // Update markers when properties change
+    useEffect(() => {
+        if (!map.current) return;
+
+        // Clear existing markers
+        Object.values(markers.current).forEach(marker => marker.remove());
+        markers.current = {};
+
+        // Cleanup previous roots
+        const previousRoots = [...popupRoots.current];
+        popupRoots.current = [];
+
+        properties.forEach((property) => {
+            const popupContainer = document.createElement('div');
+            const root = createRoot(popupContainer);
+            popupRoots.current.push(root);
+            root.render(
+                <PropertyPopupContent
+                    name={property.name}
+                    address={property.address}
+                    price={property.price}
+                    units={property.units}
+                    capRate={property.capRate}
+                    squareFootage={property.squareFootage}
+                    thumbnailUrl={property.thumbnailUrl}
+                />
+            );
+
+            const popup = new mapboxgl.Popup({ 
+                offset: 25, 
+                className: 'property-popup',
+                closeButton: false,
+            }).setDOMContent(popupContainer);
+
+            const marker = new mapboxgl.Marker({ color: '#0ea5e9' }) // Blue marker to match new style
+                .setLngLat(property.coordinates)
+                .setPopup(popup)
+                .addTo(map.current!);
+
+            markers.current[property.id] = marker;
+        });
+
+        // Cleanup roots asynchronously
+        return () => {
+            setTimeout(() => {
+                previousRoots.forEach(root => {
+                    try {
+                        root.unmount();
+                    } catch (e) {}
+                });
+            }, 0);
         };
     }, [properties]);
 
