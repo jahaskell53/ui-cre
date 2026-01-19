@@ -114,7 +114,7 @@ export function KanbanBoard({
             onDrop={onDragEnd}
           >
             {/* Column Header */}
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 group">
               <div className="flex items-center justify-between">
                 {editingColumnId === column.id ? (
                   <Input
@@ -140,13 +140,10 @@ export function KanbanBoard({
                   </h3>
                 )}
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-                    {column.cards.length}
-                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation();
                       setPendingDeleteColumn({ id: column.id, title: column.title });
