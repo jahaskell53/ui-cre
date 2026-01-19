@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LocationIcon } from "../icons";
 import { PersonDetailSidebar } from "../components/person-detail-sidebar";
+import { usePeople } from "../people-context";
 import type { Person, TimelineItem } from "../types";
 import { Cake } from "lucide-react";
 
@@ -243,6 +244,7 @@ interface ExtendedTimelineItem {
 export default function PersonDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { refetchPeople } = usePeople();
   const [person, setPerson] = useState<Person | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -372,6 +374,8 @@ export default function PersonDetailPage() {
 
       const updatedPerson = await response.json();
       setPerson(updatedPerson);
+      // Refetch people data after successful update
+      await refetchPeople();
     } catch (error) {
       console.error('Error toggling star:', error);
       setPerson({ ...person, starred: !newStarredState });
@@ -412,6 +416,8 @@ export default function PersonDetailPage() {
       const updatedPerson = await response.json();
       setPerson(updatedPerson);
       setNoteText("");
+      // Refetch people data after successful update
+      await refetchPeople();
     } catch (error) {
       console.error('Error saving note:', error);
       setError(error instanceof Error ? error.message : 'Failed to save note');
@@ -448,6 +454,8 @@ export default function PersonDetailPage() {
       const updatedPerson = await response.json();
       setPerson(updatedPerson);
       setNoteToDelete(null);
+      // Refetch people data after successful update
+      await refetchPeople();
     } catch (error) {
       console.error('Error deleting note:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete note');
@@ -476,6 +484,9 @@ export default function PersonDetailPage() {
       if (!response.ok) {
         throw new Error('Failed to delete person');
       }
+
+      // Refetch people data after successful deletion
+      await refetchPeople();
 
       router.push('/people');
     } catch (error) {

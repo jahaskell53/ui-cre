@@ -21,6 +21,7 @@ interface PeopleContextType {
   setReverse: (reverse: boolean) => void;
   selectedIds: Set<string>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  refetchPeople: () => Promise<void>;
 }
 
 const PeopleContext = createContext<PeopleContextType | undefined>(undefined);

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { AddressInput } from "@/components/ui/address-input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { generateAuroraGradient, getInitials } from "../utils";
+import { usePeople } from "../people-context";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -27,6 +28,7 @@ function TrashIcon({ className }: { className?: string }) {
 
 export default function CreatePersonPage() {
   const router = useRouter();
+  const { refetchPeople } = usePeople();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("details");
@@ -94,6 +96,8 @@ export default function CreatePersonPage() {
       }
 
       const data = await response.json();
+      // Refetch people data after successful creation
+      await refetchPeople();
       router.push(`/people/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create person");

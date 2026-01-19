@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { AddressInput } from "@/components/ui/address-input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { generateAuroraGradient, getInitials } from "../../utils";
+import { usePeople } from "../../people-context";
 import type { Person } from "../../types";
 
 function BackIcon({ className }: { className?: string }) {
@@ -29,6 +30,7 @@ function TrashIcon({ className }: { className?: string }) {
 export default function EditPersonPage() {
   const params = useParams();
   const router = useRouter();
+  const { refetchPeople } = usePeople();
   const [person, setPerson] = useState<Person | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,6 +135,9 @@ export default function EditPersonPage() {
       if (!response.ok) {
         throw new Error("Failed to update person");
       }
+
+      // Refetch people data after successful update
+      await refetchPeople();
 
       router.push(`/people/${personId}`);
     } catch (err) {

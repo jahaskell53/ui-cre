@@ -54,28 +54,51 @@ export default function PeopleLayout({
   }, [authLoading, user, router]);
 
   // Fetch people from database
-  useEffect(() => {
-    const fetchPeople = async () => {
-      try {
-        const response = await fetch("/api/people");
-        if (!response.ok) {
-          throw new Error("Failed to fetch people");
-        }
-        const data = await response.json();
-        setPeople(data);
-        if (data.length > 0 && !selectedPerson) {
-          setSelectedPerson(data[0]);
-        }
-      } catch (error) {
-        console.error("Error fetching people:", error);
-      } finally {
-        setLoading(false);
+  const fetchPeople = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/people");
+      if (!response.ok) {
+        throw new Error("Failed to fetch people");
       }
-    };
+      const data = await response.json();
+      setPeople(data);
+      if (data.length > 0 && !selectedPerson) {
+        setSelectedPerson(data[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching people:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Initial fetch
+  useEffect(() => {
     fetchPeople();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refetch when navigating to /people after being away
+  useEffect(() => {
+    if (pathname === "/people") {
+      fetchPeople();
+    }
+  }, [pathname]);
+
+  // Refetch when page becomes visible (user returns to tab) and we're on the main /people page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && pathname === "/people") {
+        fetchPeople();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [pathname]);
 
   // Handle resize
   useEffect(() => {
@@ -150,6 +173,7 @@ export default function PeopleLayout({
         setReverse,
         selectedIds,
         setSelectedIds,
+        refetchPeople: fetchPeople,
       }}
     >
       <div className="flex h-screen bg-white dark:bg-gray-900">
