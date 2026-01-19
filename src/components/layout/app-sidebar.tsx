@@ -3,8 +3,9 @@
 import { forwardRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Bell, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/people/icons";
+import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon, MailIcon } from "@/app/people/icons";
 import AccountCard from "@/app/people/account-card";
 
 interface AppSidebarProps {
@@ -124,6 +125,54 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           <CalendarIcon className="w-4 h-4" />
           {!isCollapsed && (
             <span className={cn("text-sm", isActive("/calendar") && "font-medium")}>Calendar</span>
+          )}
+        </Link>
+        <Link
+          href="/notifications"
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
+            isActive("/notifications")
+              ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              : "text-gray-600 dark:text-gray-400"
+          )}
+          title={isCollapsed ? "Notifications" : undefined}
+        >
+          <Bell className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className={cn("text-sm", isActive("/notifications") && "font-medium")}>Notifications</span>
+          )}
+        </Link>
+        <Link
+          href="/messages"
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
+            isActive("/messages")
+              ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              : "text-gray-600 dark:text-gray-400"
+          )}
+          title={isCollapsed ? "Messages" : undefined}
+        >
+          <MailIcon className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className={cn("text-sm", isActive("/messages") && "font-medium")}>Messages</span>
+          )}
+        </Link>
+        <Link
+          href="/users"
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
+            isActive("/users")
+              ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              : "text-gray-600 dark:text-gray-400"
+          )}
+          title={isCollapsed ? "Users" : undefined}
+        >
+          <Users className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className={cn("text-sm", isActive("/users") && "font-medium")}>Users</span>
           )}
         </Link>
       </nav>
