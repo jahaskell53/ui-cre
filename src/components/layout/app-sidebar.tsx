@@ -3,9 +3,9 @@
 import { forwardRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Users } from "lucide-react";
+import { Bell, Users, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon, MailIcon } from "@/app/people/icons";
+import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/people/icons";
 import AccountCard from "@/app/people/account-card";
 
 interface AppSidebarProps {
@@ -154,7 +154,7 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           )}
           title={isCollapsed ? "Messages" : undefined}
         >
-          <MailIcon className="w-4 h-4" />
+          <MessageSquare className="w-4 h-4" />
           {!isCollapsed && (
             <span className={cn("text-sm", isActive("/messages") && "font-medium")}>Messages</span>
           )}

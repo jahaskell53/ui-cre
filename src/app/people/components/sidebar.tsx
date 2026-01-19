@@ -2,9 +2,9 @@
 
 import { forwardRef } from "react";
 import Link from "next/link";
-import { Bell, Users } from "lucide-react";
+import { Bell, Users, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon, MailIcon } from "../icons";
+import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "../icons";
 import AccountCard from "../account-card";
 import type { Person } from "../types";
 
@@ -153,7 +153,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
           )}
           title={isCollapsed ? "Messages" : undefined}
         >
-          <MailIcon className="w-4 h-4" />
+          <MessageSquare className="w-4 h-4" />
           {!isCollapsed && (
             <span className="text-sm">Messages</span>
           )}
