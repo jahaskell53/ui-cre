@@ -1,12 +1,13 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useRef, useImperativeHandle } from "react";
 import Link from "next/link";
 import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "../icons";
 import AccountCard from "../account-card";
 import type { Person } from "../types";
+import { UserSearchBar, type UserSearchBarRef } from "@/components/user-search-bar";
 
 interface SidebarProps {
   people: Person[];
@@ -33,6 +34,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
   isCollapsed = false,
   onToggleCollapse,
 }, ref) {
+  const searchBarRef = useRef<UserSearchBarRef>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusSearch: () => {
+      searchBarRef.current?.focusSearch?.();
+    },
+  }));
+
   const handleToggleStarred = () => {
     const newShowStarredOnly = !showStarredOnly;
     onToggleStarred();
@@ -77,6 +86,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
           </button>
         )}
       </div>
+
+      {/* Search */}
+      {!isCollapsed && (
+        <div className="px-3 py-2">
+          <UserSearchBar ref={searchBarRef} />
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className={cn("py-2 space-y-0.5", isCollapsed ? "px-2" : "px-3")}>
