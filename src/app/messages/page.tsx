@@ -309,54 +309,56 @@ export default function MessagesPage() {
     return (
         <MainLayout>
             <div className="max-w-6xl mx-auto">
-                <h1 className="text-display-sm font-semibold text-primary mb-2">Messages</h1>
-                <p className="text-lg text-tertiary mb-8">Chat with other users.</p>
+                <div className="mb-8">
+                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Messages</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Chat with other users.</p>
+                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-250px)] min-h-[600px]">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)] min-h-[600px]">
                     {/* Conversations List */}
-                    <div className="lg:col-span-1 bg-primary border border-secondary rounded-2xl overflow-hidden flex flex-col">
-                        <div className="p-4 border-b border-secondary">
+                    <div className="lg:col-span-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
                             <div className="flex items-center justify-between mb-2">
-                                <h2 className="text-lg font-semibold text-primary">Conversations</h2>
-                                <Button
+                                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Conversations</h2>
+                                <button
                                     onClick={() => {
                                         setShowNewMessage(!showNewMessage);
                                         setSearchQuery("");
                                         setSearchResults([]);
                                     }}
-                                    size="sm"
+                                    className="flex items-center gap-1.5 px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
                                 >
                                     {showNewMessage ? <X className="size-4" /> : <Plus className="size-4" />}
                                     {showNewMessage ? "Cancel" : "New"}
-                                </Button>
+                                </button>
                             </div>
                             {showNewMessage && (
                                 <div className="mt-3 relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 dark:text-gray-500" />
                                     <Input
                                         placeholder="Search users..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-9"
+                                        className="pl-9 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                                         autoFocus
                                     />
                                 </div>
                             )}
                         </div>
                         {showNewMessage && searchQuery.trim() && (
-                            <div className="border-b border-secondary max-h-[200px] overflow-y-auto">
+                            <div className="border-b border-gray-200 dark:border-gray-800 max-h-[200px] overflow-y-auto">
                                 {searchLoading ? (
                                     <div className="flex items-center justify-center py-8">
-                                        <div className="text-tertiary">Searching...</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">Searching...</div>
                                     </div>
                                 ) : searchResults.length === 0 ? (
                                     <div className="flex items-center justify-center py-8 px-4">
-                                        <div className="text-center text-tertiary">
+                                        <div className="text-center text-gray-500 dark:text-gray-400">
                                             <p className="text-sm">No users found</p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="divide-y divide-secondary">
+                                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
                                         {searchResults.map((userProfile) => {
                                             const displayName = userProfile.full_name || "Unknown User";
                                             const initials = getInitialsFromUser(userProfile);
@@ -368,21 +370,21 @@ export default function MessagesPage() {
                                                 <div
                                                     key={userProfile.id}
                                                     onClick={() => handleStartConversation(userProfile.id)}
-                                                    className="p-3 cursor-pointer transition-colors hover:bg-secondary/5"
+                                                    className="p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        <Avatar className="h-8 w-8">
+                                                        <Avatar className="h-7 w-7">
                                                             <AvatarImage src={userProfile.avatar_url || undefined} />
-                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
                                                                 {initials}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="font-semibold text-sm text-primary truncate">
+                                                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
                                                                 {displayName}
                                                             </div>
                                                             {isExistingConversation && (
-                                                                <div className="text-xs text-tertiary mt-1">
+                                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                                     Existing conversation
                                                                 </div>
                                                             )}
@@ -398,17 +400,17 @@ export default function MessagesPage() {
                         <div className="flex-1 overflow-y-auto">
                             {loading ? (
                                 <div className="flex items-center justify-center py-12">
-                                    <div className="text-tertiary">Loading...</div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
                                 </div>
                             ) : conversations.length === 0 ? (
                                 <div className="flex items-center justify-center py-12 px-4">
-                                    <div className="text-center text-tertiary">
-                                        <p>No conversations yet</p>
-                                        <p className="text-sm mt-2">Start a conversation from a user profile</p>
+                                    <div className="text-center text-gray-500 dark:text-gray-400">
+                                        <p className="text-sm">No conversations yet</p>
+                                        <p className="text-xs mt-2">Start a conversation from a user profile</p>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-secondary">
+                                <div className="divide-y divide-gray-100 dark:divide-gray-800">
                                     {Array.isArray(conversations) && conversations.map((conversation) => {
                                         const displayName = getDisplayName(conversation.other_user);
                                         const initials = getInitials(conversation.other_user);
@@ -419,28 +421,28 @@ export default function MessagesPage() {
                                             <div
                                                 key={conversation.other_user_id}
                                                 onClick={() => setSelectedUserId(conversation.other_user_id)}
-                                                className={`p-4 cursor-pointer transition-colors ${
+                                                className={`px-4 py-2.5 cursor-pointer transition-colors ${
                                                     isSelected
-                                                        ? "bg-secondary/10 border-l-2 border-brand"
-                                                        : "hover:bg-secondary/5"
+                                                        ? "bg-gray-50 dark:bg-gray-800"
+                                                        : "hover:bg-gray-50 dark:hover:bg-gray-800"
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <Avatar className="h-8 w-8">
+                                                    <Avatar className="h-7 w-7">
                                                         <AvatarImage src={conversation.other_user?.avatar_url || undefined} />
-                                                        <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                        <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
                                                             {initials}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <div className={`font-semibold text-sm truncate ${
-                                                                isUnread ? "text-primary" : "text-secondary"
+                                                        <div className="flex items-center justify-between mb-0.5">
+                                                            <div className={`text-sm truncate ${
+                                                                isUnread ? "font-medium text-gray-900 dark:text-gray-100" : "text-gray-600 dark:text-gray-400"
                                                             }`}>
                                                                 {displayName}
                                                             </div>
                                                             {conversation.last_message && (
-                                                                <span className="text-xs text-tertiary ml-2">
+                                                                <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
                                                                     {formatDistanceToNow(
                                                                         new Date(conversation.last_message.created_at),
                                                                         { addSuffix: true }
@@ -449,13 +451,13 @@ export default function MessagesPage() {
                                                             )}
                                                         </div>
                                                         <div className="flex items-center justify-between">
-                                                            <p className={`text-sm truncate ${
-                                                                isUnread ? "text-primary font-medium" : "text-tertiary"
+                                                            <p className={`text-xs truncate ${
+                                                                isUnread ? "text-gray-700 dark:text-gray-300 font-medium" : "text-gray-500 dark:text-gray-400"
                                                             }`}>
                                                                 {conversation.last_message.content}
                                                             </p>
                                                             {isUnread && (
-                                                                <span className="ml-2 bg-brand-primary text-brand-solid text-xs font-semibold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                                                                <span className="ml-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-medium rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
                                                                     {conversation.unread_count}
                                                                 </span>
                                                             )}
@@ -471,11 +473,11 @@ export default function MessagesPage() {
                     </div>
 
                     {/* Messages View */}
-                    <div className="lg:col-span-2 bg-primary border border-secondary rounded-2xl overflow-hidden flex flex-col">
+                    <div className="lg:col-span-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
                         {selectedUserId ? (
                             <>
                                 {/* Messages Header */}
-                                <div className="p-4 border-b border-secondary">
+                                <div className="p-4 border-b border-gray-200 dark:border-gray-800">
                                     {(() => {
                                         const conversation = conversations.find(
                                             c => c.other_user_id === selectedUserId
@@ -488,15 +490,15 @@ export default function MessagesPage() {
                                                 const initials = getInitialsFromUser(selectedUserProfile);
 
                                                 return (
-                                                    <div className="flex items-center gap-3">
-                                                        <Avatar className="h-8 w-8">
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="h-7 w-7">
                                                             <AvatarImage src={selectedUserProfile.avatar_url || undefined} />
-                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
                                                                 {initials}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div>
-                                                            <h3 className="font-semibold text-primary">{displayName}</h3>
+                                                            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</h3>
                                                         </div>
                                                     </div>
                                                 );
@@ -508,15 +510,15 @@ export default function MessagesPage() {
                                         const initials = getInitials(conversation.other_user);
 
                                         return (
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-8 w-8">
+                                            <div className="flex items-center gap-2">
+                                                <Avatar className="h-7 w-7">
                                                     <AvatarImage src={conversation.other_user.avatar_url || undefined} />
-                                                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
                                                         {initials}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                    <h3 className="font-semibold text-primary">{displayName}</h3>
+                                                    <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</h3>
                                                 </div>
                                             </div>
                                         );
@@ -524,16 +526,16 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Messages List */}
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                     {loadingMessages ? (
                                         <div className="flex items-center justify-center py-12">
-                                            <div className="text-tertiary">Loading messages...</div>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">Loading messages...</div>
                                         </div>
                                     ) : messages.length === 0 ? (
                                         <div className="flex items-center justify-center py-12">
-                                            <div className="text-center text-tertiary">
-                                                <p>No messages yet</p>
-                                                <p className="text-sm mt-2">Start the conversation!</p>
+                                            <div className="text-center text-gray-500 dark:text-gray-400">
+                                                <p className="text-sm">No messages yet</p>
+                                                <p className="text-xs mt-2">Start the conversation!</p>
                                             </div>
                                         </div>
                                     ) : (
@@ -546,17 +548,17 @@ export default function MessagesPage() {
                                                         className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                                                     >
                                                         <div
-                                                            className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                                                            className={`max-w-[70%] rounded-lg px-3 py-2 ${
                                                                 isOwn
-                                                                    ? "bg-brand-primary text-brand-solid"
-                                                                    : "bg-secondary/10 text-primary"
+                                                                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                                                                    : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                                             }`}
                                                         >
                                                             <p className="text-sm whitespace-pre-wrap break-words">
                                                                 {message.content}
                                                             </p>
                                                             <p className={`text-xs mt-1 ${
-                                                                isOwn ? "text-brand-solid/70" : "text-tertiary"
+                                                                isOwn ? "text-gray-300 dark:text-gray-600" : "text-gray-500 dark:text-gray-400"
                                                             }`}>
                                                                 {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                                                             </p>
@@ -570,7 +572,7 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Message Input */}
-                                <div className="p-4 border-t border-secondary">
+                                <div className="p-4 border-t border-gray-200 dark:border-gray-800">
                                     <div className="flex gap-2 items-end">
                                         <div className="flex-1">
                                             <Textarea
@@ -579,25 +581,25 @@ export default function MessagesPage() {
                                                 onChange={(e) => setMessageContent(e.target.value)}
                                                 onKeyDown={handleKeyPress}
                                                 rows={1}
-                                                className="resize-none rounded-full h-12 py-3"
+                                                className="resize-none rounded-lg h-10 py-2.5 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-sm"
                                             />
                                         </div>
                                         <Button
                                             onClick={sendMessage}
                                             disabled={!messageContent.trim() || sending}
-                                            size="lg"
-                                            className="rounded-full w-12 h-12 p-0"
+                                            size="sm"
+                                            className="rounded-lg h-10 w-10 p-0 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
                                         >
-                                            <ArrowUp className="size-5" />
+                                            <ArrowUp className="size-4" />
                                         </Button>
                                     </div>
                                 </div>
                             </>
                         ) : (
                             <div className="flex items-center justify-center h-full">
-                                <div className="text-center text-tertiary">
-                                    <p className="text-lg mb-2">Select a conversation</p>
-                                    <p className="text-sm">Choose a conversation from the list to start messaging</p>
+                                <div className="text-center text-gray-500 dark:text-gray-400">
+                                    <p className="text-sm mb-2">Select a conversation</p>
+                                    <p className="text-xs">Choose a conversation from the list to start messaging</p>
                                 </div>
                             </div>
                         )}
