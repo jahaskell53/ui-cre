@@ -2,7 +2,7 @@
 
 import { forwardRef } from "react";
 import Link from "next/link";
-import { Bell, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "../icons";
 import AccountCard from "../account-card";
@@ -130,19 +130,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
           <CalendarIcon className="w-4 h-4" />
           {!isCollapsed && (
             <span className="text-sm">Calendar</span>
-          )}
-        </Link>
-        <Link
-          href="/notifications"
-          className={cn(
-            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400",
-            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5"
-          )}
-          title={isCollapsed ? "Notifications" : undefined}
-        >
-          <Bell className="w-4 h-4" />
-          {!isCollapsed && (
-            <span className="text-sm">Notifications</span>
           )}
         </Link>
         <Link
