@@ -180,114 +180,122 @@ export default function EventDetailsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
-                {event.image_url && (
-                    <div className="w-full h-64 md:h-80 relative">
-                        <img
-                            src={event.image_url}
-                            alt={event.title}
-                            className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                    </div>
-                )}
-                <div className="max-w-2xl mx-auto px-6 py-6">
-                    <div className={`border-l-4 rounded-lg p-6 ${colorInfo.bgClass}`}>
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className={`w-3 h-3 rounded-full ${colorInfo.class}`} />
-                            {isPastEvent && (
-                                <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
-                                    Past Event
-                                </span>
+                <div className="max-w-6xl mx-auto px-6 py-6">
+                    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+                        {/* Left Side - Image and Host */}
+                        <div className="lg:w-80 lg:shrink-0">
+                            {event.image_url && (
+                                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-6">
+                                    <img
+                                        src={event.image_url}
+                                        alt={event.title}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                            )}
+                            
+                            {host && (
+                                <div>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Hosted By</p>
+                                    <Link 
+                                        href={`/users/${host.id}`}
+                                        className="flex items-center gap-3 group"
+                                    >
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={host.avatar_url || undefined} alt={host.full_name || "Host"} />
+                                            <AvatarFallback
+                                                className="text-white text-sm font-medium"
+                                                style={{ background: generateAuroraGradient(host.full_name || "Host") }}
+                                            >
+                                                {getInitials(host.full_name || "Host")}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:underline leading-tight">
+                                            {host.full_name || "Unknown"}
+                                        </span>
+                                    </Link>
+                                </div>
                             )}
                         </div>
-                        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
-                            {event.title}
-                        </h1>
-
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
-                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-none mb-1">
-                                    {getMonthAbbr(event.start_time)}
-                                </span>
-                                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-none">
-                                    {getDayNumber(event.start_time)}
-                                </span>
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
-                                    {formatDate(event.start_time)}
-                                </h2>
-                                <p className="text-gray-500 dark:text-gray-400 font-medium">
-                                    {formatTimeWithZone(event.start_time)} - {formatTimeWithZone(event.end_time)} {getTimeZone(event.start_time)}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                            {event.location && (
-                                <div className="flex items-center gap-4">
-                                    {event.location.includes('meet.google.com') || event.location.includes('meet') ? (
-                                        <>
-                                            <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
-                                                <SiGooglemeet className="size-6 text-gray-600 dark:text-gray-300" />
-                                            </div>
-                                            <div>
-                                                <a
-                                                    href={event.location.startsWith('http') ? event.location : `https://${event.location}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-xl font-bold text-gray-900 dark:text-gray-100 hover:underline leading-tight"
-                                                >
-                                                    Google Meet
-                                                </a>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
-                                            <div>
-                                                <p className="font-medium text-gray-900 dark:text-gray-100">
-                                                    {event.location}
-                                                </p>
-                                            </div>
-                                        </>
+                        
+                        {/* Right Side - Content */}
+                        <div className="flex-1 min-w-0">
+                            <div className={`border-l-4 rounded-lg p-6 ${colorInfo.bgClass}`}>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className={`w-3 h-3 rounded-full ${colorInfo.class}`} />
+                                    {isPastEvent && (
+                                        <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                                            Past Event
+                                        </span>
                                     )}
+                                </div>
+                                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+                                    {event.title}
+                                </h1>
+
+                                <div className="flex items-center gap-4 mb-8">
+                                    <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
+                                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-none mb-1">
+                                            {getMonthAbbr(event.start_time)}
+                                        </span>
+                                        <span className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+                                            {getDayNumber(event.start_time)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                                            {formatDate(event.start_time)}
+                                        </h2>
+                                        <p className="text-gray-500 dark:text-gray-400 font-medium">
+                                            {formatTimeWithZone(event.start_time)} - {formatTimeWithZone(event.end_time)} {getTimeZone(event.start_time)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-4">
+                                    {event.location && (
+                                        <div className="flex items-center gap-4">
+                                            {event.location.includes('meet.google.com') || event.location.includes('meet') ? (
+                                                <>
+                                                    <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
+                                                        <SiGooglemeet className="size-6 text-gray-600 dark:text-gray-300" />
+                                                    </div>
+                                                    <div>
+                                                        <a
+                                                            href={event.location.startsWith('http') ? event.location : `https://${event.location}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xl font-bold text-gray-900 dark:text-gray-100 hover:underline leading-tight"
+                                                        >
+                                                            Google Meet
+                                                        </a>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
+                                                    <div>
+                                                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                                                            {event.location}
+                                                        </p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {event.description && (
+                                <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+                                    <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">About Event</h2>
+                                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                        {event.description}
+                                    </p>
                                 </div>
                             )}
                         </div>
                     </div>
-
-                    {host && (
-                        <div className="mt-6">
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Hosted By</p>
-                            <Link 
-                                href={`/users/${host.id}`}
-                                className="flex items-center gap-3 group"
-                            >
-                                <Avatar className="h-10 w-10">
-                                    <AvatarImage src={host.avatar_url || undefined} alt={host.full_name || "Host"} />
-                                    <AvatarFallback
-                                        className="text-white text-sm font-medium"
-                                        style={{ background: generateAuroraGradient(host.full_name || "Host") }}
-                                    >
-                                        {getInitials(host.full_name || "Host")}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:underline leading-tight">
-                                    {host.full_name || "Unknown"}
-                                </span>
-                            </Link>
-                        </div>
-                    )}
-
-                    {event.description && (
-                        <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
-                            <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">About Event</h2>
-                            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                {event.description}
-                            </p>
-                        </div>
-                    )}
                 </div>
             </div>
 
