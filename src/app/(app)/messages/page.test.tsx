@@ -3,9 +3,11 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import MessagesPage from './page'
 import { useUser } from '@/hooks/use-user'
+import { supabase } from '@/utils/supabase'
 
 // Mock dependencies
 vi.mock('@/hooks/use-user')
+vi.mock('@/utils/supabase')
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -30,16 +32,46 @@ describe('MessagesPage', () => {
       loading: false,
     })
     vi.mocked(global.fetch).mockClear()
+    
+    // Mock window.location.search
+    Object.defineProperty(window, 'location', {
+      value: {
+        search: '',
+      },
+      writable: true,
+    })
+    
+    // Mock Supabase
+    vi.mocked(supabase.from).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: null,
+          }),
+        }),
+        ilike: vi.fn().mockReturnValue({
+          neq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    } as any)
   })
 
-  it('should render messages page', () => {
+  it('should render messages page', async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => [],
     } as Response)
 
     render(<MessagesPage />)
-    expect(screen.getByText('Messages')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Messages')).toBeInTheDocument()
+    })
   })
 
   it('should display conversations list', async () => {
@@ -217,12 +249,13 @@ describe('MessagesPage', () => {
       },
     ]
 
+    const now = new Date()
     const mockNewMessage = {
       id: 'msg-2',
       sender_id: 'user-123',
       recipient_id: 'user-456',
       content: 'Test message',
-      created_at: new Date().toISOString(),
+      created_at: now.toISOString(),
       read_at: null,
     }
 

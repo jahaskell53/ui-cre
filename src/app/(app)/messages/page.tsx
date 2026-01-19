@@ -559,7 +559,9 @@ export default function MessagesPage() {
                                                             <p className={`text-xs mt-1 ${
                                                                 isOwn ? "text-gray-300 dark:text-gray-600" : "text-gray-500 dark:text-gray-400"
                                                             }`}>
-                                                                {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                                                                {message.created_at && !isNaN(new Date(message.created_at).getTime()) 
+                                                                    ? formatDistanceToNow(new Date(message.created_at), { addSuffix: true })
+                                                                    : 'Just now'}
                                                             </p>
                                                         </div>
                                                     </div>
