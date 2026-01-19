@@ -248,38 +248,32 @@ export default function FeedPage() {
 
     return (
         <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
-                <div>
-                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Feed</h1>
-                </div>
-                <div className="flex gap-2 w-full lg:w-auto">
-                    <button
-                        onClick={() => setShowingLiked(!showingLiked)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 lg:flex-none justify-center ${
-                            showingLiked
-                                ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
-                        }`}
-                    >
-                        <HeartIcon isLiked={showingLiked} className="size-4" />
-                        Liked
-                    </button>
-                    <button
-                        onClick={() => setShowPostModal(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors flex-1 lg:flex-none justify-center"
-                    >
-                        <Plus className="size-4" />
-                        New Post
-                    </button>
-                </div>
-            </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3 flex flex-col gap-6">
                     <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-4">
                         <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                             {showingLiked ? "Liked Posts" : "Posts"}
                         </h2>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowingLiked(!showingLiked)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                    showingLiked
+                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                }`}
+                            >
+                                <HeartIcon isLiked={showingLiked} className="size-4" />
+                                Liked
+                            </button>
+                            <button
+                                onClick={() => setShowPostModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors"
+                            >
+                                <Plus className="size-4" />
+                                New Post
+                            </button>
+                        </div>
                     </div>
 
                     <div className="grid gap-6">
