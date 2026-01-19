@@ -1,9 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-export default function CheckEmailPage() {
+function CheckEmailContent() {
     const searchParams = useSearchParams();
     const email = searchParams.get("email");
 
@@ -48,5 +49,26 @@ export default function CheckEmailPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function CheckEmailPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
+                <div className="w-full max-w-md space-y-6">
+                    <div className="flex flex-col items-center gap-4 mb-8">
+                        <div className="w-10 h-10 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
+                            <span className="text-white dark:text-gray-900 text-sm font-bold">OM</span>
+                        </div>
+                        <div className="text-center">
+                            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Check your email</h1>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }>
+            <CheckEmailContent />
+        </Suspense>
     );
 }
