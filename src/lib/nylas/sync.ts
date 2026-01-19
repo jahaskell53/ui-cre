@@ -176,13 +176,20 @@ function parseEmailAddress(emailString: string): {
 
 /**
  * Sync contacts from email messages
+ * @param grantId - The Nylas grant ID
+ * @param userId - The user ID
+ * @param lastSyncAt - Optional timestamp of last sync (for incremental sync)
  */
-export async function syncEmailContacts(grantId: string, userId: string) {
+export async function syncEmailContacts(grantId: string, userId: string, lastSyncAt?: Date | null) {
   try {
-    console.log(`Starting email sync for grant ${grantId}`);
+    const isIncremental = !!lastSyncAt;
+    console.log(`Starting ${isIncremental ? 'incremental' : 'full'} email sync for grant ${grantId}`);
 
-    const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit);
-    console.log(`Fetched ${messages.length} messages from Nylas`);
+    // Convert lastSyncAt to Unix timestamp for Nylas API
+    const receivedAfter = lastSyncAt ? Math.floor(lastSyncAt.getTime() / 1000) : undefined;
+    
+    const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit, receivedAfter);
+    console.log(`Fetched ${messages.length} ${isIncremental ? 'new ' : ''}messages from Nylas`);
 
     const contactsMap = new Map<string, Contact>();
     const emailInteractions: EmailInteraction[] = [];
@@ -474,13 +481,20 @@ export async function syncEmailContacts(grantId: string, userId: string) {
 
 /**
  * Sync contacts from calendar events
+ * @param grantId - The Nylas grant ID
+ * @param userId - The user ID
+ * @param lastSyncAt - Optional timestamp of last sync (for incremental sync)
  */
-export async function syncCalendarContacts(grantId: string, userId: string) {
+export async function syncCalendarContacts(grantId: string, userId: string, lastSyncAt?: Date | null) {
   try {
-    console.log(`Starting calendar sync for grant ${grantId}`);
+    const isIncremental = !!lastSyncAt;
+    console.log(`Starting ${isIncremental ? 'incremental' : 'full'} calendar sync for grant ${grantId}`);
 
-    const events = await getCalendarEvents(grantId, NYLAS_SYNC_CONFIG.calendarLimit);
-    console.log(`Fetched ${events.length} calendar events from Nylas`);
+    // Convert lastSyncAt to Unix timestamp for Nylas API
+    const startAfter = lastSyncAt ? Math.floor(lastSyncAt.getTime() / 1000) : undefined;
+    
+    const events = await getCalendarEvents(grantId, NYLAS_SYNC_CONFIG.calendarLimit, startAfter);
+    console.log(`Fetched ${events.length} ${isIncremental ? 'new ' : ''}calendar events from Nylas`);
 
     const contactsMap = new Map<string, Contact>();
     const calendarInteractions: CalendarInteraction[] = [];
@@ -739,30 +753,54 @@ export async function syncCalendarContacts(grantId: string, userId: string) {
 
 /**
  * Sync all contacts from both email and calendar
+ * Performs incremental sync if last_sync_at exists, otherwise full sync
  */
 export async function syncAllContacts(grantId: string, userId: string) {
+  const supabase = createAdminClient();
+  
   try {
+    // Fetch integration to get last_sync_at for incremental sync
+    const { data: integration } = await supabase
+      .from('integrations')
+      .select('first_sync_at, last_sync_at')
+      .eq('nylas_grant_id', grantId)
+      .single();
+
+    const lastSyncAt = integration?.last_sync_at ? new Date(integration.last_sync_at) : null;
+    const isFirstSync = !integration?.first_sync_at;
+
+    if (lastSyncAt) {
+      console.log(`Incremental sync: fetching data since ${lastSyncAt.toISOString()}`);
+    } else {
+      console.log('Full sync: no previous sync timestamp found');
+    }
+
     // Run sequentially to avoid hitting Nylas rate limits
-    const emailCount = await syncEmailContacts(grantId, userId);
-    const calendarCount = await syncCalendarContacts(grantId, userId);
+    const emailCount = await syncEmailContacts(grantId, userId, lastSyncAt);
+    const calendarCount = await syncCalendarContacts(grantId, userId, lastSyncAt);
 
     // Update integration sync status
-    const supabase = createAdminClient();
+    const updateData: Record<string, any> = {
+      last_sync_at: new Date().toISOString(),
+      status: 'active',
+      sync_error: null,
+    };
+
+    // Only set first_sync_at on the first sync
+    if (isFirstSync) {
+      updateData.first_sync_at = new Date().toISOString();
+    }
+
     await supabase
       .from('integrations')
-      .update({
-        last_sync_at: new Date().toISOString(),
-        first_sync_at: new Date().toISOString(),
-        status: 'active',
-      })
+      .update(updateData)
       .eq('nylas_grant_id', grantId);
 
-    return { emailCount, calendarCount };
+    return { emailCount, calendarCount, isIncremental: !!lastSyncAt };
   } catch (error) {
     console.error('Error syncing all contacts:', error);
 
     // Update integration with error status
-    const supabase = createAdminClient();
     await supabase
       .from('integrations')
       .update({

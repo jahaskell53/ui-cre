@@ -136,19 +136,30 @@ async function collectPaginatedItems<T>(
 
 /**
  * Get messages from a grant (for contact extraction)
+ * @param grantId - The Nylas grant ID
+ * @param limit - Maximum number of messages to fetch
+ * @param receivedAfter - Optional Unix timestamp to only fetch messages received after this time (for incremental sync)
  */
 export async function getMessages(
   grantId: string,
-  limit: number = NYLAS_SYNC_CONFIG.emailLimit
+  limit: number = NYLAS_SYNC_CONFIG.emailLimit,
+  receivedAfter?: number
 ): Promise<NylasMessage[]> {
   try {
-    console.log(`Fetching up to ${limit} messages`);
+    const queryParams: Record<string, any> = {
+      limit: Math.min(limit, NYLAS_SYNC_CONFIG.maxPerRequest),
+    };
+
+    if (receivedAfter) {
+      queryParams.received_after = receivedAfter;
+      console.log(`Fetching up to ${limit} messages received after ${new Date(receivedAfter * 1000).toISOString()}`);
+    } else {
+      console.log(`Fetching up to ${limit} messages (full sync)`);
+    }
 
     const asyncMessages = nylasClient.messages.list({
       identifier: grantId,
-      queryParams: {
-        limit: Math.min(limit, NYLAS_SYNC_CONFIG.maxPerRequest),
-      },
+      queryParams,
     });
 
     const allMessages = await collectPaginatedItems<NylasMessage>(asyncMessages, limit);
@@ -162,13 +173,25 @@ export async function getMessages(
 
 /**
  * Get calendar events from a grant (for contact extraction)
+ * @param grantId - The Nylas grant ID
+ * @param limit - Maximum number of events to fetch
+ * @param startAfter - Optional Unix timestamp to only fetch events starting after this time (for incremental sync)
  */
 export async function getCalendarEvents(
   grantId: string,
-  limit: number = NYLAS_SYNC_CONFIG.calendarLimit
+  limit: number = NYLAS_SYNC_CONFIG.calendarLimit,
+  startAfter?: number
 ): Promise<NylasCalendarEvent[]> {
   try {
-    console.log(`Fetching up to ${limit} calendar events`);
+    // Convert Unix timestamp to string for Nylas API (expects Unix timestamp as string)
+    const startAfterStr = startAfter?.toString();
+    
+    if (startAfter) {
+      console.log(`Fetching up to ${limit} calendar events starting after ${new Date(startAfter * 1000).toISOString()}`);
+    } else {
+      console.log(`Fetching up to ${limit} calendar events (full sync)`);
+    }
+    
     const calendars = await getCalendars(grantId);
 
     if (calendars.length === 0) {
@@ -191,6 +214,7 @@ export async function getCalendarEvents(
           queryParams: {
             calendarId: calendar.id,
             limit: Math.min(calendarLimit, NYLAS_SYNC_CONFIG.maxPerRequest),
+            ...(startAfterStr && { start: startAfterStr }),
           },
         });
 

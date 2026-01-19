@@ -31,13 +31,14 @@ export async function POST(request: NextRequest) {
       .eq('nylas_grant_id', grantId)
       .eq('user_id', userId);
 
-    // Start sync in background
+    // Start sync (incremental if previous sync exists)
     const result = await syncAllContacts(grantId, userId);
 
     return NextResponse.json({
       success: true,
       emailCount: result.emailCount,
       calendarCount: result.calendarCount,
+      isIncremental: result.isIncremental,
     });
   } catch (error) {
     console.error('Error in sync API:', error);
