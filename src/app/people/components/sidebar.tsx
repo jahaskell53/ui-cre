@@ -1,13 +1,11 @@
 "use client";
 
-import { forwardRef, useState, useEffect, useRef } from "react";
+import { forwardRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon } from "../icons";
 import AccountCard from "../account-card";
 import type { Person } from "../types";
-import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 
 interface SidebarProps {
   people: Person[];
@@ -34,86 +32,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
   isCollapsed = false,
   onToggleCollapse,
 }, ref) {
-  const { user, profile, loading } = useUser();
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [isEditingWorkspace, setIsEditingWorkspace] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const workspaceInputRef = useRef<HTMLInputElement>(null);
-
-  // Load workspace name from profile on mount or when profile changes
-  useEffect(() => {
-    if (loading) {
-      setWorkspaceName("");
-      return;
-    }
-    
-    if (profile?.workspace_name) {
-      setWorkspaceName(profile.workspace_name);
-    } else {
-      setWorkspaceName("My Workspace");
-    }
-  }, [profile, loading]);
-
-  // Focus input when editing starts
-  useEffect(() => {
-    if (isEditingWorkspace && workspaceInputRef.current && !isCollapsed) {
-      workspaceInputRef.current.focus();
-      workspaceInputRef.current.select();
-    }
-  }, [isEditingWorkspace, isCollapsed]);
-
-  const handleWorkspaceClick = () => {
-    if (!isCollapsed) {
-      setIsEditingWorkspace(true);
-    }
-  };
-
-  const saveWorkspaceName = async (name: string) => {
-    if (!user) return;
-
-    const trimmedName = name.trim() || "My Workspace";
-    setIsSaving(true);
-
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ workspace_name: trimmedName })
-        .eq("id", user.id);
-
-      if (error) throw error;
-      setWorkspaceName(trimmedName);
-    } catch (error) {
-      console.error("Error saving workspace name:", error);
-      // Revert to previous value on error
-      if (profile?.workspace_name) {
-        setWorkspaceName(profile.workspace_name);
-      } else {
-        setWorkspaceName("My Workspace");
-      }
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleWorkspaceBlur = () => {
-    setIsEditingWorkspace(false);
-    saveWorkspaceName(workspaceName);
-  };
-
-  const handleWorkspaceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.currentTarget.blur();
-    } else if (e.key === "Escape") {
-      setIsEditingWorkspace(false);
-      // Revert to saved value
-      if (profile?.workspace_name) {
-        setWorkspaceName(profile.workspace_name);
-      } else {
-        setWorkspaceName("My Workspace");
-      }
-    }
-  };
-
   const handleToggleStarred = () => {
     const newShowStarredOnly = !showStarredOnly;
     onToggleStarred();
@@ -158,41 +76,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
           </button>
         )}
       </div>
-
-      {/* My Workspace */}
-      <div className={cn("py-2", isCollapsed ? "px-2" : "px-3")}>
-        <div 
-          className={cn(
-            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
-            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5"
-          )}
-          title={isCollapsed ? workspaceName : undefined}
-          onClick={handleWorkspaceClick}
-        >
-          <div className="w-4 h-4 bg-emerald-500 rounded flex-shrink-0" />
-          {!isCollapsed && (
-            <>
-              {isEditingWorkspace ? (
-                <input
-                  ref={workspaceInputRef}
-                  type="text"
-                  value={workspaceName}
-                  onChange={(e) => setWorkspaceName(e.target.value)}
-                  onBlur={handleWorkspaceBlur}
-                  onKeyDown={handleWorkspaceKeyDown}
-                  className="text-sm text-gray-700 dark:text-gray-300 bg-transparent border-none outline-none flex-1 min-w-0"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                  {loading ? "" : workspaceName}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
 
       {/* Navigation */}
       <nav className={cn("py-2 space-y-0.5", isCollapsed ? "px-2" : "px-3")}>

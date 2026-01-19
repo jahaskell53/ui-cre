@@ -12,7 +12,6 @@ interface Profile {
   roles: string[] | null;
   is_admin: boolean | null;
   theme_preference: string | null;
-  workspace_name: string | null;
   updated_at: string | null;
 }
 
