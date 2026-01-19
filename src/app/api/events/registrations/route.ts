@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
 
         const searchParams = request.nextUrl.searchParams;
         const eventId = searchParams.get("event_id");
+        const includeAttendees = searchParams.get("include_attendees") === "true";
 
         if (!eventId) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
@@ -41,10 +42,53 @@ export async function GET(request: NextRequest) {
             console.error("Error getting registration count:", countError);
         }
 
+        let attendees = null;
+        if (includeAttendees) {
+            // Fetch registrations
+            const { data: registrations, error: registrationsError } = await supabase
+                .from("event_registrations")
+                .select("user_id")
+                .eq("event_id", eventId)
+                .order("created_at", { ascending: true });
+
+            if (registrationsError) {
+                console.error("Error fetching registrations:", registrationsError);
+            } else if (registrations && registrations.length > 0) {
+                // Get user IDs
+                const userIds = registrations.map((reg: any) => reg.user_id);
+
+                // Fetch profiles for these users
+                const { data: profiles, error: profilesError } = await supabase
+                    .from("profiles")
+                    .select("id, full_name, avatar_url")
+                    .in("id", userIds);
+
+                if (profilesError) {
+                    console.error("Error fetching profiles:", profilesError);
+                } else {
+                    // Create a map for quick lookup
+                    const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
+                    
+                    // Combine registration data with profile data
+                    attendees = registrations.map((reg: any) => {
+                        const profile = profileMap.get(reg.user_id);
+                        return {
+                            user_id: reg.user_id,
+                            full_name: profile?.full_name || null,
+                            avatar_url: profile?.avatar_url || null,
+                        };
+                    });
+                }
+            } else {
+                attendees = [];
+            }
+        }
+
         return NextResponse.json({
             is_registered: !!registration,
             registration: registration,
             count: count || 0,
+            attendees: attendees,
         });
     } catch (error: any) {
         console.error("Error in GET /api/events/registrations:", error);

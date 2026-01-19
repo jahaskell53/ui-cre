@@ -30,6 +30,12 @@ interface Host {
     avatar_url: string | null;
 }
 
+interface Attendee {
+    user_id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+}
+
 const colorLabels: Record<string, { label: string; class: string; bgClass: string }> = {
     black: { label: "Gray", class: "bg-gray-700", bgClass: "bg-gray-100 dark:bg-gray-800 border-gray-900 dark:border-gray-300" },
     blue: { label: "Blue", class: "bg-blue-500", bgClass: "bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-500" },
@@ -53,6 +59,7 @@ export default function EventDetailsPage() {
     const [isRegistered, setIsRegistered] = useState(false);
     const [registrationCount, setRegistrationCount] = useState(0);
     const [isRegistering, setIsRegistering] = useState(false);
+    const [attendees, setAttendees] = useState<Attendee[]>([]);
 
     useEffect(() => {
         fetchEvent();
@@ -61,11 +68,12 @@ export default function EventDetailsPage() {
 
     const fetchRegistrationStatus = async () => {
         try {
-            const response = await fetch(`/api/events/registrations?event_id=${eventId}`);
+            const response = await fetch(`/api/events/registrations?event_id=${eventId}&include_attendees=true`);
             if (response.ok) {
                 const data = await response.json();
                 setIsRegistered(data.is_registered);
                 setRegistrationCount(data.count);
+                setAttendees(data.attendees || []);
             }
         } catch (err) {
             console.error("Error fetching registration status:", err);
@@ -82,6 +90,7 @@ export default function EventDetailsPage() {
                 if (response.ok) {
                     setIsRegistered(false);
                     setRegistrationCount((prev) => Math.max(0, prev - 1));
+                    fetchRegistrationStatus();
                 }
             } else {
                 const response = await fetch("/api/events/registrations", {
@@ -92,6 +101,7 @@ export default function EventDetailsPage() {
                 if (response.ok) {
                     setIsRegistered(true);
                     setRegistrationCount((prev) => prev + 1);
+                    fetchRegistrationStatus();
                 }
             }
         } catch (err) {
@@ -331,13 +341,13 @@ export default function EventDetailsPage() {
                                 </div>
 
                                 {/* RSVP Section */}
-                                {!isPastEvent && (
-                                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                                <Users className="size-4" />
-                                                <span>{registrationCount} {registrationCount === 1 ? 'person' : 'people'} going</span>
-                                            </div>
+                                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                            <Users className="size-4" />
+                                            <span>{registrationCount} {registrationCount === 1 ? 'person' : 'people'} {isPastEvent ? 'attended' : 'going'}</span>
+                                        </div>
+                                        {!isPastEvent && (
                                             <Button
                                                 onClick={handleToggleRegistration}
                                                 disabled={isRegistering}
@@ -357,9 +367,36 @@ export default function EventDetailsPage() {
                                                     "RSVP"
                                                 )}
                                             </Button>
-                                        </div>
+                                        )}
                                     </div>
-                                )}
+                                    {attendees.length > 0 && (
+                                        <div className="mt-4">
+                                            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Attendees</h3>
+                                            <div className="flex flex-wrap gap-3">
+                                                {attendees.map((attendee) => (
+                                                    <Link
+                                                        key={attendee.user_id}
+                                                        href={`/users/${attendee.user_id}`}
+                                                        className="flex items-center gap-2 group"
+                                                    >
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={attendee.avatar_url || undefined} alt={attendee.full_name || "Attendee"} />
+                                                            <AvatarFallback
+                                                                className="text-white text-xs font-medium"
+                                                                style={{ background: generateAuroraGradient(attendee.full_name || "Attendee") }}
+                                                            >
+                                                                {getInitials(attendee.full_name || "Attendee")}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:underline">
+                                                            {attendee.full_name || "Unknown"}
+                                                        </span>
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {event.description && (
