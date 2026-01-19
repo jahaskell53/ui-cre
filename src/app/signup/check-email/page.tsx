@@ -1,12 +1,55 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { supabase } from "@/utils/supabase";
 
 function CheckEmailContent() {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const email = searchParams.get("email");
+    const [isChecking, setIsChecking] = useState(true);
+
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout;
+
+        const checkAuthStatus = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                // User has confirmed email and has a session
+                router.push("/people/connect");
+            }
+        };
+
+        // Check immediately
+        checkAuthStatus();
+
+        // Set up polling every 3 seconds
+        intervalId = setInterval(checkAuthStatus, 3000);
+
+        // Also listen for auth state changes (more efficient)
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) {
+                router.push("/people/connect");
+            }
+        });
+
+        // Stop checking after 5 minutes to avoid infinite polling
+        const timeoutId = setTimeout(() => {
+            setIsChecking(false);
+            clearInterval(intervalId);
+        }, 5 * 60 * 1000);
+
+        return () => {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+            subscription.unsubscribe();
+        };
+    }, [router]);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
@@ -31,13 +74,24 @@ function CheckEmailContent() {
                     </p>
                 </div>
 
+                {/* Checking Status */}
+                {isChecking && (
+                    <div className="w-full p-3 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
+                        <p className="text-blue-600 dark:text-blue-400 text-sm text-center">
+                            Waiting for email confirmation...
+                        </p>
+                    </div>
+                )}
+
                 {/* Instructions */}
                 <div className="space-y-4 text-sm text-gray-600 dark:text-gray-400">
                     <p>
                         Click the confirmation link in the email to verify your account and complete your signup.
                     </p>
                     <p>
-                        Didn't receive the email? Check your spam folder or try signing up again.
+                        {isChecking 
+                            ? "This page will automatically redirect you once you've confirmed your email."
+                            : "Didn't receive the email? Check your spam folder or try signing up again."}
                     </p>
                 </div>
 
