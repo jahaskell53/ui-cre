@@ -2,6 +2,7 @@ import { getMessages, getCalendarEvents, type NylasMessage, type NylasCalendarEv
 import { NYLAS_SYNC_CONFIG } from './config';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { recalculateNetworkStrengthForUser } from '@/lib/network-strength';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface Contact {
   email_address: string;
@@ -30,9 +31,65 @@ interface CalendarInteraction {
 }
 
 /**
- * Check if an email is likely automated/mass email vs human email
+ * Check if an email is from a single person (not a bot, listserv, or newsletter)
+ * Uses Gemini 2.5 Flash Lite to analyze the email
  */
-function isAutomatedEmail(email: string, message?: NylasMessage, name?: string): boolean {
+async function isAutomatedEmail(email: string, message?: NylasMessage, name?: string): Promise<boolean> {
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('GOOGLE_AI_API_KEY not set, falling back to basic heuristics');
+    // Fallback to basic pattern matching if API key is not available
+    return isAutomatedEmailFallback(email, message, name);
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
+    // Prepare email information for analysis
+    const emailInfo = {
+      email: email,
+      name: name || '',
+      subject: message?.subject || '',
+      headers: message?.headers || {},
+    };
+
+    const prompt = `Analyze the following email information and determine if this email is from a single person (human individual) or if it's from a bot, automated system, listserv, newsletter, or mass mailing service.
+
+Email address: ${emailInfo.email}
+Display name: ${emailInfo.name || '(not provided)'}
+Subject: ${emailInfo.subject || '(not provided)'}
+Headers: ${JSON.stringify(emailInfo.headers)}
+
+Respond with ONLY "true" if this is from a bot/listserv/newsletter/automated system, or "false" if this is from a single person. Do not include any explanation or additional text.`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text().trim().toLowerCase();
+
+    // Parse the response - Gemini should return "true" or "false"
+    if (text === 'true' || text.startsWith('true')) {
+      return true;
+    }
+    if (text === 'false' || text.startsWith('false')) {
+      return false;
+    }
+
+    // If response is unclear, fall back to heuristics
+    console.warn(`Unexpected Gemini response: "${text}", falling back to heuristics`);
+    return isAutomatedEmailFallback(email, message, name);
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    // Fall back to heuristics on error
+    return isAutomatedEmailFallback(email, message, name);
+  }
+}
+
+/**
+ * Fallback function with basic heuristics for when Gemini API is unavailable
+ */
+function isAutomatedEmailFallback(email: string, message?: NylasMessage, name?: string): boolean {
   const emailLower = email.toLowerCase();
   const nameLower = name?.toLowerCase() || '';
   
@@ -228,7 +285,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
           if (parsed.email && 
-              !isAutomatedEmail(parsed.email, message, parsed.name) &&
+              !(await isAutomatedEmail(parsed.email, message, parsed.name)) &&
               parsed.email.toLowerCase() !== userEmail) {
             contactsWeveEmailed.add(parsed.email.toLowerCase());
           }
@@ -251,7 +308,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
 
           if (parsed.email && 
-              !isAutomatedEmail(parsed.email, message, parsed.name) &&
+              !(await isAutomatedEmail(parsed.email, message, parsed.name)) &&
               parsed.email.toLowerCase() !== userEmail) {
             const existing = contactsMap.get(parsed.email);
 
@@ -288,7 +345,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
         // Only process if we've emailed this contact at least once
         if (parsed.email &&
-            !isAutomatedEmail(parsed.email, message, parsed.name) &&
+            !(await isAutomatedEmail(parsed.email, message, parsed.name)) &&
             parsed.email.toLowerCase() !== userEmail &&
             contactsWeveEmailed.has(parsed.email.toLowerCase())) {
 
@@ -513,8 +570,15 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
     for (const event of events) {
       // Skip events that don't have invitees (participants)
       // Only process events that have at least one participant/invitee (non-automated)
-      const hasInvitees = event.participants && event.participants.length > 0 && 
-        event.participants.some((p) => p.email && !isAutomatedEmail(p.email, undefined, p.name));
+      let hasInvitees = false;
+      if (event.participants && event.participants.length > 0) {
+        for (const p of event.participants) {
+          if (p.email && !(await isAutomatedEmail(p.email, undefined, p.name))) {
+            hasInvitees = true;
+            break;
+          }
+        }
+      }
       
       if (!hasInvitees) {
         continue;
@@ -529,7 +593,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
       if (event.participants && event.participants.length > 0) {
         for (const participant of event.participants) {
           if (!participant.email || 
-              isAutomatedEmail(participant.email, undefined, participant.name) ||
+              (await isAutomatedEmail(participant.email, undefined, participant.name)) ||
               (!userEmail || participant.email.toLowerCase() === userEmail)) {
             continue;
           }
@@ -564,7 +628,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 
       // Extract organizer
       if (event.organizer?.email && 
-          !isAutomatedEmail(event.organizer.email, undefined, event.organizer.name) &&
+          !(await isAutomatedEmail(event.organizer.email, undefined, event.organizer.name)) &&
           (!userEmail || event.organizer.email.toLowerCase() !== userEmail)) {
         const parsed = parseEmailAddress(`${event.organizer.name || ''} <${event.organizer.email}>`);
         const existing = contactsMap.get(parsed.email);

@@ -1,14 +1,77 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Load environment variables from .env.local if it exists
+const envPath = path.join(__dirname, '.env.local');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  envContent.split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const [key, ...valueParts] = trimmed.split('=');
+      if (key && valueParts.length > 0) {
+        const value = valueParts.join('=').replace(/^["']|["']$/g, '');
+        process.env[key.trim()] = value.trim();
+      }
+    }
+  });
+}
+
 /**
- * Check if an email is likely automated/mass email vs human email
+ * Check if an email is from a single person (not a bot, listserv, or newsletter)
+ * Uses Gemini 2.5 Flash Lite to analyze the email
  */
-function isAutomatedEmail(email, headers = {}, name = '') {
+async function isAutomatedEmail(email, headers = {}, name = '', subject = '') {
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('GOOGLE_AI_API_KEY not set, falling back to basic heuristics');
+    return isAutomatedEmailFallback(email, headers, name);
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
+    const prompt = `Analyze the following email information and determine if this email is from a single person (human individual) or if it's from a bot, automated system, listserv, newsletter, or mass mailing service.
+
+Email address: ${email}
+Display name: ${name || '(not provided)'}
+Subject: ${subject || '(not provided)'}
+Headers: ${JSON.stringify(headers)}
+
+Respond with ONLY "true" if this is from a bot/listserv/newsletter/automated system, or "false" if this is from a single person. Do not include any explanation or additional text.`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text().trim().toLowerCase();
+
+    // Parse the response - Gemini should return "true" or "false"
+    if (text === 'true' || text.startsWith('true')) {
+      return true;
+    }
+    if (text === 'false' || text.startsWith('false')) {
+      return false;
+    }
+
+    // If response is unclear, fall back to heuristics
+    console.warn(`Unexpected Gemini response: "${text}", falling back to heuristics`);
+    return isAutomatedEmailFallback(email, headers, name);
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    return isAutomatedEmailFallback(email, headers, name);
+  }
+}
+
+/**
+ * Fallback function with basic heuristics for when Gemini API is unavailable
+ */
+function isAutomatedEmailFallback(email, headers = {}, name = '') {
   const emailLower = email.toLowerCase();
   const nameLower = name.toLowerCase();
   
@@ -121,7 +184,7 @@ function parseEmailAddress(emailString) {
 }
 
 /**
- * Parse .eml file and extract From address and headers
+ * Parse .eml file and extract From address, subject, and headers
  */
 function parseEmlFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
@@ -129,6 +192,7 @@ function parseEmlFile(filePath) {
   
   const headers = {};
   let fromHeader = null;
+  let subjectHeader = null;
   let listUnsubscribe = null;
   let precedence = null;
   let autoSubmitted = null;
@@ -155,6 +219,8 @@ function parseEmlFile(filePath) {
     
     if (headerName === 'from') {
       fromHeader = headerValue;
+    } else if (headerName === 'subject') {
+      subjectHeader = headerValue;
     } else if (headerName === 'list-unsubscribe') {
       listUnsubscribe = headerValue;
       headers['list-unsubscribe'] = headerValue;
@@ -175,6 +241,7 @@ function parseEmlFile(filePath) {
   return {
     email: parsed.email,
     name: parsed.name,
+    subject: subjectHeader || '',
     headers: {
       'list-unsubscribe': listUnsubscribe,
       'precedence': precedence,
@@ -184,70 +251,82 @@ function parseEmlFile(filePath) {
 }
 
 // Main test execution
-const testEmailsDir = path.join(__dirname, 'test-emails');
-const files = fs.readdirSync(testEmailsDir).filter(f => f.endsWith('.eml'));
+async function runTests() {
+  const testEmailsDir = path.join(__dirname, 'test-emails');
+  const files = fs.readdirSync(testEmailsDir).filter(f => f.endsWith('.eml'));
 
-console.log(`\n📧 Testing ${files.length} email files...\n`);
-console.log('='.repeat(80));
+  console.log(`\n📧 Testing ${files.length} email files with Gemini 2.5 Flash Lite...\n`);
+  console.log('='.repeat(80));
 
-const results = {
-  human: [],
-  automated: [],
-  errors: [],
-};
+  const results = {
+    human: [],
+    automated: [],
+    errors: [],
+  };
 
-for (const file of files) {
-  const filePath = path.join(testEmailsDir, file);
-  try {
-    const parsed = parseEmlFile(filePath);
-    if (!parsed) {
-      results.errors.push({ file, reason: 'Could not parse From header' });
-      continue;
+  for (const file of files) {
+    const filePath = path.join(testEmailsDir, file);
+    try {
+      const parsed = parseEmlFile(filePath);
+      if (!parsed) {
+        results.errors.push({ file, reason: 'Could not parse From header' });
+        continue;
+      }
+      
+      console.log(`Processing: ${file}...`);
+      const isAutomated = await isAutomatedEmail(parsed.email, parsed.headers, parsed.name, parsed.subject);
+      const result = {
+        file,
+        email: parsed.email,
+        name: parsed.name,
+        subject: parsed.subject,
+        isAutomated,
+        reason: isAutomated ? 'Filtered as automated' : 'Passed filter',
+      };
+      
+      if (isAutomated) {
+        results.automated.push(result);
+      } else {
+        results.human.push(result);
+      }
+    } catch (error) {
+      results.errors.push({ file, reason: error.message });
     }
-    
-    const isAutomated = isAutomatedEmail(parsed.email, parsed.headers, parsed.name);
-    const result = {
-      file,
-      email: parsed.email,
-      name: parsed.name,
-      isAutomated,
-      reason: isAutomated ? 'Filtered as automated' : 'Passed filter',
-    };
-    
-    if (isAutomated) {
-      results.automated.push(result);
-    } else {
-      results.human.push(result);
-    }
-  } catch (error) {
-    results.errors.push({ file, reason: error.message });
   }
+
+  return results;
 }
 
-// Print results
-console.log(`\n✅ HUMAN EMAILS (${results.human.length}):`);
-console.log('-'.repeat(80));
-results.human.forEach(r => {
-  console.log(`  ✓ ${r.email}${r.name ? ` (${r.name})` : ''} - ${r.file}`);
-});
-
-console.log(`\n\n❌ AUTOMATED EMAILS (${results.automated.length}):`);
-console.log('-'.repeat(80));
-results.automated.forEach(r => {
-  console.log(`  ✗ ${r.email}${r.name ? ` (${r.name})` : ''} - ${r.file}`);
-});
-
-if (results.errors.length > 0) {
-  console.log(`\n\n⚠️  ERRORS (${results.errors.length}):`);
+// Run tests and print results
+runTests().then(results => {
+  // Print results
+  console.log(`\n✅ HUMAN EMAILS (${results.human.length}):`);
   console.log('-'.repeat(80));
-  results.errors.forEach(r => {
-    console.log(`  ⚠ ${r.file} - ${r.reason}`);
+  results.human.forEach(r => {
+    console.log(`  ✓ ${r.email}${r.name ? ` (${r.name})` : ''}${r.subject ? ` - "${r.subject.substring(0, 50)}${r.subject.length > 50 ? '...' : ''}"` : ''} - ${r.file}`);
   });
-}
 
-console.log('\n' + '='.repeat(80));
-console.log(`\nSummary:`);
-console.log(`  Human emails: ${results.human.length}`);
-console.log(`  Automated emails: ${results.automated.length}`);
-console.log(`  Errors: ${results.errors.length}`);
-console.log(`  Total: ${files.length}\n`);
+  console.log(`\n\n❌ AUTOMATED EMAILS (${results.automated.length}):`);
+  console.log('-'.repeat(80));
+  results.automated.forEach(r => {
+    console.log(`  ✗ ${r.email}${r.name ? ` (${r.name})` : ''}${r.subject ? ` - "${r.subject.substring(0, 50)}${r.subject.length > 50 ? '...' : ''}"` : ''} - ${r.file}`);
+  });
+
+  if (results.errors.length > 0) {
+    console.log(`\n\n⚠️  ERRORS (${results.errors.length}):`);
+    console.log('-'.repeat(80));
+    results.errors.forEach(r => {
+      console.log(`  ⚠ ${r.file} - ${r.reason}`);
+    });
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log(`\nSummary:`);
+  console.log(`  Human emails: ${results.human.length}`);
+  console.log(`  Automated emails: ${results.automated.length}`);
+  console.log(`  Errors: ${results.errors.length}`);
+  console.log(`  Total: ${results.human.length + results.automated.length + results.errors.length}\n`);
+}).catch(error => {
+  console.error('Error running tests:', error);
+  process.exit(1);
+});
