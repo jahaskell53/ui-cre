@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, MessageSquare } from "lucide-react";
+import { Heart, Plus } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { FeedItem, Post } from "@/components/feed/feed-item";
@@ -209,7 +209,7 @@ export default function FeedPage() {
                             onClick={() => setShowPostModal(true)}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors flex-1 lg:flex-none justify-center"
                         >
-                            <MessageSquare className="size-4" />
+                            <Plus className="size-4" />
                             New Post
                         </button>
                     </div>
