@@ -271,7 +271,7 @@ export default function CalendarPage() {
                         </Button>
                         <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
                             <Plus className="size-4" />
-                            Suggest Topic
+                            Suggest New
                         </Button>
                     </div>
                 </div>
