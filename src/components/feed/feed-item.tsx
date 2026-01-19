@@ -2,15 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { Button } from "@/components/base/buttons/button";
-import { Heart, MessageCircle01, DotsVertical, Trash01 } from "@untitledui/icons";
-import { Dropdown } from "@/components/base/dropdown/dropdown";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Heart, MessageCircle, MoreVertical, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { LinkPreviewCard, LinkPreview } from "./link-preview";
 import { FileAttachment } from "./file-attachment";
 import { CommentSection } from "./comment-section";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 export interface Post {
     id: string;
@@ -60,7 +65,6 @@ export const FeedItem = ({
     const [showComments, setShowComments] = useState(false);
     const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-    const isArticle = post.type !== "post";
     const isLink = post.type === "link";
     const authorName = post.profile?.full_name || "Anonymous User";
     const initials = authorName === "Anonymous User" ? "AU" : authorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
@@ -107,28 +111,26 @@ export const FeedItem = ({
                                 </span>
                             </div>
                             {currentUserId === post.user_id && (
-                                <Dropdown.Root>
-                                    <ButtonUtility
-                                        icon={DotsVertical}
-                                        size="sm"
-                                        color="tertiary"
-                                        tooltip="More options"
-                                    />
-                                    <Dropdown.Popover>
-                                        <Dropdown.Menu>
-                                            <Dropdown.Item
-                                                icon={Trash01}
-                                                onAction={() => {
-                                                    if (confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
-                                                        onDeletePost(post.id);
-                                                    }
-                                                }}
-                                            >
-                                                Delete post
-                                            </Dropdown.Item>
-                                        </Dropdown.Menu>
-                                    </Dropdown.Popover>
-                                </Dropdown.Root>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <MoreVertical className="size-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                            onClick={() => {
+                                                if (confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
+                                                    onDeletePost(post.id);
+                                                }
+                                            }}
+                                            className="text-red-600"
+                                        >
+                                            <Trash2 className="size-4 mr-2" />
+                                            Delete post
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             )}
                         </div>
                         {!isLink && (
@@ -152,34 +154,35 @@ export const FeedItem = ({
                         )}
                     </div>
                     <div className="flex items-center justify-between mt-auto">
-                        <div 
+                        <div
                             className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
                             onClick={() => router.push(`/users/${post.user_id}`)}
                         >
-                            <Avatar
-                                size="sm"
-                                initials={initials}
-                                src={post.profile?.avatar_url || undefined}
-                            />
+                            <Avatar className="h-8 w-8">
+                                <AvatarImage src={post.profile?.avatar_url || undefined} />
+                                <AvatarFallback style={{ background: generateAuroraGradient(authorName) }} className="text-xs text-white">
+                                    {initials}
+                                </AvatarFallback>
+                            </Avatar>
                             <div>
                                 <p className="text-sm font-semibold text-primary leading-tight">{authorName}</p>
                             </div>
                         </div>
                         <div className="flex gap-1">
                             <Button
-                                color={post.is_liked ? "primary" : "tertiary"}
+                                variant={post.is_liked ? "default" : "ghost"}
                                 size="sm"
-                                iconLeading={(props) => <HeartIcon isLiked={post.is_liked || false} {...props} />}
                                 onClick={() => onLike(post.id)}
                             >
+                                <HeartIcon isLiked={post.is_liked || false} className="size-4" />
                                 {post.likes_count || 0}
                             </Button>
                             <Button
-                                color={showComments ? "secondary" : "tertiary"}
+                                variant={showComments ? "outline" : "ghost"}
                                 size="sm"
-                                iconLeading={MessageCircle01}
                                 onClick={() => setShowComments(!showComments)}
                             >
+                                <MessageCircle className="size-4" />
                                 {post.comments_count || 0}
                             </Button>
                         </div>

@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Input } from "@/components/base/input/input";
-import { Avatar } from "@/components/base/avatar/avatar";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/utils/supabase";
-import { SearchLg } from "@untitledui/icons";
+import { Search } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 interface UserProfile {
     id: string;
@@ -83,12 +84,13 @@ export default function UsersPage() {
                 <h1 className="text-display-sm font-semibold text-primary mb-2">Search Users</h1>
                 <p className="text-lg text-tertiary mb-8">Find and view user profiles.</p>
 
-                <div className="mb-6">
+                <div className="mb-6 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                     <Input
                         placeholder="Search by name..."
                         value={searchQuery}
-                        onChange={setSearchQuery}
-                        icon={SearchLg}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9"
                         autoFocus
                     />
                 </div>
@@ -122,11 +124,12 @@ export default function UsersPage() {
                                     onClick={() => handleUserClick(userProfile.id)}
                                     className="flex items-center gap-4 p-4 border border-secondary rounded-xl hover:border-tertiary hover:bg-secondary/5 transition-colors cursor-pointer"
                                 >
-                                    <Avatar
-                                        size="lg"
-                                        src={userProfile.avatar_url || undefined}
-                                        initials={initials}
-                                    />
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={userProfile.avatar_url || undefined} />
+                                        <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-sm text-white">
+                                            {initials}
+                                        </AvatarFallback>
+                                    </Avatar>
                                     <div className="flex-1 min-w-0">
                                         <div className="font-semibold text-primary">
                                             {displayName}
@@ -162,4 +165,3 @@ export default function UsersPage() {
         </MainLayout>
     );
 }
-

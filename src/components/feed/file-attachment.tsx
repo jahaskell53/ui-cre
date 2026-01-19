@@ -1,4 +1,4 @@
-import { File02 } from "@untitledui/icons";
+import { File } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const PdfViewer = dynamic(() => import("@/components/base/pdf-viewer/pdf-viewer").then(mod => mod.PdfViewer), {
@@ -37,7 +37,7 @@ export const FileAttachment = ({ fileUrl }: FileAttachmentProps) => {
     return (
         <div className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5 group">
             <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary">
-                <File02 className="size-5" />
+                <File className="size-5" />
             </div>
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-primary truncate">

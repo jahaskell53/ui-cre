@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { Button } from "@/components/base/buttons/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/utils/supabase";
 import { useUser } from "@/hooks/use-user";
-import { ArrowLeft, Heart, MessageCircle01, ArrowUpRight, File02, MessageChatSquare } from "@untitledui/icons";
+import { ArrowLeft, Heart, MessageCircle, ArrowUpRight, File, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 interface UserProfile {
     id: string;
@@ -150,12 +150,14 @@ export default function UserProfilePage() {
         return (
             <MainLayout>
                 <div className="max-w-2xl">
-                    <ButtonUtility
-                        icon={ArrowLeft}
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => router.back()}
-                        tooltip="Back"
                         className="mb-6"
-                    />
+                    >
+                        <ArrowLeft className="size-4" />
+                    </Button>
                     <div className="text-center py-12">
                         <h2 className="text-xl font-semibold text-primary mb-2">User not found</h2>
                         <p className="text-tertiary">The user profile you're looking for doesn't exist.</p>
@@ -177,21 +179,23 @@ export default function UserProfilePage() {
     return (
         <MainLayout>
             <div className="max-w-2xl">
-                <ButtonUtility
-                    icon={ArrowLeft}
+                <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => router.back()}
-                    tooltip="Back"
                     className="mb-6"
-                />
+                >
+                    <ArrowLeft className="size-4" />
+                </Button>
 
                 <div className="bg-primary border border-secondary rounded-2xl p-8">
                     <div className="flex flex-col items-center text-center mb-8">
-                        <Avatar
-                            size="2xl"
-                            src={profile.avatar_url || undefined}
-                            initials={initials}
-                            className="mb-4"
-                        />
+                        <Avatar className="h-20 w-20 mb-4">
+                            <AvatarImage src={profile.avatar_url || undefined} />
+                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xl text-white">
+                                {initials}
+                            </AvatarFallback>
+                        </Avatar>
                         <h1 className="text-display-sm font-semibold text-primary mb-2">
                             {displayName}
                         </h1>
@@ -232,7 +236,7 @@ export default function UserProfilePage() {
                         {isOwnProfile ? (
                             <Button
                                 onClick={() => router.push("/profile")}
-                                color="secondary"
+                                variant="outline"
                                 className="w-full"
                             >
                                 Edit Profile
@@ -241,8 +245,8 @@ export default function UserProfilePage() {
                             <Button
                                 onClick={() => router.push(`/messages?user_id=${profile.id}`)}
                                 className="w-full"
-                                iconLeading={MessageChatSquare}
                             >
+                                <MessageSquare className="size-4" />
                                 Message
                             </Button>
                         )}
@@ -252,7 +256,7 @@ export default function UserProfilePage() {
                 {/* User Activity Section */}
                 <div className="mt-8">
                     <h2 className="text-lg font-semibold text-primary mb-6">Activity</h2>
-                    
+
                     {loadingPosts ? (
                         <div className="flex items-center justify-center py-12">
                             <div className="text-tertiary">Loading posts...</div>
@@ -280,18 +284,18 @@ export default function UserProfilePage() {
                                                     <span>{post.likes_count || 0}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    <MessageCircle01 className="w-4 h-4" />
+                                                    <MessageCircle className="w-4 h-4" />
                                                     <span>{post.comments_count || 0}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         {!isLink && (
                                             <p className="text-secondary text-base leading-relaxed mb-4">
                                                 {post.content}
                                             </p>
                                         )}
-                                        
+
                                         {isLink && post.content && (
                                             <a
                                                 href={post.content}
@@ -305,7 +309,7 @@ export default function UserProfilePage() {
                                                 </div>
                                             </a>
                                         )}
-                                        
+
                                         {post.file_url && (
                                             <div className="mt-4">
                                                 {post.file_url.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
@@ -317,7 +321,7 @@ export default function UserProfilePage() {
                                                 ) : (
                                                     <div className="flex items-center gap-3 p-4 border border-secondary rounded-xl bg-secondary/5">
                                                         <div className="size-10 rounded-lg bg-primary border border-secondary flex items-center justify-center text-tertiary">
-                                                            <File02 className="size-5" />
+                                                            <File className="size-5" />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-medium text-primary truncate">
@@ -341,4 +345,3 @@ export default function UserProfilePage() {
         </MainLayout>
     );
 }
-

@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Button } from "@/components/base/buttons/button";
-import { Input } from "@/components/base/input/input";
-import { Checkbox } from "@/components/base/checkbox/checkbox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { Upload01 } from "@untitledui/icons";
-import { cx } from "@/utils/cx";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Upload, Loader2 } from "lucide-react";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -125,6 +126,8 @@ export default function ProfilePage() {
         }
     };
 
+    const initials = fullName?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
+
     return (
         <MainLayout>
             <div className="max-w-2xl">
@@ -145,13 +148,14 @@ export default function ProfilePage() {
 
                 <div className="space-y-8">
                     <div className="flex flex-col gap-4">
-                        <label className="text-sm font-medium text-secondary">Profile photo</label>
+                        <Label>Profile photo</Label>
                         <div className="flex items-center gap-6">
-                            <Avatar
-                                size="2xl"
-                                src={avatarUrl}
-                                initials={fullName?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
-                            />
+                            <Avatar className="h-20 w-20">
+                                <AvatarImage src={avatarUrl || undefined} />
+                                <AvatarFallback style={{ background: generateAuroraGradient(fullName || "User") }} className="text-xl text-white">
+                                    {initials}
+                                </AvatarFallback>
+                            </Avatar>
                             <div className="flex flex-col gap-2">
                                 <div className="flex gap-3">
                                     <label className="cursor-pointer">
@@ -168,10 +172,10 @@ export default function ProfilePage() {
                                     </label>
                                     {avatarUrl && (
                                         <Button
-                                            color="secondary"
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => setAvatarUrl(null)}
-                                            isDisabled={isUploading}
+                                            disabled={isUploading}
                                         >
                                             Remove
                                         </Button>
@@ -183,29 +187,29 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="space-y-6">
-                        <div>
+                        <div className="space-y-2">
+                            <Label>Email</Label>
                             <Input
-                                label="Email"
                                 value={user.email || ""}
-                                isDisabled
-                                hint="Your email address cannot be changed"
+                                disabled
                             />
+                            <p className="text-xs text-tertiary">Your email address cannot be changed</p>
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
+                            <Label>Full Name</Label>
                             <Input
-                                label="Full Name"
                                 value={fullName}
-                                onChange={setFullName}
+                                onChange={(e) => setFullName(e.target.value)}
                                 placeholder="Enter your full name"
                             />
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
+                            <Label>Website</Label>
                             <Input
-                                label="Website"
                                 value={website}
-                                onChange={setWebsite}
+                                onChange={(e) => setWebsite(e.target.value)}
                                 placeholder="https://example.com"
                                 type="url"
                             />
@@ -221,12 +225,16 @@ export default function ProfilePage() {
 
                         <div className="flex flex-col gap-3 p-4 border border-secondary rounded-xl bg-secondary/5">
                             {roles.map((role) => (
-                                <Checkbox
-                                    key={role}
-                                    label={role}
-                                    isSelected={selectedRoles.includes(role)}
-                                    onChange={() => toggleRole(role)}
-                                />
+                                <div key={role} className="flex items-center gap-2">
+                                    <Checkbox
+                                        id={role}
+                                        checked={selectedRoles.includes(role)}
+                                        onCheckedChange={() => toggleRole(role)}
+                                    />
+                                    <Label htmlFor={role} className="text-sm font-normal cursor-pointer">
+                                        {role}
+                                    </Label>
+                                </div>
                             ))}
                         </div>
                     </section>
@@ -234,12 +242,13 @@ export default function ProfilePage() {
                     <div className="flex gap-3 pt-4">
                         <Button
                             onClick={handleSave}
-                            isLoading={isSaving}
+                            disabled={isSaving}
                         >
+                            {isSaving && <Loader2 className="size-4 animate-spin" />}
                             Save Changes
                         </Button>
                         <Button
-                            color="secondary"
+                            variant="outline"
                             onClick={() => router.back()}
                         >
                             Cancel

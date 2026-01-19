@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
-import { Avatar } from "@/components/base/avatar/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 export interface UserSuggestion {
     id: string;
@@ -20,12 +21,12 @@ export const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(
         return (
             <div
                 ref={ref}
-                className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-white border border-secondary rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+                className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-popover border border-secondary rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
             >
                 {suggestions.map((user, index) => {
                     const displayName = user.full_name || "Unknown";
                     const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
-                    
+
                     return (
                         <div
                             key={user.id}
@@ -43,11 +44,12 @@ export const MentionDropdown = forwardRef<HTMLDivElement, MentionDropdownProps>(
                                 e.preventDefault();
                             }}
                         >
-                            <Avatar
-                                size="xs"
-                                initials={initials}
-                                src={user.avatar_url || undefined}
-                            />
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={user.avatar_url || undefined} />
+                                <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-[10px] text-white">
+                                    {initials}
+                                </AvatarFallback>
+                            </Avatar>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium text-primary truncate">
                                     {displayName}

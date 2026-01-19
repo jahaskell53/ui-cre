@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "@untitledui/icons";
+import { ArrowUpRight } from "lucide-react";
 
 export interface LinkPreview {
     title: string;

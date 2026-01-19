@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Avatar } from "@/components/base/avatar/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/use-user";
 import { formatDistanceToNow } from "date-fns";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 interface Notification {
     id: string;
@@ -28,7 +29,7 @@ export default function NotificationsPage() {
 
     const loadNotifications = useCallback(async () => {
         if (!user) return;
-        
+
         try {
             const response = await fetch("/api/notifications", {
                 credentials: "include",
@@ -51,17 +52,17 @@ export default function NotificationsPage() {
 
     useEffect(() => {
         if (userLoading) return;
-        
+
         if (!user) {
             router.push("/login");
             return;
         }
-        
+
         loadNotifications();
-        
+
         // Poll for new notifications every 5 seconds
         const interval = setInterval(loadNotifications, 5000);
-        
+
         return () => clearInterval(interval);
     }, [user, userLoading, router, loadNotifications]);
 
@@ -76,7 +77,7 @@ export default function NotificationsPage() {
             } catch (error) {
                 console.error("Error marking notification as read:", error);
             }
-            
+
             // Navigate to messages
             router.push(`/messages?user_id=${notification.sender.id}`);
         }
@@ -129,11 +130,12 @@ export default function NotificationsPage() {
                                             className="p-4 cursor-pointer transition-colors hover:bg-secondary/5"
                                         >
                                             <div className="flex items-start gap-3">
-                                                <Avatar
-                                                    size="md"
-                                                    src={notification.sender.avatar_url || undefined}
-                                                    initials={initials}
-                                                />
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={notification.sender.avatar_url || undefined} />
+                                                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                        {initials}
+                                                    </AvatarFallback>
+                                                </Avatar>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between mb-1">
                                                         <div className="font-semibold text-sm text-primary">
@@ -166,4 +168,3 @@ export default function NotificationsPage() {
         </MainLayout>
     );
 }
-

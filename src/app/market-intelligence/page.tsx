@@ -2,24 +2,28 @@
 
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
-import { ArrowNarrowUp, ArrowNarrowDown } from "@untitledui/icons";
-import { Badge } from "@/components/base/badges/badges";
-import { Select } from "@/components/base/select/select";
-import type { SelectItemType } from "@/components/base/select/select";
+import { ArrowUp, ArrowDown } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { PropertyMap, type Property } from "@/components/application/map/property-map";
 
-export default function MarketIntelligencePage() {
-    const [selectedState, setSelectedState] = useState<SelectItemType | null>({
-        id: "CA",
-        label: "California",
-    });
-    const [selectedCounty, setSelectedCounty] = useState<SelectItemType | null>({
-        id: "colusa",
-        label: "Colusa",
-    });
-    const [selectedCity, setSelectedCity] = useState<SelectItemType | null>(null);
+interface SelectOption {
+    id: string;
+    label: string;
+}
 
-    const states: SelectItemType[] = [
+export default function MarketIntelligencePage() {
+    const [selectedState, setSelectedState] = useState<string>("CA");
+    const [selectedCounty, setSelectedCounty] = useState<string>("colusa");
+    const [selectedCity, setSelectedCity] = useState<string>("");
+
+    const states: SelectOption[] = [
         { id: "CA", label: "California" },
         { id: "TX", label: "Texas" },
         { id: "FL", label: "Florida" },
@@ -27,7 +31,7 @@ export default function MarketIntelligencePage() {
         { id: "AZ", label: "Arizona" },
     ];
 
-    const counties: SelectItemType[] = selectedState?.id === "CA" 
+    const counties: SelectOption[] = selectedState === "CA"
         ? [
             { id: "colusa", label: "Colusa" },
             { id: "los-angeles", label: "Los Angeles" },
@@ -37,7 +41,7 @@ export default function MarketIntelligencePage() {
         ]
         : [];
 
-    const cities: SelectItemType[] = selectedCounty?.id === "colusa"
+    const cities: SelectOption[] = selectedCounty === "colusa"
         ? [
             { id: "colusa-city", label: "Colusa" },
             { id: "williams", label: "Williams" },
@@ -45,8 +49,11 @@ export default function MarketIntelligencePage() {
         ]
         : [];
 
+    const getCountyLabel = () => counties.find(c => c.id === selectedCounty)?.label || "";
+    const getStateLabel = () => states.find(s => s.id === selectedState)?.label || "";
+
     // Mock recent sales data for the selected region
-    const recentSales: Property[] = selectedCounty?.id === "colusa" ? [
+    const recentSales: Property[] = selectedCounty === "colusa" ? [
         {
             id: 1,
             name: "Riverside Apartments",
@@ -105,33 +112,33 @@ export default function MarketIntelligencePage() {
     ] : [];
 
     const marketData = {
-        location: `${selectedCounty?.label || ""} County, ${selectedState?.id || ""}`,
+        location: `${getCountyLabel()} County, ${selectedState}`,
         tiles: [
             {
                 label: "Number of Sales",
                 value: "285",
                 subtitle: "Last 18 months",
-                trend: "up",
+                trend: "up" as const,
                 isPositive: true,
             },
             {
                 label: "Median Sale Price",
                 value: "$362,500",
                 subtitle: "Avg: $417,868",
-                trend: "up",
+                trend: "up" as const,
                 isPositive: true,
             },
             {
                 label: "Vacancy Rate",
                 value: "3.4%",
-                trend: "up",
+                trend: "up" as const,
                 isPositive: false,
             },
             {
                 label: "Price per Sq Ft",
                 value: "$229",
                 subtitle: "Avg size: 2,034 sqft",
-                trend: "up",
+                trend: "up" as const,
                 isPositive: true,
             },
             {
@@ -165,49 +172,71 @@ export default function MarketIntelligencePage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <Select
-                        label="State"
-                        items={states}
-                        selectedKey={selectedState?.id}
-                        onSelectionChange={(key) => {
-                            const state = states.find(s => s.id === key);
-                            setSelectedState(state || null);
-                            setSelectedCounty(null);
-                            setSelectedCity(null);
-                        }}
-                        className="w-full sm:w-48"
-                    >
-                        {(item) => <Select.Item id={item.id} label={item.label} />}
-                    </Select>
+                    <div className="w-full sm:w-48 space-y-2">
+                        <Label>State</Label>
+                        <Select
+                            value={selectedState}
+                            onValueChange={(value) => {
+                                setSelectedState(value);
+                                setSelectedCounty("");
+                                setSelectedCity("");
+                            }}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select state" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {states.map((state) => (
+                                    <SelectItem key={state.id} value={state.id}>
+                                        {state.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                    <Select
-                        label="County"
-                        items={counties}
-                        selectedKey={selectedCounty?.id}
-                        onSelectionChange={(key) => {
-                            const county = counties.find(c => c.id === key);
-                            setSelectedCounty(county || null);
-                            setSelectedCity(null);
-                        }}
-                        isDisabled={!selectedState}
-                        className="w-full sm:w-48"
-                    >
-                        {(item) => <Select.Item id={item.id} label={item.label} />}
-                    </Select>
+                    <div className="w-full sm:w-48 space-y-2">
+                        <Label>County</Label>
+                        <Select
+                            value={selectedCounty}
+                            onValueChange={(value) => {
+                                setSelectedCounty(value);
+                                setSelectedCity("");
+                            }}
+                            disabled={!selectedState}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select county" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {counties.map((county) => (
+                                    <SelectItem key={county.id} value={county.id}>
+                                        {county.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                    <Select
-                        label="City"
-                        items={cities}
-                        selectedKey={selectedCity?.id}
-                        onSelectionChange={(key) => {
-                            const city = cities.find(c => c.id === key);
-                            setSelectedCity(city || null);
-                        }}
-                        isDisabled={!selectedCounty}
-                        className="w-full sm:w-48"
-                    >
-                        {(item) => <Select.Item id={item.id} label={item.label} />}
-                    </Select>
+                    <div className="w-full sm:w-48 space-y-2">
+                        <Label>City</Label>
+                        <Select
+                            value={selectedCity}
+                            onValueChange={setSelectedCity}
+                            disabled={!selectedCounty}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select city" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {cities.map((city) => (
+                                    <SelectItem key={city.id} value={city.id}>
+                                        {city.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 {marketData.location && (
@@ -227,9 +256,9 @@ export default function MarketIntelligencePage() {
                                 {tile.trend && (
                                     <div className={tile.isPositive ? 'text-utility-success-700' : 'text-utility-error-700'}>
                                         {tile.trend === "up" ? (
-                                            <ArrowNarrowUp className="size-5" />
+                                            <ArrowUp className="size-5" />
                                         ) : (
-                                            <ArrowNarrowDown className="size-5" />
+                                            <ArrowDown className="size-5" />
                                         )}
                                     </div>
                                 )}
@@ -248,7 +277,7 @@ export default function MarketIntelligencePage() {
                     <div className="flex flex-col gap-6">
                         <div>
                             <h2 className="text-xl font-semibold text-primary">
-                                Recent Sales {selectedCounty.label} County, {selectedState.id}
+                                Recent Sales {getCountyLabel()} County, {selectedState}
                             </h2>
                             <p className="text-sm text-tertiary mt-1">Last 18 Months</p>
                         </div>
@@ -261,12 +290,12 @@ export default function MarketIntelligencePage() {
                     </div>
                 )}
 
-                {selectedCounty?.id === "colusa" && selectedState?.id === "CA" && (
+                {selectedCounty === "colusa" && selectedState === "CA" && (
                     <div className="flex flex-col gap-10">
                         {/* Sale Volume by Cities Bar Chart */}
                         <div className="bg-primary border border-secondary rounded-2xl p-6 shadow-sm">
                             <div className="mb-6">
-                                <h2 className="text-xl font-semibold text-primary">Sale Volume by Cities in {selectedCounty?.label?.toUpperCase() || ''} County</h2>
+                                <h2 className="text-xl font-semibold text-primary">Sale Volume by Cities in {getCountyLabel().toUpperCase()} County</h2>
                                 <p className="text-sm text-tertiary mt-1">Price/Sq Ft</p>
                                 <p className="text-xs text-quaternary mt-1">Last 18 Months, min. 50 sales</p>
                             </div>
@@ -299,7 +328,7 @@ export default function MarketIntelligencePage() {
                         <div className="bg-primary border border-secondary rounded-2xl p-6 shadow-sm">
                             <div className="mb-6">
                                 <h2 className="text-xl font-semibold text-primary">Average Home Price Comparison</h2>
-                                <p className="text-sm text-tertiary mt-1">{selectedCounty.label} County, CA vs CA State Average (30 Years)</p>
+                                <p className="text-sm text-tertiary mt-1">{getCountyLabel()} County, CA vs CA State Average (30 Years)</p>
                             </div>
                             <div className="w-full">
                                 <svg viewBox="0 0 800 400" className="w-full h-auto">
@@ -352,7 +381,7 @@ export default function MarketIntelligencePage() {
                         <div className="bg-primary border border-secondary rounded-2xl p-6 shadow-sm">
                             <div className="mb-6">
                                 <h2 className="text-xl font-semibold text-primary">Annual Sales Volume Comparison</h2>
-                                <p className="text-sm text-tertiary mt-1">{selectedCounty.label} County, CA vs CA State Volume (30 Years)</p>
+                                <p className="text-sm text-tertiary mt-1">{getCountyLabel()} County, CA vs CA State Volume (30 Years)</p>
                             </div>
                             <div className="w-full">
                                 <svg viewBox="0 0 800 400" className="w-full h-auto">
@@ -404,7 +433,7 @@ export default function MarketIntelligencePage() {
                         {/* Sales Price By ZIP Code Table */}
                         <div className="bg-primary border border-secondary rounded-2xl overflow-hidden shadow-sm">
                             <div className="p-6 border-b border-secondary">
-                                <h2 className="text-xl font-semibold text-primary">Sales Price By ZIP Code {selectedCounty.label} County, CA</h2>
+                                <h2 className="text-xl font-semibold text-primary">Sales Price By ZIP Code {getCountyLabel()} County, CA</h2>
                                 <p className="text-sm text-tertiary mt-1">Last 18 Months</p>
                             </div>
                             <div className="overflow-x-auto">
@@ -458,4 +487,3 @@ export default function MarketIntelligencePage() {
         </MainLayout>
     );
 }
-

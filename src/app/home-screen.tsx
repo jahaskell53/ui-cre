@@ -1,8 +1,7 @@
 "use client";
 
-import { BookOpen01, Check, Copy01, Cube01, HelpCircle } from "@untitledui/icons";
-import { Button } from "@/components/base/buttons/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { BookOpen, Check, Copy, Box, HelpCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
 import { useClipboard } from "@/hooks/use-clipboard";
 
@@ -27,48 +26,57 @@ export const HomeScreen = () => {
 
                     <hr className="h-10 w-px bg-border-secondary" />
 
-                    <ButtonUtility
-                        color="tertiary"
-                        size="sm"
-                        tooltip="Copy"
-                        className="mx-1"
-                        icon={clipboard.copied ? Check : Copy01}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mx-1 h-8 w-8"
                         onClick={() => clipboard.copy("npx untitledui@latest add")}
-                    />
+                    >
+                        {clipboard.copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                    </Button>
                 </div>
 
                 <div className="mt-6 flex items-center gap-3">
                     <Button
-                        href="https://www.untitledui.com/react/docs/introduction"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        color="link-color"
-                        size="lg"
-                        iconLeading={BookOpen01}
+                        variant="link"
+                        asChild
                     >
-                        Docs
+                        <a
+                            href="https://www.untitledui.com/react/docs/introduction"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <BookOpen className="size-4" />
+                            Docs
+                        </a>
                     </Button>
                     <div className="h-px w-4 bg-brand-solid" />
                     <Button
-                        href="https://www.untitledui.com/react/resources/icons"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        color="link-color"
-                        size="lg"
-                        iconLeading={Cube01}
+                        variant="link"
+                        asChild
                     >
-                        Icons
+                        <a
+                            href="https://www.untitledui.com/react/resources/icons"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Box className="size-4" />
+                            Icons
+                        </a>
                     </Button>
                     <div className="h-px w-4 bg-brand-solid" />
                     <Button
-                        href="https://github.com/untitleduico/react/issues"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        color="link-color"
-                        size="lg"
-                        iconLeading={HelpCircle}
+                        variant="link"
+                        asChild
                     >
-                        Help
+                        <a
+                            href="https://github.com/untitleduico/react/issues"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <HelpCircle className="size-4" />
+                            Help
+                        </a>
                     </Button>
                 </div>
             </div>

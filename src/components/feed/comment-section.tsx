@@ -2,14 +2,14 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { Button } from "@/components/base/buttons/button";
-import { Input } from "@/components/base/input/input";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { Send01, Trash01 } from "@untitledui/icons";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Send, Trash2 } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { formatDistanceToNow } from "date-fns";
 import { MentionDropdown, UserSuggestion } from "./mention-dropdown";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 interface Comment {
     id: string;
@@ -121,7 +121,8 @@ export const CommentSection = ({
         }
     }, [currentUserId]);
 
-    const handleCommentTextChange = (value: string) => {
+    const handleCommentTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
         setCommentText(value);
 
         setTimeout(() => {
@@ -130,7 +131,7 @@ export const CommentSection = ({
 
             const pos = input.selectionStart || value.length;
             setCursorPosition(pos);
-            
+
             const textBeforeCursor = value.substring(0, pos);
             const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
@@ -173,13 +174,13 @@ export const CommentSection = ({
         const textBefore = commentText.substring(0, pos);
         const textAfter = commentText.substring(pos + 1 + (mentionQuery.length || 0));
         const newText = `${textBefore}@${username} ${textAfter}`;
-        
+
         setCommentText(newText);
         setShowMentionDropdown(false);
         setMentionQuery("");
         setMentionPosition(null);
         setSelectedMentionIndex(-1);
-        
+
         setTimeout(() => {
             const input = mentionInputRef.current as HTMLInputElement | null;
             if (input) {
@@ -199,7 +200,7 @@ export const CommentSection = ({
         if (showMentionDropdown && mentionSuggestions.length > 0) {
             if (e.key === "ArrowDown") {
                 e.preventDefault();
-                setSelectedMentionIndex(prev => 
+                setSelectedMentionIndex(prev =>
                     prev < mentionSuggestions.length - 1 ? prev + 1 : prev
                 );
             } else if (e.key === "ArrowUp") {
@@ -295,19 +296,20 @@ export const CommentSection = ({
                         const commentInitials = commentAuthorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
                         return (
                             <div key={comment.id} className="flex gap-3">
-                                <div 
+                                <div
                                     className="cursor-pointer hover:opacity-80 transition-opacity"
                                     onClick={() => router.push(`/users/${comment.user_id}`)}
                                 >
-                                    <Avatar
-                                        size="xs"
-                                        initials={commentInitials}
-                                        src={comment.profile?.avatar_url || undefined}
-                                    />
+                                    <Avatar className="h-6 w-6">
+                                        <AvatarImage src={comment.profile?.avatar_url || undefined} />
+                                        <AvatarFallback style={{ background: generateAuroraGradient(commentAuthorName) }} className="text-[10px] text-white">
+                                            {commentInitials}
+                                        </AvatarFallback>
+                                    </Avatar>
                                 </div>
                                 <div className="flex-1 bg-primary p-3 rounded-xl border border-secondary shadow-xs">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span 
+                                        <span
                                             className="text-xs font-bold text-primary cursor-pointer hover:text-brand-solid transition-colors"
                                             onClick={() => router.push(`/users/${comment.user_id}`)}
                                         >
@@ -318,13 +320,14 @@ export const CommentSection = ({
                                                 {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                                             </span>
                                             {currentUserId === comment.user_id && (
-                                                <ButtonUtility
-                                                    icon={Trash01}
-                                                    size="xs"
-                                                    color="tertiary"
-                                                    tooltip="Delete comment"
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6"
                                                     onClick={() => handleDeleteComment(comment.id)}
-                                                />
+                                                >
+                                                    <Trash2 className="size-3 text-tertiary hover:text-red-500" />
+                                                </Button>
                                             )}
                                         </div>
                                     </div>
@@ -336,17 +339,17 @@ export const CommentSection = ({
                 </div>
                 {currentUserId && currentUserProfile && (
                     <div className="flex gap-3 items-start mt-2">
-                        <Avatar
-                            size="xs"
-                            initials={currentUserProfile.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
-                            src={currentUserProfile.avatar_url || undefined}
-                        />
+                        <Avatar className="h-6 w-6">
+                            <AvatarImage src={currentUserProfile.avatar_url || undefined} />
+                            <AvatarFallback style={{ background: generateAuroraGradient(currentUserProfile.full_name || "User") }} className="text-[10px] text-white">
+                                {currentUserProfile.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
+                            </AvatarFallback>
+                        </Avatar>
                         <div className="flex-1 flex gap-2 relative">
                             <Input
                                 ref={mentionInputRef}
                                 placeholder="Write a comment..."
                                 className="flex-1"
-                                size="sm"
                                 value={commentText}
                                 onChange={handleCommentTextChange}
                                 onKeyDown={handleCommentKeyDown}
@@ -360,13 +363,13 @@ export const CommentSection = ({
                                 />
                             )}
                             <Button
-                                color="primary"
                                 size="sm"
-                                iconLeading={Send01}
                                 className="shrink-0"
                                 onClick={handleComment}
-                                isLoading={isSubmittingComment}
-                            />
+                                disabled={isSubmittingComment}
+                            >
+                                <Send className="size-4" />
+                            </Button>
                         </div>
                     </div>
                 )}

@@ -1,10 +1,8 @@
 "use client";
 
 import { MainLayout } from "@/components/layout/main-layout";
-import { ArrowUp, BarChartSquare01, Building02, PieChart01, Users01, Download01, FilterLines, DotsVertical } from "@untitledui/icons";
-import { Badge } from "@/components/base/badges/badges";
-import { Button } from "@/components/base/buttons/button";
-import { Avatar } from "@/components/base/avatar/avatar";
+import { ArrowUp, BarChart2, Building2, PieChart, Users, Download, Filter, MoreVertical } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function HoldingsPage() {
     return (
@@ -16,28 +14,34 @@ export default function HoldingsPage() {
                         <p className="text-lg text-tertiary">Holistic performance tracking for your multi-family assets.</p>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
-                        <Button color="secondary" iconLeading={Download01}>Export Report</Button>
-                        <Button color="primary" iconLeading={FilterLines}>Manage Assets</Button>
+                        <Button variant="outline">
+                            <Download className="size-4" />
+                            Export Report
+                        </Button>
+                        <Button>
+                            <Filter className="size-4" />
+                            Manage Assets
+                        </Button>
                     </div>
                 </div>
 
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
-                        { label: 'Total Units', value: '1,284', icon: Building02, delta: '+2.5%', color: 'brand' },
-                        { label: 'Avg. Occupancy', value: '94.2%', icon: Users01, delta: '+0.8%', color: 'success' },
-                        { label: 'Net Operating Income', value: '$2.14M', icon: BarChartSquare01, delta: '+12.4%', color: 'blue' },
-                        { label: 'Portfolio Val.', value: '$342M', icon: PieChart01, delta: '+5.2%', color: 'indigo' },
+                        { label: 'Total Units', value: '1,284', icon: Building2, delta: '+2.5%', color: 'brand' },
+                        { label: 'Avg. Occupancy', value: '94.2%', icon: Users, delta: '+0.8%', color: 'success' },
+                        { label: 'Net Operating Income', value: '$2.14M', icon: BarChart2, delta: '+12.4%', color: 'blue' },
+                        { label: 'Portfolio Val.', value: '$342M', icon: PieChart, delta: '+5.2%', color: 'indigo' },
                     ].map((kpi, i) => (
                         <div key={i} className="bg-primary border border-secondary p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start mb-6">
                                 <div className={`p-3 bg-secondary rounded-xl`}>
                                     <kpi.icon className="size-6 text-primary" />
                                 </div>
-                                <Badge color="success" size="sm" type="pill-color" className="gap-1 px-1.5 py-0.5">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success-50 text-success-700">
                                     <ArrowUp className="size-3" />
                                     {kpi.delta}
-                                </Badge>
+                                </span>
                             </div>
                             <p className="text-sm font-bold text-quaternary uppercase tracking-widest mb-1">{kpi.label}</p>
                             <h3 className="text-3xl font-bold text-primary tracking-tight">{kpi.value}</h3>
@@ -74,7 +78,7 @@ export default function HoldingsPage() {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="size-10 bg-secondary rounded-lg flex items-center justify-center shrink-0">
-                                                        <Building02 className="size-5 text-quaternary" />
+                                                        <Building2 className="size-5 text-quaternary" />
                                                     </div>
                                                     <div>
                                                         <p className="font-bold text-primary leading-tight">{row.name}</p>
@@ -83,16 +87,20 @@ export default function HoldingsPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <Badge color={row.color as any} size="sm" type="color">
+                                                <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
+                                                    row.color === 'success' ? 'bg-success-50 text-success-700' :
+                                                    row.color === 'warning' ? 'bg-warning-50 text-warning-700' :
+                                                    'bg-error-50 text-error-700'
+                                                }`}>
                                                     {row.status}
-                                                </Badge>
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <p className="font-bold text-primary">{row.noi} <span className="text-[10px] text-tertiary font-medium">/ mo</span></p>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button className="p-2 text-quaternary hover:text-primary transition-colors">
-                                                    <DotsVertical className="size-5" />
+                                                    <MoreVertical className="size-5" />
                                                 </button>
                                             </td>
                                         </tr>
@@ -139,7 +147,7 @@ export default function HoldingsPage() {
                                 <Button className="w-full bg-white text-brand-solid hover:bg-brand-secondary border-none font-bold">Review Details</Button>
                             </div>
                             <div className="absolute right-[-10px] bottom-[-10px] opacity-10">
-                                <PieChart01 className="size-24" />
+                                <PieChart className="size-24" />
                             </div>
                         </section>
                     </div>
