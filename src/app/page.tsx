@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Button } from "@/components/ui/button";
 import { Heart, MessageSquare } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
@@ -185,7 +184,7 @@ export default function FeedPage() {
         return (
             <MainLayout>
                 <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="text-tertiary">Loading...</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
                 </div>
             </MainLayout>
         );
@@ -193,63 +192,62 @@ export default function FeedPage() {
 
     return (
         <MainLayout>
-            <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-8">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                     <div>
-                        <h1 className="text-display-sm font-semibold text-primary">Feed</h1>
-                        <p className="text-lg text-tertiary">Industry Intelligence and community insights.</p>
+                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Feed</h1>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Industry Intelligence and community insights.</p>
                     </div>
-                    <div className="flex gap-3 w-full lg:w-auto">
-                        <Button
-                            variant={showingLiked ? "default" : "outline"}
-                            className="flex-1 lg:flex-none"
+                    <div className="flex gap-2 w-full lg:w-auto">
+                        <button
                             onClick={() => setShowingLiked(!showingLiked)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 lg:flex-none justify-center ${
+                                showingLiked
+                                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                            }`}
                         >
                             <HeartIcon isLiked={showingLiked} className="size-4" />
                             Liked
-                        </Button>
-                        <Button
-                            className="flex-1 lg:flex-none"
+                        </button>
+                        <button
                             onClick={() => setShowPostModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors flex-1 lg:flex-none justify-center"
                         >
                             <MessageSquare className="size-4" />
                             New Post
-                        </Button>
+                        </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-10">
-                    <div className="flex flex-col gap-8">
-                        <section className="flex flex-col gap-6">
-                            <div className="flex justify-between items-center border-b border-secondary pb-4">
-                                <h2 className="text-xl font-semibold text-primary">
-                                    {showingLiked ? "Liked Posts" : "Posts"}
-                                </h2>
-                            </div>
+                <div className="flex flex-col gap-6">
+                    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-800 pb-4">
+                        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            {showingLiked ? "Liked Posts" : "Posts"}
+                        </h2>
+                    </div>
 
-                            <div className="grid gap-8">
-                                {posts.filter(p => !showingLiked || p.is_liked).length === 0 ? (
-                                    <div className="text-center py-12 text-tertiary">
-                                        {showingLiked ? "You haven't liked any posts yet." : "No posts yet. Be the first to share something!"}
-                                    </div>
-                                ) : (
-                                    posts
-                                        .filter(p => !showingLiked || p.is_liked)
-                                        .map((post) => (
-                                            <FeedItem
-                                                key={post.id}
-                                                post={post}
-                                                currentUserId={user?.id}
-                                                currentUserProfile={profile}
-                                                onLike={handleLike}
-                                                onComment={handleComment}
-                                                onDeletePost={handleDeletePost}
-                                                onDeleteComment={handleDeleteComment}
-                                            />
-                                        ))
-                                )}
+                    <div className="grid gap-6">
+                        {posts.filter(p => !showingLiked || p.is_liked).length === 0 ? (
+                            <div className="text-center py-12 text-sm text-gray-500 dark:text-gray-400">
+                                {showingLiked ? "You haven't liked any posts yet." : "No posts yet. Be the first to share something!"}
                             </div>
-                        </section>
+                        ) : (
+                            posts
+                                .filter(p => !showingLiked || p.is_liked)
+                                .map((post) => (
+                                    <FeedItem
+                                        key={post.id}
+                                        post={post}
+                                        currentUserId={user?.id}
+                                        currentUserProfile={profile}
+                                        onLike={handleLike}
+                                        onComment={handleComment}
+                                        onDeletePost={handleDeletePost}
+                                        onDeleteComment={handleDeleteComment}
+                                    />
+                                ))
+                        )}
                     </div>
                 </div>
             </div>

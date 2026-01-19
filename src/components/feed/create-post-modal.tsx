@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -122,10 +121,10 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
 
                 <div className="w-full flex flex-col gap-6">
                     {isAdmin && (
-                        <div className="flex items-center justify-between p-4 border border-secondary rounded-lg bg-secondary/5">
+                        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="post-as-system" className="text-sm font-medium">Post as OpenMidmarket</Label>
-                                <span className="text-xs text-tertiary">Post on behalf of the system account</span>
+                                <Label htmlFor="post-as-system" className="text-sm font-medium text-gray-900 dark:text-gray-100">Post as OpenMidmarket</Label>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Post on behalf of the system account</span>
                             </div>
                             <Switch
                                 id="post-as-system"
@@ -135,24 +134,28 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                         </div>
                     )}
                     <div className="flex flex-col gap-3">
-                        <Label className="text-sm font-medium text-secondary">Select post type</Label>
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select post type</Label>
                         <div className="flex gap-2">
-                            <Button
-                                variant={postType === "post" ? "default" : "outline"}
-                                size="sm"
+                            <button
                                 onClick={() => setPostType("post")}
-                                className="flex-1 lg:flex-none"
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 lg:flex-none ${
+                                    postType === "post"
+                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                }`}
                             >
                                 Post
-                            </Button>
-                            <Button
-                                variant={postType === "link" ? "default" : "outline"}
-                                size="sm"
+                            </button>
+                            <button
                                 onClick={() => setPostType("link")}
-                                className="flex-1 lg:flex-none"
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 lg:flex-none ${
+                                    postType === "link"
+                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                }`}
                             >
                                 Link
-                            </Button>
+                            </button>
                         </div>
                     </div>
                     {postType === "link" && (
@@ -181,23 +184,23 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                     )}
 
                     <div className="flex flex-col gap-3">
-                        <Label className="text-sm font-medium text-secondary">Attachments</Label>
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Attachments</Label>
                         <div className="flex flex-wrap gap-3">
                             {attachedFileUrl ? (
-                                <div className="relative w-32 h-32 border border-secondary rounded-lg overflow-hidden group bg-secondary/5 flex items-center justify-center p-2">
+                                <div className="relative w-32 h-32 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden group bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-2">
                                     {attachedFileUrl.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
                                         <img src={attachedFileUrl} className="w-full h-full object-cover rounded-md" />
                                     ) : (
                                         <div className="flex flex-col items-center text-center gap-1">
-                                            <File className="size-8 text-tertiary" />
-                                            <span className="text-[10px] font-medium text-secondary truncate w-24">
+                                            <File className="size-8 text-gray-400 dark:text-gray-500" />
+                                            <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate w-24">
                                                 {decodeURIComponent(attachedFileUrl.split('/').pop()?.split('-').slice(1).join('-') || "File")}
                                             </span>
                                         </div>
                                     )}
                                     <button
                                         onClick={() => setAttachedFileUrl(null)}
-                                        className="absolute top-1 right-1 p-1 bg-primary/80 rounded-full text-primary opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                        className="absolute top-1 right-1 p-1 bg-white dark:bg-gray-900 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                                     >
                                         <X className="size-4" />
                                     </button>
@@ -210,13 +213,13 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                                         onChange={handleFileUpload}
                                         disabled={isUploadingFile}
                                     />
-                                    <div className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-secondary rounded-lg hover:border-tertiary transition-colors bg-secondary/5">
+                                    <div className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg hover:border-gray-300 dark:hover:border-gray-600 transition-colors bg-gray-50 dark:bg-gray-800/50">
                                         {isUploadingFile ? (
-                                            <div className="text-xs text-tertiary animate-pulse">Uploading...</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 animate-pulse">Uploading...</div>
                                         ) : (
                                             <>
-                                                <File className="size-6 text-tertiary mb-2" />
-                                                <span className="text-xs text-tertiary">Add file</span>
+                                                <File className="size-6 text-gray-400 dark:text-gray-500 mb-2" />
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">Add file</span>
                                             </>
                                         )}
                                     </div>
@@ -226,22 +229,21 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                     </div>
                 </div>
 
-                <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-secondary">
-                    <Button
-                        variant="outline"
+                <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-800">
+                    <button
                         onClick={handleClose}
-                        className="flex-1 sm:flex-none"
+                        className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-colors flex-1 sm:flex-none"
                     >
                         Cancel
-                    </Button>
-                    <Button
+                    </button>
+                    <button
                         onClick={handleCreatePost}
                         disabled={isSubmitting || (postType === "link" ? !postUrl.trim() : !postContent.trim())}
-                        className="flex-1 sm:flex-none"
+                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors flex-1 sm:flex-none disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting && <Loader2 className="size-4 animate-spin" />}
                         Share
-                    </Button>
+                    </button>
                 </div>
             </DialogContent>
         </Dialog>

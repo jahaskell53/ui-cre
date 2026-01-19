@@ -17,9 +17,9 @@ interface LinkPreviewProps {
 export const LinkPreviewCard = ({ preview, isLoading, fallbackUrl }: LinkPreviewProps) => {
     if (isLoading) {
         return (
-            <div className="border border-secondary rounded-xl p-4 bg-secondary/20 animate-pulse">
-                <div className="h-4 bg-secondary rounded w-3/4 mb-2"></div>
-                <div className="h-4 bg-secondary rounded w-1/2"></div>
+            <div className="border border-gray-200 dark:border-gray-800 rounded-xl p-4 bg-gray-100 dark:bg-gray-800 animate-pulse">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
             </div>
         );
     }
@@ -30,10 +30,10 @@ export const LinkPreviewCard = ({ preview, isLoading, fallbackUrl }: LinkPreview
                 href={preview.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block border border-secondary rounded-xl overflow-hidden hover:border-tertiary transition-colors group"
+                className="block border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden hover:border-gray-900 dark:hover:border-gray-100 hover:shadow-sm transition-all group"
             >
                 {preview.image && (
-                    <div className="w-full bg-secondary relative overflow-hidden p-4">
+                    <div className="w-full bg-gray-100 dark:bg-gray-800 relative overflow-hidden p-4">
                         <img
                             src={preview.image}
                             alt={preview.title}
@@ -46,19 +46,19 @@ export const LinkPreviewCard = ({ preview, isLoading, fallbackUrl }: LinkPreview
                 )}
                 <div className="p-4">
                     {preview.siteName && (
-                        <div className="text-xs text-tertiary uppercase tracking-wide mb-1">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
                             {preview.siteName}
                         </div>
                     )}
-                    <h4 className="text-lg font-semibold text-primary mb-2 group-hover:text-brand-solid transition-colors">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 group-hover:underline transition-colors">
                         {preview.title || preview.url}
                     </h4>
                     {preview.description && (
-                        <p className="text-sm text-secondary line-clamp-2 mb-2">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
                             {preview.description}
                         </p>
                     )}
-                    <div className="flex items-center gap-2 text-xs text-tertiary">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                         <ArrowUpRight className="w-3 h-3" />
                         <span className="truncate">
                             {(() => {
@@ -81,9 +81,9 @@ export const LinkPreviewCard = ({ preview, isLoading, fallbackUrl }: LinkPreview
                 href={fallbackUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block border border-secondary rounded-xl p-4 hover:border-tertiary transition-colors group"
+                className="block border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:border-gray-900 dark:hover:border-gray-100 hover:shadow-sm transition-all group"
             >
-                <div className="flex items-center gap-2 text-primary group-hover:text-brand-solid transition-colors">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-gray-100 group-hover:underline transition-colors">
                     <ArrowUpRight className="w-4 h-4" />
                     <span className="truncate">{fallbackUrl}</span>
                 </div>
