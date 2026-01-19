@@ -680,6 +680,10 @@ export default function FeedPage() {
     const [postAsSystem, setPostAsSystem] = useState(false);
 
     useEffect(() => {
+        router.replace("/people");
+    }, [router]);
+
+    useEffect(() => {
         if (!userLoading) {
             loadPosts();
         }
