@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/utils/supabase";
@@ -17,13 +17,22 @@ interface UserProfile {
     roles: string[] | null;
 }
 
-export default function UsersPage() {
+function UsersPageContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user } = useUser();
     const [searchQuery, setSearchQuery] = useState("");
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(false);
     const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+
+    // Initialize search query from URL params
+    useEffect(() => {
+        const q = searchParams.get("q");
+        if (q) {
+            setSearchQuery(q);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (debounceTimer) {
@@ -173,5 +182,17 @@ export default function UsersPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function UsersPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin" />
+            </div>
+        }>
+            <UsersPageContent />
+        </Suspense>
     );
 }
