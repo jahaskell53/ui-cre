@@ -214,17 +214,17 @@ export default function CalendarPage() {
                         {currentDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                     </div>
                 </div>
-                <div className="grid grid-cols-2 h-[650px] min-w-[700px] overflow-y-auto">
-                    <div className="border-r border-gray-200 dark:border-gray-800">
+                <div className="flex h-[650px] min-w-[700px] overflow-y-auto">
+                    <div className="border-r border-gray-200 dark:border-gray-800 w-20 shrink-0">
                         {hours.map(hour => (
-                            <div key={hour} className="h-[60px] border-b border-gray-200 dark:border-gray-800 px-4 py-2 flex items-center">
+                            <div key={hour} className="h-[60px] border-b border-gray-200 dark:border-gray-800 px-3 py-2 flex items-center">
                                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                     {hour.toString().padStart(2, '0')}:00
                                 </span>
                             </div>
                         ))}
                     </div>
-                    <div className="relative">
+                    <div className="flex-1 relative">
                         {hours.map(hour => (
                             <div key={hour} className="h-[60px] border-b border-gray-200 dark:border-gray-800 p-2 group hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors relative">
                                 {events
