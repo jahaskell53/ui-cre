@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Clock } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { generateAuroraGradient } from "@/app/people/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 
@@ -156,10 +154,12 @@ export default function CalendarPage() {
                                     {isCurrentMonth ? dayNumber : ''}
                                 </span>
                                 {dayEvents.map((event) => (
-                                    <div key={event.id} className={`mt-2 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm ${colorClasses[event.color] || colorClasses.blue}`}>
-                                        <p className="truncate">{event.title}</p>
-                                        <p className="text-[10px] opacity-80">{formatEventTime(event.start_time, event.end_time)}</p>
-                                    </div>
+                                    <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                        <div className={`mt-2 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}>
+                                            <p className="truncate">{event.title}</p>
+                                            <p className="text-[10px] opacity-80">{formatEventTime(event.start_time, event.end_time)}</p>
+                                        </div>
+                                    </Link>
                                 ))}
                             </div>
                         );
@@ -233,16 +233,17 @@ export default function CalendarPage() {
                                                 const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
                                                 const minuteOffset = startDate.getMinutes();
                                                 return (
-                                                    <div
-                                                        key={event.id}
-                                                        className={`absolute left-1 right-1 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm z-10 ${colorClasses[event.color] || colorClasses.blue}`}
-                                                        style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
-                                                    >
-                                                        <p className="truncate">{event.title}</p>
-                                                        <p className="text-[10px] opacity-80">
-                                                            {startDate.getHours().toString().padStart(2, '0')}:{startDate.getMinutes().toString().padStart(2, '0')}
-                                                        </p>
-                                                    </div>
+                                                    <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                                        <div
+                                                            className={`absolute left-1 right-1 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
+                                                            style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
+                                                        >
+                                                            <p className="truncate">{event.title}</p>
+                                                            <p className="text-[10px] opacity-80">
+                                                                {startDate.getHours().toString().padStart(2, '0')}:{startDate.getMinutes().toString().padStart(2, '0')}
+                                                            </p>
+                                                        </div>
+                                                    </Link>
                                                 );
                                             })}
                                     </div>
@@ -290,16 +291,17 @@ export default function CalendarPage() {
                                         const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
                                         const minuteOffset = startDate.getMinutes();
                                         return (
-                                            <div
-                                                key={event.id}
-                                                className={`absolute left-2 right-2 p-3 border-l-4 rounded-lg text-sm font-semibold shadow-sm z-10 ${colorClasses[event.color] || colorClasses.blue}`}
-                                                style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
-                                            >
-                                                <p className="font-bold mb-1">{event.title}</p>
-                                                <p className="text-xs opacity-80">
-                                                    {formatEventTime(event.start_time, event.end_time)}
-                                                </p>
-                                            </div>
+                                            <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                                <div
+                                                    className={`absolute left-2 right-2 p-3 border-l-4 rounded-lg text-sm font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
+                                                    style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
+                                                >
+                                                    <p className="font-bold mb-1">{event.title}</p>
+                                                    <p className="text-xs opacity-80">
+                                                        {formatEventTime(event.start_time, event.end_time)}
+                                                    </p>
+                                                </div>
+                                            </Link>
                                         );
                                     })}
                             </div>
@@ -425,39 +427,64 @@ export default function CalendarPage() {
                         </div>
                     </div>
 
-                    {/* Featured Seminars / Sidebar */}
+                    {/* Upcoming Events Sidebar */}
                     <div className="flex flex-col gap-6">
                         <section className="flex flex-col gap-4">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Top Rated Seminars</h3>
-                            {[
-                                { title: 'Advanced Underwriting', speaker: 'David Goggins', time: 'Dec 22, 10:00 AM', attendees: '45/50', initials: 'DG' },
-                                { title: 'Legal Compliance 2026', speaker: 'Sarah Jenkins', time: 'Jan 5, 2:00 PM', attendees: '128/200', initials: 'SJ' },
-                            ].map((sem, i) => (
-                                <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-xl shadow-sm flex flex-col gap-4">
-                                    <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-1">{sem.title}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                            <Clock className="size-3" />
-                                            {sem.time}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Avatar className="h-6 w-6">
-                                                <AvatarFallback style={{ background: generateAuroraGradient(sem.speaker) }} className="text-[10px] text-white">
-                                                    {sem.initials}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{sem.speaker}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 font-medium">
-                                            <Users className="size-3" />
-                                            {sem.attendees}
-                                        </div>
-                                    </div>
-                                    <Button variant="outline" size="sm" className="w-full">Register Now</Button>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Upcoming Events</h3>
+                            {isLoading ? (
+                                <div className="text-sm text-gray-500 dark:text-gray-400">Loading events...</div>
+                            ) : events.filter(e => new Date(e.start_time) >= new Date()).length === 0 ? (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-xl shadow-sm text-center">
+                                    <Calendar className="size-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No upcoming events</p>
+                                    <Link href="/calendar/events/new">
+                                        <Button variant="outline" size="sm" className="w-full">
+                                            <Plus className="size-3 mr-1" />
+                                            Create Event
+                                        </Button>
+                                    </Link>
                                 </div>
-                            ))}
+                            ) : (
+                                events
+                                    .filter(e => new Date(e.start_time) >= new Date())
+                                    .slice(0, 5)
+                                    .map((event) => {
+                                        const eventDate = new Date(event.start_time);
+                                        const formattedDate = eventDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                        const formattedTime = eventDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+                                        const colorDot = colorClasses[event.color]?.split(" ")[0] || "bg-blue-50";
+
+                                        return (
+                                            <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-xl shadow-sm flex flex-col gap-3 hover:border-gray-300 dark:hover:border-gray-700 transition-colors cursor-pointer">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <div className={`w-2 h-2 rounded-full ${event.color === 'black' ? 'bg-gray-700' : event.color === 'blue' ? 'bg-blue-500' : event.color === 'green' ? 'bg-green-500' : event.color === 'purple' ? 'bg-purple-500' : event.color === 'red' ? 'bg-red-500' : event.color === 'orange' ? 'bg-orange-500' : 'bg-blue-500'}`} />
+                                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 truncate">{event.title}</h4>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                            <Clock className="size-3" />
+                                                            {formattedDate}, {formattedTime}
+                                                        </div>
+                                                    </div>
+                                                    {event.location && (
+                                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                            <MapPin className="size-3" />
+                                                            <span className="truncate">{event.location}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </Link>
+                                        );
+                                    })
+                            )}
+                            {events.filter(e => new Date(e.start_time) >= new Date()).length > 5 && (
+                                <Link href="/calendar/events/manage">
+                                    <Button variant="ghost" size="sm" className="w-full text-gray-500 hover:text-gray-700">
+                                        View all events
+                                    </Button>
+                                </Link>
+                            )}
                         </section>
                     </div>
                 </div>
