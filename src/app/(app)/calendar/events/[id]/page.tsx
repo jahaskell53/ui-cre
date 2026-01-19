@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, Clock, MapPin, Edit, Trash2, FileText } from "lucide-react";
+import { MapPin, Edit, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import Link from "next/link";
@@ -73,16 +73,27 @@ export default function EventDetailsPage() {
             weekday: "long",
             month: "long",
             day: "numeric",
-            year: "numeric",
         });
     };
 
-    const formatTime = (dateString: string) => {
+    const getMonthAbbr = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+    };
+
+    const getDayNumber = (dateString: string) => {
+        return new Date(dateString).getDate();
+    };
+
+    const formatTimeWithZone = (dateString: string) => {
         return new Date(dateString).toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
             hour12: true,
         });
+    };
+
+    const getTimeZone = (dateString: string) => {
+        return new Date(dateString).toLocaleTimeString("en-US", { timeZoneName: "short" }).split(" ").pop();
     };
 
     const isPastEvent = event ? new Date(event.start_time) < new Date() : false;
@@ -158,42 +169,26 @@ export default function EventDetailsPage() {
                             {event.title}
                         </h1>
 
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
+                                <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 leading-none mb-1">
+                                    {getMonthAbbr(event.start_time)}
+                                </span>
+                                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-none">
+                                    {getDayNumber(event.start_time)}
+                                </span>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                                    {formatDate(event.start_time)}
+                                </h2>
+                                <p className="text-gray-500 dark:text-gray-400 font-medium">
+                                    {formatTimeWithZone(event.start_time)} - {formatTimeWithZone(event.end_time)} {getTimeZone(event.start_time)}
+                                </p>
+                            </div>
+                        </div>
+
                         <div className="flex flex-col gap-4">
-                            <div className="flex items-start gap-3">
-                                <Calendar className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
-                                <div>
-                                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                                        {formatDate(event.start_time)}
-                                    </p>
-                                    {formatDate(event.start_time) !== formatDate(event.end_time) && (
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                            to {formatDate(event.end_time)}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex items-start gap-3">
-                                <Clock className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
-                                <div>
-                                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                                        {formatTime(event.start_time)} - {formatTime(event.end_time)}
-                                    </p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {(() => {
-                                            const start = new Date(event.start_time);
-                                            const end = new Date(event.end_time);
-                                            const durationMs = end.getTime() - start.getTime();
-                                            const hours = Math.floor(durationMs / (1000 * 60 * 60));
-                                            const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-                                            if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
-                                            if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
-                                            return `${minutes} minutes`;
-                                        })()}
-                                    </p>
-                                </div>
-                            </div>
-
                             {event.location && (
                                 <div className="flex items-start gap-3">
                                     <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
