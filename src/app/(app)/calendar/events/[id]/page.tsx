@@ -6,6 +6,8 @@ import { MapPin, Edit, Trash2 } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { generateAuroraGradient, getInitials } from "@/app/people/utils";
 import Link from "next/link";
 
 interface Event {
@@ -16,8 +18,15 @@ interface Event {
     end_time: string;
     location: string | null;
     color: string;
+    user_id: string;
     created_at: string;
     updated_at: string;
+}
+
+interface Host {
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
 }
 
 const colorLabels: Record<string, { label: string; class: string; bgClass: string }> = {
@@ -35,6 +44,7 @@ export default function EventDetailsPage() {
     const eventId = params.id as string;
 
     const [event, setEvent] = useState<Event | null>(null);
+    const [host, setHost] = useState<Host | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -50,6 +60,19 @@ export default function EventDetailsPage() {
             if (!response.ok) throw new Error("Event not found");
             const data = await response.json();
             setEvent(data);
+            
+            // Fetch host profile
+            if (data.user_id) {
+                try {
+                    const hostResponse = await fetch(`/api/users?id=${data.user_id}`);
+                    if (hostResponse.ok) {
+                        const hostData = await hostResponse.json();
+                        setHost(hostData);
+                    }
+                } catch (err) {
+                    console.error("Error fetching host:", err);
+                }
+            }
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -222,6 +245,29 @@ export default function EventDetailsPage() {
                             )}
                         </div>
                     </div>
+
+                    {host && (
+                        <div className="mt-6">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Hosted By</p>
+                            <Link 
+                                href={`/users/${host.id}`}
+                                className="flex items-center gap-3 group"
+                            >
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={host.avatar_url || undefined} alt={host.full_name || "Host"} />
+                                    <AvatarFallback
+                                        className="text-white text-sm font-medium"
+                                        style={{ background: generateAuroraGradient(host.full_name || "Host") }}
+                                    >
+                                        {getInitials(host.full_name || "Host")}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <span className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:underline leading-tight">
+                                    {host.full_name || "Unknown"}
+                                </span>
+                            </Link>
+                        </div>
+                    )}
 
                     {event.description && (
                         <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
