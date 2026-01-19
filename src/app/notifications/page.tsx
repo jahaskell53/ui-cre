@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/use-user";
 import { formatDistanceToNow } from "date-fns";
@@ -100,9 +99,9 @@ export default function NotificationsPage() {
     };
 
     return (
-        <MainLayout>
-            <div className="bg-white dark:bg-gray-900 -mx-4 -my-8 px-4 py-8 sm:-mx-6 lg:-mx-8 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
-                <div className="max-w-3xl mx-auto">
+        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
+                <div className="max-w-3xl mx-auto w-full">
                     <div className="mb-8">
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Stay updated with your professional network and activity.</p>
@@ -192,6 +191,6 @@ export default function NotificationsPage() {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </div>
     );
 }

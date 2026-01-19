@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { MainLayout } from "@/components/layout/main-layout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -307,8 +306,9 @@ export default function MessagesPage() {
     };
 
     return (
-        <MainLayout>
-            <div className="max-w-6xl mx-auto">
+        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
+                <div className="max-w-6xl mx-auto w-full">
                 <div className="mb-8">
                     <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Messages</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Chat with other users.</p>
@@ -606,6 +606,7 @@ export default function MessagesPage() {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+            </div>
+        </div>
     );
 }

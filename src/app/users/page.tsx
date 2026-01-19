@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MainLayout } from "@/components/layout/main-layout";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/utils/supabase";
@@ -79,9 +78,9 @@ export default function UsersPage() {
     };
 
     return (
-        <MainLayout>
-            <div className="bg-white dark:bg-gray-900 -mx-4 -my-8 px-4 py-8 sm:-mx-6 lg:-mx-8 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
-                <div className="max-w-5xl mx-auto">
+        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
+                <div className="max-w-5xl mx-auto w-full">
                     <div className="mb-8">
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Search Users</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Find and view user profiles across the platform.</p>
@@ -108,7 +107,7 @@ export default function UsersPage() {
                     {!loading && searchQuery.trim() && users.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl">
                             <Search className="size-8 mb-3 opacity-20" />
-                            <div className="text-sm font-medium">No users found for "{searchQuery}"</div>
+                            <div className="text-sm font-medium">No users found for &quot;{searchQuery}&quot;</div>
                         </div>
                     )}
 
@@ -174,6 +173,6 @@ export default function UsersPage() {
                     )}
                 </div>
             </div>
-        </MainLayout>
+        </div>
     );
 }
