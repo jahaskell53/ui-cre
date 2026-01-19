@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
-import { SearchLg, FilterLines, Loading03, ChevronLeft, ChevronRight } from "@untitledui/icons";
-import { Input } from "@/components/base/input/input";
-import { Button } from "@/components/base/buttons/button";
+import { Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { PropertyMap, type Property } from "@/components/application/map/property-map";
 import { supabase } from "@/utils/supabase";
 
@@ -95,17 +95,22 @@ export default function MapPage() {
                         <p className="text-lg text-tertiary">Discover {totalCount} multi-family opportunities across the Bay Area.</p>
                     </div>
                     <div className="flex gap-2 w-full sm:w-auto">
-                        <Input
-                            icon={SearchLg}
-                            placeholder="Search zip, address, market..."
-                            className="w-full sm:w-32 lg:w-64"
-                            value={searchQuery}
-                            onChange={(value) => {
-                                setSearchQuery(value);
-                                setPage(0); // Reset to first page on search
-                            }}
-                        />
-                        <Button color="secondary" iconLeading={FilterLines}>Filters</Button>
+                        <div className="relative w-full sm:w-32 lg:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                            <Input
+                                placeholder="Search zip, address, market..."
+                                className="pl-9"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setPage(0); // Reset to first page on search
+                                }}
+                            />
+                        </div>
+                        <Button variant="outline">
+                            <Filter className="size-4" />
+                            Filters
+                        </Button>
                     </div>
                 </div>
 
@@ -121,7 +126,7 @@ export default function MapPage() {
                         <div className="flex-1 overflow-auto divide-y divide-secondary">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center p-8 text-tertiary gap-3 h-full">
-                                    <Loading03 className="w-6 h-6 animate-spin" />
+                                    <Loader2 className="w-6 h-6 animate-spin" />
                                     <p className="text-sm">Fetching properties...</p>
                                 </div>
                             ) : properties.length === 0 ? (
@@ -180,25 +185,25 @@ export default function MapPage() {
                         {!loading && totalPages > 1 && (
                             <div className="p-4 border-t border-secondary bg-primary flex items-center justify-between gap-2">
                                 <Button
-                                    color="secondary"
+                                    variant="outline"
                                     size="sm"
                                     onClick={handlePrev}
                                     disabled={page === 0}
-                                    iconLeading={ChevronLeft}
                                 >
+                                    <ChevronLeft className="size-4" />
                                     Prev
                                 </Button>
                                 <span className="text-sm font-medium text-secondary">
                                     {currentPageDisplay} / {totalPages}
                                 </span>
                                 <Button
-                                    color="secondary"
+                                    variant="outline"
                                     size="sm"
                                     onClick={handleNext}
                                     disabled={currentPageDisplay >= totalPages}
-                                    iconTrailing={ChevronRight}
                                 >
                                     Next
+                                    <ChevronRight className="size-4" />
                                 </Button>
                             </div>
                         )}

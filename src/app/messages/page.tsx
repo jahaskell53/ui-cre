@@ -3,14 +3,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { Button } from "@/components/base/buttons/button";
-import { TextArea } from "@/components/base/textarea/textarea";
-import { Input } from "@/components/base/input/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
-import { ArrowUp, Plus, SearchLg, X } from "@untitledui/icons";
+import { ArrowUp, Plus, Search, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { generateAuroraGradient } from "@/app/people/utils";
 
 interface Conversation {
     other_user_id: string;
@@ -50,7 +51,7 @@ export default function MessagesPage() {
     const { user } = useUser();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-    
+
     const fetchUserProfile = useCallback(async (userId: string) => {
         try {
             const { data, error } = await supabase
@@ -168,7 +169,7 @@ export default function MessagesPage() {
             }
             const data = await response.json();
             setMessages(data);
-            
+
             // Refresh conversations to update unread counts
             if (showLoading) {
                 loadConversations();
@@ -208,7 +209,7 @@ export default function MessagesPage() {
             const newMessage = await response.json();
             setMessages([...messages, newMessage]);
             setMessageContent("");
-            
+
             // Refresh conversations
             loadConversations();
         } catch (error) {
@@ -324,18 +325,19 @@ export default function MessagesPage() {
                                         setSearchResults([]);
                                     }}
                                     size="sm"
-                                    iconLeading={showNewMessage ? X : Plus}
                                 >
+                                    {showNewMessage ? <X className="size-4" /> : <Plus className="size-4" />}
                                     {showNewMessage ? "Cancel" : "New"}
                                 </Button>
                             </div>
                             {showNewMessage && (
-                                <div className="mt-3">
+                                <div className="mt-3 relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                                     <Input
                                         placeholder="Search users..."
                                         value={searchQuery}
-                                        onChange={setSearchQuery}
-                                        icon={SearchLg}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-9"
                                         autoFocus
                                     />
                                 </div>
@@ -369,11 +371,12 @@ export default function MessagesPage() {
                                                     className="p-3 cursor-pointer transition-colors hover:bg-secondary/5"
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        <Avatar
-                                                            size="md"
-                                                            src={userProfile.avatar_url || undefined}
-                                                            initials={initials}
-                                                        />
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={userProfile.avatar_url || undefined} />
+                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                                {initials}
+                                                            </AvatarFallback>
+                                                        </Avatar>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="font-semibold text-sm text-primary truncate">
                                                                 {displayName}
@@ -423,11 +426,12 @@ export default function MessagesPage() {
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <Avatar
-                                                        size="md"
-                                                        src={conversation.other_user?.avatar_url || undefined}
-                                                        initials={initials}
-                                                    />
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={conversation.other_user?.avatar_url || undefined} />
+                                                        <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                            {initials}
+                                                        </AvatarFallback>
+                                                    </Avatar>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center justify-between mb-1">
                                                             <div className={`font-semibold text-sm truncate ${
@@ -476,20 +480,21 @@ export default function MessagesPage() {
                                         const conversation = conversations.find(
                                             c => c.other_user_id === selectedUserId
                                         );
-                                        
+
                                         // If no conversation exists, use selected user profile from search
                                         if (!conversation?.other_user) {
                                             if (selectedUserProfile) {
                                                 const displayName = selectedUserProfile.full_name || "Unknown User";
                                                 const initials = getInitialsFromUser(selectedUserProfile);
-                                                
+
                                                 return (
                                                     <div className="flex items-center gap-3">
-                                                        <Avatar
-                                                            size="md"
-                                                            src={selectedUserProfile.avatar_url || undefined}
-                                                            initials={initials}
-                                                        />
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={selectedUserProfile.avatar_url || undefined} />
+                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                                {initials}
+                                                            </AvatarFallback>
+                                                        </Avatar>
                                                         <div>
                                                             <h3 className="font-semibold text-primary">{displayName}</h3>
                                                         </div>
@@ -498,17 +503,18 @@ export default function MessagesPage() {
                                             }
                                             return null;
                                         }
-                                        
+
                                         const displayName = getDisplayName(conversation.other_user);
                                         const initials = getInitials(conversation.other_user);
-                                        
+
                                         return (
                                             <div className="flex items-center gap-3">
-                                                <Avatar
-                                                    size="md"
-                                                    src={conversation.other_user.avatar_url || undefined}
-                                                    initials={initials}
-                                                />
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={conversation.other_user.avatar_url || undefined} />
+                                                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white">
+                                                        {initials}
+                                                    </AvatarFallback>
+                                                </Avatar>
                                                 <div>
                                                     <h3 className="font-semibold text-primary">{displayName}</h3>
                                                 </div>
@@ -567,22 +573,23 @@ export default function MessagesPage() {
                                 <div className="p-4 border-t border-secondary">
                                     <div className="flex gap-2 items-end">
                                         <div className="flex-1">
-                                            <TextArea
+                                            <Textarea
                                                 placeholder="Type a message..."
                                                 value={messageContent}
-                                                onChange={setMessageContent}
+                                                onChange={(e) => setMessageContent(e.target.value)}
                                                 onKeyDown={handleKeyPress}
                                                 rows={1}
-                                                textAreaClassName="resize-none !rounded-full !h-12 !py-3"
+                                                className="resize-none rounded-full h-12 py-3"
                                             />
                                         </div>
                                         <Button
                                             onClick={sendMessage}
-                                            isDisabled={!messageContent.trim() || sending}
-                                            iconLeading={ArrowUp}
+                                            disabled={!messageContent.trim() || sending}
                                             size="lg"
-                                            className="!rounded-full !w-12 !h-12 !p-0"
-                                        />
+                                            className="rounded-full w-12 h-12 p-0"
+                                        >
+                                            <ArrowUp className="size-5" />
+                                        </Button>
                                     </div>
                                 </div>
                             </>
@@ -600,4 +607,3 @@ export default function MessagesPage() {
         </MainLayout>
     );
 }
-

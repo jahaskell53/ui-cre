@@ -1,10 +1,10 @@
 "use client";
 
 import { MainLayout } from "@/components/layout/main-layout";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Users01, Clock, MarkerPin01 } from "@untitledui/icons";
-import { Button } from "@/components/base/buttons/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { Avatar } from "@/components/base/avatar/avatar";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Clock, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { generateAuroraGradient, getInitials } from "@/app/people/utils";
 
 export default function CalendarPage() {
     return (
@@ -16,8 +16,14 @@ export default function CalendarPage() {
                         <p className="text-lg text-tertiary">Expert-led training for institutional-grade property management.</p>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
-                        <Button color="secondary" iconLeading={Calendar}>My Bookings</Button>
-                        <Button color="primary" iconLeading={Plus}>Suggest Topic</Button>
+                        <Button variant="outline">
+                            <Calendar className="size-4" />
+                            My Bookings
+                        </Button>
+                        <Button>
+                            <Plus className="size-4" />
+                            Suggest Topic
+                        </Button>
                     </div>
                 </div>
 
@@ -29,9 +35,13 @@ export default function CalendarPage() {
                                 <div className="flex items-center gap-4">
                                     <h2 className="text-lg font-semibold text-primary">December 2025</h2>
                                     <div className="flex items-center border border-secondary rounded-lg overflow-hidden">
-                                        <ButtonUtility icon={ChevronLeft} color="tertiary" className="border-none" />
+                                        <Button variant="ghost" size="icon" className="rounded-none border-none h-8 w-8">
+                                            <ChevronLeft className="size-4" />
+                                        </Button>
                                         <div className="w-px h-6 bg-border-secondary" />
-                                        <ButtonUtility icon={ChevronRight} color="tertiary" className="border-none" />
+                                        <Button variant="ghost" size="icon" className="rounded-none border-none h-8 w-8">
+                                            <ChevronRight className="size-4" />
+                                        </Button>
                                     </div>
                                 </div>
                                 <div className="flex bg-secondary p-1 rounded-lg">
@@ -97,26 +107,30 @@ export default function CalendarPage() {
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <Avatar size="xs" initials={sem.initials} />
+                                            <Avatar className="h-6 w-6">
+                                                <AvatarFallback style={{ background: generateAuroraGradient(sem.speaker) }} className="text-[10px] text-white">
+                                                    {sem.initials}
+                                                </AvatarFallback>
+                                            </Avatar>
                                             <span className="text-xs font-medium text-secondary">{sem.speaker}</span>
                                         </div>
                                         <div className="flex items-center gap-1 text-xs text-secondary font-medium">
-                                            <Users01 className="size-3" />
+                                            <Users className="size-3" />
                                             {sem.attendees}
                                         </div>
                                     </div>
-                                    <Button color="secondary" size="sm" className="w-full">Register Now</Button>
+                                    <Button variant="outline" size="sm" className="w-full">Register Now</Button>
                                 </div>
                             ))}
                         </section>
 
                         <section className="bg-secondary/40 rounded-2xl p-6 border border-secondary border-dashed flex flex-col items-center text-center gap-3">
                             <div className="p-3 bg-primary rounded-full shadow-sm">
-                                <MarkerPin01 className="size-6 text-brand-solid" />
+                                <MapPin className="size-6 text-brand-solid" />
                             </div>
                             <h4 className="font-bold text-primary">In-Person Meetups</h4>
                             <p className="text-sm text-tertiary">Discover owners in your city for local networking events.</p>
-                            <Button color="link-color" size="sm">Explore local groups</Button>
+                            <Button variant="link" size="sm">Explore local groups</Button>
                         </section>
                     </div>
                 </div>
