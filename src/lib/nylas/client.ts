@@ -102,6 +102,7 @@ export async function revokeGrant(grantId: string) {
 
 /**
  * Collect paginated items from Nylas async iterator with retry logic
+ * Adds delay between page requests to avoid rate limits
  */
 async function collectPaginatedItems<T>(
   asyncList: any,
@@ -117,6 +118,12 @@ async function collectPaginatedItems<T>(
       console.log(`Fetched page ${pageCount}: ${page.data.length} items (total: ${items.length})`);
 
       if (items.length >= maxItems) break;
+
+      // Add delay between page requests to avoid rate limits (except after last page)
+      // Wait 100ms between requests to stay under rate limits
+      if (page.data.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
   } catch (error: any) {
     console.error('Error during pagination:', error);
@@ -128,6 +135,9 @@ async function collectPaginatedItems<T>(
       if (retryAfter) {
         console.log(`Retry-After header suggests waiting ${retryAfter} seconds`);
       }
+    } else {
+      // Re-throw non-rate-limit errors
+      throw error;
     }
   }
 
@@ -146,15 +156,17 @@ export async function getMessages(
   receivedAfter?: number
 ): Promise<NylasMessage[]> {
   try {
+    // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
+    const requestLimit = Math.min(20, NYLAS_SYNC_CONFIG.maxPerRequest);
     const queryParams: Record<string, any> = {
-      limit: Math.min(limit, NYLAS_SYNC_CONFIG.maxPerRequest),
+      limit: requestLimit,
     };
 
     if (receivedAfter) {
       queryParams.received_after = receivedAfter;
-      console.log(`Fetching up to ${limit} messages received after ${new Date(receivedAfter * 1000).toISOString()}`);
+      console.log(`Fetching up to ${limit} messages received after ${new Date(receivedAfter * 1000).toISOString()} (using limit=${requestLimit} per request)`);
     } else {
-      console.log(`Fetching up to ${limit} messages (full sync)`);
+      console.log(`Fetching up to ${limit} messages (full sync, using limit=${requestLimit} per request)`);
     }
 
     const asyncMessages = nylasClient.messages.list({
@@ -209,11 +221,13 @@ export async function getCalendarEvents(
       const calendarLimit = Math.min(eventsPerCalendar, remainingQuota);
 
       try {
+        // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
+        const requestLimit = Math.min(20, Math.min(calendarLimit, NYLAS_SYNC_CONFIG.maxPerRequest));
         const asyncEvents = nylasClient.events.list({
           identifier: grantId,
           queryParams: {
             calendarId: calendar.id,
-            limit: Math.min(calendarLimit, NYLAS_SYNC_CONFIG.maxPerRequest),
+            limit: requestLimit,
             ...(startAfterStr && { start: startAfterStr }),
           },
         });
