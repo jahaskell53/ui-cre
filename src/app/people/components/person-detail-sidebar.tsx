@@ -253,20 +253,20 @@ export function PersonDetailSidebar({ person, onToggleStar, firstName, panelWidt
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                  <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">Last Updated</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Last Updated</span>
                 </div>
-                <span className="text-xs text-gray-700 dark:text-gray-300 uppercase">
+                <span className="text-xs text-gray-700 dark:text-gray-300">
                   {person.updated_at
-                    ? formatDistanceToNow(new Date(person.updated_at), { addSuffix: true }).replace(/^about /i, '').toUpperCase()
-                    : "UNKNOWN"}
+                    ? formatDistanceToNow(new Date(person.updated_at), { addSuffix: true }).replace(/^about /i, '')
+                    : "Unknown"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500 dark:text-gray-400 ml-3 uppercase">Created</span>
-                <span className="text-xs text-gray-700 dark:text-gray-300 uppercase">
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-3">Created</span>
+                <span className="text-xs text-gray-700 dark:text-gray-300">
                   {person.created_at
-                    ? formatDistanceToNow(new Date(person.created_at), { addSuffix: true }).replace(/^about /i, '').toUpperCase()
-                    : "UNKNOWN"}
+                    ? formatDistanceToNow(new Date(person.created_at), { addSuffix: true }).replace(/^about /i, '')
+                    : "Unknown"}
                 </span>
               </div>
             </div>
