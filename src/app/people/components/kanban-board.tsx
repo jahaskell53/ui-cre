@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,8 @@ interface KanbanBoardProps {
   onToggleStar: (person: Person, e: React.MouseEvent) => void;
   onAddPersonToColumn: (personId: string, columnId: string) => void;
   onDeletePerson: (person: Person) => void;
+  onAddColumn: (title: string) => void;
+  onDeleteColumn: (columnId: string) => void;
 }
 
 export function KanbanBoard({
@@ -48,12 +51,18 @@ export function KanbanBoard({
   onAddPersonToColumn,
   onColumnsChange,
   onDeletePerson,
+  onAddColumn,
+  onDeleteColumn,
 }: KanbanBoardProps) {
   const router = useRouter();
   const [addPersonSearch, setAddPersonSearch] = useState<Record<string, string>>({});
   const [openAddDropdown, setOpenAddDropdown] = useState<string | null>(null);
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>("");
+  const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
+  const [newColumnTitle, setNewColumnTitle] = useState("");
+  const [pendingDeleteColumn, setPendingDeleteColumn] = useState<{ id: string; title: string } | null>(null);
+  const [pendingDeletePerson, setPendingDeletePerson] = useState<Person | null>(null);
 
   const handleAddPerson = (personId: string, columnId: string) => {
     onAddPersonToColumn(personId, columnId);
@@ -134,6 +143,18 @@ export function KanbanBoard({
                   <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
                     {column.cards.length}
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingDeleteColumn({ id: column.id, title: column.title });
+                    }}
+                    title="Delete column"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                  </Button>
                   <DropdownMenu
                     open={openAddDropdown === column.id}
                     onOpenChange={(open) => setOpenAddDropdown(open ? column.id : null)}
@@ -283,9 +304,7 @@ export function KanbanBoard({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete ${person.name}? This action cannot be undone.`)) {
-                              onDeletePerson(person);
-                            }
+                            setPendingDeletePerson(person);
                           }}
                           className="opacity-0 group-hover:opacity-100 p-1 -m-1 flex-shrink-0 text-gray-400 hover:text-red-500 transition-all"
                           aria-label="Delete person"
@@ -300,7 +319,169 @@ export function KanbanBoard({
             </div>
           </div>
         ))}
+        {/* Add Column Button */}
+        <div className="flex-shrink-0 w-64">
+          <button
+            onClick={() => setIsAddColumnModalOpen(true)}
+            className="w-full h-full min-h-[200px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <PlusIcon className="h-6 w-6 text-gray-400 dark:text-gray-500" />
+            <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Add Column</span>
+          </button>
+        </div>
       </div>
+
+      {/* Add Column Modal */}
+      <ModalOverlay
+        isOpen={isAddColumnModalOpen}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setIsAddColumnModalOpen(false);
+            setNewColumnTitle("");
+          }
+        }}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            {({ close }) => (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Add Column</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Create a new column for your board.</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Column name</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Outreach"
+                    value={newColumnTitle}
+                    onChange={(e) => setNewColumnTitle(e.target.value)}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsAddColumnModalOpen(false);
+                      setNewColumnTitle("");
+                      close();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-gray-900 dark:bg-gray-800 hover:bg-gray-800 dark:hover:bg-gray-700 text-white"
+                    onClick={() => {
+                      const trimmed = newColumnTitle.trim();
+                      if (!trimmed) return;
+                      onAddColumn(trimmed);
+                      setIsAddColumnModalOpen(false);
+                      setNewColumnTitle("");
+                      close();
+                    }}
+                    disabled={!newColumnTitle.trim()}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
+      {/* Delete Column Confirmation Modal */}
+      <ModalOverlay
+        isOpen={pendingDeleteColumn !== null}
+        onOpenChange={(isOpen) => !isOpen && setPendingDeleteColumn(null)}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            {({ close }) => (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete column</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    This will remove the column and all cards in it from the board.
+                  </p>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Column: <span className="font-medium text-gray-900 dark:text-gray-100">{pendingDeleteColumn?.title}</span>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setPendingDeleteColumn(null);
+                      close();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (pendingDeleteColumn) {
+                        onDeleteColumn(pendingDeleteColumn.id);
+                      }
+                      setPendingDeleteColumn(null);
+                      close();
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
+      {/* Delete Person Confirmation Modal */}
+      <ModalOverlay
+        isOpen={pendingDeletePerson !== null}
+        onOpenChange={(isOpen) => !isOpen && setPendingDeletePerson(null)}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            {({ close }) => (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete person</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone.</p>
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Person:{" "}
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{pendingDeletePerson?.name}</span>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setPendingDeletePerson(null);
+                      close();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      if (pendingDeletePerson) {
+                        onDeletePerson(pendingDeletePerson);
+                      }
+                      setPendingDeletePerson(null);
+                      close();
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </div>
   );
 }

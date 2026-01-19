@@ -4,7 +4,20 @@ import { useState, useEffect, useMemo } from "react";
 import { KanbanBoard } from "../components/kanban-board";
 import { usePeople } from "../people-context";
 import { createToggleStarHandler } from "../utils";
-import type { KanbanColumn, KanbanCard } from "../types";
+import type { KanbanColumn, KanbanCard, Person } from "../types";
+import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
+import { Button } from "@/components/ui/button";
+
+// Helper function to generate column ID from title
+function generateColumnId(title: string, index: number): string {
+  const slug = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || `column-${index}`;
+}
 
 export default function BoardPage() {
   const {
@@ -24,6 +37,7 @@ export default function BoardPage() {
 
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Fetch kanban column titles from database
   useEffect(() => {
@@ -37,12 +51,24 @@ export default function BoardPage() {
         const columnTitles = data.columns || [];
         
         if (columnTitles.length > 0) {
-          setKanbanColumns((prevColumns) =>
-            prevColumns.map((col, index) => ({
-              ...col,
-              title: columnTitles[index] || col.title,
-            }))
-          );
+          // Generate columns with IDs from titles
+          // Try to preserve existing IDs by matching titles, otherwise generate new IDs
+          setKanbanColumns((prevColumns) => {
+            const newColumns: KanbanColumn[] = columnTitles.map((title: string, index: number) => {
+              // Try to find existing column with same title to preserve ID
+              const existingColumn = prevColumns.find((col) => col.title === title);
+              if (existingColumn) {
+                return { ...existingColumn, title, cards: [] };
+              }
+              // Otherwise generate new ID
+              return {
+                id: generateColumnId(title, index),
+                title: title,
+                cards: [],
+              };
+            });
+            return newColumns;
+          });
         }
       } catch (error) {
         console.error("Error fetching kanban columns:", error);
@@ -284,26 +310,102 @@ export default function BoardPage() {
       }
     } catch (error) {
       console.error("Error deleting person:", error);
-      alert("Failed to delete person. Please try again.");
+      setErrorMessage("Failed to delete person. Please try again.");
+    }
+  };
+
+  const handleAddColumn = (title: string) => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+
+    const newId = generateColumnId(trimmedTitle, kanbanColumns.length);
+    const newColumn: KanbanColumn = {
+      id: newId,
+      title: trimmedTitle,
+      cards: [],
+    };
+
+    const updatedColumns = [...kanbanColumns, newColumn];
+    setKanbanColumns(updatedColumns);
+    saveKanbanColumns(updatedColumns);
+  };
+
+  const handleDeleteColumn = async (columnId: string) => {
+    const column = kanbanColumns.find((col) => col.id === columnId);
+    if (!column) return;
+
+    try {
+      // Delete all board assignments for this column
+      if (column.cards.length > 0) {
+        const deletePromises = column.cards.map((card) =>
+          fetch(`/api/people/board?personId=${card.personId}&columnId=${columnId}`, {
+            method: "DELETE",
+          })
+        );
+        const results = await Promise.all(deletePromises);
+        const failed = results.filter((r) => !r.ok);
+        if (failed.length > 0) {
+          console.error("Some board assignments failed to delete");
+        }
+      }
+
+      // Remove column from state
+      const updatedColumns = kanbanColumns.filter((col) => col.id !== columnId);
+      setKanbanColumns(updatedColumns);
+      await saveKanbanColumns(updatedColumns);
+    } catch (error) {
+      console.error("Error deleting column:", error);
+      setErrorMessage("Failed to delete column. Please try again.");
     }
   };
 
   return (
-    <KanbanBoard
-      people={people}
-      columns={kanbanColumns}
-      draggedCard={draggedCard}
-      draggedOverColumn={draggedOverColumn}
-      onColumnsChange={handleKanbanColumnsChange}
-      onDragStart={handleCardDragStart}
-      onDragEnd={handleCardDragEnd}
-      onColumnDragOver={handleColumnDragOver}
-      onColumnDragLeave={handleColumnDragLeave}
-      onSelectPerson={setSelectedPerson}
-      onToggleStar={handleToggleStar}
-      onAddPersonToColumn={handleAddPersonToColumn}
-      onDeletePerson={handleDeletePerson}
-    />
+    <>
+      <KanbanBoard
+        people={people}
+        columns={kanbanColumns}
+        draggedCard={draggedCard}
+        draggedOverColumn={draggedOverColumn}
+        onColumnsChange={handleKanbanColumnsChange}
+        onDragStart={handleCardDragStart}
+        onDragEnd={handleCardDragEnd}
+        onColumnDragOver={handleColumnDragOver}
+        onColumnDragLeave={handleColumnDragLeave}
+        onSelectPerson={setSelectedPerson}
+        onToggleStar={handleToggleStar}
+        onAddPersonToColumn={handleAddPersonToColumn}
+        onDeletePerson={handleDeletePerson}
+        onAddColumn={handleAddColumn}
+        onDeleteColumn={handleDeleteColumn}
+      />
+
+      {/* Error Modal */}
+      <ModalOverlay isOpen={errorMessage !== null} onOpenChange={(isOpen) => !isOpen && setErrorMessage(null)}>
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            {({ close }) => (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Something went wrong</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{errorMessage}</p>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    className="bg-brand-600 hover:bg-brand-700 text-white"
+                    onClick={() => {
+                      setErrorMessage(null);
+                      close();
+                    }}
+                  >
+                    OK
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </>
   );
 }
 
