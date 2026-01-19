@@ -119,6 +119,7 @@ export function EmailIntegrations() {
               );
               
               if (updatedIntegration) {
+                // Stop polling if sync is complete (active) or failed (error)
                 if (updatedIntegration.status === 'active' || updatedIntegration.status === 'error') {
                   clearInterval(pollInterval);
                   pollingIntervals.current.delete(integration.id);
@@ -126,6 +127,14 @@ export function EmailIntegrations() {
                   await loadIntegrations();
                   return;
                 }
+                // Continue polling if still syncing
+              } else {
+                // Integration not found - might have been deleted, stop polling
+                clearInterval(pollInterval);
+                pollingIntervals.current.delete(integration.id);
+                setSyncing(null);
+                await loadIntegrations();
+                return;
               }
             }
             
