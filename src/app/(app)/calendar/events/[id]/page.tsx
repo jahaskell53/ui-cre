@@ -233,19 +233,6 @@ export default function EventDetailsPage() {
                         </p>
                     </div>
                 )}
-
-                <div className="flex gap-3 pt-4">
-                    <Link href="/calendar" className="flex-1">
-                        <Button variant="outline" className="w-full">
-                            Back to Calendar
-                        </Button>
-                    </Link>
-                    <Link href="/calendar/events/manage" className="flex-1">
-                        <Button variant="outline" className="w-full">
-                            View All Events
-                        </Button>
-                    </Link>
-                </div>
             </div>
         </div>
     );
