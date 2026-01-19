@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { MainLayout } from "@/components/layout/main-layout";
 import { Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -87,10 +86,10 @@ export default function MapPage() {
     };
 
     return (
-        <MainLayout>
-            <div className="flex flex-col h-[calc(100vh-12rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+        <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden p-6">
+            <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
                 {/* Header */}
-                <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+                <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Property Map</h1>
@@ -224,7 +223,7 @@ export default function MapPage() {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </div>
     );
 }
 

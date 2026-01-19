@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MainLayout } from "@/components/layout/main-layout";
 import { Heart, MessageSquare } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
@@ -182,17 +181,14 @@ export default function FeedPage() {
 
     if (userLoading || loading) {
         return (
-            <MainLayout>
-                <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
-                </div>
-            </MainLayout>
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
+            </div>
         );
     }
 
     return (
-        <MainLayout>
-            <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Feed</h1>
@@ -250,7 +246,6 @@ export default function FeedPage() {
                         )}
                     </div>
                 </div>
-            </div>
 
             {user && (
                 <CreatePostModal
@@ -261,6 +256,6 @@ export default function FeedPage() {
                     isAdmin={profile?.is_admin || false}
                 />
             )}
-        </MainLayout>
+        </div>
     );
 }

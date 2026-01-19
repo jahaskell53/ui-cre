@@ -3,7 +3,7 @@
 import { forwardRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon } from "../icons";
+import { HomeIcon, PeopleIcon, StarIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "../icons";
 import AccountCard from "../account-card";
 import type { Person } from "../types";
 
@@ -118,6 +118,19 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(function Sidebar({
             <span className="text-sm font-medium">People</span>
           )}
         </div>
+        <Link
+          href="/calendar"
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-600 dark:text-gray-400",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5"
+          )}
+          title={isCollapsed ? "Calendar" : undefined}
+        >
+          <CalendarIcon className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className="text-sm">Calendar</span>
+          )}
+        </Link>
       </nav>
 
       {/* Groups */}
