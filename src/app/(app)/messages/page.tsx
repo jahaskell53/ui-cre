@@ -456,7 +456,7 @@ export default function MessagesPage() {
                                                                 {conversation.last_message.content}
                                                             </p>
                                                             {isUnread && (
-                                                                <span className="ml-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-medium rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                                                                <span className="ml-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center">
                                                                     {conversation.unread_count}
                                                                 </span>
                                                             )}
