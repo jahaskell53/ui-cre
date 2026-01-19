@@ -126,19 +126,26 @@ export default function NewEventPage() {
     const today = new Date().toISOString().split("T")[0];
 
     return (
-        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-            <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
-                <div className="flex items-center gap-4">
-                    <Link href="/calendar">
-                        <Button variant="ghost" size="icon">
-                            <ArrowLeft className="size-5" />
-                        </Button>
-                    </Link>
+        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+            {/* Top Header Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <button
+                    onClick={() => router.push("/calendar")}
+                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+                <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Create New Event</h1>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Add a new event to your calendar</p>
                     </div>
-                </div>
 
                 {error && (
                     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
@@ -332,6 +339,7 @@ export default function NewEventPage() {
                         </Button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     );
