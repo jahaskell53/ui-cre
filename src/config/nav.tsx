@@ -11,7 +11,7 @@ export const APP_NAV_ITEMS: NavItemType[] = [
     {
         label: "Listings",
         icon: Map01,
-        href: "/map",
+        href: "/listings",
     },
     {
         label: "Seminar Calendar",
