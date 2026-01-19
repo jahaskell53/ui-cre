@@ -195,8 +195,8 @@ export default function EventDetailsPage() {
                             )}
                             
                             {host && (
-                                <div>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Hosted By</p>
+                                <div className="mt-6">
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 pb-2 border-b border-gray-200 dark:border-gray-800">Hosted By</p>
                                     <Link 
                                         href={`/users/${host.id}`}
                                         className="flex items-center gap-3 group"
@@ -221,15 +221,14 @@ export default function EventDetailsPage() {
                         {/* Right Side - Content */}
                         <div className="flex-1 min-w-0">
                             <div className={`border-l-4 rounded-lg p-6 ${colorInfo.bgClass}`}>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className={`w-3 h-3 rounded-full ${colorInfo.class}`} />
-                                    {isPastEvent && (
+                                {isPastEvent && (
+                                    <div className="mb-4">
                                         <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
                                             Past Event
                                         </span>
-                                    )}
-                                </div>
-                                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+                                    </div>
+                                )}
+                                <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
                                     {event.title}
                                 </h1>
 
@@ -287,9 +286,9 @@ export default function EventDetailsPage() {
                             </div>
 
                             {event.description && (
-                                <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
-                                    <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">About Event</h2>
-                                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                <div className="mt-6">
+                                    <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2 pb-2 border-b border-gray-200 dark:border-gray-800">About Event</h2>
+                                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap mt-4">
                                         {event.description}
                                     </p>
                                 </div>
