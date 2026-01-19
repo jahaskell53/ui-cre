@@ -17,7 +17,6 @@ export default function SignUpPage() {
     const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
 
     const roles = ["Property Owner", "Broker", "Lender"];
 
@@ -32,7 +31,6 @@ export default function SignUpPage() {
     const handleSignUp = async () => {
         setIsLoading(true);
         setError(null);
-        setMessage(null);
 
         const { data, error } = await supabase.auth.signUp({
             email,
@@ -54,7 +52,8 @@ export default function SignUpPage() {
             // User is immediately logged in (email confirmation disabled)
             router.push("/people/connect");
         } else {
-            setMessage("Check your email for a confirmation link!");
+            // Redirect to check email page
+            router.push(`/signup/check-email?email=${encodeURIComponent(email)}`);
         }
     };
 
@@ -76,13 +75,6 @@ export default function SignUpPage() {
                 {error && (
                     <div className="w-full p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-sm">
                         {error}
-                    </div>
-                )}
-
-                {/* Success Message */}
-                {message && (
-                    <div className="w-full p-3 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 text-green-600 dark:text-green-400 text-sm">
-                        {message}
                     </div>
                 )}
 
