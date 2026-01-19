@@ -92,16 +92,14 @@ export default function NotificationsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Notifications</h1>
+                <div className="w-9" /> {/* Spacer for centering */}
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
                 <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
                     <div className="max-w-3xl mx-auto w-full">
-                        <div className="mb-8">
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications</h1>
-                        </div>
-
                         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
