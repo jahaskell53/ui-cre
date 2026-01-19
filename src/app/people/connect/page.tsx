@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, XCircle } from 'lucide-react';
+import { Loader2, XCircle, CheckCircle2 } from 'lucide-react';
 import { EmailIntegrations } from '@/components/integrations/EmailIntegrations';
 
 function ConnectEmailPageContent() {
@@ -11,20 +11,97 @@ function ConnectEmailPageContent() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const successParam = searchParams.get('success');
     const errorParam = searchParams.get('error');
 
-    if (successParam === 'true') {
-      setMessage('Email account connected successfully!');
-      setTimeout(() => {
-        router.push('/people');
-      }, 2000);
-    }
-
     if (errorParam) {
       setError(getErrorMessage(errorParam));
+      return;
+    }
+
+    if (successParam === 'true') {
+      setMessage('Email account connected successfully!');
+      setIsSyncing(true);
+      setSyncStatus('Syncing your contacts...');
+      
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes max (60 * 5 seconds)
+      let intervalId: NodeJS.Timeout;
+      let timeoutId: NodeJS.Timeout;
+
+      const poll = async () => {
+        try {
+          const response = await fetch('/api/integrations/sync');
+          const data = await response.json();
+          
+          if (data.integrations && data.integrations.length > 0) {
+            const latestIntegration = data.integrations[0];
+            
+            if (latestIntegration.status === 'active') {
+              setIsSyncing(false);
+              setSyncStatus('Sync complete!');
+              setMessage('Your contacts have been synced successfully!');
+              clearInterval(intervalId);
+              clearTimeout(timeoutId);
+              // Redirect after showing success
+              setTimeout(() => {
+                router.push('/people');
+              }, 2000);
+              return;
+            } else if (latestIntegration.status === 'error') {
+              setIsSyncing(false);
+              setSyncStatus('Sync failed');
+              setError('Failed to sync contacts. Please try syncing again later.');
+              clearInterval(intervalId);
+              clearTimeout(timeoutId);
+              return;
+            } else if (latestIntegration.status === 'syncing') {
+              setSyncStatus('Syncing your contacts...');
+            }
+          }
+          
+          attempts++;
+          if (attempts >= maxAttempts) {
+            setIsSyncing(false);
+            setSyncStatus('Sync is taking longer than expected');
+            setError('Sync is still in progress. You can check back later or manually sync from settings.');
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+          }
+        } catch (err) {
+          console.error('Error checking sync status:', err);
+          attempts++;
+          if (attempts >= maxAttempts) {
+            setIsSyncing(false);
+            setSyncStatus('Unable to check sync status');
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+          }
+        }
+      };
+
+      // Check immediately
+      poll();
+      
+      // Then poll every 5 seconds
+      intervalId = setInterval(poll, 5000);
+
+      // Set timeout as backup
+      timeoutId = setTimeout(() => {
+        setIsSyncing(false);
+        setSyncStatus('Sync is taking longer than expected');
+        setError('Sync is still in progress. You can check back later or manually sync from settings.');
+        clearInterval(intervalId);
+      }, 5 * 60 * 1000); // 5 minutes
+
+      return () => {
+        if (intervalId) clearInterval(intervalId);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
     }
   }, [searchParams, router]);
 
@@ -53,9 +130,22 @@ function ConnectEmailPageContent() {
             </div>
           )}
 
-          {message && (
-            <div className="mb-6 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm border border-green-200 dark:border-green-800">
-              {message}
+          {message && !isSyncing && (
+            <div className="mb-6 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-sm border border-green-200 dark:border-green-800 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              <span>{message}</span>
+            </div>
+          )}
+
+          {isSyncing && (
+            <div className="mb-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm border border-blue-200 dark:border-blue-800 flex items-start gap-3">
+              <Loader2 className="w-5 h-5 mt-0.5 flex-shrink-0 animate-spin" />
+              <div className="flex-1">
+                <div className="font-medium mb-1">{syncStatus || 'Syncing your contacts...'}</div>
+                <div className="text-xs text-blue-500 dark:text-blue-400">
+                  This may take a few minutes. Please don't close this page.
+                </div>
+              </div>
             </div>
           )}
 

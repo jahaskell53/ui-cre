@@ -140,6 +140,67 @@ This is an automated notification. You can reply to this comment in the app.
   return { subject, html, text };
 }
 
+export function generateConfirmationEmail(): { subject: string; html: string } {
+  const subject = "Confirm your signup";
+  
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;font-family:sans-serif;background-color:#ffffff;">
+  <table role="presentation" style="width:100%;border-collapse:collapse;background-color:#ffffff;">
+    <tr>
+      <td style="padding:40px 20px;">
+        <table role="presentation" style="max-width:600px;margin:0 auto;background-color:#ffffff;">
+          <tr>
+            <td style="padding-bottom:32px;">
+              <div style="width:40px;height:40px;background-color:#111827;border-radius:6px;display:table-cell;vertical-align:middle;text-align:center;">
+                <span style="color:#ffffff;font-size:14px;font-weight:bold;">OM</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:24px;">
+              <h1 style="margin:0;font-size:30px;font-weight:600;color:#111827;letter-spacing:-0.02em;">Confirm your signup</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:32px;">
+              <p style="margin:0;font-size:16px;line-height:24px;color:#4b5563;">Welcome! Please follow the link below to confirm your account and get started with our platform.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom:32px;">
+              <table role="presentation" style="width:100%;">
+                <tr>
+                  <td>
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 20px;background-color:#111827;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Confirm your email</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:32px;border-top:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:14px;line-height:20px;color:#6b7280;">If you didn't request this email, you can safely ignore it.</p>
+              <p style="margin:8px 0 0 0;font-size:14px;line-height:20px;color:#6b7280;">&copy; ${new Date().getFullYear()} Untitled UI. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  return { subject, html };
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')

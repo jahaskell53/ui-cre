@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
@@ -52,9 +52,16 @@ export function EmailIntegrations() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [integrationToDelete, setIntegrationToDelete] = useState<Integration | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const pollingIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   useEffect(() => {
     loadIntegrations();
+    
+    // Cleanup polling intervals on unmount
+    return () => {
+      pollingIntervals.current.forEach((interval) => clearInterval(interval));
+      pollingIntervals.current.clear();
+    };
   }, []);
 
   async function loadIntegrations() {
@@ -77,6 +84,13 @@ export function EmailIntegrations() {
   }
 
   async function handleSync(integration: Integration) {
+    // Clear any existing polling for this integration
+    const existingInterval = pollingIntervals.current.get(integration.id);
+    if (existingInterval) {
+      clearInterval(existingInterval);
+      pollingIntervals.current.delete(integration.id);
+    }
+
     setSyncing(integration.id);
 
     try {
@@ -90,11 +104,53 @@ export function EmailIntegrations() {
       });
 
       if (response.ok) {
-        await loadIntegrations();
+        // Poll for sync completion
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes max
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          try {
+            const statusResponse = await fetch('/api/integrations/sync');
+            const statusData = await statusResponse.json();
+            
+            if (statusData.integrations) {
+              const updatedIntegration = statusData.integrations.find(
+                (i: Integration) => i.id === integration.id
+              );
+              
+              if (updatedIntegration) {
+                if (updatedIntegration.status === 'active' || updatedIntegration.status === 'error') {
+                  clearInterval(pollInterval);
+                  pollingIntervals.current.delete(integration.id);
+                  setSyncing(null);
+                  await loadIntegrations();
+                  return;
+                }
+              }
+            }
+            
+            if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              pollingIntervals.current.delete(integration.id);
+              setSyncing(null);
+              await loadIntegrations();
+            }
+          } catch (err) {
+            console.error('Error polling sync status:', err);
+            if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              pollingIntervals.current.delete(integration.id);
+              setSyncing(null);
+            }
+          }
+        }, 5000); // Poll every 5 seconds
+        
+        pollingIntervals.current.set(integration.id, pollInterval);
+      } else {
+        setSyncing(null);
       }
     } catch (error) {
       console.error('Error syncing:', error);
-    } finally {
       setSyncing(null);
     }
   }
@@ -196,11 +252,16 @@ export function EmailIntegrations() {
                       disabled={syncing === integration.id}
                     >
                       {syncing === integration.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Syncing...
+                        </>
                       ) : (
-                        <RefreshCw className="h-3 w-3" />
+                        <>
+                          <RefreshCw className="h-3 w-3" />
+                          Sync
+                        </>
                       )}
-                      Sync
                     </Button>
                     <Button
                       variant="outline"
