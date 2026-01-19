@@ -2,11 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/use-user";
-import { formatDistanceToNow } from "date-fns";
-import { generateAuroraGradient } from "@/app/people/utils";
-import { cn } from "@/lib/utils";
+import { NotificationCard } from "@/components/notifications/notification-card";
 
 interface Notification {
     id: string;
@@ -83,21 +80,6 @@ export default function NotificationsPage() {
         }
     };
 
-    const getDisplayName = (sender: Notification["sender"]) => {
-        if (!sender) return "Unknown User";
-        return sender.full_name || "Unknown User";
-    };
-
-    const getInitials = (sender: Notification["sender"]) => {
-        const name = getDisplayName(sender);
-        return name
-            .split(" ")
-            .map(n => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2);
-    };
-
     return (
         <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
             {/* Top Header Bar */}
@@ -120,7 +102,7 @@ export default function NotificationsPage() {
                             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications</h1>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
                                     <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
@@ -137,68 +119,15 @@ export default function NotificationsPage() {
                                     <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs">You don't have any new notifications at the moment.</p>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                                    {notifications.map((notification) => {
-                                        if (notification.type === "message" && notification.sender) {
-                                            const displayName = getDisplayName(notification.sender);
-                                            const initials = getInitials(notification.sender);
-                                            const isUnread = !notification.read_at;
-
-                                            return (
-                                                <div
-                                                    key={notification.id}
-                                                    onClick={() => handleNotificationClick(notification)}
-                                                    className={cn(
-                                                        "p-5 cursor-pointer transition-all hover:bg-gray-50 dark:hover:bg-gray-800/50 flex gap-4 group relative",
-                                                        isUnread && "bg-blue-50/30 dark:bg-blue-900/10"
-                                                    )}
-                                                >
-                                                    {isUnread && (
-                                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
-                                                    )}
-                                                    
-                                                    <Avatar className="h-10 w-10 border-2 border-white dark:border-gray-800 shadow-sm flex-shrink-0">
-                                                        <AvatarImage src={notification.sender.avatar_url || undefined} />
-                                                        <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs font-bold text-white">
-                                                            {initials}
-                                                        </AvatarFallback>
-                                                    </Avatar>
-                                                    
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <div className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-black dark:group-hover:text-white transition-colors">
-                                                                {displayName}
-                                                            </div>
-                                                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                                                {formatDistanceToNow(
-                                                                    new Date(notification.created_at),
-                                                                    { addSuffix: true }
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                        <p className={cn(
-                                                            "text-[13px] leading-relaxed line-clamp-2",
-                                                            isUnread ? "text-gray-900 dark:text-gray-100 font-medium" : "text-gray-500 dark:text-gray-400"
-                                                        )}>
-                                                            {notification.content}
-                                                        </p>
-                                                        <div className="flex items-center gap-2 mt-2">
-                                                            <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-800">
-                                                                New Message
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div className="flex-shrink-0 self-center text-gray-300 dark:text-gray-700 group-hover:text-gray-400 dark:group-hover:text-gray-600 transition-colors">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                                        </svg>
-                                                    </div>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })}
+                                <div>
+                                    {notifications.map((notification) => (
+                                        <NotificationCard
+                                            key={notification.id}
+                                            notification={notification}
+                                            onClick={() => handleNotificationClick(notification)}
+                                            clickable={true}
+                                        />
+                                    ))}
                                 </div>
                             )}
                         </div>

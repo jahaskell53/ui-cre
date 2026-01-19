@@ -8,10 +8,7 @@ import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { FeedItem, Post } from "@/components/feed/feed-item";
 import { CreatePostModal } from "@/components/feed/create-post-modal";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDistanceToNow } from "date-fns";
-import { generateAuroraGradient } from "@/app/people/utils";
-import { cn } from "@/lib/utils";
+import { NotificationCard } from "@/components/notifications/notification-card";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
     return (
@@ -223,21 +220,6 @@ export default function FeedPage() {
         loadPosts();
     };
 
-    const getDisplayName = (sender: Notification["sender"]) => {
-        if (!sender) return "Unknown User";
-        return sender.full_name || "Unknown User";
-    };
-
-    const getInitials = (sender: Notification["sender"]) => {
-        const name = getDisplayName(sender);
-        return name
-            .split(" ")
-            .map(n => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2);
-    };
-
     if (userLoading || loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
@@ -313,78 +295,12 @@ export default function FeedPage() {
                         </div>
                         {notifications.length > 0 ? (
                             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
-                                {notifications.map((notification) => {
-                                    if (notification.type === "message" && notification.sender) {
-                                        const displayName = getDisplayName(notification.sender);
-                                        const initials = getInitials(notification.sender);
-                                        const isUnread = !notification.read_at;
-
-                                        return (
-                                            <div
-                                                key={notification.id}
-                                                className={cn(
-                                                    "p-4 flex gap-3 relative border-b border-gray-100 dark:border-gray-800 last:border-b-0",
-                                                    isUnread && "bg-blue-50/30 dark:bg-blue-900/10"
-                                                )}
-                                            >
-                                                {isUnread && (
-                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
-                                                )}
-                                                <Avatar className="h-8 w-8 border border-gray-200 dark:border-gray-800 flex-shrink-0">
-                                                    <AvatarImage src={notification.sender.avatar_url || undefined} />
-                                                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs font-bold text-white">
-                                                        {initials}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                            {displayName}
-                                                        </div>
-                                                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                                                            {formatDistanceToNow(
-                                                                new Date(notification.created_at),
-                                                                { addSuffix: true }
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <p className={cn(
-                                                        "text-xs line-clamp-2",
-                                                        isUnread ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"
-                                                    )}>
-                                                        {notification.content}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        );
-                                    }
-                                    return (
-                                        <div
-                                            key={notification.id}
-                                            className={cn(
-                                                "p-4 flex gap-3 relative border-b border-gray-100 dark:border-gray-800 last:border-b-0",
-                                                !notification.read_at && "bg-blue-50/30 dark:bg-blue-900/10"
-                                            )}
-                                        >
-                                            {!notification.read_at && (
-                                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                                {notification.title && (
-                                                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                                                        {notification.title}
-                                                    </div>
-                                                )}
-                                                <p className={cn(
-                                                    "text-xs line-clamp-2",
-                                                    !notification.read_at ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"
-                                                )}>
-                                                    {notification.content}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                {notifications.map((notification) => (
+                                    <NotificationCard
+                                        key={notification.id}
+                                        notification={notification}
+                                    />
+                                ))}
                             </div>
                         ) : (
                             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 text-center">
