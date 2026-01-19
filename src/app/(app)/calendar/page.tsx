@@ -1,17 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { generateAuroraGradient } from "@/app/people/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Link from "next/link";
 
 type ViewType = "month" | "week" | "day";
 
+interface CalendarEvent {
+    id: string;
+    title: string;
+    description: string | null;
+    start_time: string;
+    end_time: string;
+    location: string | null;
+    color: string;
+}
+
 export default function CalendarPage() {
     const [currentView, setCurrentView] = useState<ViewType>("month");
-    const [currentDate, setCurrentDate] = useState(new Date(2025, 11, 1)); // December 2025
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [events, setEvents] = useState<CalendarEvent[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        fetchEvents();
+    }, []);
+
+    const fetchEvents = async () => {
+        try {
+            const response = await fetch("/api/events");
+            if (response.ok) {
+                const data = await response.json();
+                setEvents(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch events:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const months = [
         "January", "February", "March", "April", "May", "June",
@@ -70,17 +101,37 @@ export default function CalendarPage() {
         setCurrentDate(newDate);
     };
 
+    const getEventsForDay = (year: number, month: number, day: number) => {
+        return events.filter((event) => {
+            const eventDate = new Date(event.start_time);
+            return (
+                eventDate.getFullYear() === year &&
+                eventDate.getMonth() === month &&
+                eventDate.getDate() === day
+            );
+        });
+    };
+
+    const formatEventTime = (startTime: string, endTime: string) => {
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+        return `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')} - ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+    };
+
+    const colorClasses: Record<string, string> = {
+        black: "bg-gray-100 dark:bg-gray-800 border-gray-900 dark:border-gray-300 text-gray-900 dark:text-gray-100",
+        blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-500 text-blue-700 dark:text-blue-300",
+        green: "bg-green-50 dark:bg-green-900/20 border-green-600 dark:border-green-500 text-green-700 dark:text-green-300",
+        purple: "bg-purple-50 dark:bg-purple-900/20 border-purple-600 dark:border-purple-500 text-purple-700 dark:text-purple-300",
+        red: "bg-red-50 dark:bg-red-900/20 border-red-600 dark:border-red-500 text-red-700 dark:text-red-300",
+        orange: "bg-orange-50 dark:bg-orange-900/20 border-orange-600 dark:border-orange-500 text-orange-700 dark:text-orange-300",
+    };
+
     const renderMonthView = () => {
         const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
         const daysInMonth = lastDay.getDate();
         const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Monday = 0
-
-        const events = [
-            { day: 13, title: "Asset Management 101", time: "14:00 - 15:30", color: "black" },
-            { day: 16, title: "Tax Strategy Q&A", time: "11:00 - 12:00", color: "blue" },
-            { day: 23, title: "New Acquisition Tour", time: "09:00 - 13:00", color: "green" },
-        ];
 
         return (
             <>
@@ -95,26 +146,21 @@ export default function CalendarPage() {
                     {Array.from({ length: 35 }).map((_, i) => {
                         const dayNumber = i - startingDayOfWeek + 1;
                         const isCurrentMonth = dayNumber > 0 && dayNumber <= daysInMonth;
-                        const dayEvents = events.filter(e => e.day === dayNumber);
-                        
+                        const dayEvents = isCurrentMonth
+                            ? getEventsForDay(currentDate.getFullYear(), currentDate.getMonth(), dayNumber)
+                            : [];
+
                         return (
                             <div key={i} className="border-r border-b border-gray-200 dark:border-gray-800 p-3 group hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors last:border-r-0 relative">
                                 <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                     {isCurrentMonth ? dayNumber : ''}
                                 </span>
-                                {isCurrentMonth && dayEvents.map((event, idx) => {
-                                    const colorClasses = {
-                                        black: "bg-gray-100 dark:bg-gray-800 border-gray-900 dark:border-gray-300 text-gray-900 dark:text-gray-100",
-                                        blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-500 text-blue-700 dark:text-blue-300",
-                                        green: "bg-green-50 dark:bg-green-900/20 border-green-600 dark:border-green-500 text-green-700 dark:text-green-300",
-                                    };
-                                    return (
-                                        <div key={idx} className={`mt-2 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm ${colorClasses[event.color as keyof typeof colorClasses]}`}>
-                                            <p className="truncate">{event.title}</p>
-                                            <p className="text-[10px] opacity-80">{event.time}</p>
-                                        </div>
-                                    );
-                                })}
+                                {dayEvents.map((event) => (
+                                    <div key={event.id} className={`mt-2 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm ${colorClasses[event.color] || colorClasses.blue}`}>
+                                        <p className="truncate">{event.title}</p>
+                                        <p className="text-[10px] opacity-80">{formatEventTime(event.start_time, event.end_time)}</p>
+                                    </div>
+                                ))}
                             </div>
                         );
                     })}
@@ -123,22 +169,27 @@ export default function CalendarPage() {
         );
     };
 
+    const getEventsForWeekDay = (date: Date) => {
+        return events.filter((event) => {
+            const eventDate = new Date(event.start_time);
+            return (
+                eventDate.getFullYear() === date.getFullYear() &&
+                eventDate.getMonth() === date.getMonth() &&
+                eventDate.getDate() === date.getDate()
+            );
+        });
+    };
+
     const renderWeekView = () => {
         const weekStart = new Date(currentDate);
         weekStart.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Monday
-        
+
         const hours = Array.from({ length: 24 }, (_, i) => i);
         const days = Array.from({ length: 7 }, (_, i) => {
             const day = new Date(weekStart);
             day.setDate(weekStart.getDate() + i);
             return day;
         });
-
-        const events = [
-            { day: 1, hour: 14, title: "Asset Management 101", duration: 1.5, color: "black" },
-            { day: 4, hour: 11, title: "Tax Strategy Q&A", duration: 1, color: "blue" },
-            { day: 6, hour: 9, title: "New Acquisition Tour", duration: 4, color: "green" },
-        ];
 
         return (
             <>
@@ -165,35 +216,40 @@ export default function CalendarPage() {
                             </div>
                         ))}
                     </div>
-                    {days.map((day, dayIdx) => (
-                        <div key={dayIdx} className="border-r border-gray-200 dark:border-gray-800 last:border-r-0 relative">
-                            {hours.map(hour => (
-                                <div key={hour} className="h-[60px] border-b border-gray-200 dark:border-gray-800 p-1 group hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors relative">
-                                    {events
-                                        .filter(e => e.day === dayIdx + 1 && Math.floor(e.hour) === hour)
-                                        .map((event, idx) => {
-                                            const colorClasses = {
-                                                black: "bg-gray-100 dark:bg-gray-800 border-gray-900 dark:border-gray-300 text-gray-900 dark:text-gray-100",
-                                                blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-500 text-blue-700 dark:text-blue-300",
-                                                green: "bg-green-50 dark:bg-green-900/20 border-green-600 dark:border-green-500 text-green-700 dark:text-green-300",
-                                            };
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    className={`absolute left-1 right-1 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm ${colorClasses[event.color as keyof typeof colorClasses]}`}
-                                                    style={{ height: `${event.duration * 60}px`, top: `${(event.hour % 1) * 60}px` }}
-                                                >
-                                                    <p className="truncate">{event.title}</p>
-                                                    <p className="text-[10px] opacity-80">
-                                                        {Math.floor(event.hour).toString().padStart(2, '0')}:{((event.hour % 1) * 60).toString().padStart(2, '0')}
-                                                    </p>
-                                                </div>
-                                            );
-                                        })}
-                                </div>
-                            ))}
-                        </div>
-                    ))}
+                    {days.map((day, dayIdx) => {
+                        const dayEvents = getEventsForWeekDay(day);
+                        return (
+                            <div key={dayIdx} className="border-r border-gray-200 dark:border-gray-800 last:border-r-0 relative">
+                                {hours.map(hour => (
+                                    <div key={hour} className="h-[60px] border-b border-gray-200 dark:border-gray-800 p-1 group hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors relative">
+                                        {dayEvents
+                                            .filter((e) => {
+                                                const eventHour = new Date(e.start_time).getHours();
+                                                return eventHour === hour;
+                                            })
+                                            .map((event) => {
+                                                const startDate = new Date(event.start_time);
+                                                const endDate = new Date(event.end_time);
+                                                const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+                                                const minuteOffset = startDate.getMinutes();
+                                                return (
+                                                    <div
+                                                        key={event.id}
+                                                        className={`absolute left-1 right-1 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm z-10 ${colorClasses[event.color] || colorClasses.blue}`}
+                                                        style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
+                                                    >
+                                                        <p className="truncate">{event.title}</p>
+                                                        <p className="text-[10px] opacity-80">
+                                                            {startDate.getHours().toString().padStart(2, '0')}:{startDate.getMinutes().toString().padStart(2, '0')}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })}
                 </div>
             </>
         );
@@ -201,11 +257,7 @@ export default function CalendarPage() {
 
     const renderDayView = () => {
         const hours = Array.from({ length: 24 }, (_, i) => i);
-        
-        const events = [
-            { hour: 9, title: "New Acquisition Tour", duration: 4, color: "green" },
-            { hour: 14, title: "Asset Management 101", duration: 1.5, color: "black" },
-        ];
+        const dayEvents = getEventsForDay(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
 
         return (
             <>
@@ -227,23 +279,25 @@ export default function CalendarPage() {
                     <div className="flex-1 relative">
                         {hours.map(hour => (
                             <div key={hour} className="h-[60px] border-b border-gray-200 dark:border-gray-800 p-2 group hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors relative">
-                                {events
-                                    .filter(e => Math.floor(e.hour) === hour)
-                                    .map((event, idx) => {
-                                        const colorClasses = {
-                                            black: "bg-gray-100 dark:bg-gray-800 border-gray-900 dark:border-gray-300 text-gray-900 dark:text-gray-100",
-                                            blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-500 text-blue-700 dark:text-blue-300",
-                                            green: "bg-green-50 dark:bg-green-900/20 border-green-600 dark:border-green-500 text-green-700 dark:text-green-300",
-                                        };
+                                {dayEvents
+                                    .filter((e) => {
+                                        const eventHour = new Date(e.start_time).getHours();
+                                        return eventHour === hour;
+                                    })
+                                    .map((event) => {
+                                        const startDate = new Date(event.start_time);
+                                        const endDate = new Date(event.end_time);
+                                        const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
+                                        const minuteOffset = startDate.getMinutes();
                                         return (
                                             <div
-                                                key={idx}
-                                                className={`p-3 border-l-4 rounded-lg text-sm font-semibold shadow-sm ${colorClasses[event.color as keyof typeof colorClasses]}`}
-                                                style={{ height: `${event.duration * 60}px`, top: `${(event.hour % 1) * 60}px` }}
+                                                key={event.id}
+                                                className={`absolute left-2 right-2 p-3 border-l-4 rounded-lg text-sm font-semibold shadow-sm z-10 ${colorClasses[event.color] || colorClasses.blue}`}
+                                                style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
                                             >
                                                 <p className="font-bold mb-1">{event.title}</p>
                                                 <p className="text-xs opacity-80">
-                                                    {Math.floor(event.hour).toString().padStart(2, '0')}:{((event.hour % 1) * 60).toString().padStart(2, '0')} - {Math.floor(event.hour + event.duration).toString().padStart(2, '0')}:{(((event.hour + event.duration) % 1) * 60).toString().padStart(2, '0')}
+                                                    {formatEventTime(event.start_time, event.end_time)}
                                                 </p>
                                             </div>
                                         );
@@ -264,14 +318,18 @@ export default function CalendarPage() {
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Seminar Calendar</h1>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
-                        <Button variant="outline">
-                            <Calendar className="size-4" />
-                            My Events
-                        </Button>
-                        <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
-                            <Plus className="size-4" />
-                            Create New
-                        </Button>
+                        <Link href="/calendar/events/manage">
+                            <Button variant="outline">
+                                <Calendar className="size-4" />
+                                My Events
+                            </Button>
+                        </Link>
+                        <Link href="/calendar/events/new">
+                            <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
+                                <Plus className="size-4" />
+                                Create New
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
