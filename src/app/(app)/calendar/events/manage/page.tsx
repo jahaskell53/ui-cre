@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Trash2, Edit, Plus } from "lucide-react";
+import { Calendar, Clock, MapPin, ArrowLeft, Trash2, Edit, Plus, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -170,6 +170,11 @@ export default function ManageEventsPage() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    <Link href={`/calendar/events/${event.id}`}>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <Eye className="size-4" />
+                                                        </Button>
+                                                    </Link>
                                                     <Link href={`/calendar/events/${event.id}/edit`}>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8">
                                                             <Edit className="size-4" />
@@ -219,15 +224,22 @@ export default function ManageEventsPage() {
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                    onClick={() => handleDelete(event.id)}
-                                                    disabled={deletingId === event.id}
-                                                >
-                                                    <Trash2 className="size-4" />
-                                                </Button>
+                                                <div className="flex items-center gap-2">
+                                                    <Link href={`/calendar/events/${event.id}`}>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <Eye className="size-4" />
+                                                        </Button>
+                                                    </Link>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                        onClick={() => handleDelete(event.id)}
+                                                        disabled={deletingId === event.id}
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
