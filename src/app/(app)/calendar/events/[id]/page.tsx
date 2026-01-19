@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { MapPin, Edit, Trash2, FileText } from "lucide-react";
+import { MapPin, Edit, Trash2 } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
@@ -225,10 +225,7 @@ export default function EventDetailsPage() {
 
                     {event.description && (
                         <div className="mt-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
-                            <div className="flex items-center gap-2 mb-3">
-                                <FileText className="size-5 text-gray-500 dark:text-gray-400" />
-                                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Description</h2>
-                            </div>
+                            <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">About Event</h2>
                             <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                 {event.description}
                             </p>
