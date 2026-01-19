@@ -257,6 +257,37 @@ export default function BoardPage() {
     [people, setPeople, selectedPerson, setSelectedPerson, showStarredOnly]
   );
 
+  const handleDeletePerson = async (person: Person) => {
+    try {
+      const response = await fetch(`/api/people?id=${person.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete person");
+      }
+
+      // Remove person from people list
+      setPeople(people.filter((p) => p.id !== person.id));
+
+      // Remove card from all kanban columns
+      setKanbanColumns((prevColumns) =>
+        prevColumns.map((column) => ({
+          ...column,
+          cards: column.cards.filter((card) => card.personId !== person.id),
+        }))
+      );
+
+      // Clear selection if deleted person was selected
+      if (selectedPerson?.id === person.id) {
+        setSelectedPerson(null);
+      }
+    } catch (error) {
+      console.error("Error deleting person:", error);
+      alert("Failed to delete person. Please try again.");
+    }
+  };
+
   return (
     <KanbanBoard
       people={people}
@@ -271,6 +302,7 @@ export default function BoardPage() {
       onSelectPerson={setSelectedPerson}
       onToggleStar={handleToggleStar}
       onAddPersonToColumn={handleAddPersonToColumn}
+      onDeletePerson={handleDeletePerson}
     />
   );
 }

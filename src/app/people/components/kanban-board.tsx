@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PlusIcon, StarIcon, MailIcon } from "../icons";
 import { generateAuroraGradient, getInitials } from "../utils";
+import { Trash2 } from "lucide-react";
 import type { Person, KanbanColumn, KanbanCard } from "../types";
 
 interface KanbanBoardProps {
@@ -30,6 +31,7 @@ interface KanbanBoardProps {
   onSelectPerson: (person: Person) => void;
   onToggleStar: (person: Person, e: React.MouseEvent) => void;
   onAddPersonToColumn: (personId: string, columnId: string) => void;
+  onDeletePerson: (person: Person) => void;
 }
 
 export function KanbanBoard({
@@ -45,6 +47,7 @@ export function KanbanBoard({
   onToggleStar,
   onAddPersonToColumn,
   onColumnsChange,
+  onDeletePerson,
 }: KanbanBoardProps) {
   const router = useRouter();
   const [addPersonSearch, setAddPersonSearch] = useState<Record<string, string>>({});
@@ -238,7 +241,7 @@ export function KanbanBoard({
                         router.push(`/people/${person.id}`);
                       }}
                       className={cn(
-                        "bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-move hover:shadow-md transition-shadow",
+                        "bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-move hover:shadow-md transition-shadow group",
                         draggedCard === card.id && "opacity-50"
                       )}
                     >
@@ -277,6 +280,18 @@ export function KanbanBoard({
                             {person.email && <MailIcon className="w-3 h-3 text-teal-500 flex-shrink-0" />}
                           </div>
                         </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Are you sure you want to delete ${person.name}? This action cannot be undone.`)) {
+                              onDeletePerson(person);
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 -m-1 flex-shrink-0 text-gray-400 hover:text-red-500 transition-all"
+                          aria-label="Delete person"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );
