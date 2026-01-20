@@ -33,18 +33,14 @@ export default function PeopleLayout({
 
   // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
   const isDetailPage = pathname?.match(/^\/people\/[^/]+(\/.*)?$/) && 
-                       pathname !== "/people/settings" && 
                        pathname !== "/people/create" &&
                        pathname !== "/people/board" &&
-                       pathname !== "/people/map" &&
-                       pathname !== "/people/profile";
+                       pathname !== "/people/map";
   
-  const shouldHideDetailPanel = pathname === "/people/settings" || 
-                                pathname === "/people/create" || 
-                                pathname === "/people/profile" ||
+  const shouldHideDetailPanel = pathname === "/people/create" ||
                                 isDetailPage;
   
-  const shouldHideTabs = isDetailPage || pathname === "/people/settings" || pathname === "/people/create" || pathname === "/people/profile";
+  const shouldHideTabs = isDetailPage || pathname === "/people/create";
 
   // Redirect to login if not authenticated
   useEffect(() => {
