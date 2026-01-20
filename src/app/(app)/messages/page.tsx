@@ -169,9 +169,15 @@ export default function MessagesPage() {
             const data = await response.json();
             setMessages(data);
 
-            // Refresh conversations to update unread counts
+            // Update unread count locally without reloading conversations
             if (showLoading) {
-                loadConversations();
+                setConversations(prev => 
+                    prev.map(conv => 
+                        conv.other_user_id === userId 
+                            ? { ...conv, unread_count: 0 }
+                            : conv
+                    )
+                );
             }
         } catch (error) {
             console.error("Error loading messages:", error);
