@@ -30,60 +30,137 @@ interface CalendarInteraction {
   calendar_id: string;
 }
 
+interface EmailCheckInput {
+  email: string;
+  name?: string;
+  subject?: string;
+  headers?: Record<string, any>;
+}
+
 /**
- * Check if an email is from a single person (not a bot, listserv, or newsletter)
- * Uses Gemini 2.5 Flash Lite to analyze the email
+ * Batch check multiple emails using Gemini API
+ * Checks up to 20 emails at once (Gemini context limit)
  */
-async function isAutomatedEmail(email: string, message?: NylasMessage, name?: string): Promise<boolean> {
+async function batchCheckAutomatedEmails(
+  emailInputs: EmailCheckInput[],
+  cache: Map<string, boolean>
+): Promise<Map<string, boolean>> {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
+  const results = new Map<string, boolean>();
   
   if (!apiKey) {
-    console.warn('GOOGLE_AI_API_KEY not set, falling back to basic heuristics');
-    // Fallback to basic pattern matching if API key is not available
-    return isAutomatedEmailFallback(email, message, name);
+    // Fallback to heuristics for all
+    for (const input of emailInputs) {
+      const cached = cache.get(input.email.toLowerCase());
+      if (cached !== undefined) {
+        results.set(input.email.toLowerCase(), cached);
+      } else {
+        const isAutomated = isAutomatedEmailFallback(input.email, undefined, input.name);
+        results.set(input.email.toLowerCase(), isAutomated);
+        cache.set(input.email.toLowerCase(), isAutomated);
+      }
+    }
+    return results;
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
-
-    // Prepare email information for analysis
-    const emailInfo = {
-      email: email,
-      name: name || '',
-      subject: message?.subject || '',
-      headers: message?.headers || {},
-    };
-
-    const prompt = `Analyze the following email information and determine if this email is from a single person (human individual) or if it's from a bot, automated system, listserv, newsletter, or mass mailing service.
-
-Email address: ${emailInfo.email}
-Display name: ${emailInfo.name || '(not provided)'}
-Subject: ${emailInfo.subject || '(not provided)'}
-Headers: ${JSON.stringify(emailInfo.headers)}
-
-Respond with ONLY "true" if this is from a bot/listserv/newsletter/automated system, or "false" if this is from a single person. Do not include any explanation or additional text.`;
-
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text().trim().toLowerCase();
-
-    // Parse the response - Gemini should return "true" or "false"
-    if (text === 'true' || text.startsWith('true')) {
-      return true;
-    }
-    if (text === 'false' || text.startsWith('false')) {
+  // Filter out already cached emails
+  const toCheck = emailInputs.filter(input => {
+    const cached = cache.get(input.email.toLowerCase());
+    if (cached !== undefined) {
+      results.set(input.email.toLowerCase(), cached);
       return false;
     }
+    return true;
+  });
 
-    // If response is unclear, fall back to heuristics
-    console.warn(`Unexpected Gemini response: "${text}", falling back to heuristics`);
-    return isAutomatedEmailFallback(email, message, name);
-  } catch (error) {
-    console.error('Error calling Gemini API:', error);
-    // Fall back to heuristics on error
-    return isAutomatedEmailFallback(email, message, name);
+  if (toCheck.length === 0) {
+    return results;
   }
+
+  // Process in batches of 20 (Gemini context limit)
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < toCheck.length; i += BATCH_SIZE) {
+    const batch = toCheck.slice(i, i + BATCH_SIZE);
+    
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
+      // Create a batch prompt
+      const emailList = batch.map((input, idx) => {
+        return `${idx + 1}. Email: ${input.email}, Name: ${input.name || '(not provided)'}, Subject: ${input.subject || '(not provided)'}`;
+      }).join('\n');
+
+      const prompt = `Analyze the following email addresses and determine which ones are from bots, automated systems, listservs, newsletters, or mass mailing services (not from single human individuals).
+
+${emailList}
+
+Respond with a JSON object mapping each email address to "true" if it's automated/bot/listserv/newsletter, or "false" if it's from a single person. Format: {"email1@example.com": true, "email2@example.com": false, ...}`;
+
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text().trim();
+
+      // Try to parse JSON response
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          for (const input of batch) {
+            const isAutomated = parsed[input.email.toLowerCase()] === true || parsed[input.email] === true;
+            results.set(input.email.toLowerCase(), isAutomated);
+            cache.set(input.email.toLowerCase(), isAutomated);
+          }
+        } else {
+          // Fallback to heuristics if JSON parsing fails
+          for (const input of batch) {
+            const isAutomated = isAutomatedEmailFallback(input.email, undefined, input.name);
+            results.set(input.email.toLowerCase(), isAutomated);
+            cache.set(input.email.toLowerCase(), isAutomated);
+          }
+        }
+      } catch (parseError) {
+        // Fallback to heuristics on parse error
+        for (const input of batch) {
+          const isAutomated = isAutomatedEmailFallback(input.email, undefined, input.name);
+          results.set(input.email.toLowerCase(), isAutomated);
+          cache.set(input.email.toLowerCase(), isAutomated);
+        }
+      }
+    } catch (error) {
+      console.error(`Error batch checking emails (batch ${i / BATCH_SIZE + 1}):`, error);
+      // Fallback to heuristics on error
+      for (const input of batch) {
+        const isAutomated = isAutomatedEmailFallback(input.email, undefined, input.name);
+        results.set(input.email.toLowerCase(), isAutomated);
+        cache.set(input.email.toLowerCase(), isAutomated);
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Check if an email is from a single person (not a bot, listserv, or newsletter)
+ * Uses cached results if available, otherwise falls back to heuristics
+ */
+async function isAutomatedEmail(
+  email: string,
+  message?: NylasMessage,
+  name?: string,
+  cache?: Map<string, boolean>
+): Promise<boolean> {
+  // Use cache if provided
+  if (cache) {
+    const cached = cache.get(email.toLowerCase());
+    if (cached !== undefined) {
+      return cached;
+    }
+  }
+
+  // Fallback to heuristics (will be replaced by batch checking)
+  return isAutomatedEmailFallback(email, message, name);
 }
 
 /**
@@ -267,49 +344,111 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
       return 0;
     }
 
-    // First pass: Identify contacts we've emailed (from "to" addresses)
-    // This determines which contacts to include
-    const contactsWeveEmailed = new Set<string>();
+    // Cache for automated email checks
+    const automatedEmailCache = new Map<string, boolean>();
+
+    // Step 1: Collect all unique emails for batch checking
+    console.log('Step 1/5: Collecting unique email addresses...');
+    const emailInputs: EmailCheckInput[] = [];
+    const emailToMessage = new Map<string, NylasMessage>();
 
     for (const message of messages) {
-      // Check if THIS message was sent by the user
-      // Important: Only check 'from' field - if user is CC'd/BCC'd but not the sender,
-      // this will correctly identify it as NOT sent by user
-      const senderEmail = message.from?.[0]?.email?.toLowerCase();
-      const isSentByUser = senderEmail === userEmail;
-
-      // Extract to addresses (email sent) - only for emails the USER sent
-      // We explicitly check sender, not CC/BCC, to ensure we only track emails actually sent by the user
-      if (isSentByUser && message.to && message.to.length > 0) {
+      // Collect "to" addresses
+      if (message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
-
-          if (parsed.email && 
-              !(await isAutomatedEmail(parsed.email, message, parsed.name)) &&
-              parsed.email.toLowerCase() !== userEmail) {
-            contactsWeveEmailed.add(parsed.email.toLowerCase());
+          if (parsed.email && parsed.email.toLowerCase() !== userEmail) {
+            const emailLower = parsed.email.toLowerCase();
+            if (!emailToMessage.has(emailLower)) {
+              emailInputs.push({
+                email: parsed.email,
+                name: parsed.name,
+                subject: message.subject || undefined,
+                headers: message.headers,
+              });
+              emailToMessage.set(emailLower, message);
+            }
+          }
+        }
+      }
+      // Collect "from" addresses
+      if (message.from && message.from.length > 0) {
+        for (const from of message.from) {
+          const parsed = parseEmailAddress(`${from.name || ''} <${from.email}>`);
+          if (parsed.email && parsed.email.toLowerCase() !== userEmail) {
+            const emailLower = parsed.email.toLowerCase();
+            if (!emailToMessage.has(emailLower)) {
+              emailInputs.push({
+                email: parsed.email,
+                name: parsed.name,
+                subject: message.subject || undefined,
+                headers: message.headers,
+              });
+              emailToMessage.set(emailLower, message);
+            }
           }
         }
       }
     }
 
-    // Second pass: Process all messages and track interactions for contacts we've emailed
-    for (const message of messages) {
+    console.log(`Collected ${emailInputs.length} unique email addresses`);
+
+    // Step 2: Batch check all emails with Gemini
+    console.log(`Step 2/5: Batch checking ${emailInputs.length} emails for automation...`);
+    const automatedResults = await batchCheckAutomatedEmails(emailInputs, automatedEmailCache);
+    console.log(`Completed batch check. Found ${Array.from(automatedResults.values()).filter(v => v).length} automated emails`);
+
+    // Step 3: First pass - Identify contacts we've emailed
+    console.log('Step 3/5: Processing messages to identify contacts...');
+    const contactsWeveEmailed = new Set<string>();
+
+    for (let i = 0; i < messages.length; i++) {
+      if (i % 500 === 0 && i > 0) {
+        console.log(`  Processed ${i}/${messages.length} messages...`);
+      }
+
+      const message = messages[i];
+      const senderEmail = message.from?.[0]?.email?.toLowerCase();
+      const isSentByUser = senderEmail === userEmail;
+
+      if (isSentByUser && message.to && message.to.length > 0) {
+        for (const to of message.to) {
+          const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
+          const emailLower = parsed.email?.toLowerCase();
+
+          if (emailLower && 
+              emailLower !== userEmail &&
+              !automatedResults.get(emailLower)) {
+            contactsWeveEmailed.add(emailLower);
+          }
+        }
+      }
+    }
+
+    console.log(`Identified ${contactsWeveEmailed.size} contacts we've emailed`);
+
+    // Step 4: Second pass - Process all messages and track interactions
+    console.log('Step 4/5: Processing messages and tracking interactions...');
+    for (let i = 0; i < messages.length; i++) {
+      if (i % 500 === 0 && i > 0) {
+        console.log(`  Processed ${i}/${messages.length} messages...`);
+      }
+
+      const message = messages[i];
       const date = message.date ? new Date(message.date * 1000).toISOString() : new Date().toISOString();
       const subject = message.subject || null;
       const senderEmail = message.from?.[0]?.email?.toLowerCase();
       const isSentByUser = senderEmail === userEmail;
 
       // Case 1: User SENT this email
-      // Only process if user is the sender (from field), not if they're just CC'd/BCC'd
-      // This ensures we correctly distinguish emails sent by user vs emails where user was CC'd
       if (isSentByUser && message.to && message.to.length > 0) {
         for (const to of message.to) {
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
+          const emailLower = parsed.email?.toLowerCase();
 
-          if (parsed.email && 
-              !(await isAutomatedEmail(parsed.email, message, parsed.name)) &&
-              parsed.email.toLowerCase() !== userEmail) {
+          if (emailLower && 
+              emailLower !== userEmail &&
+              !automatedResults.get(emailLower)) {
             const existing = contactsMap.get(parsed.email);
 
             contactsMap.set(parsed.email, {
@@ -326,7 +465,6 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
               source: 'email',
             });
 
-            // Track email sent interaction
             emailInteractions.push({
               email: parsed.email,
               subject,
@@ -342,16 +480,15 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
       if (!isSentByUser && message.from && message.from.length > 0) {
         const from = message.from[0];
         const parsed = parseEmailAddress(`${from.name || ''} <${from.email}>`);
+        const emailLower = parsed.email?.toLowerCase();
 
-        // Only process if we've emailed this contact at least once
-        if (parsed.email &&
-            !(await isAutomatedEmail(parsed.email, message, parsed.name)) &&
-            parsed.email.toLowerCase() !== userEmail &&
-            contactsWeveEmailed.has(parsed.email.toLowerCase())) {
+        if (emailLower &&
+            emailLower !== userEmail &&
+            !automatedResults.get(emailLower) &&
+            contactsWeveEmailed.has(emailLower)) {
 
           const existing = contactsMap.get(parsed.email);
 
-          // Update contact info if we have better name info from received email
           contactsMap.set(parsed.email, {
             email_address: parsed.email,
             first_name: parsed.firstName || existing?.first_name,
@@ -366,7 +503,6 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
             source: 'email',
           });
 
-          // Track email received interaction
           emailInteractions.push({
             email: parsed.email,
             subject,
@@ -378,58 +514,82 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
       }
     }
 
-    // Store contacts in database and get their IDs
+    // Step 5: Store contacts in database (batched)
     const contacts = Array.from(contactsMap.values());
+    console.log(`Step 5/5: Storing ${contacts.length} contacts in database...`);
     console.log(`Extracted ${contacts.length} unique contacts from emails`);
 
     const emailToPerson = new Map<string, string>(); // email -> person_id
 
+    // Batch fetch existing contacts
+    const contactEmails = contacts.map(c => c.email_address);
+    const { data: existingPeople } = await supabase
+      .from('people')
+      .select('id, email')
+      .eq('user_id', userId)
+      .in('email', contactEmails);
+
+    const existingEmailToId = new Map<string, string>();
+    if (existingPeople) {
+      for (const person of existingPeople) {
+        existingEmailToId.set(person.email.toLowerCase(), person.id);
+      }
+    }
+
+    // Separate contacts into updates and inserts
+    const contactsToUpdate: Array<{ id: string; name: string }> = [];
+    const contactsToInsert: Array<{ user_id: string; name: string; email: string; starred: boolean; signal: boolean }> = [];
+
     for (const contact of contacts) {
-      // Try to upsert to people table - insert if new, update if exists
-      const { data: existing } = await supabase
-        .from('people')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('email', contact.email_address)
-        .single();
+      const existingId = existingEmailToId.get(contact.email_address.toLowerCase());
+      const name = contact.first_name && contact.last_name
+        ? `${contact.first_name} ${contact.last_name}`
+        : contact.first_name || contact.email_address;
 
-      if (existing) {
-        // Update existing person
-        await supabase
-          .from('people')
-          .update({
-            name: contact.first_name && contact.last_name
-              ? `${contact.first_name} ${contact.last_name}`
-              : contact.first_name || contact.email_address,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
-
-        emailToPerson.set(contact.email_address, existing.id);
+      if (existingId) {
+        contactsToUpdate.push({ id: existingId, name });
+        emailToPerson.set(contact.email_address, existingId);
       } else {
-        // Insert new person
-        const { data: newPerson } = await supabase
-          .from('people')
-          .insert({
-            user_id: userId,
-            name: contact.first_name && contact.last_name
-              ? `${contact.first_name} ${contact.last_name}`
-              : contact.first_name || contact.email_address,
-            email: contact.email_address,
-            starred: false,
-            signal: false,
-          })
-          .select('id')
-          .single();
+        contactsToInsert.push({
+          user_id: userId,
+          name,
+          email: contact.email_address,
+          starred: false,
+          signal: false,
+        });
+      }
+    }
 
-        if (newPerson) {
-          emailToPerson.set(contact.email_address, newPerson.id);
+    // Batch update existing contacts
+    if (contactsToUpdate.length > 0) {
+      console.log(`  Updating ${contactsToUpdate.length} existing contacts...`);
+      await Promise.all(
+        contactsToUpdate.map(contact =>
+          supabase
+            .from('people')
+            .update({ name: contact.name, updated_at: new Date().toISOString() })
+            .eq('id', contact.id)
+        )
+      );
+    }
+
+    // Batch insert new contacts
+    if (contactsToInsert.length > 0) {
+      console.log(`  Inserting ${contactsToInsert.length} new contacts...`);
+      const { data: newPeople } = await supabase
+        .from('people')
+        .insert(contactsToInsert)
+        .select('id, email');
+
+      if (newPeople) {
+        for (const person of newPeople) {
+          emailToPerson.set(person.email, person.id);
         }
       }
     }
 
     // Batch insert interactions - PostgreSQL unique index will skip duplicates
-    console.log(`Batch inserting ${emailInteractions.length} interaction records`);
+    console.log(`Batch inserting ${emailInteractions.length} interaction records...`);
 
     // Prepare all interactions for batch insert
     const interactionsToInsert = emailInteractions
@@ -526,9 +686,10 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
     }
 
     // Recalculate network strength for all people after timeline updates
+    console.log('Recalculating network strength...');
     await recalculateNetworkStrengthForUser(supabase, userId);
 
-    console.log(`Email sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
+    console.log(`✅ Email sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing email contacts:', error);
@@ -658,50 +819,71 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
       }
     }
 
-    // Store contacts in database and get their IDs
+    // Store contacts in database (batched)
     const contacts = Array.from(contactsMap.values());
-    const emailToPerson = new Map<string, string>(); // email -> person_id
+    const emailToPerson = new Map<string, string>();
+
+    // Batch fetch existing contacts
+    const contactEmails = contacts.map(c => c.email_address);
+    const { data: existingPeople } = await supabase
+      .from('people')
+      .select('id, email')
+      .eq('user_id', userId)
+      .in('email', contactEmails);
+
+    const existingEmailToId = new Map<string, string>();
+    if (existingPeople) {
+      for (const person of existingPeople) {
+        existingEmailToId.set(person.email.toLowerCase(), person.id);
+      }
+    }
+
+    // Separate contacts into updates and inserts
+    const contactsToUpdate: Array<{ id: string; name: string }> = [];
+    const contactsToInsert: Array<{ user_id: string; name: string; email: string; starred: boolean; signal: boolean }> = [];
 
     for (const contact of contacts) {
-      // Try to upsert to people table - insert if new, update if exists
-      const { data: existing } = await supabase
-        .from('people')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('email', contact.email_address)
-        .single();
+      const existingId = existingEmailToId.get(contact.email_address.toLowerCase());
+      const name = contact.first_name && contact.last_name
+        ? `${contact.first_name} ${contact.last_name}`
+        : contact.first_name || contact.email_address;
 
-      if (existing) {
-        // Update existing person
-        await supabase
-          .from('people')
-          .update({
-            name: contact.first_name && contact.last_name
-              ? `${contact.first_name} ${contact.last_name}`
-              : contact.first_name || contact.email_address,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
-
-        emailToPerson.set(contact.email_address, existing.id);
+      if (existingId) {
+        contactsToUpdate.push({ id: existingId, name });
+        emailToPerson.set(contact.email_address, existingId);
       } else {
-        // Insert new person
-        const { data: newPerson } = await supabase
-          .from('people')
-          .insert({
-            user_id: userId,
-            name: contact.first_name && contact.last_name
-              ? `${contact.first_name} ${contact.last_name}`
-              : contact.first_name || contact.email_address,
-            email: contact.email_address,
-            starred: false,
-            signal: false,
-          })
-          .select('id')
-          .single();
+        contactsToInsert.push({
+          user_id: userId,
+          name,
+          email: contact.email_address,
+          starred: false,
+          signal: false,
+        });
+      }
+    }
 
-        if (newPerson) {
-          emailToPerson.set(contact.email_address, newPerson.id);
+    // Batch update existing contacts
+    if (contactsToUpdate.length > 0) {
+      await Promise.all(
+        contactsToUpdate.map(contact =>
+          supabase
+            .from('people')
+            .update({ name: contact.name, updated_at: new Date().toISOString() })
+            .eq('id', contact.id)
+        )
+      );
+    }
+
+    // Batch insert new contacts
+    if (contactsToInsert.length > 0) {
+      const { data: newPeople } = await supabase
+        .from('people')
+        .insert(contactsToInsert)
+        .select('id, email');
+
+      if (newPeople) {
+        for (const person of newPeople) {
+          emailToPerson.set(person.email, person.id);
         }
       }
     }
