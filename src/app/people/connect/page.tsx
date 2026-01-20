@@ -143,7 +143,7 @@ function ConnectEmailPageContent() {
               <div className="flex-1">
                 <div className="font-medium mb-1">{syncStatus || 'Syncing your contacts...'}</div>
                 <div className="text-xs text-blue-500 dark:text-blue-400">
-                  This may take a few minutes. Please don't close this page.
+                  Sync is running in the background. You can close this page and check back later.
                 </div>
               </div>
             </div>
