@@ -528,7 +528,7 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Messages List */}
-                                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-end">
                                     {loadingMessages ? (
                                         <div className="flex items-center justify-center py-12">
                                             <div className="text-sm text-gray-500 dark:text-gray-400">Loading messages...</div>
@@ -541,7 +541,7 @@ export default function MessagesPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <>
+                                        <div className="space-y-3">
                                             {messages.map((message) => {
                                                 const isOwn = message.sender_id === user?.id;
                                                 return (
@@ -571,7 +571,7 @@ export default function MessagesPage() {
                                                 );
                                             })}
                                             <div ref={messagesEndRef} />
-                                        </>
+                                        </div>
                                     )}
                                 </div>
 
