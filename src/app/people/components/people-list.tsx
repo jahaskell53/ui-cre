@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Trash2, Download, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
 import { cn } from "@/lib/utils";
-import { StarIcon, MailIcon } from "../icons";
+import { StarIcon, MailIcon, PlusIcon } from "../icons";
 import { generateAuroraGradient, getInitials } from "../utils";
 import { usePeople } from "../people-context";
 import type { Person } from "../types";
@@ -241,12 +242,19 @@ export function PeopleList({
 
       {/* People Count */}
       {selectedIds.size === 0 && (
-        <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between">
           <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             {loading
               ? "Loading..."
               : `${filteredPeople.length} ${showStarredOnly ? "Starred" : ""} People`}
           </span>
+          <Link
+            href="/people/create"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+            aria-label="Create new"
+          >
+            <PlusIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          </Link>
         </div>
       )}
 
