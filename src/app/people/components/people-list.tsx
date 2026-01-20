@@ -10,10 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
 import { cn } from "@/lib/utils";
-import { StarIcon, MailIcon, PlusIcon } from "../icons";
-import { generateAuroraGradient, getInitials } from "../utils";
-import { usePeople } from "../people-context";
-import type { Person } from "../types";
+import { StarIcon, MailIcon, PlusIcon } from "@/app/(app)/people/icons";
+import { generateAuroraGradient, getInitials } from "@/app/(app)/people/utils";
+import { usePeople } from "@/app/(app)/people/people-context";
+import type { Person } from "@/app/(app)/people/types";
 
 interface PeopleListProps {
   people: Person[];
