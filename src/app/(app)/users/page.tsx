@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/utils/supabase";
 import { Search } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import { generateAuroraGradient } from "@/app/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/people/utils";
 
 interface UserProfile {
     id: string;

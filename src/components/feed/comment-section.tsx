@@ -9,7 +9,7 @@ import { Send, Trash2 } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { formatDistanceToNow } from "date-fns";
 import { MentionDropdown, UserSuggestion } from "./mention-dropdown";
-import { generateAuroraGradient } from "@/app/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/people/utils";
 
 interface Comment {
     id: string;

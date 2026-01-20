@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { AppSidebar, type AppSidebarRef } from "@/components/layout/app-sidebar";
+import { usePathname } from "next/navigation";
 import { DetailPanel } from "./components/detail-panel";
 import { TabNavigation } from "./components/tab-navigation";
 import { PeopleProvider, type SortBy } from "./people-context";
-import { useUser } from "@/hooks/use-user";
 import type { Person } from "./types";
 
 export default function PeopleLayout({
@@ -14,9 +12,7 @@ export default function PeopleLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const { user, loading: authLoading } = useUser();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
@@ -28,8 +24,6 @@ export default function PeopleLayout({
   const [sortBy, setSortBy] = useState<SortBy>('recency');
   const [reverse, setReverse] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const sidebarRef = useRef<AppSidebarRef>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
   const isDetailPage = pathname?.match(/^\/people\/[^/]+(\/.*)?$/) && 
@@ -41,13 +35,6 @@ export default function PeopleLayout({
                                 isDetailPage;
   
   const shouldHideTabs = isDetailPage || pathname === "/people/create";
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
-    }
-  }, [authLoading, user, router]);
 
   // Fetch people from database
   const fetchPeople = async () => {
@@ -125,15 +112,9 @@ export default function PeopleLayout({
     };
   }, [isDragging]);
 
-
   const handleMouseDown = () => {
     setIsDragging(true);
   };
-
-  // Show nothing while checking authentication
-  if (authLoading || !user) {
-    return null;
-  }
 
   return (
     <PeopleProvider
@@ -156,16 +137,9 @@ export default function PeopleLayout({
         refetchPeople: fetchPeople,
       }}
     >
-      <div className="flex h-screen bg-white dark:bg-gray-900">
-        {/* Left Sidebar */}
-        <AppSidebar
-          ref={sidebarRef}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
-
+      <div className="flex h-full w-full">
         {/* Main Content */}
-        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-white dark:bg-gray-900">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white dark:bg-gray-900">
           {!shouldHideTabs && <TabNavigation sortBy={sortBy} reverse={reverse} onSortChange={setSortBy} onReverseChange={setReverse} />}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {children}
@@ -191,4 +165,3 @@ export default function PeopleLayout({
     </PeopleProvider>
   );
 }
-

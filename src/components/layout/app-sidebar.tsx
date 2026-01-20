@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/people/icons";
-import AccountCard from "@/app/people/account-card";
+import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/(app)/people/icons";
+import AccountCard from "@/app/(app)/people/account-card";
 import { UserSearchBar, type UserSearchBarRef } from "@/components/user-search-bar";
 
 interface AppSidebarProps {

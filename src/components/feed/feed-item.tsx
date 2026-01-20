@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { LinkPreviewCard, LinkPreview } from "./link-preview";
 import { FileAttachment } from "./file-attachment";
 import { CommentSection } from "./comment-section";
-import { generateAuroraGradient } from "@/app/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/people/utils";
 
 export interface Post {
     id: string;
