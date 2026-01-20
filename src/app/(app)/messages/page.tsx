@@ -85,6 +85,8 @@ export default function MessagesPage() {
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    const isInitialLoadRef = useRef(true);
     const [showNewMessage, setShowNewMessage] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
@@ -131,12 +133,29 @@ export default function MessagesPage() {
     }, [selectedUserId]);
 
     useEffect(() => {
-        scrollToBottom();
+        if (messages.length === 0) return;
+        
+        // Use setTimeout to ensure DOM has updated
+        const timer = setTimeout(() => {
+            const isInitialLoad = isInitialLoadRef.current;
+            scrollToBottom(!isInitialLoad);
+            if (isInitialLoad) {
+                isInitialLoadRef.current = false;
+            }
+        }, 0);
+        return () => clearTimeout(timer);
     }, [messages]);
 
-    const scrollToBottom = () => {
-        if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
-            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    useEffect(() => {
+        // Reset initial load flag when switching conversations
+        isInitialLoadRef.current = true;
+    }, [selectedUserId]);
+
+    const scrollToBottom = (smooth = true) => {
+        if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        } else if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
+            messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
         }
     };
 
@@ -528,7 +547,7 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Messages List */}
-                                <div className="flex-1 overflow-y-auto p-4 flex flex-col justify-end">
+                                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col justify-end">
                                     {loadingMessages ? (
                                         <div className="flex items-center justify-center py-12">
                                             <div className="text-sm text-gray-500 dark:text-gray-400">Loading messages...</div>
