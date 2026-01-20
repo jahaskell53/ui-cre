@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Sidebar, type SidebarRef } from "./components/sidebar";
+import { AppSidebar, type AppSidebarRef } from "@/components/layout/app-sidebar";
 import { DetailPanel } from "./components/detail-panel";
 import { TabNavigation } from "./components/tab-navigation";
 import { PeopleProvider, type SortBy } from "./people-context";
@@ -28,7 +28,7 @@ export default function PeopleLayout({
   const [sortBy, setSortBy] = useState<SortBy>('recency');
   const [reverse, setReverse] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const sidebarRef = useRef<SidebarRef>(null);
+  const sidebarRef = useRef<AppSidebarRef>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
@@ -134,22 +134,6 @@ export default function PeopleLayout({
     setIsDragging(true);
   };
 
-  const handlePeopleIconClick = () => {
-    // Check if we're already on a people route
-    const isOnPeopleRoute = pathname?.startsWith("/people");
-    
-    if (isOnPeopleRoute) {
-      // Reset to default view
-      setSearchQuery("");
-      setShowStarredOnly(false);
-      setSelectedPerson(null);
-      router.push("/people");
-    } else {
-      // Navigate to people page
-      router.push("/people");
-    }
-  };
-
   // Show nothing while checking authentication
   if (authLoading || !user) {
     return null;
@@ -178,12 +162,8 @@ export default function PeopleLayout({
     >
       <div className="flex h-screen bg-white dark:bg-gray-900">
         {/* Left Sidebar */}
-        <Sidebar
+        <AppSidebar
           ref={sidebarRef}
-          people={people}
-          selectedPerson={selectedPerson}
-          onSelectPerson={setSelectedPerson}
-          onPeopleIconClick={handlePeopleIconClick}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
