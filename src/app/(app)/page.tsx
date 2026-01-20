@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, Plus } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { FeedItem, Post } from "@/components/feed/feed-item";
-import { CreatePostModal } from "@/components/feed/create-post-modal";
+import { CreatePostInline } from "@/components/feed/create-post-inline";
 import { NotificationCard } from "@/components/notifications/notification-card";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
@@ -38,7 +38,6 @@ export default function FeedPage() {
     const { user, profile, loading: userLoading } = useUser();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showPostModal, setShowPostModal] = useState(false);
     const [showingLiked, setShowingLiked] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [notificationsLoading, setNotificationsLoading] = useState(true);
@@ -236,27 +235,28 @@ export default function FeedPage() {
                         <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">
                             {showingLiked ? "Liked Posts" : "Posts"}
                         </h2>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setShowingLiked(!showingLiked)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                                    showingLiked
-                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
-                                }`}
-                            >
-                                <HeartIcon isLiked={showingLiked} className="size-4" />
-                                Liked
-                            </button>
-                            <button
-                                onClick={() => setShowPostModal(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors"
-                            >
-                                <Plus className="size-4" />
-                                New Post
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => setShowingLiked(!showingLiked)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                showingLiked
+                                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                            }`}
+                        >
+                            <HeartIcon isLiked={showingLiked} className="size-4" />
+                            Liked
+                        </button>
                     </div>
+
+                    {user && (
+                        <CreatePostInline
+                            onSuccess={handlePostCreated}
+                            userId={user.id}
+                            isAdmin={profile?.is_admin || false}
+                            userAvatarUrl={profile?.avatar_url || null}
+                            userFullName={profile?.full_name || null}
+                        />
+                    )}
 
                     <div className="grid gap-6">
                         {posts.filter(p => !showingLiked || p.is_liked).length === 0 ? (
@@ -310,16 +310,6 @@ export default function FeedPage() {
                     </div>
                 </div>
             </div>
-
-            {user && (
-                <CreatePostModal
-                    isOpen={showPostModal}
-                    onClose={() => setShowPostModal(false)}
-                    onSuccess={handlePostCreated}
-                    userId={user.id}
-                    isAdmin={profile?.is_admin || false}
-                />
-            )}
         </div>
     );
 }
