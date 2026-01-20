@@ -1,0 +1,98 @@
+service: email-sync-processor
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  timeout: 900 # 15 minutes (max Lambda timeout)
+  memorySize: 1024
+  # Limit concurrent syncs to avoid overwhelming Nylas API
+  # Note: reservedConcurrentExecutions is set per-function in CloudFormation if needed
+  environment:
+    NYLAS_API_KEY: ${env:NYLAS_API_KEY}
+    NYLAS_CLIENT_ID: ${env:NYLAS_CLIENT_ID}
+    NYLAS_API_URI: ${env:NYLAS_API_URI, 'https://api.us.nylas.com'}
+    NYLAS_EMAIL_SYNC_LIMIT: ${env:NYLAS_EMAIL_SYNC_LIMIT, '600'}
+    NYLAS_CALENDAR_SYNC_LIMIT: ${env:NYLAS_CALENDAR_SYNC_LIMIT, '600'}
+    GOOGLE_AI_API_KEY: ${env:GOOGLE_AI_API_KEY}
+    NEXT_PUBLIC_SUPABASE_URL: ${env:NEXT_PUBLIC_SUPABASE_URL}
+    SUPABASE_SERVICE_ROLE_KEY: ${env:SUPABASE_SERVICE_ROLE_KEY}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - Fn::GetAtt:
+                - EmailSyncQueue
+                - Arn
+
+build:
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: false
+    exclude:
+      - aws-sdk
+    target: node20
+    platform: node
+    alias:
+      '@': './src'
+
+functions:
+  syncEmailContacts:
+    handler: lambda/sync-email-contacts.handler
+    description: Process email sync jobs from SQS queue
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - EmailSyncQueue
+              - Arn
+          batchSize: 1
+    # Note: reservedConcurrentExecutions moved to provider level in v4
+
+resources:
+  Resources:
+    EmailSyncQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${opt:stage, 'dev'}-email-sync
+        VisibilityTimeout: 900 # Must be >= Lambda timeout
+        MessageRetentionPeriod: 1209600 # 14 days
+        ReceiveMessageWaitTimeSeconds: 20 # Long polling
+        RedrivePolicy:
+          deadLetterTargetArn:
+            Fn::GetAtt:
+              - EmailSyncDLQ
+              - Arn
+          maxReceiveCount: 3 # Retry 3 times before moving to DLQ
+
+    EmailSyncDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${opt:stage, 'dev'}-email-sync-dlq
+        MessageRetentionPeriod: 1209600 # 14 days
+
+  Outputs:
+    EmailSyncQueueUrl:
+      Description: URL of the email sync SQS queue
+      Value:
+        Ref: EmailSyncQueue
+      Export:
+        Name: ${self:service}-${opt:stage, 'dev'}-queue-url
+
+    EmailSyncQueueArn:
+      Description: ARN of the email sync SQS queue
+      Value:
+        Fn::GetAtt:
+          - EmailSyncQueue
+          - Arn
+      Export:
+        Name: ${self:service}-${opt:stage, 'dev'}-queue-arn

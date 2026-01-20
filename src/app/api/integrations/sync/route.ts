@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { syncAllContacts } from '@/lib/nylas/sync';
 import { createClient } from '@/utils/supabase/server';
+import { enqueueEmailSync } from '@/utils/sqs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,19 +31,17 @@ export async function POST(request: NextRequest) {
       .eq('nylas_grant_id', grantId)
       .eq('user_id', userId);
 
-    // Start sync (incremental if previous sync exists)
-    const result = await syncAllContacts(grantId, userId);
+    // Enqueue sync job to SQS for async processing
+    await enqueueEmailSync(grantId, userId);
 
     return NextResponse.json({
       success: true,
-      emailCount: result.emailCount,
-      calendarCount: result.calendarCount,
-      isIncremental: result.isIncremental,
+      message: 'Sync job queued for processing',
     });
   } catch (error) {
     console.error('Error in sync API:', error);
     return NextResponse.json(
-      { error: 'Failed to sync contacts' },
+      { error: 'Failed to queue sync job' },
       { status: 500 }
     );
   }

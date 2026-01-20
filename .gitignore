@@ -40,6 +40,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# serverless
+.serverless/
+.serverless_plugins/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

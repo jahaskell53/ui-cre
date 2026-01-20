@@ -1,0 +1,49 @@
+# Serverless Framework ignore file
+# Files/directories to exclude from Lambda deployment
+
+# Dependencies (will be bundled by esbuild)
+node_modules/
+
+# Next.js build artifacts
+.next/
+out/
+dist/
+
+# Source files (only Lambda handler needed)
+src/
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+**/__tests__/
+**/test/
+
+# Config files
+*.config.ts
+*.config.js
+*.config.mjs
+tsconfig.json
+next.config.mjs
+postcss.config.mjs
+vitest.config.ts
+
+# Documentation
+*.md
+docs/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Other
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
