@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +10,7 @@ import { supabase } from "@/utils/supabase";
 import { ArrowUp, Plus, Search, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { generateAuroraGradient } from "@/app/(app)/people/utils";
+import { motion, AnimatePresence } from "motion/react";
 
 interface Conversation {
     other_user_id: string;
@@ -35,6 +35,7 @@ interface Message {
     content: string;
     created_at: string;
     read_at: string | null;
+    pending?: boolean; // For optimistic updates
 }
 
 interface UserProfile {
@@ -46,7 +47,6 @@ interface UserProfile {
 }
 
 export default function MessagesPage() {
-    const router = useRouter();
     const { user } = useUser();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -132,19 +132,27 @@ export default function MessagesPage() {
         }
     }, [selectedUserId]);
 
-    useEffect(() => {
+    // Use layout effect for initial scroll to avoid flash
+    useLayoutEffect(() => {
         if (messages.length === 0) return;
-        
-        // Use setTimeout to ensure DOM has updated
-        const timer = setTimeout(() => {
-            const isInitialLoad = isInitialLoadRef.current;
-            scrollToBottom(!isInitialLoad);
-            if (isInitialLoad) {
-                isInitialLoadRef.current = false;
-            }
-        }, 0);
-        return () => clearTimeout(timer);
+
+        if (isInitialLoadRef.current) {
+            // Instant scroll on initial load
+            scrollToBottom(false);
+            isInitialLoadRef.current = false;
+        }
     }, [messages]);
+
+    // Smooth scroll for new messages after initial load
+    useEffect(() => {
+        if (messages.length === 0 || isInitialLoadRef.current) return;
+
+        // Only smooth scroll for new messages (optimistic updates)
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.pending || lastMessage?.sender_id === user?.id) {
+            scrollToBottom(true);
+        }
+    }, [messages, user?.id]);
 
     useEffect(() => {
         // Reset initial load flag when switching conversations
@@ -153,7 +161,10 @@ export default function MessagesPage() {
 
     const scrollToBottom = (smooth = true) => {
         if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+            messagesContainerRef.current.scrollTo({
+                top: messagesContainerRef.current.scrollHeight,
+                behavior: smooth ? "smooth" : "auto"
+            });
         } else if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
             messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
         }
@@ -208,11 +219,28 @@ export default function MessagesPage() {
     };
 
     const sendMessage = async () => {
-        if (!selectedUserId || !messageContent.trim() || sending) {
+        if (!selectedUserId || !messageContent.trim() || sending || !user?.id) {
             return;
         }
 
+        const content = messageContent.trim();
+        const tempId = `temp-${Date.now()}`;
+
+        // Optimistic update - add message immediately
+        const optimisticMessage: Message = {
+            id: tempId,
+            sender_id: user.id,
+            recipient_id: selectedUserId,
+            content,
+            created_at: new Date().toISOString(),
+            read_at: null,
+            pending: true,
+        };
+
+        setMessages(prev => [...prev, optimisticMessage]);
+        setMessageContent("");
         setSending(true);
+
         try {
             const response = await fetch("/api/messages", {
                 method: "POST",
@@ -221,7 +249,7 @@ export default function MessagesPage() {
                 },
                 body: JSON.stringify({
                     recipient_id: selectedUserId,
-                    content: messageContent.trim(),
+                    content,
                 }),
             });
 
@@ -231,13 +259,18 @@ export default function MessagesPage() {
             }
 
             const newMessage = await response.json();
-            setMessages([...messages, newMessage]);
-            setMessageContent("");
+            // Replace optimistic message with real one
+            setMessages(prev => prev.map(msg =>
+                msg.id === tempId ? { ...newMessage, pending: false } : msg
+            ));
 
             // Refresh conversations
             loadConversations();
         } catch (error) {
             console.error("Error sending message:", error);
+            // Remove the optimistic message on error
+            setMessages(prev => prev.filter(msg => msg.id !== tempId));
+            setMessageContent(content); // Restore the message content
             alert(error instanceof Error ? error.message : "Failed to send message");
         } finally {
             setSending(false);
@@ -420,8 +453,22 @@ export default function MessagesPage() {
                         )}
                         <div className="flex-1 overflow-y-auto">
                             {loading ? (
-                                <div className="flex items-center justify-center py-12">
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
+                                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                    {/* Skeleton loading for conversations */}
+                                    {[...Array(6)].map((_, i) => (
+                                        <div key={i} className="px-4 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between mb-1.5">
+                                                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-24" />
+                                                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-12" />
+                                                    </div>
+                                                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-36" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             ) : conversations.length === 0 ? (
                                 <div className="flex items-center justify-center py-12 px-4">
@@ -442,28 +489,35 @@ export default function MessagesPage() {
                                             <div
                                                 key={conversation.other_user_id}
                                                 onClick={() => setSelectedUserId(conversation.other_user_id)}
-                                                className={`px-4 py-2.5 cursor-pointer transition-colors ${
+                                                className={`px-4 py-3 cursor-pointer transition-all duration-150 ${
                                                     isSelected
-                                                        ? "bg-gray-50 dark:bg-gray-800"
-                                                        : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        ? "bg-gray-100 dark:bg-gray-800"
+                                                        : "hover:bg-gray-50 dark:hover:bg-gray-800/50 active:bg-gray-100 dark:active:bg-gray-800"
                                                 }`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <Avatar className="h-7 w-7">
-                                                        <AvatarImage src={conversation.other_user?.avatar_url || undefined} />
-                                                        <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
-                                                            {initials}
-                                                        </AvatarFallback>
-                                                    </Avatar>
+                                                    <div className="relative">
+                                                        <Avatar className="h-10 w-10 transition-transform duration-150 hover:scale-105">
+                                                            <AvatarImage src={conversation.other_user?.avatar_url || undefined} />
+                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
+                                                                {initials}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        {isUnread && (
+                                                            <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900" />
+                                                        )}
+                                                    </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center justify-between mb-0.5">
-                                                            <div className={`text-sm truncate ${
-                                                                isUnread ? "font-medium text-gray-900 dark:text-gray-100" : "text-gray-600 dark:text-gray-400"
+                                                            <div className={`text-sm truncate transition-colors ${
+                                                                isUnread ? "font-semibold text-gray-900 dark:text-gray-100" : "font-medium text-gray-700 dark:text-gray-300"
                                                             }`}>
                                                                 {displayName}
                                                             </div>
                                                             {conversation.last_message && (
-                                                                <span className="text-xs text-gray-400 dark:text-gray-500 ml-2">
+                                                                <span className={`text-xs ml-2 transition-colors ${
+                                                                    isUnread ? "text-blue-500 font-medium" : "text-gray-400 dark:text-gray-500"
+                                                                }`}>
                                                                     {formatDistanceToNow(
                                                                         new Date(conversation.last_message.created_at),
                                                                         { addSuffix: true }
@@ -472,13 +526,13 @@ export default function MessagesPage() {
                                                             )}
                                                         </div>
                                                         <div className="flex items-center justify-between">
-                                                            <p className={`text-xs truncate ${
-                                                                isUnread ? "text-gray-700 dark:text-gray-300 font-medium" : "text-gray-500 dark:text-gray-400"
+                                                            <p className={`text-xs truncate transition-colors ${
+                                                                isUnread ? "text-gray-800 dark:text-gray-200 font-medium" : "text-gray-500 dark:text-gray-400"
                                                             }`}>
                                                                 {conversation.last_message.content}
                                                             </p>
                                                             {isUnread && (
-                                                                <span className="ml-2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-medium rounded-full w-5 h-5 flex items-center justify-center">
+                                                                <span className="ml-2 bg-blue-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                                                                     {conversation.unread_count}
                                                                 </span>
                                                             )}
@@ -547,10 +601,22 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Messages List */}
-                                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col justify-end">
+                                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col justify-end scroll-smooth">
                                     {loadingMessages ? (
-                                        <div className="flex items-center justify-center py-12">
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">Loading messages...</div>
+                                        <div className="space-y-3">
+                                            {/* Skeleton loading for messages */}
+                                            {[...Array(5)].map((_, i) => (
+                                                <div key={i} className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}>
+                                                    <div className={`rounded-2xl px-4 py-3 ${
+                                                        i % 2 === 0
+                                                            ? "bg-gray-100 dark:bg-gray-800"
+                                                            : "bg-gray-200 dark:bg-gray-700"
+                                                    }`}>
+                                                        <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" style={{ width: `${80 + Math.random() * 120}px` }} />
+                                                        <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse mt-2 w-12" />
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : messages.length === 0 ? (
                                         <div className="flex items-center justify-center py-12">
@@ -561,69 +627,108 @@ export default function MessagesPage() {
                                         </div>
                                     ) : (
                                         <div className="space-y-3">
-                                            {messages.map((message) => {
-                                                const isOwn = message.sender_id === user?.id;
-                                                return (
-                                                    <div
-                                                        key={message.id}
-                                                        className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                                                    >
-                                                        <div
-                                                            className={`max-w-[70%] rounded-lg px-3 py-2 ${
-                                                                isOwn
-                                                                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                                                    : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                                                            }`}
+                                            <AnimatePresence mode="popLayout">
+                                                {messages.map((message) => {
+                                                    const isOwn = message.sender_id === user?.id;
+                                                    const isPending = message.pending;
+                                                    return (
+                                                        <motion.div
+                                                            key={message.id}
+                                                            layout
+                                                            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                                            animate={{ opacity: isPending ? 0.7 : 1, y: 0, scale: 1 }}
+                                                            exit={{ opacity: 0, scale: 0.95 }}
+                                                            transition={{
+                                                                type: "spring",
+                                                                stiffness: 500,
+                                                                damping: 40,
+                                                                mass: 1,
+                                                            }}
+                                                            className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                                                         >
-                                                            <p className="text-sm whitespace-pre-wrap break-words">
-                                                                {message.content}
-                                                            </p>
-                                                            <p className={`text-xs mt-1 ${
-                                                                isOwn ? "text-gray-300 dark:text-gray-600" : "text-gray-500 dark:text-gray-400"
-                                                            }`}>
-                                                                {message.created_at && !isNaN(new Date(message.created_at).getTime()) 
-                                                                    ? formatDistanceToNow(new Date(message.created_at), { addSuffix: true })
-                                                                    : 'Just now'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                            <div
+                                                                className={`max-w-[70%] rounded-2xl px-4 py-2.5 transition-all duration-200 ${
+                                                                    isOwn
+                                                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                                                                        : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                                                } ${isPending ? "opacity-70" : ""}`}
+                                                            >
+                                                                <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                                                                    {message.content}
+                                                                </p>
+                                                                <p className={`text-[10px] mt-1.5 flex items-center gap-1.5 ${
+                                                                    isOwn ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"
+                                                                }`}>
+                                                                    {isPending ? (
+                                                                        <span className="flex items-center gap-1">
+                                                                            <span className="w-1 h-1 bg-current rounded-full animate-pulse" />
+                                                                            Sending...
+                                                                        </span>
+                                                                    ) : (
+                                                                        message.created_at && !isNaN(new Date(message.created_at).getTime())
+                                                                            ? formatDistanceToNow(new Date(message.created_at), { addSuffix: true })
+                                                                            : 'Just now'
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                            </AnimatePresence>
                                             <div ref={messagesEndRef} />
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Message Input */}
-                                <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-                                    <div className="flex gap-2 items-end">
-                                        <div className="flex-1">
+                                <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                                    <div className="flex gap-3 items-end">
+                                        <div className="flex-1 relative">
                                             <Textarea
                                                 placeholder="Type a message..."
                                                 value={messageContent}
                                                 onChange={(e) => setMessageContent(e.target.value)}
                                                 onKeyDown={handleKeyPress}
                                                 rows={1}
-                                                className="resize-none rounded-lg h-10 py-2.5 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-sm"
+                                                className="resize-none rounded-2xl min-h-[44px] py-3 px-4 bg-gray-100 dark:bg-gray-800 border-0 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-sm focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-gray-700 transition-all duration-200"
                                             />
                                         </div>
-                                        <Button
-                                            onClick={sendMessage}
-                                            disabled={!messageContent.trim() || sending}
-                                            size="sm"
-                                            className="rounded-lg h-10 w-10 p-0 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
+                                        <motion.div
+                                            initial={false}
+                                            animate={{
+                                                scale: messageContent.trim() ? 1 : 0.9,
+                                                opacity: messageContent.trim() ? 1 : 0.5,
+                                            }}
+                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
                                         >
-                                            <ArrowUp className="size-4" />
-                                        </Button>
+                                            <Button
+                                                onClick={sendMessage}
+                                                disabled={!messageContent.trim() || sending}
+                                                size="sm"
+                                                className="rounded-full h-11 w-11 p-0 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 transition-all duration-200 disabled:bg-gray-300 dark:disabled:bg-gray-700"
+                                            >
+                                                <ArrowUp className="size-5" />
+                                            </Button>
+                                        </motion.div>
                                     </div>
                                 </div>
                             </>
                         ) : (
                             <div className="flex items-center justify-center h-full">
-                                <div className="text-center text-gray-500 dark:text-gray-400">
-                                    <p className="text-sm mb-2">Select a conversation</p>
-                                    <p className="text-xs">Choose a conversation from the list to start messaging</p>
-                                </div>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="text-center text-gray-500 dark:text-gray-400"
+                                >
+                                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-sm font-medium mb-1">Select a conversation</p>
+                                    <p className="text-xs">Choose from the list to start messaging</p>
+                                </motion.div>
                             </div>
                         )}
                     </div>
