@@ -308,10 +308,7 @@ export default function MessagesPage() {
     return (
         <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
             <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
-                <div className="max-w-6xl mx-auto w-full">
-                <div className="mb-8">
                     <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Messages</h1>
-                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)] min-h-[600px]">
                     {/* Conversations List */}
@@ -606,7 +603,6 @@ export default function MessagesPage() {
                         )}
                     </div>
                 </div>
-            </div>
             </div>
         </div>
     );
