@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { SortIcon, CheckIcon, SearchIcon } from "../icons";
+import { SortIcon, CheckIcon, SearchIcon, StarIcon } from "../icons";
 import { cn } from "@/lib/utils";
 import { usePeople, type SortBy } from "../people-context";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ interface TabNavigationProps {
 export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }: TabNavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { people, setSelectedIds, searchQuery, setSearchQuery, refetchPeople } = usePeople();
+  const { people, setSelectedIds, searchQuery, setSearchQuery, refetchPeople, showStarredOnly, setShowStarredOnly, selectedPerson, setSelectedPerson } = usePeople();
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -150,6 +150,35 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
           })}
         </div>
         <div className="flex items-center gap-3">
+          {/* Star filter button - shown only on people page */}
+          {pathname === "/people" && (
+            <button
+              onClick={() => {
+                const newShowStarredOnly = !showStarredOnly;
+                setShowStarredOnly(newShowStarredOnly);
+                // If switching to starred filter, ensure selected person is starred
+                if (newShowStarredOnly && selectedPerson && !selectedPerson.starred) {
+                  const starredPeople = people.filter((p) => p.starred);
+                  setSelectedPerson(starredPeople.length > 0 ? starredPeople[0] : null);
+                } else if (!newShowStarredOnly && !selectedPerson) {
+                  // If switching away from starred and no selection, select first person
+                  setSelectedPerson(people.length > 0 ? people[0] : null);
+                }
+              }}
+              className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label={showStarredOnly ? "Show all" : "Show starred only"}
+            >
+              <StarIcon
+                className={cn(
+                  "w-4 h-4 transition-colors",
+                  showStarredOnly
+                    ? "text-amber-400"
+                    : "text-current"
+                )}
+                filled={showStarredOnly}
+              />
+            </button>
+          )}
           {/* Refresh button - shown on both people and map pages */}
           {(pathname === "/people" || pathname === "/people/map") && (
             <button

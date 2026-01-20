@@ -70,6 +70,7 @@ export default function PeoplePage() {
     setSelectedPerson,
     loading,
     showStarredOnly,
+    setShowStarredOnly,
     searchQuery,
     sortBy,
     reverse,

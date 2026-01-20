@@ -182,8 +182,6 @@ export default function PeopleLayout({
           ref={sidebarRef}
           people={people}
           selectedPerson={selectedPerson}
-          showStarredOnly={showStarredOnly}
-          onToggleStarred={() => setShowStarredOnly(!showStarredOnly)}
           onSelectPerson={setSelectedPerson}
           onPeopleIconClick={handlePeopleIconClick}
           isCollapsed={isSidebarCollapsed}
