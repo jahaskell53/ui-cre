@@ -3,7 +3,7 @@
 import { forwardRef, useRef, useImperativeHandle } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/(app)/people/icons";
 import AccountCard from "@/app/(app)/people/account-card";
@@ -140,6 +140,22 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           <CalendarIcon className="w-4 h-4" />
           {!isCollapsed && (
             <span className={cn("text-sm", isActive("/calendar") && "font-medium")}>Calendar</span>
+          )}
+        </Link>
+        <Link
+          href="/news"
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
+            isActive("/news")
+              ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              : "text-gray-600 dark:text-gray-400"
+          )}
+          title={isCollapsed ? "News" : undefined}
+        >
+          <Newspaper className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className={cn("text-sm", isActive("/news") && "font-medium")}>News</span>
           )}
         </Link>
         <Link
