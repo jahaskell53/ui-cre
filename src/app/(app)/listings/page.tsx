@@ -1,13 +1,33 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Search, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Search, Filter, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PropertyMap, type Property } from "@/components/application/map/property-map";
 import { supabase } from "@/utils/supabase";
 
 const PAGE_SIZE = 200;
+
+interface Filters {
+    priceMin: string;
+    priceMax: string;
+    capRateMin: string;
+    capRateMax: string;
+    sqftMin: string;
+    sqftMax: string;
+}
+
+const defaultFilters: Filters = {
+    priceMin: "",
+    priceMax: "",
+    capRateMin: "",
+    capRateMax: "",
+    sqftMin: "",
+    sqftMax: "",
+};
 
 export default function MapPage() {
     const [properties, setProperties] = useState<Property[]>([]);
@@ -16,8 +36,44 @@ export default function MapPage() {
     const [page, setPage] = useState(0);
     const [totalCount, setTotalCount] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
+    const [filters, setFilters] = useState<Filters>(defaultFilters);
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
-    const fetchProperties = useCallback(async (pageNum: number, search: string) => {
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (filters.priceMin || filters.priceMax) count++;
+        if (filters.capRateMin || filters.capRateMax) count++;
+        if (filters.sqftMin || filters.sqftMax) count++;
+        return count;
+    }, [filters]);
+
+    const clearFilters = () => {
+        setFilters(defaultFilters);
+        setPage(0);
+    };
+
+    const parsePrice = (priceStr: string): number | null => {
+        if (!priceStr) return null;
+        const cleaned = priceStr.replace(/[^0-9.]/g, '');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? null : num;
+    };
+
+    const parseCapRate = (capRateStr: string): number | null => {
+        if (!capRateStr) return null;
+        const cleaned = capRateStr.replace(/[^0-9.]/g, '');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? null : num;
+    };
+
+    const parseSqft = (sqftStr: string): number | null => {
+        if (!sqftStr) return null;
+        const cleaned = sqftStr.replace(/[^0-9]/g, '');
+        const num = parseInt(cleaned, 10);
+        return isNaN(num) ? null : num;
+    };
+
+    const fetchProperties = useCallback(async (pageNum: number, search: string, currentFilters: Filters) => {
         setLoading(true);
 
         const from = pageNum * PAGE_SIZE;
@@ -34,6 +90,48 @@ export default function MapPage() {
         if (search) {
             // Search in headline, address, and location
             query = query.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
+        }
+
+        // Apply price filters using numeric_price column
+        if (currentFilters.priceMin) {
+            const minPrice = parseFloat(currentFilters.priceMin);
+            if (!isNaN(minPrice)) {
+                query = query.gte('numeric_price', minPrice);
+            }
+        }
+        if (currentFilters.priceMax) {
+            const maxPrice = parseFloat(currentFilters.priceMax);
+            if (!isNaN(maxPrice)) {
+                query = query.lte('numeric_price', maxPrice);
+            }
+        }
+
+        // Apply cap rate filters using numeric_cap_rate column
+        if (currentFilters.capRateMin) {
+            const minCapRate = parseFloat(currentFilters.capRateMin);
+            if (!isNaN(minCapRate)) {
+                query = query.gte('numeric_cap_rate', minCapRate);
+            }
+        }
+        if (currentFilters.capRateMax) {
+            const maxCapRate = parseFloat(currentFilters.capRateMax);
+            if (!isNaN(maxCapRate)) {
+                query = query.lte('numeric_cap_rate', maxCapRate);
+            }
+        }
+
+        // Apply square footage filters using numeric_square_footage column
+        if (currentFilters.sqftMin) {
+            const minSqft = parseFloat(currentFilters.sqftMin);
+            if (!isNaN(minSqft)) {
+                query = query.gte('numeric_square_footage', minSqft);
+            }
+        }
+        if (currentFilters.sqftMax) {
+            const maxSqft = parseFloat(currentFilters.sqftMax);
+            if (!isNaN(maxSqft)) {
+                query = query.lte('numeric_square_footage', maxSqft);
+            }
         }
 
         const { data, error, count } = await query.range(from, to);
@@ -64,11 +162,11 @@ export default function MapPage() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchProperties(page, searchQuery);
+            fetchProperties(page, searchQuery, filters);
         }, searchQuery ? 500 : 0); // debounce 500ms for search, immediate for pagination
 
         return () => clearTimeout(timer);
-    }, [page, searchQuery, fetchProperties]);
+    }, [page, searchQuery, filters, fetchProperties]);
 
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
     const currentPageDisplay = page + 1;
@@ -107,10 +205,122 @@ export default function MapPage() {
                                     }}
                                 />
                             </div>
-                            <Button variant="outline" className="border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300">
-                                <Filter className="size-4" />
-                                Filters
-                            </Button>
+                            <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 relative">
+                                        <Filter className="size-4" />
+                                        Filters
+                                        {activeFilterCount > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-blue-600 text-white text-[10px] font-medium flex items-center justify-center">
+                                                {activeFilterCount}
+                                            </span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="end" className="w-80 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-medium text-gray-900 dark:text-gray-100">Filters</h3>
+                                            {activeFilterCount > 0 && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={clearFilters}
+                                                    className="h-auto px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                                >
+                                                    Clear all
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        {/* Price Range */}
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Price</Label>
+                                            <div className="flex gap-2 items-center">
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Min"
+                                                    value={filters.priceMin}
+                                                    onChange={(e) => {
+                                                        setFilters(prev => ({ ...prev, priceMin: e.target.value }));
+                                                        setPage(0);
+                                                    }}
+                                                    className="h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                                />
+                                                <span className="text-gray-400">-</span>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Max"
+                                                    value={filters.priceMax}
+                                                    onChange={(e) => {
+                                                        setFilters(prev => ({ ...prev, priceMax: e.target.value }));
+                                                        setPage(0);
+                                                    }}
+                                                    className="h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Cap Rate Range */}
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cap Rate (%)</Label>
+                                            <div className="flex gap-2 items-center">
+                                                <Input
+                                                    type="number"
+                                                    step="0.1"
+                                                    placeholder="Min"
+                                                    value={filters.capRateMin}
+                                                    onChange={(e) => {
+                                                        setFilters(prev => ({ ...prev, capRateMin: e.target.value }));
+                                                        setPage(0);
+                                                    }}
+                                                    className="h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                                />
+                                                <span className="text-gray-400">-</span>
+                                                <Input
+                                                    type="number"
+                                                    step="0.1"
+                                                    placeholder="Max"
+                                                    value={filters.capRateMax}
+                                                    onChange={(e) => {
+                                                        setFilters(prev => ({ ...prev, capRateMax: e.target.value }));
+                                                        setPage(0);
+                                                    }}
+                                                    className="h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Square Footage Range */}
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Square Footage</Label>
+                                            <div className="flex gap-2 items-center">
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Min"
+                                                    value={filters.sqftMin}
+                                                    onChange={(e) => {
+                                                        setFilters(prev => ({ ...prev, sqftMin: e.target.value }));
+                                                        setPage(0);
+                                                    }}
+                                                    className="h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                                />
+                                                <span className="text-gray-400">-</span>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Max"
+                                                    value={filters.sqftMax}
+                                                    onChange={(e) => {
+                                                        setFilters(prev => ({ ...prev, sqftMax: e.target.value }));
+                                                        setPage(0);
+                                                    }}
+                                                    className="h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     </div>
                 </div>
