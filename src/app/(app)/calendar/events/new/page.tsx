@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X } from "lucide-react";
+import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -244,11 +244,19 @@ export default function NewEventPage() {
                         </Label>
                         <Input
                             id="location"
-                            placeholder="Add location or virtual meeting link"
+                            placeholder="Add a physical location (optional)"
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
                             className="h-11"
                         />
+                    </div>
+
+                    {/* Google Meet Info */}
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <Video className="size-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                            A Google Meet link will be automatically created for this event.
+                        </p>
                     </div>
 
                     <div className="flex flex-col gap-2">

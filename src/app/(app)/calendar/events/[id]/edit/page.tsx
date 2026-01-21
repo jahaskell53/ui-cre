@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X } from "lucide-react";
+import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +38,7 @@ export default function EditEventPage() {
     const [color, setColor] = useState("blue");
     const [imageUrl, setImageUrl] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [meetLink, setMeetLink] = useState<string | null>(null);
 
     useEffect(() => {
         fetchEvent();
@@ -84,6 +85,7 @@ export default function EditEventPage() {
             setLocation(data.location || "");
             setColor(data.color || "blue");
             setImageUrl(data.image_url || "");
+            setMeetLink(data.meet_link || null);
 
             const start = new Date(data.start_time);
             const end = new Date(data.end_time);
@@ -275,12 +277,40 @@ export default function EditEventPage() {
                         </Label>
                         <Input
                             id="location"
-                            placeholder="Add location or virtual meeting link"
+                            placeholder="Add a physical location (optional)"
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
                             className="h-11"
                         />
                     </div>
+
+                    {/* Google Meet Link (Read-only) */}
+                    {meetLink && (
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <Video className="size-4" />
+                                Google Meet Link
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    value={meetLink}
+                                    readOnly
+                                    className="h-11 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                                />
+                                <a
+                                    href={meetLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center h-11 px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors shrink-0"
+                                >
+                                    Join
+                                </a>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                This link was automatically generated and cannot be changed.
+                            </p>
+                        </div>
+                    )}
 
                     <div className="flex flex-col gap-2">
                         <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">

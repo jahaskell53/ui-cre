@@ -41,6 +41,7 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "date-fns": "^4.1.0",
+        "googleapis": "^170.1.0",
         "input-otp": "^1.4.2",
         "link-preview-js": "^4.0.0",
         "lucide-react": "^0.562.0",

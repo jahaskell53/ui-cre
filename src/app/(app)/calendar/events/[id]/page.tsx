@@ -17,6 +17,7 @@ interface Event {
     start_time: string;
     end_time: string;
     location: string | null;
+    meet_link: string | null;
     color: string;
     image_url: string | null;
     user_id: string;
@@ -308,34 +309,39 @@ export default function EventDetailsPage() {
                                 </div>
 
                                 <div className="flex flex-col gap-4">
+                                    {/* Google Meet Link */}
+                                    {event.meet_link && (
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
+                                                <SiGooglemeet className="size-6 text-gray-600 dark:text-gray-300" />
+                                            </div>
+                                            <div>
+                                                <a
+                                                    href={event.meet_link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xl font-bold text-gray-900 dark:text-gray-100 hover:underline leading-tight"
+                                                >
+                                                    Join Google Meet
+                                                </a>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                                    Click to join the video call
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Physical Location */}
                                     {event.location && (
                                         <div className="flex items-center gap-4">
-                                            {event.location.includes('meet.google.com') || event.location.includes('meet') ? (
-                                                <>
-                                                    <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
-                                                        <SiGooglemeet className="size-6 text-gray-600 dark:text-gray-300" />
-                                                    </div>
-                                                    <div>
-                                                        <a
-                                                            href={event.location.startsWith('http') ? event.location : `https://${event.location}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-xl font-bold text-gray-900 dark:text-gray-100 hover:underline leading-tight"
-                                                        >
-                                                            Google Meet
-                                                        </a>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <MapPin className="size-5 text-gray-500 dark:text-gray-400 mt-0.5 shrink-0" />
-                                                    <div>
-                                                        <p className="font-medium text-gray-900 dark:text-gray-100">
-                                                            {event.location}
-                                                        </p>
-                                                    </div>
-                                                </>
-                                            )}
+                                            <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shrink-0">
+                                                <MapPin className="size-6 text-gray-600 dark:text-gray-300" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                                                    {event.location}
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>

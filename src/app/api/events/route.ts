@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createMeetLink } from "@/lib/google-meet";
 
 export async function GET(request: NextRequest) {
     try {
@@ -73,6 +74,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Start and end times are required" }, { status: 400 });
         }
 
+        // Automatically create a Google Meet link for the event
+        let meetLink: string | null = null;
+        try {
+            meetLink = await createMeetLink({
+                title: title.trim(),
+                startTime: new Date(start_time),
+                endTime: new Date(end_time),
+                description: description?.trim(),
+            });
+        } catch (error) {
+            // Log but don't fail - Meet link creation is non-blocking
+            console.error("Failed to create Meet link (non-blocking):", error);
+        }
+
         const { data, error } = await supabase
             .from("events")
             .insert({
@@ -84,6 +99,7 @@ export async function POST(request: NextRequest) {
                 location: location?.trim() || null,
                 color: color || "blue",
                 image_url: image_url || null,
+                meet_link: meetLink,
             })
             .select()
             .single();
