@@ -258,15 +258,17 @@ export default function NewsPage() {
                 className="block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm"
               >
                 <div className="flex gap-4">
-                  {article.image_url && (
-                    <div className="shrink-0 w-32 h-24 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
-                      <img
-                        src={article.image_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
+                  <div className="shrink-0 w-32 h-24 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                    <img
+                      src={article.image_url && article.image_url !== "null" && article.image_url !== "undefined" ? article.image_url : "/placeholder.jpg"}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = "/placeholder.jpg";
+                      }}
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
