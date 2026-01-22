@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import Link from "next/link";
 
 const colorOptions = [
@@ -45,9 +46,9 @@ export default function NewEventPage() {
 
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [startDate, setStartDate] = useState("");
+    const [startDate, setStartDate] = useState<Date | undefined>();
     const [startTime, setStartTime] = useState("");
-    const [endDate, setEndDate] = useState("");
+    const [endDate, setEndDate] = useState<Date | undefined>();
     const [endTime, setEndTime] = useState("");
     const [location, setLocation] = useState("");
     const [color, setColor] = useState("blue");
@@ -103,8 +104,11 @@ export default function NewEventPage() {
             return;
         }
 
-        const startDateTime = new Date(`${startDate}T${startTime}`);
-        const endDateTime = new Date(`${endDate}T${endTime}`);
+        // Combine date and time
+        const startDateString = startDate.toISOString().split("T")[0];
+        const endDateString = endDate.toISOString().split("T")[0];
+        const startDateTime = new Date(`${startDateString}T${startTime}`);
+        const endDateTime = new Date(`${endDateString}T${endTime}`);
 
         if (endDateTime <= startDateTime) {
             setError("End time must be after start time");
@@ -142,7 +146,7 @@ export default function NewEventPage() {
     };
 
     // Set default dates to today
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date();
 
     return (
         <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
@@ -203,15 +207,14 @@ export default function NewEventPage() {
                                 <Calendar className="size-4" />
                                 Start Date *
                             </Label>
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => {
-                                    setStartDate(e.target.value);
-                                    if (!endDate) setEndDate(e.target.value);
+                            <DatePicker
+                                date={startDate}
+                                onDateChange={(date) => {
+                                    setStartDate(date);
+                                    if (!endDate && date) setEndDate(date);
                                 }}
-                                min={today}
-                                className="h-11"
+                                minDate={today}
+                                placeholder="Select start date"
                             />
                         </div>
                         <div className="flex flex-col gap-2">
@@ -240,12 +243,11 @@ export default function NewEventPage() {
                                 <Calendar className="size-4" />
                                 End Date *
                             </Label>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                min={startDate || today}
-                                className="h-11"
+                            <DatePicker
+                                date={endDate}
+                                onDateChange={setEndDate}
+                                minDate={startDate || today}
+                                placeholder="Select end date"
                             />
                         </div>
                         <div className="flex flex-col gap-2">

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import Link from "next/link";
 
 const colorOptions = [
@@ -58,9 +59,9 @@ export default function EditEventPage() {
 
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [startDate, setStartDate] = useState("");
+    const [startDate, setStartDate] = useState<Date | undefined>();
     const [startTime, setStartTime] = useState("");
-    const [endDate, setEndDate] = useState("");
+    const [endDate, setEndDate] = useState<Date | undefined>();
     const [endTime, setEndTime] = useState("");
     const [location, setLocation] = useState("");
     const [color, setColor] = useState("blue");
@@ -118,9 +119,9 @@ export default function EditEventPage() {
             const start = new Date(data.start_time);
             const end = new Date(data.end_time);
 
-            setStartDate(start.toISOString().split("T")[0]);
+            setStartDate(start);
             setStartTime(roundToNearest30Minutes(start.toTimeString().slice(0, 5)));
-            setEndDate(end.toISOString().split("T")[0]);
+            setEndDate(end);
             setEndTime(roundToNearest30Minutes(end.toTimeString().slice(0, 5)));
         } catch (err: any) {
             setError(err.message);
@@ -148,8 +149,11 @@ export default function EditEventPage() {
             return;
         }
 
-        const startDateTime = new Date(`${startDate}T${startTime}`);
-        const endDateTime = new Date(`${endDate}T${endTime}`);
+        // Combine date and time
+        const startDateString = startDate.toISOString().split("T")[0];
+        const endDateString = endDate.toISOString().split("T")[0];
+        const startDateTime = new Date(`${startDateString}T${startTime}`);
+        const endDateTime = new Date(`${endDateString}T${endTime}`);
 
         if (endDateTime <= startDateTime) {
             setError("End time must be after start time");
@@ -250,11 +254,10 @@ export default function EditEventPage() {
                                 <Calendar className="size-4" />
                                 Start Date *
                             </Label>
-                            <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="h-11"
+                            <DatePicker
+                                date={startDate}
+                                onDateChange={setStartDate}
+                                placeholder="Select start date"
                             />
                         </div>
                         <div className="flex flex-col gap-2">
@@ -283,11 +286,11 @@ export default function EditEventPage() {
                                 <Calendar className="size-4" />
                                 End Date *
                             </Label>
-                            <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="h-11"
+                            <DatePicker
+                                date={endDate}
+                                onDateChange={setEndDate}
+                                minDate={startDate}
+                                placeholder="Select end date"
                             />
                         </div>
                         <div className="flex flex-col gap-2">
