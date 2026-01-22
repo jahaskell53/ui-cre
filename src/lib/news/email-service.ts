@@ -30,7 +30,7 @@ export class EmailService {
     });
   }
 
-  async sendEmail(to: string, content: EmailContent, cc?: string): Promise<boolean> {
+  async sendEmail(to: string, content: EmailContent, cc?: string, unsubscribeUrl?: string): Promise<boolean> {
     try {
       if (!this.transporter) {
         console.log('SMTP not configured - simulating email send to:', to);
@@ -39,6 +39,9 @@ export class EmailService {
         return true; // Return true for testing purposes
       }
 
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com';
+      const unsubscribe = unsubscribeUrl || `${baseUrl}/api/news/unsubscribe?email=${encodeURIComponent(to)}`;
+
       const mailOptions: {
         from: string;
         to: string;
@@ -46,12 +49,20 @@ export class EmailService {
         text: string;
         html: string;
         cc?: string;
+        headers?: Record<string, string>;
       } = {
         from: `"OpenMidmarket" <hello@openmidmarket.com>`,
         to,
         subject: content.subject,
         text: content.text,
         html: content.html,
+        headers: {
+          'List-Unsubscribe': `<${unsubscribe}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          'Precedence': 'bulk',
+          'Auto-Submitted': 'auto-generated',
+          'X-Mailer': 'OpenMidmarket Newsletter',
+        },
       };
 
       if (cc) {
@@ -78,7 +89,10 @@ export class EmailService {
     const html = this.generateEmailHTML(subscriber, rssContent, locations, newsletterTitle);
     const text = this.generateEmailText(subscriber, rssContent, locations);
 
-    return await this.sendEmail(subscriber.email, { subject, html, text }, cc);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com';
+    const unsubscribeUrl = `${baseUrl}/api/news/unsubscribe?email=${encodeURIComponent(subscriber.email)}`;
+
+    return await this.sendEmail(subscriber.email, { subject, html, text }, cc, unsubscribeUrl);
   }
 
   private buildLocationString(counties: string[]): string {
