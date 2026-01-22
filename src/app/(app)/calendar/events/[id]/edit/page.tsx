@@ -266,7 +266,7 @@ export default function EditEventPage() {
                                 Start Time *
                             </Label>
                             <Select value={startTime} onValueChange={setStartTime}>
-                                <SelectTrigger className="h-11">
+                                <SelectTrigger className="!h-11 w-full">
                                     <SelectValue placeholder="Select time" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -299,7 +299,7 @@ export default function EditEventPage() {
                                 End Time *
                             </Label>
                             <Select value={endTime} onValueChange={setEndTime}>
-                                <SelectTrigger className="h-11">
+                                <SelectTrigger className="!h-11 w-full">
                                     <SelectValue placeholder="Select time" />
                                 </SelectTrigger>
                                 <SelectContent>
