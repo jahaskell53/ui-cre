@@ -230,24 +230,16 @@ export default function EventDetailsPage() {
                         Explore
                     </Button>
 
-                    <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="text-gray-400" title="Share">
-                            <Share2 className="w-4 h-4" />
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" className="text-gray-500 font-semibold px-3 hidden sm:flex">
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Share
                         </Button>
-                        <Link href={`/calendar/events/${event.id}/edit`}>
-                            <Button variant="ghost" size="icon" className="text-gray-400" title="Edit">
-                                <Edit className="w-4 h-4" />
+                        <Link href={`/calendar/events/${event.id}/manage`}>
+                            <Button variant="outline" size="sm" className="rounded-xl font-semibold border-gray-200 dark:border-gray-800 shadow-sm px-4">
+                                Manage Event
                             </Button>
                         </Link>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowDeleteModal(true)}
-                            className="text-gray-400 hover:text-red-500"
-                            title="Delete"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
                     </div>
                 </div>
             </header>
@@ -278,7 +270,7 @@ export default function EventDetailsPage() {
                         {/* Host Section */}
                         {host && (
                             <section className="flex flex-col gap-4">
-                                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Hosted By</h3>
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Hosted By</h3>
                                 <Link
                                     href={`/users/${host.id}`}
                                     className="flex items-center gap-4 group p-2 -m-2 rounded-2xl hover:bg-white dark:hover:bg-gray-900 transition-colors"
@@ -293,7 +285,7 @@ export default function EventDetailsPage() {
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-lg group-hover:underline">
+                                        <span className="font-semibold text-lg group-hover:underline">
                                             {host.full_name || "Unknown"}
                                         </span>
                                         <span className="text-sm text-gray-500">View Profile</span>
@@ -306,7 +298,7 @@ export default function EventDetailsPage() {
                         <AnimatePresence>
                             {attendees.length > 0 && (
                                 <section className="flex flex-col gap-4">
-                                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                                         Attendees ({registrationCount})
                                     </h3>
                                     <div className="flex flex-wrap gap-2">
@@ -328,7 +320,7 @@ export default function EventDetailsPage() {
                                             </Link>
                                         ))}
                                         {registrationCount > 12 && (
-                                            <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">
+                                            <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-semibold text-gray-500">
                                                 +{registrationCount - 12}
                                             </div>
                                         )}
@@ -346,11 +338,11 @@ export default function EventDetailsPage() {
                     >
                         <div className="flex flex-col gap-4">
                             {isPastEvent && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-500 self-start">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 self-start">
                                     Past Event
                                 </span>
                             )}
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-gray-900 dark:text-gray-100 balance-text">
+                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 balance-text">
                                 {event.title}
                             </h1>
                         </div>
@@ -359,15 +351,15 @@ export default function EventDetailsPage() {
                         <div className="flex flex-col gap-6">
                             <div className="flex gap-4">
                                 <div className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase leading-none mb-1">
+                                    <span className="text-[10px] font-semibold text-gray-400 uppercase leading-none mb-1">
                                         {getMonthAbbr(event.start_time)}
                                     </span>
-                                    <span className="text-xl font-black text-gray-900 dark:text-gray-100 leading-none">
+                                    <span className="text-xl font-semibold text-gray-900 dark:text-gray-100 leading-none">
                                         {getDayNumber(event.start_time)}
                                     </span>
                                 </div>
                                 <div className="flex flex-col justify-center">
-                                    <h2 className="font-bold text-xl leading-tight">
+                                    <h2 className="font-semibold text-xl leading-tight">
                                         {formatDate(event.start_time)}
                                     </h2>
                                     <p className="text-gray-500 font-medium">
@@ -382,7 +374,7 @@ export default function EventDetailsPage() {
                                         <MapPin className="w-6 h-6 text-gray-400" />
                                     </div>
                                     <div className="flex flex-col justify-center">
-                                        <h2 className="font-bold text-xl leading-tight">
+                                        <h2 className="font-semibold text-xl leading-tight">
                                             {event.location || "Online Event"}
                                         </h2>
                                         {event.location && (
@@ -397,9 +389,9 @@ export default function EventDetailsPage() {
                         <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-6 md:p-8 shadow-xl shadow-gray-200/50 dark:shadow-none">
                             <div className="flex flex-col gap-6">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="font-bold text-xl">Registration</h3>
+                                    <h3 className="font-semibold text-xl">Registration</h3>
                                     {!isPastEvent && (
-                                        <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">
+                                        <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-lg">
                                             Open
                                         </span>
                                     )}
@@ -414,7 +406,7 @@ export default function EventDetailsPage() {
                                             onClick={handleToggleRegistration}
                                             disabled={isRegistering}
                                             size="lg"
-                                            className={`w-full h-14 text-lg font-bold rounded-2xl transition-all ${isRegistered
+                                            className={`w-full h-14 text-lg font-semibold rounded-2xl transition-all ${isRegistered
                                                 ? "bg-green-600 hover:bg-green-700 text-white"
                                                 : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:scale-[1.02] active:scale-[0.98]"
                                                 }`}
@@ -440,7 +432,7 @@ export default function EventDetailsPage() {
                                 {/* Links Section inside Card */}
                                 {isRegistered && event.meet_link && !isPastEvent && (
                                     <div className="pt-6 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
-                                        <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Event Links</h4>
+                                        <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Event Links</h4>
                                         <a
                                             href={event.meet_link}
                                             target="_blank"
@@ -451,7 +443,7 @@ export default function EventDetailsPage() {
                                                 <div className="p-2 bg-white dark:bg-gray-900 rounded-lg">
                                                     <SiGooglemeet className="w-5 h-5 text-[#00897B]" />
                                                 </div>
-                                                <span className="font-bold">Join Google Meet</span>
+                                                <span className="font-semibold">Join Google Meet</span>
                                             </div>
                                             <ExternalLink className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                                         </a>
@@ -463,11 +455,11 @@ export default function EventDetailsPage() {
                         {/* About Section */}
                         {event.description && (
                             <section className="mt-8">
-                                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-6 flex items-center gap-2">
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-6 flex items-center gap-2">
                                     About Event
                                     <div className="h-px bg-gray-100 dark:bg-gray-800 flex-1 ml-2" />
                                 </h3>
-                                <div className="prose prose-lg dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400 prose-headings:font-black">
+                                <div className="prose prose-lg dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:text-gray-600 dark:prose-p:text-gray-400 prose-headings:font-semibold">
                                     <p className="whitespace-pre-wrap">{event.description}</p>
                                 </div>
                             </section>
@@ -487,9 +479,9 @@ export default function EventDetailsPage() {
                             <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-6">
                                 <Trash2 className="w-8 h-8 text-red-500" />
                             </div>
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>
+                            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>
                             <p className="text-gray-500 font-medium mb-8">
-                                Are you sure you want to delete <span className="text-gray-900 dark:text-gray-100 font-bold">"{event?.title}"</span>? This action is permanent.
+                                Are you sure you want to delete <span className="text-gray-900 dark:text-gray-100 font-semibold">"{event?.title}"</span>? This action is permanent.
                             </p>
                             <div className="flex flex-col w-full gap-3">
                                 <Button
@@ -497,7 +489,7 @@ export default function EventDetailsPage() {
                                     size="lg"
                                     onClick={handleDelete}
                                     disabled={isDeleting}
-                                    className="w-full h-14 rounded-2xl font-bold"
+                                    className="w-full h-14 rounded-2xl font-semibold"
                                 >
                                     {isDeleting ? "Deleting..." : "Yes, Delete Event"}
                                 </Button>
@@ -506,7 +498,7 @@ export default function EventDetailsPage() {
                                     size="lg"
                                     onClick={() => setShowDeleteModal(false)}
                                     disabled={isDeleting}
-                                    className="w-full h-14 rounded-2xl font-bold text-gray-500"
+                                    className="w-full h-14 rounded-2xl font-semibold text-gray-500"
                                 >
                                     Keep Event
                                 </Button>

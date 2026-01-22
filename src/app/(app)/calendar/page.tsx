@@ -136,7 +136,7 @@ export default function CalendarPage() {
             <>
                 <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30 min-w-[700px]">
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                        <div key={day} className="py-3 text-center text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                        <div key={day} className="py-3 text-center text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                             {day}
                         </div>
                     ))}
@@ -195,10 +195,10 @@ export default function CalendarPage() {
         return (
             <>
                 <div className="grid grid-cols-8 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30 min-w-[900px]">
-                    <div className="py-3 text-center text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest border-r border-gray-200 dark:border-gray-800"></div>
+                    <div className="py-3 text-center text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest border-r border-gray-200 dark:border-gray-800"></div>
                     {days.map((day, idx) => (
                         <div key={idx} className="py-3 text-center border-r border-gray-200 dark:border-gray-800 last:border-r-0">
-                            <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                            <div className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                                 {day.toLocaleDateString("en-US", { weekday: "short" })}
                             </div>
                             <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-1">
@@ -297,7 +297,7 @@ export default function CalendarPage() {
                                                     className={`absolute left-2 right-2 p-3 border-l-4 rounded-lg text-sm font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
                                                     style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
                                                 >
-                                                    <p className="font-bold mb-1">{event.title}</p>
+                                                    <p className="font-semibold mb-1">{event.title}</p>
                                                     <p className="text-xs opacity-80">
                                                         {formatEventTime(event.start_time, event.end_time)}
                                                     </p>
@@ -390,31 +390,28 @@ export default function CalendarPage() {
                                 <div className="flex bg-gray-50 dark:bg-gray-800 p-1 rounded-lg">
                                     <button
                                         onClick={() => setCurrentView("month")}
-                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                                            currentView === "month"
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentView === "month"
                                                 ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
                                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-                                        }`}
+                                            }`}
                                     >
                                         Month
                                     </button>
                                     <button
                                         onClick={() => setCurrentView("week")}
-                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                                            currentView === "week"
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentView === "week"
                                                 ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
                                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-                                        }`}
+                                            }`}
                                     >
                                         Week
                                     </button>
                                     <button
                                         onClick={() => setCurrentView("day")}
-                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                                            currentView === "day"
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentView === "day"
                                                 ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm"
                                                 : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-                                        }`}
+                                            }`}
                                     >
                                         Day
                                     </button>
@@ -431,7 +428,7 @@ export default function CalendarPage() {
                     {/* Upcoming Events Sidebar */}
                     <div className="flex flex-col gap-6">
                         <section className="flex flex-col gap-4">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Upcoming Events</h3>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Upcoming Events</h3>
                             {isLoading ? (
                                 <div className="text-sm text-gray-500 dark:text-gray-400">Loading events...</div>
                             ) : events.filter(e => new Date(e.start_time) >= new Date()).length === 0 ? (
@@ -461,7 +458,7 @@ export default function CalendarPage() {
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <div className={`w-2 h-2 rounded-full ${event.color === 'black' ? 'bg-gray-700' : event.color === 'blue' ? 'bg-blue-500' : event.color === 'green' ? 'bg-green-500' : event.color === 'purple' ? 'bg-purple-500' : event.color === 'red' ? 'bg-red-500' : event.color === 'orange' ? 'bg-orange-500' : 'bg-blue-500'}`} />
-                                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 truncate">{event.title}</h4>
+                                                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{event.title}</h4>
                                                         </div>
                                                         <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                                             <Clock className="size-3" />

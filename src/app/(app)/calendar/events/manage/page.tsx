@@ -2,9 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Trash2, Edit, Plus, Eye } from "lucide-react";
+import {
+    Calendar,
+    Clock,
+    MapPin,
+    ArrowLeft,
+    Trash2,
+    Edit,
+    Plus,
+    Eye,
+    Users,
+    ArrowRight,
+    Search,
+    ChevronRight,
+    Video
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Event {
     id: string;
@@ -14,16 +29,17 @@ interface Event {
     end_time: string;
     location: string | null;
     color: string;
+    image_url: string | null;
     created_at: string;
 }
 
 const colorClasses: Record<string, string> = {
-    black: "bg-gray-100 dark:bg-gray-800 border-gray-900 dark:border-gray-300",
-    blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-500",
-    green: "bg-green-50 dark:bg-green-900/20 border-green-600 dark:border-green-500",
-    purple: "bg-purple-50 dark:bg-purple-900/20 border-purple-600 dark:border-purple-500",
-    red: "bg-red-50 dark:bg-red-900/20 border-red-600 dark:border-red-500",
-    orange: "bg-orange-50 dark:bg-orange-900/20 border-orange-600 dark:border-orange-500",
+    black: "bg-gray-100",
+    blue: "bg-blue-100",
+    green: "bg-green-100",
+    purple: "bg-purple-100",
+    red: "bg-red-100",
+    orange: "bg-orange-100",
 };
 
 export default function ManageEventsPage() {
@@ -31,7 +47,7 @@ export default function ManageEventsPage() {
     const [events, setEvents] = useState<Event[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
 
     useEffect(() => {
         fetchEvents();
@@ -50,205 +66,197 @@ export default function ManageEventsPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this event?")) return;
+    const formatDateHeading = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
 
-        setDeletingId(id);
-        try {
-            const response = await fetch(`/api/events?id=${id}`, { method: "DELETE" });
-            if (!response.ok) throw new Error("Failed to delete event");
-            setEvents(events.filter((e) => e.id !== id));
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setDeletingId(null);
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-        });
+        return {
+            monthDay: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+            weekday: isToday ? "Today" : date.toLocaleDateString("en-US", { weekday: "long" })
+        };
     };
 
     const formatTime = (dateString: string) => {
         return new Date(dateString).toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
-            hour12: true,
         });
     };
 
-    const upcomingEvents = events.filter((e) => new Date(e.start_time) >= new Date());
-    const pastEvents = events.filter((e) => new Date(e.start_time) < new Date());
+    const filteredEvents = events.filter((e) => {
+        const isPast = new Date(e.start_time) < new Date();
+        return activeTab === "upcoming" ? !isPast : isPast;
+    }).sort((a, b) => {
+        const dateA = new Date(a.start_time).getTime();
+        const dateB = new Date(b.start_time).getTime();
+        return activeTab === "upcoming" ? dateA - dateB : dateB - dateA;
+    });
+
+    // Grouping events by date string
+    const groupedEvents = filteredEvents.reduce((acc, event) => {
+        const dateStr = new Date(event.start_time).toDateString();
+        if (!acc[dateStr]) acc[dateStr] = [];
+        acc[dateStr].push(event);
+        return acc;
+    }, {} as Record<string, Event[]>);
 
     return (
-        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-            <div className="flex flex-col gap-8 p-6 max-w-4xl mx-auto w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <Link href="/calendar">
-                            <Button variant="ghost" size="icon">
-                                <ArrowLeft className="size-5" />
-                            </Button>
-                        </Link>
-                        <div>
-                            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">My Events</h1>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Manage your calendar events</p>
+        <div className="min-h-screen bg-[#FDFCFB] dark:bg-gray-950">
+            <div className="max-w-4xl mx-auto px-6 py-12">
+                {/* Header Section */}
+                <div className="flex items-center justify-between mb-12">
+                    <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Events</h1>
+
+                    <div className="flex items-center gap-6">
+                        {/* Tabs */}
+                        <div className="flex p-1 bg-gray-100 dark:bg-gray-900 rounded-xl">
+                            <button
+                                onClick={() => setActiveTab("upcoming")}
+                                className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${activeTab === "upcoming"
+                                    ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
+                                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
+                                    }`}
+                            >
+                                Upcoming
+                            </button>
+                            <button
+                                onClick={() => setActiveTab("past")}
+                                className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${activeTab === "past"
+                                    ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
+                                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
+                                    }`}
+                            >
+                                Past
+                            </button>
                         </div>
                     </div>
-                    <Link href="/calendar/events/new">
-                        <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
-                            <Plus className="size-4 mr-2" />
-                            Create Event
-                        </Button>
-                    </Link>
                 </div>
 
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                    </div>
-                )}
-
                 {isLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="text-gray-500 dark:text-gray-400">Loading events...</div>
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+                        <p className="text-sm font-medium text-gray-400">Loading your events...</p>
                     </div>
-                ) : events.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 gap-4">
-                        <Calendar className="size-12 text-gray-300 dark:text-gray-600" />
-                        <p className="text-gray-500 dark:text-gray-400">No events yet</p>
+                ) : filteredEvents.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-32 text-center">
+                        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-900 rounded-3xl flex items-center justify-center mb-6">
+                            <Calendar className="w-10 h-10 text-gray-300" />
+                        </div>
+                        <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No {activeTab} events</h2>
+                        <p className="text-gray-500 font-medium mb-8">Ready to host something amazing?</p>
                         <Link href="/calendar/events/new">
-                            <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
-                                <Plus className="size-4 mr-2" />
-                                Create Your First Event
+                            <Button size="lg" className="rounded-2xl font-semibold h-12 px-8">
+                                <Plus className="w-5 h-5 mr-2" />
+                                Create Event
                             </Button>
                         </Link>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-8">
-                        {upcomingEvents.length > 0 && (
-                            <section>
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                                    Upcoming Events ({upcomingEvents.length})
-                                </h2>
-                                <div className="flex flex-col gap-3">
-                                    {upcomingEvents.map((event) => (
-                                        <div
-                                            key={event.id}
-                                            className={`border-l-4 rounded-lg p-4 shadow-sm ${colorClasses[event.color] || colorClasses.blue}`}
-                                        >
-                                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                                <div className="flex-1">
-                                                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                    <div className="space-y-12">
+                        {Object.entries(groupedEvents).map(([dateStr, dateEvents], groupIdx) => (
+                            <div key={dateStr} className="relative">
+                                {/* Timeline Group Container */}
+                                <div className="grid grid-cols-[120px_1fr] md:grid-cols-[160px_1fr] gap-4 md:gap-8">
+                                    {/* Date Label (Stays on left) */}
+                                    <div className="flex flex-col pt-4 items-end pr-4 border-r-2 border-gray-100 dark:border-gray-900 relative">
+                                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight text-right">
+                                            {formatDateHeading(dateStr).monthDay}
+                                        </div>
+                                        <div className="text-sm font-semibold text-gray-400 capitalize text-right">
+                                            {formatDateHeading(dateStr).weekday}
+                                        </div>
+                                        {/* Dot on timeline */}
+                                        <div className="absolute top-6 -right-[7px] w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-800 border-2 border-[#FDFCFB] dark:border-gray-950 z-10" />
+                                    </div>
+
+                                    {/* Events for this date */}
+                                    <div className="space-y-6 pb-4">
+                                        {dateEvents.map((event, eventIdx) => (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: eventIdx * 0.05 }}
+                                                key={event.id}
+                                                className="group relative bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all p-5 flex flex-col sm:flex-row gap-6"
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-3 text-xs font-semibold text-gray-400 mb-2 uppercase tracking-tight">
+                                                        <span>{formatTime(event.start_time)}</span>
+                                                        {event.location && (
+                                                            <>
+                                                                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                                                <span className="flex items-center gap-1">
+                                                                    <MapPin className="w-3 h-3" />
+                                                                    {event.location}
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
+
+                                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-primary transition-colors">
                                                         {event.title}
                                                     </h3>
-                                                    {event.description && (
-                                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                            {event.description}
-                                                        </p>
-                                                    )}
-                                                    <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                        <span className="flex items-center gap-1">
-                                                            <Calendar className="size-3" />
-                                                            {formatDate(event.start_time)}
+
+                                                    <div className="flex items-center gap-4 text-sm font-semibold text-gray-500 mb-6">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Users className="w-4 h-4 text-gray-300" />
+                                                            0 guests
                                                         </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <Clock className="size-3" />
-                                                            {formatTime(event.start_time)} - {formatTime(event.end_time)}
-                                                        </span>
-                                                        {event.location && (
-                                                            <span className="flex items-center gap-1">
-                                                                <MapPin className="size-3" />
-                                                                {event.location}
+                                                        {/* Google Meet check */}
+                                                        {event.title.toLowerCase().includes("meet") && (
+                                                            <span className="flex items-center gap-1.5 text-green-600">
+                                                                <Video className="w-4 h-4" />
+                                                                Google Meet
                                                             </span>
                                                         )}
                                                     </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Link href={`/calendar/events/${event.id}`}>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <Eye className="size-4" />
-                                                        </Button>
-                                                    </Link>
-                                                    <Link href={`/calendar/events/${event.id}/edit`}>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <Edit className="size-4" />
-                                                        </Button>
-                                                    </Link>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                        onClick={() => handleDelete(event.id)}
-                                                        disabled={deletingId === event.id}
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
 
-                        {pastEvents.length > 0 && (
-                            <section>
-                                <h2 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mb-4">
-                                    Past Events ({pastEvents.length})
-                                </h2>
-                                <div className="flex flex-col gap-3 opacity-60">
-                                    {pastEvents.map((event) => (
-                                        <div
-                                            key={event.id}
-                                            className={`border-l-4 rounded-lg p-4 shadow-sm ${colorClasses[event.color] || colorClasses.blue}`}
-                                        >
-                                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                                <div className="flex-1">
-                                                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                                                        {event.title}
-                                                    </h3>
-                                                    <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                        <span className="flex items-center gap-1">
-                                                            <Calendar className="size-3" />
-                                                            {formatDate(event.start_time)}
-                                                        </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <Clock className="size-3" />
-                                                            {formatTime(event.start_time)} - {formatTime(event.end_time)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Link href={`/calendar/events/${event.id}`}>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                            <Eye className="size-4" />
+                                                    <Link href={`/calendar/events/${event.id}/manage`}>
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            className="rounded-xl font-semibold bg-gray-50 hover:bg-gray-100 border-gray-200/50 group/btn"
+                                                        >
+                                                            Manage Event
+                                                            <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover/btn:translate-x-0.5" />
                                                         </Button>
                                                     </Link>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                        onClick={() => handleDelete(event.id)}
-                                                        disabled={deletingId === event.id}
-                                                    >
-                                                        <Trash2 className="size-4" />
-                                                    </Button>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    ))}
+
+                                                {/* Event Thumbnail */}
+                                                <div className="w-full sm:w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shadow-inner">
+                                                    {event.image_url ? (
+                                                        <img
+                                                            src={event.image_url}
+                                                            alt=""
+                                                            className="w-full h-full object-cover grayscale-[0.2] transition-all group-hover:grayscale-0 group-hover:scale-105"
+                                                        />
+                                                    ) : (
+                                                        <div className={`w-full h-full flex items-center justify-center opacity-20 ${colorClasses[event.color] || "bg-gray-200"}`}>
+                                                            <Calendar className="w-12 h-12" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </section>
-                        )}
+                            </div>
+                        ))}
                     </div>
                 )}
+            </div>
+
+            {/* Create Event Floating Button (Mobile) */}
+            <div className="fixed bottom-8 right-8 lg:hidden">
+                <Link href="/calendar/events/new">
+                    <Button size="icon" className="w-14 h-14 rounded-full shadow-2xl shadow-primary/30">
+                        <Plus className="w-6 h-6" />
+                    </Button>
+                </Link>
             </div>
         </div>
     );
 }
+
