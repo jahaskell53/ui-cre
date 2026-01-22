@@ -8,6 +8,16 @@ afterEach(() => {
 })
 
 // Mock Next.js router
+const createMockSearchParams = (params?: Record<string, string>) => {
+  const searchParams = new URLSearchParams()
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      searchParams.set(key, value)
+    })
+  }
+  return searchParams
+}
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -15,7 +25,7 @@ vi.mock('next/navigation', () => ({
     pathname: '/',
   }),
   useParams: () => ({}),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => createMockSearchParams(),
 }))
 
 // Mock environment variables

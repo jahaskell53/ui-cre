@@ -9,11 +9,16 @@ import { supabase } from '@/utils/supabase'
 vi.mock('@/hooks/use-user')
 vi.mock('@/utils/supabase')
 const mockPush = vi.fn()
+
+// Mock next/navigation with useSearchParams
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     back: vi.fn(),
+    pathname: '/',
   }),
+  useParams: () => ({}),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 const mockUser = {

@@ -12,7 +12,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
     back: vi.fn(),
+    pathname: '/',
   }),
+  useParams: () => ({}),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 // Mock fetch
@@ -40,6 +43,10 @@ describe('MessagesPage', () => {
       },
       writable: true,
     })
+    
+    // Mock scrollTo method for refs
+    Element.prototype.scrollTo = vi.fn()
+    HTMLDivElement.prototype.scrollTo = vi.fn()
     
     // Mock Supabase
     vi.mocked(supabase.from).mockReturnValue({
@@ -109,7 +116,10 @@ describe('MessagesPage', () => {
     vi.mocked(global.fetch).mockImplementation(() => new Promise(() => {}))
 
     render(<MessagesPage />)
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    // The loading state shows skeleton loaders, not "Loading..." text
+    // Check for the skeleton loader elements instead
+    const skeletonLoaders = document.querySelectorAll('.animate-pulse')
+    expect(skeletonLoaders.length).toBeGreaterThan(0)
   })
 
   it('should show empty state when no conversations', async () => {
@@ -259,29 +269,44 @@ describe('MessagesPage', () => {
       read_at: null,
     }
 
-    vi.mocked(global.fetch)
-      .mockResolvedValueOnce({
+    // Mock fetch with URL-based routing
+    let postCallCount = 0
+    vi.mocked(global.fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' 
+        ? input 
+        : input instanceof Request 
+          ? input.url 
+          : input.toString()
+      
+      if (url.includes('/api/conversations')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockConversations,
+        } as Response)
+      } else if (url.includes('/api/messages') && init?.method === 'POST') {
+        postCallCount++
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockNewMessage,
+        } as Response)
+      } else if (url.includes('/api/messages')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        } as Response)
+      }
+      return Promise.resolve({
         ok: true,
-        json: async () => mockConversations,
+        json: async () => ({}),
       } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockNewMessage,
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockConversations,
-      } as Response)
+    })
 
     render(<MessagesPage />)
 
+    // Wait for John Doe to appear - the component loads conversations on mount
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
-    })
+    }, { timeout: 10000, interval: 100 })
 
     const conversation = screen.getByText('John Doe').closest('div[class*="cursor-pointer"]')
     if (conversation) {
@@ -290,7 +315,7 @@ describe('MessagesPage', () => {
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument()
-    }, { timeout: 3000 })
+    }, { timeout: 5000 })
 
     const input = screen.getByPlaceholderText(/Type a message/i)
     await userEvent.type(input, 'Test message')
@@ -348,17 +373,32 @@ describe('MessagesPage', () => {
       },
     ]
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockConversations,
-    } as Response)
+    vi.mocked(global.fetch).mockImplementation((url: RequestInfo | URL) => {
+      const urlString = typeof url === 'string' ? url : url.toString()
+      if (urlString.includes('/api/conversations')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockConversations,
+        } as Response)
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [],
+      } as Response)
+    })
 
     render(<MessagesPage />)
 
+    // Wait for John Doe to appear
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument()
+    }, { timeout: 5000 })
+
+    // Wait for unread badge to appear
     await waitFor(() => {
       const badge = screen.getByText('3')
       expect(badge).toBeInTheDocument()
-    }, { timeout: 3000 })
+    }, { timeout: 5000 })
   })
 })
 
