@@ -48,7 +48,6 @@ export default function NewEventPage() {
     const [description, setDescription] = useState("");
     const [startDate, setStartDate] = useState<Date | undefined>();
     const [startTime, setStartTime] = useState("");
-    const [endDate, setEndDate] = useState<Date | undefined>();
     const [endTime, setEndTime] = useState("");
     const [location, setLocation] = useState("");
     const [color, setColor] = useState("blue");
@@ -99,16 +98,15 @@ export default function NewEventPage() {
             return;
         }
 
-        if (!endDate || !endTime) {
-            setError("End date and time are required");
+        if (!endTime) {
+            setError("End time is required");
             return;
         }
 
-        // Combine date and time
+        // Combine date and time (end date is same as start date)
         const startDateString = startDate.toISOString().split("T")[0];
-        const endDateString = endDate.toISOString().split("T")[0];
         const startDateTime = new Date(`${startDateString}T${startTime}`);
-        const endDateTime = new Date(`${endDateString}T${endTime}`);
+        const endDateTime = new Date(`${startDateString}T${endTime}`);
 
         if (endDateTime <= startDateTime) {
             setError("End time must be after start time");
@@ -201,19 +199,16 @@ export default function NewEventPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <DatePicker
                             date={startDate}
-                            onDateChange={(date) => {
-                                setStartDate(date);
-                                if (!endDate && date) setEndDate(date);
-                            }}
+                            onDateChange={setStartDate}
                             minDate={today}
-                            placeholder="Select start date"
+                            placeholder="Select date"
                         />
                         <Select value={startTime} onValueChange={setStartTime}>
                             <SelectTrigger className="!h-11 w-full">
-                                <SelectValue placeholder="Select time" />
+                                <SelectValue placeholder="Start time" />
                             </SelectTrigger>
                             <SelectContent>
                                 {timeOptions.map((option) => (
@@ -223,18 +218,9 @@ export default function NewEventPage() {
                                 ))}
                             </SelectContent>
                         </Select>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <DatePicker
-                            date={endDate}
-                            onDateChange={setEndDate}
-                            minDate={startDate || today}
-                            placeholder="Select end date"
-                        />
                         <Select value={endTime} onValueChange={setEndTime}>
                             <SelectTrigger className="!h-11 w-full">
-                                <SelectValue placeholder="Select time" />
+                                <SelectValue placeholder="End time" />
                             </SelectTrigger>
                             <SelectContent>
                                 {timeOptions.map((option) => (
