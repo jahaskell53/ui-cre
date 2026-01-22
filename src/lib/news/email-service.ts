@@ -93,7 +93,7 @@ export class EmailService {
   }
 
   private generateEmailHTML(subscriber: Subscriber, rssContent: string, locations: string, title?: string): string {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.openmidmarket.com';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com';
     return generateNewsletterHTML({
       subscriberName: subscriber.firstName,
       locations,
@@ -107,7 +107,7 @@ export class EmailService {
 
   private generateEmailText(subscriber: Subscriber, rssContent: string, locations: string): string {
     const formattedInterests = formatInterests(subscriber.interests);
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.openmidmarket.com';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com';
     const interestsSection = formattedInterests ? `
 Your Interests: ${formattedInterests}
 

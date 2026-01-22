@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         <p>We're sorry to see you go!</p>
         <p style="margin-top: 20px; font-size: 14px; color: #666;">
             If you change your mind, you can always resubscribe at
-            <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://app.openmidmarket.com'}/news/settings">our settings page</a>.
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com'}/news/settings">our settings page</a>.
         </p>
     </div>
 </body>

@@ -30,7 +30,7 @@ export function formatInterests(interests: string | null | undefined): string {
 export function generateNewsletterHTML(data: NewsletterTemplateData): string {
   const { content, unsubscribeUrl, interests, locations, subscriberEmail } = data;
   const formattedInterests = formatInterests(interests);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.openmidmarket.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com';
 
   return `
 <!DOCTYPE html>
