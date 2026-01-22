@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client, BUCKET_NAME } from "@/utils/s3";
+import { s3Client, BUCKET_NAME, S3_REGION } from "@/utils/s3";
 
 export async function POST(request: Request) {
     try {
@@ -13,7 +13,6 @@ export async function POST(request: Request) {
 
         const buffer = Buffer.from(await file.arrayBuffer());
         const fileName = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-        const region = process.env.AWS_REGION || "us-east-1";
 
         const uploadParams = {
             Bucket: BUCKET_NAME,
@@ -24,11 +23,21 @@ export async function POST(request: Request) {
 
         await s3Client.send(new PutObjectCommand(uploadParams));
 
-        const publicUrl = `https://${BUCKET_NAME}.s3.${region}.amazonaws.com/profile-pics/${fileName}`;
+        const publicUrl = `https://${BUCKET_NAME}.s3.${S3_REGION}.amazonaws.com/profile-pics/${fileName}`;
 
         return NextResponse.json({ url: publicUrl });
     } catch (error: any) {
-        console.error("S3 Upload Error:", error);
-        return NextResponse.json({ error: error.message || "Failed to upload to S3" }, { status: 500 });
+        console.error("S3 Upload Error Details:", {
+            code: error.Code,
+            message: error.message,
+            region: S3_REGION,
+            bucket: BUCKET_NAME,
+            endpoint: error.Endpoint
+        });
+        return NextResponse.json({
+            error: error.message || "Failed to upload to S3",
+            code: error.Code
+        }, { status: 500 });
     }
 }
+

@@ -9,7 +9,9 @@ vi.mock('@/utils/s3', () => ({
     send: vi.fn(),
   },
   BUCKET_NAME: 'test-bucket',
+  S3_REGION: 'us-east-1',
 }))
+
 
 describe('POST /api/upload', () => {
   beforeEach(() => {
@@ -22,7 +24,7 @@ describe('POST /api/upload', () => {
     const mockFormData = {
       get: vi.fn().mockReturnValue(null),
     }
-    
+
     const request = {
       formData: vi.fn().mockResolvedValue(mockFormData),
     } as any
@@ -111,9 +113,7 @@ describe('POST /api/upload', () => {
     expect(data.error).toBe('S3 upload failed')
   })
 
-  it('should use custom AWS region from env', async () => {
-    process.env.AWS_REGION = 'eu-west-1'
-    
+  it('should use the configured S3_REGION in the public URL', async () => {
     const mockFile = {
       name: 'test.jpg',
       type: 'image/jpeg',
@@ -134,6 +134,6 @@ describe('POST /api/upload', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.url).toContain('eu-west-1')
+    expect(data.url).toContain('us-east-1') // matches the mock value S3_REGION
   })
 })
