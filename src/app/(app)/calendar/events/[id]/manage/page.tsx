@@ -377,9 +377,8 @@ export default function EventManageDashboard() {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="max-w-4xl">
+                <div>
                     {activeTab === "Overview" && (
-                        /* Left Column: Info & Setup */
                         <div className="space-y-8">
                             {/* Summary Card */}
                             <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-8 flex gap-8 shadow-sm">
@@ -555,7 +554,7 @@ export default function EventManageDashboard() {
                                                 className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <Link href={`/people/${attendee.user_id}`}>
+                                                    <Link href={`/users/${attendee.user_id}`}>
                                                         <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800 shadow-sm cursor-pointer hover:scale-105 transition-transform">
                                                             <AvatarImage src={attendee.avatar_url || ""} />
                                                             <AvatarFallback
