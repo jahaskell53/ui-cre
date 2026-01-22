@@ -19,6 +19,25 @@ const colorOptions = [
     { value: "black", label: "Gray", class: "bg-gray-700" },
 ];
 
+// Generate time options in 30-minute intervals
+const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 0; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+            const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+            const displayTime = new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+            });
+            options.push({ value: timeString, label: displayTime });
+        }
+    }
+    return options;
+};
+
+const timeOptions = generateTimeOptions();
+
 export default function NewEventPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
@@ -200,12 +219,18 @@ export default function NewEventPage() {
                                 <Clock className="size-4" />
                                 Start Time *
                             </Label>
-                            <Input
-                                type="time"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                className="h-11"
-                            />
+                            <Select value={startTime} onValueChange={setStartTime}>
+                                <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Select time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {timeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
@@ -228,12 +253,18 @@ export default function NewEventPage() {
                                 <Clock className="size-4" />
                                 End Time *
                             </Label>
-                            <Input
-                                type="time"
-                                value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
-                                className="h-11"
-                            />
+                            <Select value={endTime} onValueChange={setEndTime}>
+                                <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Select time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {timeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 

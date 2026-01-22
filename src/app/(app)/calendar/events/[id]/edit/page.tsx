@@ -19,6 +19,34 @@ const colorOptions = [
     { value: "black", label: "Gray", class: "bg-gray-700" },
 ];
 
+// Generate time options in 30-minute intervals
+const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 0; hour < 24; hour++) {
+        for (let minute = 0; minute < 60; minute += 30) {
+            const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+            const displayTime = new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+            });
+            options.push({ value: timeString, label: displayTime });
+        }
+    }
+    return options;
+};
+
+const timeOptions = generateTimeOptions();
+
+// Round time to nearest 30-minute interval
+const roundToNearest30Minutes = (timeString: string): string => {
+    const [hours, minutes] = timeString.split(":").map(Number);
+    const roundedMinutes = Math.round(minutes / 30) * 30;
+    const finalMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+    const finalHours = roundedMinutes === 60 ? (hours + 1) % 24 : hours;
+    return `${finalHours.toString().padStart(2, "0")}:${finalMinutes.toString().padStart(2, "0")}`;
+};
+
 export default function EditEventPage() {
     const router = useRouter();
     const params = useParams();
@@ -91,9 +119,9 @@ export default function EditEventPage() {
             const end = new Date(data.end_time);
 
             setStartDate(start.toISOString().split("T")[0]);
-            setStartTime(start.toTimeString().slice(0, 5));
+            setStartTime(roundToNearest30Minutes(start.toTimeString().slice(0, 5)));
             setEndDate(end.toISOString().split("T")[0]);
-            setEndTime(end.toTimeString().slice(0, 5));
+            setEndTime(roundToNearest30Minutes(end.toTimeString().slice(0, 5)));
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -234,12 +262,18 @@ export default function EditEventPage() {
                                 <Clock className="size-4" />
                                 Start Time *
                             </Label>
-                            <Input
-                                type="time"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                className="h-11"
-                            />
+                            <Select value={startTime} onValueChange={setStartTime}>
+                                <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Select time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {timeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
@@ -261,12 +295,18 @@ export default function EditEventPage() {
                                 <Clock className="size-4" />
                                 End Time *
                             </Label>
-                            <Input
-                                type="time"
-                                value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
-                                className="h-11"
-                            />
+                            <Select value={endTime} onValueChange={setEndTime}>
+                                <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Select time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {timeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
