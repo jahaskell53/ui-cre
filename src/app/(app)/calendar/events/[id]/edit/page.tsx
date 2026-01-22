@@ -249,68 +249,44 @@ export default function EditEventPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <Calendar className="size-4" />
-                                Start Date *
-                            </Label>
-                            <DatePicker
-                                date={startDate}
-                                onDateChange={setStartDate}
-                                placeholder="Select start date"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <Clock className="size-4" />
-                                Start Time *
-                            </Label>
-                            <Select value={startTime} onValueChange={setStartTime}>
-                                <SelectTrigger className="!h-11 w-full">
-                                    <SelectValue placeholder="Select time" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {timeOptions.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <DatePicker
+                            date={startDate}
+                            onDateChange={setStartDate}
+                            placeholder="Select start date"
+                        />
+                        <Select value={startTime} onValueChange={setStartTime}>
+                            <SelectTrigger className="!h-11 w-full">
+                                <SelectValue placeholder="Select time" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {timeOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <Calendar className="size-4" />
-                                End Date *
-                            </Label>
-                            <DatePicker
-                                date={endDate}
-                                onDateChange={setEndDate}
-                                minDate={startDate}
-                                placeholder="Select end date"
-                            />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <Clock className="size-4" />
-                                End Time *
-                            </Label>
-                            <Select value={endTime} onValueChange={setEndTime}>
-                                <SelectTrigger className="!h-11 w-full">
-                                    <SelectValue placeholder="Select time" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {timeOptions.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <DatePicker
+                            date={endDate}
+                            onDateChange={setEndDate}
+                            minDate={startDate}
+                            placeholder="Select end date"
+                        />
+                        <Select value={endTime} onValueChange={setEndTime}>
+                            <SelectTrigger className="!h-11 w-full">
+                                <SelectValue placeholder="Select time" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {timeOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="flex flex-col gap-2">
