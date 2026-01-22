@@ -1,0 +1,34 @@
+{
+  "functions": {
+    "src/app/api/news/scrape-rss/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/news/categorize-articles/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/news/prepare-newsletters/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/news/send-scheduled-newsletters/route.ts": {
+      "maxDuration": 300
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/news/scrape-rss",
+      "schedule": "40 14 * * *"
+    },
+    {
+      "path": "/api/news/categorize-articles",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/news/prepare-newsletters",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/news/send-scheduled-newsletters",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
