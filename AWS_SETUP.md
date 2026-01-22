@@ -51,8 +51,8 @@ Create a `.env` file or export these variables:
 export NYLAS_API_KEY=your-key
 export NYLAS_CLIENT_ID=your-client-id
 
-# Google AI (for email filtering)
-export GOOGLE_AI_API_KEY=your-key
+# Gemini API (for email filtering)
+export GEMINI_API_KEY=your-key
 
 # Supabase
 export NEXT_PUBLIC_SUPABASE_URL=your-url

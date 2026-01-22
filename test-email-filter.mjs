@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,16 +27,15 @@ if (fs.existsSync(envPath)) {
  * Uses Gemini 2.5 Flash Lite to analyze the email
  */
 async function isAutomatedEmail(email, headers = {}, name = '', subject = '') {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
-  
+  const apiKey = process.env.GEMINI_API_KEY;
+
   if (!apiKey) {
-    console.warn('GOOGLE_AI_API_KEY not set, falling back to basic heuristics');
+    console.warn('GEMINI_API_KEY not set, falling back to basic heuristics');
     return isAutomatedEmailFallback(email, headers, name);
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+    const client = new GoogleGenAI({ apiKey });
 
     const prompt = `Analyze the following email information and determine if this email is from a single person (human individual) or if it's from a bot, automated system, listserv, newsletter, or mass mailing service.
 
@@ -47,9 +46,11 @@ Headers: ${JSON.stringify(headers)}
 
 Respond with ONLY "true" if this is from a bot/listserv/newsletter/automated system, or "false" if this is from a single person. Do not include any explanation or additional text.`;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text().trim().toLowerCase();
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash-lite',
+      contents: [prompt]
+    });
+    const text = response.candidates[0].content.parts[0].text.trim().toLowerCase();
 
     // Parse the response - Gemini should return "true" or "false"
     if (text === 'true' || text.startsWith('true')) {
@@ -74,7 +75,7 @@ Respond with ONLY "true" if this is from a bot/listserv/newsletter/automated sys
 function isAutomatedEmailFallback(email, headers = {}, name = '') {
   const emailLower = email.toLowerCase();
   const nameLower = name.toLowerCase();
-  
+
   // Check display name for "Do Not Reply" and similar patterns
   const namePatterns = [
     'do not reply', 'don\'t reply', 'do not respond',
@@ -82,11 +83,11 @@ function isAutomatedEmailFallback(email, headers = {}, name = '') {
     'automated', 'automatic', 'system', 'notification',
     'mailer', 'unsubscribe',
   ];
-  
+
   if (nameLower && namePatterns.some(pattern => nameLower.includes(pattern))) {
     return true;
   }
-  
+
   // Common automated email patterns
   const automatedPatterns = [
     'noreply', 'no-reply', 'donotreply', 'do-not-reply',
@@ -96,12 +97,12 @@ function isAutomatedEmailFallback(email, headers = {}, name = '') {
     'system', 'systems', 'service', 'services',
     'bounce', 'bounces', 'unsubscribe', 'unsub',
   ];
-  
+
   // Check if email contains automated patterns
   if (automatedPatterns.some(pattern => emailLower.includes(pattern))) {
     return true;
   }
-  
+
   // Role-based email addresses (common for automated/mass emails)
   const roleBasedPrefixes = [
     'info@', 'support@', 'sales@', 'marketing@', 'newsletter@',
@@ -109,24 +110,24 @@ function isAutomatedEmailFallback(email, headers = {}, name = '') {
     'contact@', 'help@', 'admin@', 'administrator@',
     'webmaster@', 'abuse@', 'security@', 'privacy@',
   ];
-  
+
   if (roleBasedPrefixes.some(prefix => emailLower.startsWith(prefix))) {
     return true;
   }
-  
+
   // Check email headers if available
   if (headers) {
     // Check for List-Unsubscribe header (indicates marketing/newsletter)
     if (headers['list-unsubscribe'] || headers['List-Unsubscribe']) {
       return true;
     }
-    
+
     // Check for bulk email indicators
     if (headers['precedence']?.toLowerCase() === 'bulk' ||
-        headers['Precedence']?.toLowerCase() === 'bulk') {
+      headers['Precedence']?.toLowerCase() === 'bulk') {
       return true;
     }
-    
+
     // Check for auto-submitted header
     if (headers['auto-submitted'] || headers['Auto-Submitted']) {
       const autoSubmitted = (headers['auto-submitted'] || headers['Auto-Submitted']).toLowerCase();
@@ -134,24 +135,24 @@ function isAutomatedEmailFallback(email, headers = {}, name = '') {
         return true;
       }
     }
-    
+
     // Check for X-Auto-Response header
     if (headers['x-auto-response'] || headers['X-Auto-Response']) {
       return true;
     }
   }
-  
+
   // Check for common disposable email domains
   const disposableDomains = [
     'mailinator.com', 'guerrillamail.com', '10minutemail.com',
     'tempmail.com', 'throwaway.email', 'getnada.com',
   ];
-  
+
   const domain = emailLower.split('@')[1];
   if (domain && disposableDomains.some(d => domain.includes(d))) {
     return true;
   }
-  
+
   // Check for common newsletter/marketing platform domains
   const newsletterDomains = [
     'substack.com', 'mailchimp.com', 'constantcontact.com',
@@ -162,11 +163,11 @@ function isAutomatedEmailFallback(email, headers = {}, name = '') {
     'mailjet.com', 'sparkpost.com', 'postmarkapp.com',
     'mandrill.com', 'pepipost.com', 'postal.io',
   ];
-  
+
   if (domain && newsletterDomains.some(d => domain.includes(d))) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -189,34 +190,34 @@ function parseEmailAddress(emailString) {
 function parseEmlFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
-  
+
   const headers = {};
   let fromHeader = null;
   let subjectHeader = null;
   let listUnsubscribe = null;
   let precedence = null;
   let autoSubmitted = null;
-  
+
   // Parse headers (until blank line)
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
+
     // Empty line indicates end of headers
     if (!line) {
       break;
     }
-    
+
     // Handle multi-line headers
     if (line.startsWith(' ') || line.startsWith('\t')) {
       continue;
     }
-    
+
     const colonIndex = line.indexOf(':');
     if (colonIndex === -1) continue;
-    
+
     const headerName = line.substring(0, colonIndex).toLowerCase();
     const headerValue = line.substring(colonIndex + 1).trim();
-    
+
     if (headerName === 'from') {
       fromHeader = headerValue;
     } else if (headerName === 'subject') {
@@ -232,11 +233,11 @@ function parseEmlFile(filePath) {
       headers['auto-submitted'] = headerValue;
     }
   }
-  
+
   if (!fromHeader) {
     return null;
   }
-  
+
   const parsed = parseEmailAddress(fromHeader);
   return {
     email: parsed.email,
@@ -272,7 +273,7 @@ async function runTests() {
         results.errors.push({ file, reason: 'Could not parse From header' });
         continue;
       }
-      
+
       console.log(`Processing: ${file}...`);
       const isAutomated = await isAutomatedEmail(parsed.email, parsed.headers, parsed.name, parsed.subject);
       const result = {
@@ -283,7 +284,7 @@ async function runTests() {
         isAutomated,
         reason: isAutomated ? 'Filtered as automated' : 'Passed filter',
       };
-      
+
       if (isAutomated) {
         results.automated.push(result);
       } else {

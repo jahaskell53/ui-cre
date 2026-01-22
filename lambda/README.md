@@ -42,8 +42,8 @@ NYLAS_API_URI=https://api.us.nylas.com  # Optional
 NYLAS_EMAIL_SYNC_LIMIT=600  # Optional
 NYLAS_CALENDAR_SYNC_LIMIT=600  # Optional
 
-# Google AI (for email filtering)
-GOOGLE_AI_API_KEY=your-google-ai-api-key
+# Gemini API (for email filtering)
+GEMINI_API_KEY=your-gemini-api-key
 
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url

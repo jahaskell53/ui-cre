@@ -2,7 +2,7 @@ import { getMessages, getCalendarEvents, type NylasMessage, type NylasCalendarEv
 import { NYLAS_SYNC_CONFIG } from './config';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { recalculateNetworkStrengthForUser } from '@/lib/network-strength';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { makeGeminiCall } from '@/lib/news/gemini';
 
 interface Contact {
   email_address: string;
@@ -45,9 +45,9 @@ async function batchCheckAutomatedEmails(
   emailInputs: EmailCheckInput[],
   cache: Map<string, boolean>
 ): Promise<Map<string, boolean>> {
-  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   const results = new Map<string, boolean>();
-  
+
   if (!apiKey) {
     // Fallback to heuristics for all
     for (const input of emailInputs) {
@@ -81,11 +81,8 @@ async function batchCheckAutomatedEmails(
   const BATCH_SIZE = 20;
   for (let i = 0; i < toCheck.length; i += BATCH_SIZE) {
     const batch = toCheck.slice(i, i + BATCH_SIZE);
-    
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
+    try {
       // Create a batch prompt
       const emailList = batch.map((input, idx) => {
         return `${idx + 1}. Email: ${input.email}, Name: ${input.name || '(not provided)'}, Subject: ${input.subject || '(not provided)'}`;
@@ -97,9 +94,10 @@ ${emailList}
 
 Respond with a JSON object mapping each email address to "true" if it's automated/bot/listserv/newsletter, or "false" if it's from a single person. Format: {"email1@example.com": true, "email2@example.com": false, ...}`;
 
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text().trim();
+      const response = await makeGeminiCall('gemini-2.5-flash-lite', prompt, {
+        operation: 'batchCheckAutomatedEmails',
+      });
+      const text = response.candidates[0].content.parts[0].text.trim();
 
       // Try to parse JSON response
       try {
@@ -169,7 +167,7 @@ async function isAutomatedEmail(
 function isAutomatedEmailFallback(email: string, message?: NylasMessage, name?: string): boolean {
   const emailLower = email.toLowerCase();
   const nameLower = name?.toLowerCase() || '';
-  
+
   // Check display name for "Do Not Reply" and similar patterns
   const namePatterns = [
     'do not reply', 'don\'t reply', 'do not respond',
@@ -177,11 +175,11 @@ function isAutomatedEmailFallback(email: string, message?: NylasMessage, name?: 
     'automated', 'automatic', 'system', 'notification',
     'mailer', 'unsubscribe',
   ];
-  
+
   if (nameLower && namePatterns.some(pattern => nameLower.includes(pattern))) {
     return true;
   }
-  
+
   // Common automated email patterns
   const automatedPatterns = [
     'noreply', 'no-reply', 'donotreply', 'do-not-reply',
@@ -191,12 +189,12 @@ function isAutomatedEmailFallback(email: string, message?: NylasMessage, name?: 
     'system', 'systems', 'service', 'services',
     'bounce', 'bounces', 'unsubscribe', 'unsub',
   ];
-  
+
   // Check if email contains automated patterns
   if (automatedPatterns.some(pattern => emailLower.includes(pattern))) {
     return true;
   }
-  
+
   // Role-based email addresses (common for automated/mass emails)
   const roleBasedPrefixes = [
     'info@', 'support@', 'sales@', 'marketing@', 'newsletter@',
@@ -204,26 +202,26 @@ function isAutomatedEmailFallback(email: string, message?: NylasMessage, name?: 
     'contact@', 'help@', 'admin@', 'administrator@',
     'webmaster@', 'abuse@', 'security@', 'privacy@',
   ];
-  
+
   if (roleBasedPrefixes.some(prefix => emailLower.startsWith(prefix))) {
     return true;
   }
-  
+
   // Check email headers if available (Nylas may provide these)
   if (message?.headers) {
     const headers = message.headers;
-    
+
     // Check for List-Unsubscribe header (indicates marketing/newsletter)
     if (headers['list-unsubscribe'] || headers['List-Unsubscribe']) {
       return true;
     }
-    
+
     // Check for bulk email indicators
     if (headers['precedence']?.toLowerCase() === 'bulk' ||
-        headers['Precedence']?.toLowerCase() === 'bulk') {
+      headers['Precedence']?.toLowerCase() === 'bulk') {
       return true;
     }
-    
+
     // Check for auto-submitted header
     if (headers['auto-submitted'] || headers['Auto-Submitted']) {
       const autoSubmitted = (headers['auto-submitted'] || headers['Auto-Submitted']).toLowerCase();
@@ -231,29 +229,29 @@ function isAutomatedEmailFallback(email: string, message?: NylasMessage, name?: 
         return true;
       }
     }
-    
+
     // Check for X-Auto-Response header
     if (headers['x-auto-response'] || headers['X-Auto-Response']) {
       return true;
     }
   }
-  
+
   // Check for common disposable email domains
   const disposableDomains = [
     'mailinator.com', 'guerrillamail.com', '10minutemail.com',
     'tempmail.com', 'throwaway.email', 'getnada.com',
   ];
-  
+
   const domain = emailLower.split('@')[1];
   if (domain && disposableDomains.some(d => domain.includes(d))) {
     return true;
   }
-  
+
   // Exclude Apple Private Relay and Fastmail aliases (privacy/alias domains)
   if (domain && (domain.endsWith('privaterelay.appleid.com') || domain.endsWith('fastmail.com'))) {
     return true;
   }
-  
+
   // Check for common newsletter/marketing platform domains
   const newsletterDomains = [
     'substack.com', 'mailchimp.com', 'constantcontact.com',
@@ -264,11 +262,11 @@ function isAutomatedEmailFallback(email: string, message?: NylasMessage, name?: 
     'mailjet.com', 'sparkpost.com', 'postmarkapp.com',
     'mandrill.com', 'pepipost.com', 'postal.io',
   ];
-  
+
   if (domain && newsletterDomains.some(d => domain.includes(d))) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -321,7 +319,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
     // Convert lastSyncAt to Unix timestamp for Nylas API
     const receivedAfter = lastSyncAt ? Math.floor(lastSyncAt.getTime() / 1000) : undefined;
-    
+
     const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit, receivedAfter);
     console.log(`Fetched ${messages.length} ${isIncremental ? 'new ' : ''}messages from Nylas`);
 
@@ -416,9 +414,9 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
           const emailLower = parsed.email?.toLowerCase();
 
-          if (emailLower && 
-              emailLower !== userEmail &&
-              !automatedResults.get(emailLower)) {
+          if (emailLower &&
+            emailLower !== userEmail &&
+            !automatedResults.get(emailLower)) {
             contactsWeveEmailed.add(emailLower);
           }
         }
@@ -446,9 +444,9 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           const parsed = parseEmailAddress(`${to.name || ''} <${to.email}>`);
           const emailLower = parsed.email?.toLowerCase();
 
-          if (emailLower && 
-              emailLower !== userEmail &&
-              !automatedResults.get(emailLower)) {
+          if (emailLower &&
+            emailLower !== userEmail &&
+            !automatedResults.get(emailLower)) {
             const existing = contactsMap.get(parsed.email);
 
             contactsMap.set(parsed.email, {
@@ -483,9 +481,9 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
         const emailLower = parsed.email?.toLowerCase();
 
         if (emailLower &&
-            emailLower !== userEmail &&
-            !automatedResults.get(emailLower) &&
-            contactsWeveEmailed.has(emailLower)) {
+          emailLower !== userEmail &&
+          !automatedResults.get(emailLower) &&
+          contactsWeveEmailed.has(emailLower)) {
 
           const existing = contactsMap.get(parsed.email);
 
@@ -710,7 +708,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 
     // Convert lastSyncAt to Unix timestamp for Nylas API
     const startAfter = lastSyncAt ? Math.floor(lastSyncAt.getTime() / 1000) : undefined;
-    
+
     const events = await getCalendarEvents(grantId, NYLAS_SYNC_CONFIG.calendarLimit, startAfter);
     console.log(`Fetched ${events.length} ${isIncremental ? 'new ' : ''}calendar events from Nylas`);
 
@@ -740,7 +738,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
           }
         }
       }
-      
+
       if (!hasInvitees) {
         continue;
       }
@@ -753,9 +751,9 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
       // Extract participants
       if (event.participants && event.participants.length > 0) {
         for (const participant of event.participants) {
-          if (!participant.email || 
-              (await isAutomatedEmail(participant.email, undefined, participant.name)) ||
-              (!userEmail || participant.email.toLowerCase() === userEmail)) {
+          if (!participant.email ||
+            (await isAutomatedEmail(participant.email, undefined, participant.name)) ||
+            (!userEmail || participant.email.toLowerCase() === userEmail)) {
             continue;
           }
 
@@ -788,9 +786,9 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
       }
 
       // Extract organizer
-      if (event.organizer?.email && 
-          !(await isAutomatedEmail(event.organizer.email, undefined, event.organizer.name)) &&
-          (!userEmail || event.organizer.email.toLowerCase() !== userEmail)) {
+      if (event.organizer?.email &&
+        !(await isAutomatedEmail(event.organizer.email, undefined, event.organizer.name)) &&
+        (!userEmail || event.organizer.email.toLowerCase() !== userEmail)) {
         const parsed = parseEmailAddress(`${event.organizer.name || ''} <${event.organizer.email}>`);
         const existing = contactsMap.get(parsed.email);
 
@@ -1003,7 +1001,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
  */
 export async function syncAllContacts(grantId: string, userId: string) {
   const supabase = createAdminClient();
-  
+
   try {
     // Fetch integration to get last_sync_at for incremental sync
     const { data: integration } = await supabase

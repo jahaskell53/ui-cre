@@ -19,7 +19,6 @@
         "@aws-sdk/client-sqs": "^3.962.0",
         "@aws-sdk/lib-storage": "^3.962.0",
         "@google/genai": "^1.38.0",
-        "@google/generative-ai": "^0.24.1",
         "@mardillu/us-cities-utils": "^1.2.7",
         "@radix-ui/react-avatar": "^1.1.11",
         "@radix-ui/react-checkbox": "^1.3.3",
