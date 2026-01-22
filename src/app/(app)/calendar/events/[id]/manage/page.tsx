@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter as useNextRouter, useParams as useNextParams } from "next/navigation";
 import {
     MapPin,
@@ -21,7 +21,8 @@ import {
     MessageSquare,
     MoreHorizontal,
     Video,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Loader2
 } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,9 @@ export default function EventManageDashboard() {
     const [event, setEvent] = useState<Event | null>(null);
     const [host, setHost] = useState<Host | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isUploading, setIsUploading] = useState(false);
     const [activeTab, setActiveTab] = useState("Overview");
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (eventId) {
@@ -86,6 +89,43 @@ export default function EventManageDashboard() {
             console.error(err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !event) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            // 1. Upload to S3 via API
+            const uploadRes = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!uploadRes.ok) throw new Error("Failed to upload image");
+            const { url } = await uploadRes.json();
+
+            // 2. Update event in database
+            const updateRes = await fetch(`/api/events?id=${eventId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image_url: url }),
+            });
+
+            if (!updateRes.ok) throw new Error("Failed to update event image");
+
+            // 3. Update local state
+            setEvent({ ...event, image_url: url });
+        } catch (err) {
+            console.error("Error updating photo:", err);
+            alert("Failed to update photo. Please try again.");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -200,12 +240,17 @@ export default function EventManageDashboard() {
                     <div className="space-y-8">
                         {/* Summary Card */}
                         <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-8 flex gap-8 shadow-sm">
-                            <div className="w-48 h-48 shrink-0 rounded-[1.5rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-inner">
+                            <div className="w-48 h-48 shrink-0 rounded-[1.5rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-inner relative group">
                                 {event.image_url ? (
                                     <img src={event.image_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-200">
                                         <ImageIcon className="w-12 h-12" />
+                                    </div>
+                                )}
+                                {isUploading && (
+                                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center">
+                                        <Loader2 className="w-8 h-8 text-white animate-spin" />
                                     </div>
                                 )}
                             </div>
@@ -243,7 +288,21 @@ export default function EventManageDashboard() {
                                     <Link href={`/calendar/events/${event.id}/edit`}>
                                         <Button variant="secondary" className="rounded-xl font-semibold px-6">Edit Event</Button>
                                     </Link>
-                                    <Button variant="secondary" className="rounded-xl font-semibold px-6">Change Photo</Button>
+                                    <Button
+                                        variant="secondary"
+                                        className="rounded-xl font-semibold px-6"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isUploading}
+                                    >
+                                        {isUploading ? "Uploading..." : "Change Photo"}
+                                    </Button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handlePhotoChange}
+                                        className="hidden"
+                                        accept="image/*"
+                                    />
                                 </div>
                             </div>
                         </div>
