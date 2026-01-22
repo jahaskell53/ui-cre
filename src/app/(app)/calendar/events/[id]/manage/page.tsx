@@ -257,7 +257,7 @@ export default function EventManageDashboard() {
 
     if (!event) return null;
 
-    const tabs = ["Overview", "Guests", "Registration", "Blasts", "Insights", "More"];
+    const tabs = ["Overview", "Guests", "Blasts"];
 
     return (
         <div className="min-h-screen bg-[#FDFCFB] dark:bg-gray-950 pb-20">
@@ -342,7 +342,7 @@ export default function EventManageDashboard() {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
+                <div className="max-w-4xl">
                     {/* Left Column: Info & Setup */}
                     <div className="space-y-8">
                         {/* Summary Card */}
@@ -470,37 +470,8 @@ export default function EventManageDashboard() {
                         </div>
                     </div>
 
-                    {/* Right Column: Insights / Status */}
-                    <div className="space-y-6">
-                        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
-                            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-tight mb-4">Insights</h4>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <div className="text-2xl font-semibold text-gray-900 dark:text-white">0</div>
-                                    <div className="text-xs font-semibold text-gray-400 underline cursor-pointer">Registration Views</div>
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="text-2xl font-semibold text-gray-900 dark:text-white">0</div>
-                                    <div className="text-xs font-semibold text-gray-400 underline cursor-pointer">Approved Guests</div>
-                                </div>
-                            </div>
-                            <Button variant="outline" className="w-full mt-6 rounded-xl font-semibold border-gray-100 shadow-sm gap-2">
-                                All Insights
-                                <BarChart3 className="w-4 h-4" />
-                            </Button>
-                        </div>
 
-                        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-6 shadow-sm">
-                            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-tight mb-4">Registration</h4>
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="text-sm font-semibold text-gray-600">Status</div>
-                                <div className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-semibold rounded-md uppercase tracking-wider">Accepting</div>
-                            </div>
-                            <Button variant="secondary" className="w-full rounded-xl font-semibold bg-gray-50 border-gray-100 shadow-sm">
-                                Manage Registration
-                            </Button>
-                        </div>
-                    </div>
+
                 </div>
             </div>
 
