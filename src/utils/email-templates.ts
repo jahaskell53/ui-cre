@@ -10,6 +10,15 @@ export interface MentionNotificationData {
   postUrl: string;
 }
 
+export interface EventInviteData {
+  hostName: string;
+  eventTitle: string;
+  eventDate: string;
+  eventTime: string;
+  eventUrl: string;
+  eventImageUrl?: string | null;
+}
+
 export function generateMessageNotificationEmail(data: MessageNotificationData): { subject: string; html: string; text: string } {
   const senderDisplay = data.senderName || 'Someone';
   const subject = `New message from ${senderDisplay}`;
@@ -142,7 +151,7 @@ This is an automated notification. You can reply to this comment in the app.
 
 export function generateConfirmationEmail(): { subject: string; html: string } {
   const subject = "Confirm your signup";
-  
+
   const html = `
 <!DOCTYPE html>
 <html>
@@ -199,6 +208,97 @@ export function generateConfirmationEmail(): { subject: string; html: string } {
   `.trim();
 
   return { subject, html };
+}
+
+export function generateEventInviteEmail(data: EventInviteData): { subject: string; html: string; text: string } {
+  const subject = `Invitation: ${data.eventTitle}`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #e5e5e5; overflow: hidden;">
+          ${data.eventImageUrl ? `
+          <tr>
+            <td>
+              <img src="${data.eventImageUrl}" alt="${data.eventTitle}" style="width: 100%; height: 300px; object-cover: cover; display: block;">
+            </td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.05em;">
+                You're Invited
+              </p>
+              <h1 style="margin: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #1a1a1a; line-height: 1.2;">
+                ${escapeHtml(data.eventTitle)}
+              </h1>
+              <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 24px; color: #4a4a4a;">
+                <strong>${escapeHtml(data.hostName)}</strong> has invited you to join them for an event. We'd love to see you there!
+              </p>
+              
+              <div style="background-color: #f9f9f9; border-radius: 12px; padding: 24px; margin: 30px 0;">
+                <table role="presentation" style="width: 100%;">
+                  <tr>
+                    <td style="padding-bottom: 16px;">
+                      <p style="margin: 0; font-size: 14px; color: #8a8a8a; text-transform: uppercase; font-weight: 600;">Date</p>
+                      <p style="margin: 4px 0 0 0; font-size: 16px; color: #1a1a1a; font-weight: 500;">${data.eventDate}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <p style="margin: 0; font-size: 14px; color: #8a8a8a; text-transform: uppercase; font-weight: 600;">Time</p>
+                      <p style="margin: 4px 0 0 0; font-size: 16px; color: #1a1a1a; font-weight: 500;">${data.eventTime}</p>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <table role="presentation" style="width: 100%; margin: 30px 0;">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="${data.eventUrl}" style="display: inline-block; padding: 16px 32px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                      View Event & RSVP
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="margin: 40px 0 0 0; font-size: 13px; line-height: 20px; color: #8a8a8a; text-align: center;">
+                Sent via Untitled UI Calendar. If you weren't expecting this, you can ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  const text = `
+You're Invited!
+${data.eventTitle}
+
+${data.hostName} has invited you to an event.
+
+When: ${data.eventDate} at ${data.eventTime}
+
+View Event & RSVP: ${data.eventUrl}
+
+Sent via Untitled UI Calendar.
+  `.trim();
+
+  return { subject, html, text };
 }
 
 function escapeHtml(text: string): string {

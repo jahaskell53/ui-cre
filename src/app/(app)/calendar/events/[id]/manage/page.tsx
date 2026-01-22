@@ -22,11 +22,23 @@ import {
     MoreHorizontal,
     Video,
     Image as ImageIcon,
-    Loader2
+    Loader2,
+    X
 } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/application/modals/modal";
+import { Input } from "@/components/ui/input";
+import {
+    Dialog as ShadDialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { generateAuroraGradient, getInitials } from "@/app/(app)/people/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,6 +75,10 @@ export default function EventManageDashboard() {
     const [isUploading, setIsUploading] = useState(false);
     const [isShared, setIsShared] = useState(false);
     const [activeTab, setActiveTab] = useState("Overview");
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [emailInput, setEmailInput] = useState("");
+    const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+    const [isSendingInvites, setIsSendingInvites] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -178,6 +194,61 @@ export default function EventManageDashboard() {
         });
     };
 
+    const handleInviteSubmit = async () => {
+        let finalEmails = [...selectedEmails];
+
+        // Also add whatever is currently in the input if it's valid
+        if (emailInput.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.trim())) {
+            finalEmails = [...finalEmails, emailInput.trim()];
+        }
+
+        if (finalEmails.length === 0) {
+            alert("Please enter at least one valid email address.");
+            return;
+        }
+
+        setIsSendingInvites(true);
+        try {
+            const response = await fetch("/api/events/invite", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    event_id: eventId,
+                    emails: finalEmails
+                }),
+            });
+
+            if (!response.ok) throw new Error("Failed to send invitations");
+
+            alert("Invitations sent successfully!");
+            setShowInviteModal(false);
+            setSelectedEmails([]);
+            setEmailInput("");
+        } catch (err) {
+            console.error("Error sending invites:", err);
+            alert("Failed to send invitations. Please try again.");
+        } finally {
+            setIsSendingInvites(false);
+        }
+    };
+
+    const handleAddEmail = () => {
+        const trimmed = emailInput.trim();
+        if (!trimmed) return;
+
+        // Simple regex for basic validation
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+            if (!selectedEmails.includes(trimmed)) {
+                setSelectedEmails([...selectedEmails, trimmed]);
+            }
+            setEmailInput("");
+        }
+    };
+
+    const removeEmail = (email: string) => {
+        setSelectedEmails(selectedEmails.filter(e => e !== email));
+    };
+
     if (isLoading) return (
         <div className="min-h-screen bg-[#FDFCFB] flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -236,7 +307,10 @@ export default function EventManageDashboard() {
 
                 {/* Quick Actions Card Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-                    <button className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left group">
+                    <button
+                        onClick={() => setShowInviteModal(true)}
+                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left group"
+                    >
                         <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
                             <Plus className="w-6 h-6" />
                         </div>
@@ -344,7 +418,12 @@ export default function EventManageDashboard() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Invites</h3>
-                                <Button variant="secondary" size="sm" className="rounded-xl font-semibold bg-gray-100">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="rounded-xl font-semibold bg-gray-100"
+                                    onClick={() => setShowInviteModal(true)}
+                                >
                                     <Plus className="w-4 h-4 mr-1.5" />
                                     Invite Guests
                                 </Button>
@@ -424,6 +503,106 @@ export default function EventManageDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Invite Guests Modal (shadcn) */}
+            <ShadDialog open={showInviteModal} onOpenChange={setShowInviteModal}>
+                <DialogContent className="sm:max-w-xl rounded-[2rem] border-gray-100 dark:border-gray-800 p-8">
+                    <DialogHeader className="flex flex-col items-center text-center gap-4">
+                        <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                            <Mail className="w-8 h-8 text-blue-500" />
+                        </div>
+                        <div className="space-y-2">
+                            <DialogTitle className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Invite Guests</DialogTitle>
+                            <DialogDescription className="text-gray-500 font-medium text-base">
+                                Send a personalized invitation to your colleagues and associates.
+                            </DialogDescription>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="space-y-6 mt-4">
+                        <div className="space-y-3">
+                            <Label htmlFor="emails" className="text-sm font-semibold text-gray-900 dark:text-gray-100 ml-1">
+                                Add Emails
+                            </Label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Input
+                                        id="emails"
+                                        value={emailInput}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmailInput(e.target.value)}
+                                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleAddEmail();
+                                            }
+                                        }}
+                                        placeholder="Paste or enter emails here"
+                                        className="h-11 rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium px-4 shadow-none"
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    onClick={handleAddEmail}
+                                    variant="secondary"
+                                    className="h-11 px-6 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold shadow-none"
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Email Tags */}
+                        {selectedEmails.length > 0 && (
+                            <div className="flex flex-wrap gap-2 p-3 bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 min-h-[60px]">
+                                {selectedEmails.map((email) => (
+                                    <div
+                                        key={email}
+                                        className="flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm"
+                                    >
+                                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{email}</span>
+                                        <button
+                                            onClick={() => removeEmail(email)}
+                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setShowInviteModal(false)}
+                                disabled={isSendingInvites}
+                                className="h-12 rounded-2xl font-semibold text-gray-500 sm:flex-1"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={() => handleInviteSubmit()}
+                                disabled={isSendingInvites || (selectedEmails.length === 0 && !emailInput)}
+                                className="h-12 rounded-2xl font-semibold flex items-center justify-center gap-2 sm:flex-1 shadow-sm"
+                            >
+                                {isSendingInvites ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Sending...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="w-4 h-4" />
+                                        Send Invitations
+                                    </>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </div>
+                </DialogContent>
+            </ShadDialog>
         </div>
     );
 }
