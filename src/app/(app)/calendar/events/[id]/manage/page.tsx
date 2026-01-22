@@ -64,6 +64,12 @@ interface Host {
     avatar_url: string | null;
 }
 
+interface Attendee {
+    user_id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+}
+
 export default function EventManageDashboard() {
     const router = useNextRouter();
     const params = useNextParams();
@@ -79,6 +85,9 @@ export default function EventManageDashboard() {
     const [emailInput, setEmailInput] = useState("");
     const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
     const [isSendingInvites, setIsSendingInvites] = useState(false);
+    const [attendees, setAttendees] = useState<Attendee[]>([]);
+    const [registrationCount, setRegistrationCount] = useState(0);
+    const [isLoadingGuests, setIsLoadingGuests] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -86,6 +95,12 @@ export default function EventManageDashboard() {
             fetchEventDetails();
         }
     }, [eventId]);
+
+    useEffect(() => {
+        if (eventId && activeTab === "Guests") {
+            fetchGuests();
+        }
+    }, [eventId, activeTab]);
 
     const fetchEventDetails = async () => {
         try {
@@ -224,6 +239,10 @@ export default function EventManageDashboard() {
             setShowInviteModal(false);
             setSelectedEmails([]);
             setEmailInput("");
+            // Refresh guests list if on Guests tab
+            if (activeTab === "Guests") {
+                fetchGuests();
+            }
         } catch (err) {
             console.error("Error sending invites:", err);
             alert("Failed to send invitations. Please try again.");
@@ -247,6 +266,22 @@ export default function EventManageDashboard() {
 
     const removeEmail = (email: string) => {
         setSelectedEmails(selectedEmails.filter(e => e !== email));
+    };
+
+    const fetchGuests = async () => {
+        setIsLoadingGuests(true);
+        try {
+            const response = await fetch(`/api/events/registrations?event_id=${eventId}&include_attendees=true`);
+            if (response.ok) {
+                const data = await response.json();
+                setAttendees(data.attendees || []);
+                setRegistrationCount(data.count || 0);
+            }
+        } catch (err) {
+            console.error("Error fetching guests:", err);
+        } finally {
+            setIsLoadingGuests(false);
+        }
     };
 
     if (isLoading) return (
@@ -343,10 +378,11 @@ export default function EventManageDashboard() {
 
                 {/* Main Content Area */}
                 <div className="max-w-4xl">
-                    {/* Left Column: Info & Setup */}
-                    <div className="space-y-8">
-                        {/* Summary Card */}
-                        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-8 flex gap-8 shadow-sm">
+                    {activeTab === "Overview" && (
+                        /* Left Column: Info & Setup */
+                        <div className="space-y-8">
+                            {/* Summary Card */}
+                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-8 flex gap-8 shadow-sm">
                             <div className="w-48 h-48 shrink-0 rounded-[1.5rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-inner relative group">
                                 {event.image_url ? (
                                     <img src={event.image_url} alt="" className="w-full h-full object-cover" />
@@ -469,9 +505,96 @@ export default function EventManageDashboard() {
                             </div>
                         </div>
                     </div>
+                    )}
 
+                    {activeTab === "Guests" && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Guests</h2>
+                                    <p className="text-sm font-semibold text-gray-400 mt-1">
+                                        {registrationCount} {registrationCount === 1 ? "guest" : "guests"} registered
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="secondary"
+                                    className="rounded-xl font-semibold bg-gray-100"
+                                    onClick={() => setShowInviteModal(true)}
+                                >
+                                    <Plus className="w-4 h-4 mr-1.5" />
+                                    Invite Guests
+                                </Button>
+                            </div>
 
+                            {isLoadingGuests ? (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-12 flex items-center justify-center shadow-sm">
+                                    <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
+                                </div>
+                            ) : attendees.length === 0 ? (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                                        <Users className="w-8 h-8 text-gray-200" />
+                                    </div>
+                                    <div className="font-semibold text-gray-900 dark:text-white mb-1">No Guests Yet</div>
+                                    <p className="text-sm font-semibold text-gray-400 mb-6">Invite people to your event to see them here.</p>
+                                    <Button
+                                        variant="secondary"
+                                        className="rounded-xl font-semibold"
+                                        onClick={() => setShowInviteModal(true)}
+                                    >
+                                        <Plus className="w-4 h-4 mr-1.5" />
+                                        Invite Guests
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm overflow-hidden">
+                                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                        {attendees.map((attendee) => (
+                                            <div
+                                                key={attendee.user_id}
+                                                className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Link href={`/people/${attendee.user_id}`}>
+                                                        <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800 shadow-sm cursor-pointer hover:scale-105 transition-transform">
+                                                            <AvatarImage src={attendee.avatar_url || ""} />
+                                                            <AvatarFallback
+                                                                className="text-white text-sm font-semibold"
+                                                                style={{ background: generateAuroraGradient(attendee.full_name || "Guest") }}
+                                                            >
+                                                                {getInitials(attendee.full_name || "Guest")}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    </Link>
+                                                    <div>
+                                                        <div className="font-semibold text-gray-900 dark:text-white">
+                                                            {attendee.full_name || "Guest"}
+                                                        </div>
+                                                        <div className="text-xs font-semibold text-gray-400">Registered</div>
+                                                    </div>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="rounded-xl text-gray-400">
+                                                    <MoreHorizontal className="w-5 h-5" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
+                    {activeTab === "Blasts" && (
+                        <div className="space-y-6">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-sm">
+                                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                                    <MessageSquare className="w-8 h-8 text-gray-200" />
+                                </div>
+                                <div className="font-semibold text-gray-900 dark:text-white mb-1">Blasts Coming Soon</div>
+                                <p className="text-sm font-semibold text-gray-400">Send messages to all your guests at once.</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
