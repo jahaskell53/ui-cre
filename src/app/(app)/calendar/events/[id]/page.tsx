@@ -58,6 +58,7 @@ export default function EventDetailsPage() {
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isShared, setIsShared] = useState(false);
     const [isRegistered, setIsRegistered] = useState(false);
     const [registrationCount, setRegistrationCount] = useState(0);
     const [isRegistering, setIsRegistering] = useState(false);
@@ -151,6 +152,32 @@ export default function EventDetailsPage() {
         }
     };
 
+    const handleShare = async () => {
+        const shareUrl = `${window.location.origin}/calendar/events/${eventId}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: event?.title || "Check out this event!",
+                    url: shareUrl,
+                });
+                return;
+            } catch (err) {
+                if ((err as Error).name !== "AbortError") {
+                    console.error("Error sharing:", err);
+                }
+            }
+        }
+
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setIsShared(true);
+            setTimeout(() => setIsShared(false), 2000);
+        } catch (err) {
+            console.error("Clipboard error:", err);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
             weekday: "long",
@@ -231,9 +258,14 @@ export default function EventDetailsPage() {
                     </Button>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="text-gray-500 font-semibold px-3 hidden sm:flex">
-                            <Share2 className="w-4 h-4 mr-2" />
-                            Share
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 font-semibold px-3 hidden sm:flex"
+                            onClick={handleShare}
+                        >
+                            {isShared ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2" />}
+                            {isShared ? "Copied" : "Share"}
                         </Button>
                         <Link href={`/calendar/events/${event.id}/manage`}>
                             <Button variant="outline" size="sm" className="rounded-xl font-semibold border-gray-200 dark:border-gray-800 shadow-sm px-4">

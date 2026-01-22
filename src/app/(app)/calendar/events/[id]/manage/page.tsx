@@ -61,6 +61,7 @@ export default function EventManageDashboard() {
     const [host, setHost] = useState<Host | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
+    const [isShared, setIsShared] = useState(false);
     const [activeTab, setActiveTab] = useState("Overview");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,6 +127,33 @@ export default function EventManageDashboard() {
             alert("Failed to update photo. Please try again.");
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const handleShare = async () => {
+        const shareUrl = `${window.location.origin}/calendar/events/${eventId}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: event?.title || "Check out this event!",
+                    url: shareUrl,
+                });
+                return;
+            } catch (err) {
+                // User cancelled or error, fall through to clipboard
+                if ((err as Error).name !== "AbortError") {
+                    console.error("Error sharing:", err);
+                }
+            }
+        }
+
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setIsShared(true);
+            setTimeout(() => setIsShared(false), 2000);
+        } catch (err) {
+            console.error("Clipboard error:", err);
         }
     };
 
@@ -224,12 +252,17 @@ export default function EventManageDashboard() {
                             <div className="font-semibold text-gray-900 dark:text-white">Send a Blast</div>
                         </div>
                     </button>
-                    <button className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left">
+                    <button
+                        onClick={handleShare}
+                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left"
+                    >
                         <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600">
-                            <Share2 className="w-6 h-6" />
+                            {isShared ? <Check className="w-6 h-6" /> : <Share2 className="w-6 h-6" />}
                         </div>
                         <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">Share Event</div>
+                            <div className="font-semibold text-gray-900 dark:text-white">
+                                {isShared ? "Link Copied!" : "Share Event"}
+                            </div>
                         </div>
                     </button>
                 </div>
