@@ -295,14 +295,24 @@ export default function EventManageDashboard() {
     const tabs = ["Overview", "Guests", "Blasts"];
 
     return (
-        <div className="min-h-screen bg-[#FDFCFB] dark:bg-gray-950 pb-20">
-            {/* Top Navigation / Breadcrumb */}
-            <div className="max-w-5xl mx-auto px-6 pt-12">
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-2">
-                    <Link href="/calendar/events/manage" className="hover:text-gray-600 transition-colors">Events</Link>
-                    <ChevronRight className="w-3 h-3" />
-                    <span className="text-gray-900 dark:text-gray-100 truncate max-w-[200px]">{event.title}</span>
-                </div>
+        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+            {/* Top Header Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <button
+                    onClick={() => router.push(`/calendar/events/${event.id}`)}
+                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Manage Event</h1>
+                <div className="w-9" /> {/* Spacer for centering */}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-[#FDFCFB] dark:bg-gray-950 pb-20">
+                <div className="max-w-5xl mx-auto px-6 pt-12">
 
                 <div className="flex items-start justify-between mb-8">
                     <div>
@@ -311,7 +321,7 @@ export default function EventManageDashboard() {
                         </h1>
                     </div>
                     <Link href={`/calendar/events/${event.id}`}>
-                        <Button variant="outline" className="rounded-xl font-semibold bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm gap-2">
+                        <Button variant="outline" className="rounded-md font-semibold bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 shadow-sm gap-2">
                             Event Page
                             <ExternalLink className="w-4 h-4" />
                         </Button>
@@ -594,6 +604,7 @@ export default function EventManageDashboard() {
                             </div>
                         </div>
                     )}
+                </div>
                 </div>
             </div>
 
