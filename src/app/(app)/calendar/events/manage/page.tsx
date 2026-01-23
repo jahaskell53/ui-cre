@@ -104,17 +104,19 @@ export default function ManageEventsPage() {
     return (
         <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
             {/* Top Header Bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-                <button
-                    onClick={() => router.push("/calendar")}
-                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
-                >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Events</h1>
-                <div className="w-9" /> {/* Spacer for centering */}
+            <div className="border-b border-gray-200 dark:border-gray-800">
+                <div className="max-w-4xl mx-auto px-6 flex items-center justify-between py-3">
+                    <button
+                        onClick={() => router.push("/calendar")}
+                        className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Events</h1>
+                    <div className="w-9" /> {/* Spacer for centering */}
+                </div>
             </div>
 
             {/* Content */}
