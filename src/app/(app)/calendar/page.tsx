@@ -156,7 +156,7 @@ export default function CalendarPage() {
                                 </span>
                                 {dayEvents.map((event) => (
                                     <Link key={event.id} href={`/calendar/events/${event.id}`}>
-                                        <div className={`mt-2 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}>
+                                        <div className={`mt-2 p-2 border-l-4 rounded-md text-xs font-semibold shadow-sm cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}>
                                             <p className="truncate">{event.title}</p>
                                             <p className="text-[10px] opacity-80">{formatEventTime(event.start_time, event.end_time)}</p>
                                         </div>
@@ -236,7 +236,7 @@ export default function CalendarPage() {
                                                 return (
                                                     <Link key={event.id} href={`/calendar/events/${event.id}`}>
                                                         <div
-                                                            className={`absolute left-1 right-1 p-2 border-l-4 rounded-lg text-xs font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
+                                                            className={`absolute left-1 right-1 p-2 border-l-4 rounded-md text-xs font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
                                                             style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
                                                         >
                                                             <p className="truncate">{event.title}</p>
@@ -294,7 +294,7 @@ export default function CalendarPage() {
                                         return (
                                             <Link key={event.id} href={`/calendar/events/${event.id}`}>
                                                 <div
-                                                    className={`absolute left-2 right-2 p-3 border-l-4 rounded-lg text-sm font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
+                                                    className={`absolute left-2 right-2 p-3 border-l-4 rounded-md text-sm font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
                                                     style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
                                                 >
                                                     <p className="font-semibold mb-1">{event.title}</p>
@@ -338,7 +338,7 @@ export default function CalendarPage() {
 
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                     <div className="xl:col-span-3">
-                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-x-auto shadow-sm">
+                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-x-auto shadow-sm">
                             {/* Calendar Header */}
                             <div className="border-b border-gray-200 dark:border-gray-800 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-gray-900 min-w-[700px]">
                                 <div className="flex items-center gap-4 flex-wrap">
@@ -373,7 +373,7 @@ export default function CalendarPage() {
                                         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatDateHeader()}</h2>
                                     )}
                                     <div className="flex items-center gap-2">
-                                        <div className="flex items-center border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                                        <div className="flex items-center border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden">
                                             <Button variant="ghost" size="icon" className="rounded-none border-none h-8 w-8" onClick={() => currentView === "month" ? navigateMonth("prev") : navigateDate("prev")}>
                                                 <ChevronLeft className="size-4" />
                                             </Button>
@@ -387,7 +387,7 @@ export default function CalendarPage() {
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="flex bg-gray-50 dark:bg-gray-800 p-1 rounded-lg">
+                                <div className="flex bg-gray-50 dark:bg-gray-800 p-1 rounded-md">
                                     <button
                                         onClick={() => setCurrentView("month")}
                                         className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentView === "month"
@@ -432,7 +432,7 @@ export default function CalendarPage() {
                             {isLoading ? (
                                 <div className="text-sm text-gray-500 dark:text-gray-400">Loading events...</div>
                             ) : events.filter(e => new Date(e.start_time) >= new Date()).length === 0 ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-xl shadow-sm text-center">
+                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-md shadow-sm text-center">
                                     <Calendar className="size-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No upcoming events</p>
                                     <Link href="/calendar/events/new">
@@ -454,7 +454,7 @@ export default function CalendarPage() {
 
                                         return (
                                             <Link key={event.id} href={`/calendar/events/${event.id}`}>
-                                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-xl shadow-sm flex flex-col gap-3 hover:border-gray-300 dark:hover:border-gray-700 transition-colors cursor-pointer">
+                                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-md shadow-sm flex flex-col gap-3 hover:border-gray-300 dark:hover:border-gray-700 transition-colors cursor-pointer">
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <div className={`w-2 h-2 rounded-full ${event.color === 'black' ? 'bg-gray-700' : event.color === 'blue' ? 'bg-blue-500' : event.color === 'green' ? 'bg-green-500' : event.color === 'purple' ? 'bg-purple-500' : event.color === 'red' ? 'bg-red-500' : event.color === 'orange' ? 'bg-orange-500' : 'bg-blue-500'}`} />
