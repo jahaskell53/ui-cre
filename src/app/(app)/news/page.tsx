@@ -177,9 +177,6 @@ export default function NewsPage() {
                 <option value="last-year">Last Year</option>
                 <option value="all">All Time</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <Calendar className="h-4 w-4 text-gray-400" />
-              </div>
             </div>
 
             {(isSearchMode || searchQuery) && (
