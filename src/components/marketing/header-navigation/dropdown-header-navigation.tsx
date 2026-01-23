@@ -1,4 +1,4 @@
-import { BookClosed, FileCode01, LifeBuoy01, PlayCircle, Stars02 } from "@untitledui/icons";
+import { BookClosed, FileCode as FileCode01, LifeBuoy as LifeBuoy01, PlayCircle, Star as Stars02 } from "lucide-react";
 import { NavMenuItemLink } from "./base-components/nav-menu-item";
 
 const items = [

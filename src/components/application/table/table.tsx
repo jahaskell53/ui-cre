@@ -2,7 +2,7 @@
 
 import type { ComponentPropsWithRef, HTMLAttributes, ReactNode, Ref, TdHTMLAttributes, ThHTMLAttributes } from "react";
 import { createContext, isValidElement, useContext } from "react";
-import { ArrowDown, ChevronSelectorVertical, Copy01, Edit01, HelpCircle, Trash01 } from "@untitledui/icons";
+import { ArrowDown, ChevronsUpDown as ChevronSelectorVertical, Copy as Copy01, Edit as Edit01, HelpCircle, Trash as Trash01 } from "lucide-react";
 import type {
     CellProps as AriaCellProps,
     ColumnProps as AriaColumnProps,

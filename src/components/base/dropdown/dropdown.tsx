@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, RefAttributes } from "react";
-import { DotsVertical } from "@untitledui/icons";
+import { MoreVertical as DotsVertical } from "lucide-react";
 import type {
     ButtonProps as AriaButtonProps,
     MenuItemProps as AriaMenuItemProps,

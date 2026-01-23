@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { RefreshCw01, File02, ArrowUpRight } from '@untitledui/icons';
+import { RefreshCw as RefreshCw01, File as File02, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/base/buttons/button';
 
 // Set up the worker

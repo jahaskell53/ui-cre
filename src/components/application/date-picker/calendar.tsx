@@ -3,7 +3,7 @@
 import type { HTMLAttributes, PropsWithChildren } from "react";
 import { Fragment, useContext, useState } from "react";
 import { type CalendarDate, getLocalTimeZone, today } from "@internationalized/date";
-import { ChevronLeft, ChevronRight } from "@untitledui/icons";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { CalendarProps as AriaCalendarProps, DateValue } from "react-aria-components";
 import {
     Calendar as AriaCalendar,

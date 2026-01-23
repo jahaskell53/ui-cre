@@ -4,7 +4,7 @@ import type { FC, HTMLAttributes } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Placement } from "@react-types/overlays";
-import { BookOpen01, ChevronSelectorVertical, LogOut01, Settings01, User01 } from "@untitledui/icons";
+import { BookOpen as BookOpen01, ChevronsUpDown as ChevronSelectorVertical, LogOut as LogOut01, Settings as Settings01, User as User01 } from "lucide-react";
 import { useFocusManager } from "react-aria";
 import type { DialogProps as AriaDialogProps } from "react-aria-components";
 import { Button as AriaButton, Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";

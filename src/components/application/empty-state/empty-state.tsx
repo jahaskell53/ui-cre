@@ -2,8 +2,8 @@
 
 import type { ComponentProps, ComponentPropsWithRef } from "react";
 import { Children, createContext, isValidElement, useContext } from "react";
-import { FileIcon } from "@untitledui/file-icons";
-import { SearchLg } from "@untitledui/icons";
+import { File as FileIcon } from "lucide-react";
+import { Search as SearchLg } from "lucide-react";
 import { FeaturedIcon as FeaturedIconbase } from "@/components/foundations/featured-icon/featured-icon";
 import type { BackgroundPatternProps } from "@/components/shared-assets/background-patterns";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
@@ -47,14 +47,14 @@ const Illustration = ({ type = "cloud", color = "gray", size = "lg", ...props }:
 };
 
 interface FileTypeIconProps extends ComponentPropsWithRef<"div"> {
-    type?: ComponentProps<typeof FileIcon>["type"];
-    theme?: ComponentProps<typeof FileIcon>["variant"];
+    type?: string;
+    theme?: string;
 }
 
-const FileTypeIcon = ({ type = "folder", theme = "solid", ...props }: FileTypeIconProps) => {
+const FileTypeIcon = ({ type, theme, ...props }: FileTypeIconProps) => {
     return (
         <div {...props} className={cx("relative z-10 flex rounded-full bg-linear-to-b from-gray-50 to-gray-200 p-8", props.className)}>
-            <FileIcon type={type} variant={theme} className="size-10 drop-shadow-sm" />
+            <FileIcon className="size-10 drop-shadow-sm" />
         </div>
     );
 };

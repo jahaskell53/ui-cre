@@ -2,9 +2,8 @@
 
 import type { ComponentProps, ComponentPropsWithRef } from "react";
 import { useId, useRef, useState } from "react";
-import type { FileIcon } from "@untitledui/file-icons";
-import { FileIcon as FileTypeIcon } from "@untitledui/file-icons";
-import { CheckCircle, Trash01, UploadCloud02, XCircle } from "@untitledui/icons";
+import { File as FileTypeIcon } from "lucide-react";
+import { CheckCircle, Trash as Trash01, UploadCloud as UploadCloud02, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/base/buttons/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
@@ -248,11 +247,11 @@ export interface FileListItemProps {
     /** Whether the file failed to upload. */
     failed?: boolean;
     /** The type of the file. */
-    type?: ComponentProps<typeof FileIcon>["type"];
+    type?: string;
     /** The class name of the file list item. */
     className?: string;
     /** The variant of the file icon. */
-    fileIconVariant?: ComponentProps<typeof FileTypeIcon>["variant"];
+    fileIconVariant?: string;
     /** The function to call when the file is deleted. */
     onDelete?: () => void;
     /** The function to call when the file upload is retried. */
@@ -271,8 +270,7 @@ export const FileListItemProgressBar = ({ name, size, progress, failed, type, fi
                 className,
             )}
         >
-            <FileTypeIcon className="size-10 shrink-0 dark:hidden" type={type ?? "empty"} theme="light" variant={fileIconVariant ?? "default"} />
-            <FileTypeIcon className="size-10 shrink-0 not-dark:hidden" type={type ?? "empty"} theme="dark" variant={fileIconVariant ?? "default"} />
+            <FileTypeIcon className="size-10 shrink-0" />
 
             <div className="flex min-w-0 flex-1 flex-col items-start">
                 <div className="flex w-full max-w-full min-w-0 flex-1">
@@ -337,8 +335,7 @@ export const FileListItemProgressFill = ({ name, size, progress, failed, type, f
                     failed && "ring-2 ring-error",
                 )}
             />
-            <FileTypeIcon className="relative size-10 shrink-0 dark:hidden" type={type ?? "empty"} theme="light" variant={fileIconVariant ?? "solid"} />
-            <FileTypeIcon className="relative size-10 shrink-0 not-dark:hidden" type={type ?? "empty"} theme="dark" variant={fileIconVariant ?? "solid"} />
+            <FileTypeIcon className="relative size-10 shrink-0" />
 
             <div className="relative flex min-w-0 flex-1">
                 <div className="relative flex min-w-0 flex-1 flex-col items-start">

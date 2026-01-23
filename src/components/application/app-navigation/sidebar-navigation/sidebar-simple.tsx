@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { SearchLg, ChevronLeft, ChevronRight } from "@untitledui/icons";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/base/input/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
@@ -93,7 +93,7 @@ export const SidebarNavigationSimple = ({
                             size="sm"
                             aria-label="Search"
                             placeholder="Search"
-                            icon={SearchLg}
+                            icon={Search}
                             isReadOnly
                             className="pointer-events-none"
                         />

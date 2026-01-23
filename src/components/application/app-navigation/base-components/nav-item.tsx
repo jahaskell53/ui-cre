@@ -1,7 +1,7 @@
 "use client";
 
 import type { FC, HTMLAttributes, MouseEventHandler, ReactNode } from "react";
-import { ChevronDown, Share04 } from "@untitledui/icons";
+import { ChevronDown, Share2 as Share04 } from "lucide-react";
 import { Link as AriaLink } from "react-aria-components";
 import { Badge } from "@/components/base/badges/badges";
 import { cx, sortCx } from "@/utils/cx";

@@ -5,7 +5,7 @@ import { TextField } from "@/components/base/input/input";
 import { InputBase } from "@/components/base/input/input";
 import { Label } from "@/components/base/input/label";
 import { HintText } from "@/components/base/input/hint-text";
-import { SearchLg } from "@untitledui/icons";
+import { Search as SearchLg } from "lucide-react";
 import { cx } from "@/utils/cx";
 import type { TextFieldProps } from "react-aria-components";
 

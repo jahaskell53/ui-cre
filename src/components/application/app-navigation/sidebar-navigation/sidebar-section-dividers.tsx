@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchLg } from "@untitledui/icons";
+import { Search as SearchLg } from "lucide-react";
 import { Input } from "@/components/base/input/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { MobileNavigationHeader } from "../base-components/mobile-header";

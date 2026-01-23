@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { SearchLg, XClose, Home02, Map01, File01, Users01, Settings01 } from "@untitledui/icons";
+import { Search as SearchLg, X as XClose, Home as Home02, Map as Map01, File as File01, Users as Users01, Settings as Settings01 } from "lucide-react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Input } from "@/components/base/input/input";

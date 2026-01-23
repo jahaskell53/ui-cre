@@ -3,7 +3,7 @@
 import type { HTMLAttributes, PropsWithChildren } from "react";
 import { Fragment, useContext, useState } from "react";
 import type { CalendarDate } from "@internationalized/date";
-import { ChevronLeft, ChevronRight } from "@untitledui/icons";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useDateFormatter } from "react-aria";
 import type { RangeCalendarProps as AriaRangeCalendarProps, DateValue } from "react-aria-components";
 import {

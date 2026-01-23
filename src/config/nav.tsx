@@ -1,16 +1,16 @@
-import { Calendar, Home01, Map01, Settings01, User01, Users01, MessageChatSquare, Bell01, Mail01 } from "@untitledui/icons";
+import { Calendar, Home, Map, Settings, User, Users, MessageSquare, Bell, Mail } from "lucide-react";
 import type { NavItemType } from "@/components/application/app-navigation/config";
 import { Badge } from "@/components/base/badges/badges";
 
 export const APP_NAV_ITEMS: NavItemType[] = [
     {
         label: "Home",
-        icon: Home01,
+        icon: Home,
         href: "/",
     },
     {
         label: "Listings",
-        icon: Map01,
+        icon: Map,
         href: "/listings",
     },
     {
@@ -21,22 +21,22 @@ export const APP_NAV_ITEMS: NavItemType[] = [
     },
     {
         label: "Users",
-        icon: Users01,
+        icon: Users,
         href: "/users",
     },
     {
         label: "Messages",
-        icon: MessageChatSquare,
+        icon: MessageSquare,
         href: "/messages",
     },
     {
         label: "Notifications",
-        icon: Bell01,
+        icon: Bell,
         href: "/notifications",
     },
     {
         label: "Newsletter",
-        icon: Mail01,
+        icon: Mail,
         href: "https://openmidmarket.com",
     },
 ];
@@ -44,12 +44,12 @@ export const APP_NAV_ITEMS: NavItemType[] = [
 export const FOOTER_NAV_ITEMS: NavItemType[] = [
     {
         label: "Settings",
-        icon: Settings01,
+        icon: Settings,
         href: "/settings",
     },
     {
         label: "Profile",
-        icon: User01,
+        icon: User,
         href: "/profile",
     },
 ];
