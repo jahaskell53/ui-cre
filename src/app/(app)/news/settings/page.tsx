@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Save, Loader2, Plus, Trash2, Clock, MapPin, Globe } from "lucide-react";
+import { Loader2, Plus, Trash2, Clock, MapPin, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import LocationSelector from "@/components/news/LocationSelector";
@@ -307,12 +307,8 @@ export default function NewsSettingsPage() {
                 </p>
               )}
               <div className="flex-1" />
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Save className="size-4" />
-                )}
+              <Button onClick={handleSave} disabled={isSaving} className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
+                {isSaving && <Loader2 className="size-4 animate-spin mr-2" />}
                 Save Preferences
               </Button>
             </div>
