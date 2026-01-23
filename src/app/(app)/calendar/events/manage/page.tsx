@@ -130,6 +130,13 @@ export default function ManageEventsPage() {
                                 Past
                             </button>
                         </div>
+                        {/* Create New Button */}
+                        <Link href="/calendar/events/new">
+                            <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 hidden lg:flex">
+                                <Plus className="size-4" />
+                                Create New
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
