@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { generateAuroraGradient, getInitials } from "@/app/(app)/people/utils";
+import { useUser } from "@/hooks/use-user";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -51,6 +52,7 @@ export default function EventDetailsPage() {
     const router = useNextRouter();
     const params = useNextParams();
     const eventId = params.id as string;
+    const { user } = useUser();
 
     const [event, setEvent] = useState<Event | null>(null);
     const [host, setHost] = useState<Host | null>(null);
@@ -208,6 +210,7 @@ export default function EventDetailsPage() {
     };
 
     const isPastEvent = event ? new Date(event.start_time) < new Date() : false;
+    const isOwner = user && event && user.id === event.user_id;
 
     if (isLoading) {
         return (
@@ -266,9 +269,17 @@ export default function EventDetailsPage() {
                             {isShared ? <Check className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2" />}
                             {isShared ? "Copied" : "Share"}
                         </Button>
+                        {isOwner && (
+                            <Link href={`/calendar/events/${event.id}/edit`}>
+                                <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit
+                                </Button>
+                            </Link>
+                        )}
                         <Link href={`/calendar/events/${event.id}/manage`}>
                             <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
-                                Manage Event
+                                Manage
                             </Button>
                         </Link>
                     </div>
