@@ -247,15 +247,14 @@ export default function EventDetailsPage() {
             {/* Minimal Header */}
             <header className="sticky top-0 z-50 bg-white/50 dark:bg-gray-950/50 backdrop-blur-md border-b border-gray-100 dark:border-gray-900">
                 <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <Button
-                        variant="ghost"
-                        size="sm"
+                    <button
                         onClick={() => router.push("/calendar")}
-                        className="text-gray-600 dark:text-gray-400 font-medium -ml-2"
+                        className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                     >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Explore
-                    </Button>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
 
                     <div className="flex items-center gap-2">
                         <Button
