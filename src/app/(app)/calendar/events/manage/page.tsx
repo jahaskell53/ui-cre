@@ -106,7 +106,14 @@ export default function ManageEventsPage() {
             <div className="max-w-4xl mx-auto px-6 py-12">
                 {/* Header Section */}
                 <div className="flex items-center justify-between mb-12">
-                    <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Events</h1>
+                    <div className="flex items-center gap-4">
+                        <Link href="/calendar">
+                            <Button variant="ghost" size="icon">
+                                <ArrowLeft className="size-5" />
+                            </Button>
+                        </Link>
+                        <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Events</h1>
+                    </div>
 
                     <div className="flex items-center gap-6">
                         {/* Tabs */}
