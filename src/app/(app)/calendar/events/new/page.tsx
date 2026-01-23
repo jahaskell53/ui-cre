@@ -199,7 +199,7 @@ export default function NewEventPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1rem_auto] gap-2 md:gap-3">
                         <DatePicker
                             date={startDate}
                             onDateChange={setStartDate}
@@ -218,6 +218,9 @@ export default function NewEventPage() {
                                 ))}
                             </SelectContent>
                         </Select>
+                        <div className="hidden md:flex items-center justify-center">
+                            <span className="text-gray-500 dark:text-gray-400">—</span>
+                        </div>
                         <Select value={endTime} onValueChange={setEndTime}>
                             <SelectTrigger className="!h-11 w-full">
                                 <SelectValue placeholder="End time" />
