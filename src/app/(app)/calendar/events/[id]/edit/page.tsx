@@ -198,22 +198,27 @@ export default function EditEventPage() {
     }
 
     return (
-        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-            <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
-                <div className="flex items-center gap-4">
-                    <Link href="/calendar/events/manage">
-                        <Button variant="ghost" size="icon">
-                            <ArrowLeft className="size-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Edit Event</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Update your event details</p>
-                    </div>
-                </div>
+        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+            {/* Top Header Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <button
+                    onClick={() => router.push("/calendar/events/manage")}
+                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Event</h1>
+                <div className="w-9" /> {/* Spacer for centering */}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+                <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
 
                 {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
                         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                     </div>
                 )}
@@ -359,7 +364,7 @@ export default function EditEventPage() {
                                 <img
                                     src={imageUrl}
                                     alt="Event cover"
-                                    className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                                    className="w-full h-48 object-cover rounded-md border border-gray-200 dark:border-gray-700"
                                 />
                                 <button
                                     type="button"
@@ -378,7 +383,7 @@ export default function EditEventPage() {
                                     onChange={handleImageUpload}
                                     disabled={isUploading}
                                 />
-                                <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-gray-400 dark:hover:border-gray-600 transition-colors bg-gray-50 dark:bg-gray-800/50">
+                                <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-md hover:border-gray-400 dark:hover:border-gray-600 transition-colors bg-gray-50 dark:bg-gray-800/50">
                                     {isUploading ? (
                                         <span className="text-sm text-gray-500 dark:text-gray-400">Uploading...</span>
                                     ) : (
@@ -408,6 +413,7 @@ export default function EditEventPage() {
                         </Button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     );
