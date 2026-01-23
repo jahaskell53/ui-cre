@@ -354,17 +354,17 @@ export default function EventManageDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
                     <button
                         onClick={() => setShowInviteModal(true)}
-                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left group"
+                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left group"
                     >
-                        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                        <div className="w-12 h-12 rounded-md bg-blue-50 flex items-center justify-center text-blue-600">
                             <Plus className="w-6 h-6" />
                         </div>
                         <div>
                             <div className="font-semibold text-gray-900 dark:text-white">Invite Guests</div>
                         </div>
                     </button>
-                    <button className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left">
-                        <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                    <button className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left">
+                        <div className="w-12 h-12 rounded-md bg-purple-50 flex items-center justify-center text-purple-600">
                             <MessageSquare className="w-6 h-6" />
                         </div>
                         <div>
@@ -373,9 +373,9 @@ export default function EventManageDashboard() {
                     </button>
                     <button
                         onClick={handleShare}
-                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left"
+                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md hover:shadow-xl hover:shadow-gray-200/50 transition-all text-left"
                     >
-                        <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600">
+                        <div className="w-12 h-12 rounded-md bg-pink-50 flex items-center justify-center text-pink-600">
                             {isShared ? <Check className="w-6 h-6" /> : <Share2 className="w-6 h-6" />}
                         </div>
                         <div>
@@ -391,8 +391,8 @@ export default function EventManageDashboard() {
                     {activeTab === "Overview" && (
                         <div className="space-y-8">
                             {/* Summary Card */}
-                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-8 flex gap-8 shadow-sm">
-                            <div className="w-48 h-48 shrink-0 rounded-[1.5rem] overflow-hidden bg-gray-50 border border-gray-100 shadow-inner relative group">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md p-8 flex gap-8 shadow-sm">
+                            <div className="w-48 h-48 shrink-0 rounded-md overflow-hidden bg-gray-50 border border-gray-100 shadow-inner relative group">
                                 {event.image_url ? (
                                     <img src={event.image_url} alt="" className="w-full h-full object-cover" />
                                 ) : (
@@ -412,7 +412,7 @@ export default function EventManageDashboard() {
                                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">When & Where</h3>
                                     <div className="space-y-4">
                                         <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-gray-50 flex flex-col items-center justify-center shadow-sm border border-gray-100 shrink-0">
+                                            <div className="w-12 h-12 rounded-md bg-gray-50 flex flex-col items-center justify-center shadow-sm border border-gray-100 shrink-0">
                                                 <div className="text-[10px] font-semibold uppercase text-gray-400 leading-none mb-0.5">JAN</div>
                                                 <div className="text-lg font-semibold text-gray-900 leading-none">24</div>
                                             </div>
@@ -423,7 +423,7 @@ export default function EventManageDashboard() {
                                         </div>
 
                                         <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
+                                            <div className="w-12 h-12 rounded-md bg-gray-50 flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
                                                 <Video className="w-5 h-5 text-gray-400" />
                                             </div>
                                             <div>
@@ -438,11 +438,11 @@ export default function EventManageDashboard() {
 
                                 <div className="flex items-center gap-3">
                                     <Link href={`/calendar/events/${event.id}/edit`}>
-                                        <Button variant="secondary" className="rounded-xl font-semibold px-6">Edit Event</Button>
+                                        <Button variant="secondary" className="rounded-md font-semibold px-6">Edit Event</Button>
                                     </Link>
                                     <Button
                                         variant="secondary"
-                                        className="rounded-xl font-semibold px-6"
+                                        className="rounded-md font-semibold px-6"
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={isUploading}
                                     >
@@ -466,15 +466,15 @@ export default function EventManageDashboard() {
                                 <Button
                                     variant="secondary"
                                     size="sm"
-                                    className="rounded-xl font-semibold bg-gray-100"
+                                    className="rounded-md font-semibold bg-gray-100"
                                     onClick={() => setShowInviteModal(true)}
                                 >
                                     <Plus className="w-4 h-4 mr-1.5" />
                                     Invite Guests
                                 </Button>
                             </div>
-                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-sm">
-                                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center shadow-sm">
+                                <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mb-4">
                                     <Mail className="w-8 h-8 text-gray-200" />
                                 </div>
                                 <div className="font-semibold text-gray-900 dark:text-white mb-1">No Invites Sent</div>
@@ -486,12 +486,12 @@ export default function EventManageDashboard() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Hosts</h3>
-                                <Button variant="secondary" size="sm" className="rounded-xl font-semibold bg-gray-100">
+                                <Button variant="secondary" size="sm" className="rounded-md font-semibold bg-gray-100">
                                     <Plus className="w-4 h-4 mr-1.5" />
                                     Add Host
                                 </Button>
                             </div>
-                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-4 shadow-sm">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md p-4 shadow-sm">
                                 {host && (
                                     <div className="flex items-center justify-between p-2">
                                         <div className="flex items-center gap-3">
@@ -506,7 +506,7 @@ export default function EventManageDashboard() {
                                                 <div className="text-xs font-semibold text-gray-400">Primary Host</div>
                                             </div>
                                         </div>
-                                        <Button variant="ghost" size="icon" className="rounded-xl text-gray-400">
+                                        <Button variant="ghost" size="icon" className="rounded-md text-gray-400">
                                             <MoreHorizontal className="w-5 h-5" />
                                         </Button>
                                     </div>
@@ -527,7 +527,7 @@ export default function EventManageDashboard() {
                                 </div>
                                 <Button
                                     variant="secondary"
-                                    className="rounded-xl font-semibold bg-gray-100"
+                                    className="rounded-md font-semibold bg-gray-100"
                                     onClick={() => setShowInviteModal(true)}
                                 >
                                     <Plus className="w-4 h-4 mr-1.5" />
@@ -536,19 +536,19 @@ export default function EventManageDashboard() {
                             </div>
 
                             {isLoadingGuests ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-12 flex items-center justify-center shadow-sm">
+                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md p-12 flex items-center justify-center shadow-sm">
                                     <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                                 </div>
                             ) : attendees.length === 0 ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-sm">
-                                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center shadow-sm">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mb-4">
                                         <Users className="w-8 h-8 text-gray-200" />
                                     </div>
                                     <div className="font-semibold text-gray-900 dark:text-white mb-1">No Guests Yet</div>
                                     <p className="text-sm font-semibold text-gray-400 mb-6">Invite people to your event to see them here.</p>
                                     <Button
                                         variant="secondary"
-                                        className="rounded-xl font-semibold"
+                                        className="rounded-md font-semibold"
                                         onClick={() => setShowInviteModal(true)}
                                     >
                                         <Plus className="w-4 h-4 mr-1.5" />
@@ -556,7 +556,7 @@ export default function EventManageDashboard() {
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm overflow-hidden">
+                                <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md shadow-sm overflow-hidden">
                                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
                                         {attendees.map((attendee) => (
                                             <div
@@ -582,7 +582,7 @@ export default function EventManageDashboard() {
                                                         <div className="text-xs font-semibold text-gray-400">Registered</div>
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="rounded-xl text-gray-400">
+                                                <Button variant="ghost" size="icon" className="rounded-md text-gray-400">
                                                     <MoreHorizontal className="w-5 h-5" />
                                                 </Button>
                                             </div>
@@ -595,8 +595,8 @@ export default function EventManageDashboard() {
 
                     {activeTab === "Blasts" && (
                         <div className="space-y-6">
-                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl p-12 flex flex-col items-center justify-center text-center shadow-sm">
-                                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-4">
+                            <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center shadow-sm">
+                                <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mb-4">
                                     <MessageSquare className="w-8 h-8 text-gray-200" />
                                 </div>
                                 <div className="font-semibold text-gray-900 dark:text-white mb-1">Blasts Coming Soon</div>
@@ -610,9 +610,9 @@ export default function EventManageDashboard() {
 
             {/* Invite Guests Modal (shadcn) */}
             <ShadDialog open={showInviteModal} onOpenChange={setShowInviteModal}>
-                <DialogContent className="sm:max-w-xl rounded-[2rem] border-gray-100 dark:border-gray-800 p-8">
+                <DialogContent className="sm:max-w-xl rounded-md border-gray-100 dark:border-gray-800 p-8">
                     <DialogHeader className="flex flex-col items-center text-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-md bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
                             <Mail className="w-8 h-8 text-blue-500" />
                         </div>
                         <div className="space-y-2">
@@ -641,14 +641,14 @@ export default function EventManageDashboard() {
                                             }
                                         }}
                                         placeholder="Paste or enter emails here"
-                                        className="h-11 rounded-xl border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium px-4 shadow-none"
+                                        className="h-11 rounded-md border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium px-4 shadow-none"
                                     />
                                 </div>
                                 <Button
                                     type="button"
                                     onClick={handleAddEmail}
                                     variant="secondary"
-                                    className="h-11 px-6 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold shadow-none"
+                                    className="h-11 px-6 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold shadow-none"
                                 >
                                     Add
                                 </Button>
@@ -657,7 +657,7 @@ export default function EventManageDashboard() {
 
                         {/* Email Tags */}
                         {selectedEmails.length > 0 && (
-                            <div className="flex flex-wrap gap-2 p-3 bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 min-h-[60px]">
+                            <div className="flex flex-wrap gap-2 p-3 bg-gray-50/50 dark:bg-gray-900/50 rounded-md border border-dashed border-gray-200 dark:border-gray-800 min-h-[60px]">
                                 {selectedEmails.map((email) => (
                                     <div
                                         key={email}
@@ -681,7 +681,7 @@ export default function EventManageDashboard() {
                                 variant="ghost"
                                 onClick={() => setShowInviteModal(false)}
                                 disabled={isSendingInvites}
-                                className="h-12 rounded-2xl font-semibold text-gray-500 sm:flex-1"
+                                className="h-12 rounded-md font-semibold text-gray-500 sm:flex-1"
                             >
                                 Cancel
                             </Button>
@@ -689,7 +689,7 @@ export default function EventManageDashboard() {
                                 type="button"
                                 onClick={() => handleInviteSubmit()}
                                 disabled={isSendingInvites || (selectedEmails.length === 0 && !emailInput)}
-                                className="h-12 rounded-2xl font-semibold flex items-center justify-center gap-2 sm:flex-1 shadow-sm"
+                                className="h-12 rounded-md font-semibold flex items-center justify-center gap-2 sm:flex-1 shadow-sm"
                             >
                                 {isSendingInvites ? (
                                     <>
