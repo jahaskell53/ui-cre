@@ -119,13 +119,13 @@ export default function LocationSelector({
           {selectedCounties.map((county) => (
             <span
               key={county.id}
-              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-50 text-orange-800 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-200 dark:border-orange-800"
+              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-800 border border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
             >
               {county.name}
               <button
                 type="button"
                 onClick={() => removeLocation(county.id)}
-                className="ml-2 focus:outline-none hover:text-orange-900 dark:hover:text-orange-100"
+                className="ml-2 focus:outline-none hover:text-gray-900 dark:hover:text-gray-100"
                 aria-label={`Remove ${county.name}`}
               >
                 <X className="w-4 h-4" />

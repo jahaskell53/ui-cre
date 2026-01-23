@@ -83,13 +83,13 @@ export default function CitySelector({
           {selectedCities.map((city, idx) => (
             <span
               key={`${city.name}-${city.stateAbbr}-${idx}`}
-              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-800"
+              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-800 border border-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
             >
               {city.name}, {city.stateAbbr}
               <button
                 type="button"
                 onClick={() => removeCity(city)}
-                className="ml-2 focus:outline-none hover:text-blue-900 dark:hover:text-blue-100"
+                className="ml-2 focus:outline-none hover:text-gray-900 dark:hover:text-gray-100"
                 aria-label={`Remove ${city.name}`}
               >
                 <X className="w-4 h-4" />
