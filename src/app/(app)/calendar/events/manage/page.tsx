@@ -102,50 +102,58 @@ export default function ManageEventsPage() {
     }, {} as Record<string, Event[]>);
 
     return (
-        <div className="min-h-screen bg-[#FDFCFB] dark:bg-gray-950">
-            <div className="max-w-4xl mx-auto px-6 py-12">
-                {/* Header Section */}
-                <div className="flex items-center justify-between mb-12">
-                    <div className="flex items-center gap-4">
-                        <Link href="/calendar">
-                            <Button variant="ghost" size="icon">
-                                <ArrowLeft className="size-5" />
-                            </Button>
-                        </Link>
-                        <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Events</h1>
-                    </div>
+        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+            {/* Top Header Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <button
+                    onClick={() => router.push("/calendar")}
+                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Events</h1>
+                <div className="w-9" /> {/* Spacer for centering */}
+            </div>
 
-                    <div className="flex items-center gap-6">
-                        {/* Tabs */}
-                        <div className="flex p-1 bg-gray-100 dark:bg-gray-900 rounded-md">
-                            <button
-                                onClick={() => setActiveTab("upcoming")}
-                                className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${activeTab === "upcoming"
-                                    ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
-                                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
-                                    }`}
-                            >
-                                Upcoming
-                            </button>
-                            <button
-                                onClick={() => setActiveTab("past")}
-                                className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${activeTab === "past"
-                                    ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
-                                    : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
-                                    }`}
-                            >
-                                Past
-                            </button>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+                <div className="max-w-4xl mx-auto px-6 py-12">
+                    {/* Header Section */}
+                    <div className="flex items-center justify-between mb-12">
+                        <div></div>
+                        <div className="flex items-center gap-6">
+                            {/* Tabs */}
+                            <div className="flex p-1 bg-gray-100 dark:bg-gray-900 rounded-md">
+                                <button
+                                    onClick={() => setActiveTab("upcoming")}
+                                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${activeTab === "upcoming"
+                                        ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
+                                        }`}
+                                >
+                                    Upcoming
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("past")}
+                                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${activeTab === "past"
+                                        ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
+                                        }`}
+                                >
+                                    Past
+                                </button>
+                            </div>
+                            {/* Create New Button */}
+                            <Link href="/calendar/events/new">
+                                <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 hidden lg:flex">
+                                    <Plus className="size-4" />
+                                    Create New
+                                </Button>
+                            </Link>
                         </div>
-                        {/* Create New Button */}
-                        <Link href="/calendar/events/new">
-                            <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 hidden lg:flex">
-                                <Plus className="size-4" />
-                                Create New
-                            </Button>
-                        </Link>
                     </div>
-                </div>
 
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -260,6 +268,7 @@ export default function ManageEventsPage() {
                         ))}
                     </div>
                 )}
+                </div>
             </div>
 
             {/* Create Event Floating Button (Mobile) */}
