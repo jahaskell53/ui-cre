@@ -211,7 +211,7 @@ export default function EventDetailsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
+            <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
                 <div className="flex flex-col items-center gap-2">
                     <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
                     <div className="text-sm font-medium text-gray-500">Loading experience...</div>
@@ -224,7 +224,7 @@ export default function EventDetailsPage() {
         return (
             <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
                 <div className="max-w-md w-full text-center">
-                    <div className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-md shadow-sm border border-gray-200 dark:border-gray-800 font-medium text-gray-900 dark:text-gray-100">
+                    <div className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 font-medium text-gray-900 dark:text-gray-100">
                         {error || "Event not found"}
                     </div>
                     <Button
@@ -243,9 +243,9 @@ export default function EventDetailsPage() {
     const colorInfo = colorLabels[event.color] || colorLabels.blue;
 
     return (
-        <div className="min-h-screen bg-[#FDFCFB] dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-primary/10">
+        <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 selection:bg-primary/10">
             {/* Minimal Header */}
-            <header className="sticky top-0 z-50 bg-white/50 dark:bg-gray-950/50 backdrop-blur-md border-b border-gray-100 dark:border-gray-900">
+            <header className="sticky top-0 z-50 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
                 <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                     <button
                         onClick={() => router.push("/calendar")}
@@ -267,7 +267,7 @@ export default function EventDetailsPage() {
                             {isShared ? "Copied" : "Share"}
                         </Button>
                         <Link href={`/calendar/events/${event.id}/manage`}>
-                            <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 shadow-sm px-4">
+                            <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
                                 Manage Event
                             </Button>
                         </Link>
@@ -284,7 +284,7 @@ export default function EventDetailsPage() {
                         className="flex flex-col gap-8"
                     >
                         {/* Event Image */}
-                        <div className="relative aspect-square w-full rounded-md overflow-hidden bg-gray-100 shadow-2xl shadow-primary/5">
+                        <div className="relative aspect-square w-full rounded-md overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                             {event.image_url ? (
                                 <img
                                     src={event.image_url}
@@ -381,7 +381,7 @@ export default function EventDetailsPage() {
                         {/* Logistics Blocks */}
                         <div className="flex flex-col gap-6">
                             <div className="flex gap-4">
-                                <div className="flex flex-col items-center justify-center w-14 h-14 rounded-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
+                                <div className="flex flex-col items-center justify-center w-14 h-14 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shrink-0">
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase leading-none mb-1">
                                         {getMonthAbbr(event.start_time)}
                                     </span>
@@ -401,7 +401,7 @@ export default function EventDetailsPage() {
 
                             {(event.location || event.meet_link) && (
                                 <div className="flex gap-4">
-                                    <div className="flex items-center justify-center w-14 h-14 rounded-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
+                                    <div className="flex items-center justify-center w-14 h-14 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shrink-0">
                                         <MapPin className="w-6 h-6 text-gray-400" />
                                     </div>
                                     <div className="flex flex-col justify-center">
@@ -417,7 +417,7 @@ export default function EventDetailsPage() {
                         </div>
 
                         {/* Registration Card */}
-                        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-100 dark:border-gray-800 p-6 md:p-8 shadow-xl shadow-gray-200/50 dark:shadow-none">
+                        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 p-6 md:p-8">
                             <div className="flex flex-col gap-6">
                                 <div className="flex items-center justify-between">
                                     <h3 className="font-semibold text-xl">Registration</h3>
@@ -462,13 +462,13 @@ export default function EventDetailsPage() {
 
                                 {/* Links Section inside Card */}
                                 {isRegistered && event.meet_link && !isPastEvent && (
-                                    <div className="pt-6 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-3">
+                                    <div className="pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-3">
                                         <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Event Links</h4>
                                         <a
                                             href={event.meet_link}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-4 rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-primary/30 transition-colors group"
+                                            className="flex items-center justify-between p-4 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors group"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="p-2 bg-white dark:bg-gray-900 rounded-md">
@@ -504,10 +504,10 @@ export default function EventDetailsPage() {
                 isOpen={showDeleteModal}
                 onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
             >
-                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-2xl rounded-md border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <Modal className="max-w-md bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
                     <Dialog className="p-8">
                         <div className="flex flex-col items-center text-center">
-                            <div className="w-16 h-16 rounded-md bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-6">
+                            <div className="w-16 h-16 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6">
                                 <Trash2 className="w-8 h-8 text-red-500" />
                             </div>
                             <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>

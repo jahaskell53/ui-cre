@@ -164,7 +164,7 @@ export default function ManageEventsPage() {
                     </div>
                 ) : filteredEvents.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 text-center">
-                        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-900 rounded-md flex items-center justify-center mb-6">
+                        <div className="w-20 h-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md flex items-center justify-center mb-6">
                             <Calendar className="w-10 h-10 text-gray-300" />
                         </div>
                         <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No {activeTab} events</h2>
@@ -183,7 +183,7 @@ export default function ManageEventsPage() {
                                 {/* Timeline Group Container */}
                                 <div className="grid grid-cols-[120px_1fr] md:grid-cols-[160px_1fr] gap-4 md:gap-8">
                                     {/* Date Label (Stays on left) */}
-                                    <div className="flex flex-col pt-4 items-end pr-4 border-r-2 border-gray-100 dark:border-gray-900 relative">
+                                    <div className="flex flex-col pt-4 items-end pr-4 border-r-2 border-gray-200 dark:border-gray-800 relative">
                                         <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight text-right">
                                             {formatDateHeading(dateStr).monthDay}
                                         </div>
@@ -191,7 +191,7 @@ export default function ManageEventsPage() {
                                             {formatDateHeading(dateStr).weekday}
                                         </div>
                                         {/* Dot on timeline */}
-                                        <div className="absolute top-6 -right-[7px] w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-800 border-2 border-[#FDFCFB] dark:border-gray-950 z-10" />
+                                        <div className="absolute top-6 -right-[7px] w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-800 border-2 border-white dark:border-gray-900 z-10" />
                                     </div>
 
                                     {/* Events for this date */}
@@ -202,7 +202,7 @@ export default function ManageEventsPage() {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: eventIdx * 0.05 }}
                                                 key={event.id}
-                                                className="group relative bg-white dark:bg-gray-900 rounded-md border border-gray-100 dark:border-gray-800 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all p-5 flex flex-col sm:flex-row gap-6"
+                                                className="group relative bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm p-5 flex flex-col sm:flex-row gap-6"
                                             >
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-400 mb-2 uppercase tracking-tight">
@@ -240,7 +240,7 @@ export default function ManageEventsPage() {
                                                         <Button
                                                             variant="secondary"
                                                             size="sm"
-                                                            className="rounded-md font-semibold bg-gray-50 hover:bg-gray-100 border-gray-200/50 group/btn"
+                                                            className="rounded-md font-semibold group/btn"
                                                         >
                                                             Manage Event
                                                             <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover/btn:translate-x-0.5" />
@@ -249,7 +249,7 @@ export default function ManageEventsPage() {
                                                 </div>
 
                                                 {/* Event Thumbnail */}
-                                                <div className="w-full sm:w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-md overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shadow-inner">
+                                                <div className="w-full sm:w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-md overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                                     {event.image_url ? (
                                                         <img
                                                             src={event.image_url}
@@ -276,7 +276,7 @@ export default function ManageEventsPage() {
             {/* Create Event Floating Button (Mobile) */}
             <div className="fixed bottom-8 right-8 lg:hidden">
                 <Link href="/calendar/events/new">
-                    <Button size="icon" className="w-14 h-14 rounded-full shadow-2xl shadow-primary/30">
+                    <Button size="icon" className="w-14 h-14 rounded-full">
                         <Plus className="w-6 h-6" />
                     </Button>
                 </Link>

@@ -313,7 +313,7 @@ export default function NewEventPage() {
                                     onChange={handleImageUpload}
                                     disabled={isUploading}
                                 />
-                                <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-gray-400 dark:hover:border-gray-600 transition-colors bg-gray-50 dark:bg-gray-800/50">
+                                <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-md hover:border-gray-400 dark:hover:border-gray-600 transition-colors bg-white dark:bg-gray-900">
                                     {isUploading ? (
                                         <span className="text-sm text-gray-500 dark:text-gray-400">Uploading...</span>
                                     ) : (
