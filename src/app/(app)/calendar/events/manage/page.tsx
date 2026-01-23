@@ -110,10 +110,10 @@ export default function ManageEventsPage() {
 
                     <div className="flex items-center gap-6">
                         {/* Tabs */}
-                        <div className="flex p-1 bg-gray-100 dark:bg-gray-900 rounded-xl">
+                        <div className="flex p-1 bg-gray-100 dark:bg-gray-900 rounded-md">
                             <button
                                 onClick={() => setActiveTab("upcoming")}
-                                className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${activeTab === "upcoming"
+                                className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${activeTab === "upcoming"
                                     ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
                                     : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
                                     }`}
@@ -122,7 +122,7 @@ export default function ManageEventsPage() {
                             </button>
                             <button
                                 onClick={() => setActiveTab("past")}
-                                className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${activeTab === "past"
+                                className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${activeTab === "past"
                                     ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white"
                                     : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
                                     }`}
@@ -147,13 +147,13 @@ export default function ManageEventsPage() {
                     </div>
                 ) : filteredEvents.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 text-center">
-                        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-900 rounded-3xl flex items-center justify-center mb-6">
+                        <div className="w-20 h-20 bg-gray-100 dark:bg-gray-900 rounded-md flex items-center justify-center mb-6">
                             <Calendar className="w-10 h-10 text-gray-300" />
                         </div>
                         <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No {activeTab} events</h2>
                         <p className="text-gray-500 font-medium mb-8">Ready to host something amazing?</p>
                         <Link href="/calendar/events/new">
-                            <Button size="lg" className="rounded-2xl font-semibold h-12 px-8">
+                            <Button size="lg" className="rounded-md font-semibold h-12 px-8">
                                 <Plus className="w-5 h-5 mr-2" />
                                 Create Event
                             </Button>
@@ -185,7 +185,7 @@ export default function ManageEventsPage() {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: eventIdx * 0.05 }}
                                                 key={event.id}
-                                                className="group relative bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all p-5 flex flex-col sm:flex-row gap-6"
+                                                className="group relative bg-white dark:bg-gray-900 rounded-md border border-gray-100 dark:border-gray-800 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none transition-all p-5 flex flex-col sm:flex-row gap-6"
                                             >
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-400 mb-2 uppercase tracking-tight">
@@ -223,7 +223,7 @@ export default function ManageEventsPage() {
                                                         <Button
                                                             variant="secondary"
                                                             size="sm"
-                                                            className="rounded-xl font-semibold bg-gray-50 hover:bg-gray-100 border-gray-200/50 group/btn"
+                                                            className="rounded-md font-semibold bg-gray-50 hover:bg-gray-100 border-gray-200/50 group/btn"
                                                         >
                                                             Manage Event
                                                             <ChevronRight className="w-4 h-4 ml-1 transition-transform group-hover/btn:translate-x-0.5" />
@@ -232,7 +232,7 @@ export default function ManageEventsPage() {
                                                 </div>
 
                                                 {/* Event Thumbnail */}
-                                                <div className="w-full sm:w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shadow-inner">
+                                                <div className="w-full sm:w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-md overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shadow-inner">
                                                     {event.image_url ? (
                                                         <img
                                                             src={event.image_url}
