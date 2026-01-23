@@ -150,18 +150,20 @@ export default function CalendarPage() {
                             : [];
 
                         return (
-                            <div key={i} className="border-r border-b border-gray-200 dark:border-gray-800 p-3 group hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors last:border-r-0 relative">
+                            <div key={i} className="border-r border-b border-gray-200 dark:border-gray-800 p-3 group hover:bg-gray-50 dark:hover:bg-gray-800/20 transition-colors last:border-r-0 relative overflow-hidden">
                                 <span className={`text-sm font-semibold ${isCurrentMonth ? 'text-gray-600 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                     {isCurrentMonth ? dayNumber : ''}
                                 </span>
-                                {dayEvents.map((event) => (
-                                    <Link key={event.id} href={`/calendar/events/${event.id}`}>
-                                        <div className={`mt-2 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-xs font-semibold cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}>
-                                            <p className="truncate">{event.title}</p>
-                                            <p className="text-[10px] text-gray-500 dark:text-gray-400">{formatEventTime(event.start_time, event.end_time)}</p>
-                                        </div>
-                                    </Link>
-                                ))}
+                                <div className="flex flex-col gap-1 mt-2 overflow-hidden">
+                                    {dayEvents.map((event) => (
+                                        <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                            <div className={`p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-xs font-semibold cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}>
+                                                <p className="truncate">{event.title}</p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400">{formatEventTime(event.start_time, event.end_time)}</p>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
                             </div>
                         );
                     })}
