@@ -1,7 +1,8 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { Sun, Moon01 } from "@untitledui/icons";
+import { Sun } from "@untitledui/icons";
+import { Moon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cx } from "@/utils/cx";
 
@@ -42,7 +43,7 @@ export const ThemeToggle = () => {
                         : "text-tertiary hover:bg-primary_hover"
                 )}
             >
-                <Moon01 className="size-4" />
+                <Moon className="size-4" />
                 Dark
             </button>
         </div>

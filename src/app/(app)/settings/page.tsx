@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Moon } from "lucide-react";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -22,13 +23,6 @@ function SunIcon({ className }: { className?: string }) {
   );
 }
 
-function MoonIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M13.5 9.5C12.6304 10.3696 11.4746 10.8333 10.25 10.8333C8.02537 10.8333 6.25 9.05793 6.25 6.83333C6.25 5.60875 6.71375 4.45292 7.58333 3.58333C6.5 3.58333 5.5 4.08333 4.75 4.83333C3.16667 6.41667 3.16667 8.91667 4.75 10.5C6.33333 12.0833 8.83333 12.0833 10.4167 10.5C11.1667 9.75 11.6667 8.75 11.6667 7.66667C11.6667 8.83333 11.1667 9.83333 10.4167 10.5833L13.5 9.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 
 function ArrowRightIcon({ className }: { className?: string }) {
   return (
@@ -98,7 +92,7 @@ export default function SettingsPage() {
                           : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                       )}
                     >
-                      <MoonIcon className="w-4 h-4" />
+                      <Moon className="w-4 h-4" />
                       Dark
                     </button>
                   </div>
