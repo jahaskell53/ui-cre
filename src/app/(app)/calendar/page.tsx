@@ -118,12 +118,12 @@ export default function CalendarPage() {
     };
 
     const colorClasses: Record<string, string> = {
-        black: "bg-gray-100 dark:bg-gray-800 border-gray-900 dark:border-gray-300 text-gray-900 dark:text-gray-100",
-        blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-500 text-blue-700 dark:text-blue-300",
-        green: "bg-green-50 dark:bg-green-900/20 border-green-600 dark:border-green-500 text-green-700 dark:text-green-300",
-        purple: "bg-purple-50 dark:bg-purple-900/20 border-purple-600 dark:border-purple-500 text-purple-700 dark:text-purple-300",
-        red: "bg-red-50 dark:bg-red-900/20 border-red-600 dark:border-red-500 text-red-700 dark:text-red-300",
-        orange: "bg-orange-50 dark:bg-orange-900/20 border-orange-600 dark:border-orange-500 text-orange-700 dark:text-orange-300",
+        black: "border-l-gray-900 dark:border-l-gray-300",
+        blue: "border-l-blue-600 dark:border-l-blue-500",
+        green: "border-l-green-600 dark:border-l-green-500",
+        purple: "border-l-purple-600 dark:border-l-purple-500",
+        red: "border-l-red-600 dark:border-l-red-500",
+        orange: "border-l-orange-600 dark:border-l-orange-500",
     };
 
     const renderMonthView = () => {
@@ -156,9 +156,9 @@ export default function CalendarPage() {
                                 </span>
                                 {dayEvents.map((event) => (
                                     <Link key={event.id} href={`/calendar/events/${event.id}`}>
-                                        <div className={`mt-2 p-2 border-l-4 rounded-md text-xs font-semibold shadow-sm cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}>
+                                        <div className={`mt-2 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-xs font-semibold cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}>
                                             <p className="truncate">{event.title}</p>
-                                            <p className="text-[10px] opacity-80">{formatEventTime(event.start_time, event.end_time)}</p>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-400">{formatEventTime(event.start_time, event.end_time)}</p>
                                         </div>
                                     </Link>
                                 ))}
@@ -236,11 +236,11 @@ export default function CalendarPage() {
                                                 return (
                                                     <Link key={event.id} href={`/calendar/events/${event.id}`}>
                                                         <div
-                                                            className={`absolute left-1 right-1 p-2 border-l-4 rounded-md text-xs font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
+                                                            className={`absolute left-1 right-1 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-xs font-semibold z-10 cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}
                                                             style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
                                                         >
                                                             <p className="truncate">{event.title}</p>
-                                                            <p className="text-[10px] opacity-80">
+                                                            <p className="text-[10px] text-gray-500 dark:text-gray-400">
                                                                 {startDate.getHours().toString().padStart(2, '0')}:{startDate.getMinutes().toString().padStart(2, '0')}
                                                             </p>
                                                         </div>
@@ -294,11 +294,11 @@ export default function CalendarPage() {
                                         return (
                                             <Link key={event.id} href={`/calendar/events/${event.id}`}>
                                                 <div
-                                                    className={`absolute left-2 right-2 p-3 border-l-4 rounded-md text-sm font-semibold shadow-sm z-10 cursor-pointer hover:opacity-80 transition-opacity ${colorClasses[event.color] || colorClasses.blue}`}
+                                                    className={`absolute left-2 right-2 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-sm font-semibold z-10 cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}
                                                     style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
                                                 >
                                                     <p className="font-semibold mb-1">{event.title}</p>
-                                                    <p className="text-xs opacity-80">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
                                                         {formatEventTime(event.start_time, event.end_time)}
                                                     </p>
                                                 </div>
