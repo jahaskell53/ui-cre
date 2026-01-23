@@ -224,7 +224,7 @@ export default function EventDetailsPage() {
         return (
             <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
                 <div className="max-w-md w-full text-center">
-                    <div className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 font-medium text-gray-900 dark:text-gray-100">
+                    <div className="mb-6 p-4 bg-white dark:bg-gray-900 rounded-md shadow-sm border border-gray-200 dark:border-gray-800 font-medium text-gray-900 dark:text-gray-100">
                         {error || "Event not found"}
                     </div>
                     <Button
@@ -268,7 +268,7 @@ export default function EventDetailsPage() {
                             {isShared ? "Copied" : "Share"}
                         </Button>
                         <Link href={`/calendar/events/${event.id}/manage`}>
-                            <Button variant="outline" size="sm" className="rounded-xl font-semibold border-gray-200 dark:border-gray-800 shadow-sm px-4">
+                            <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 shadow-sm px-4">
                                 Manage Event
                             </Button>
                         </Link>
@@ -285,7 +285,7 @@ export default function EventDetailsPage() {
                         className="flex flex-col gap-8"
                     >
                         {/* Event Image */}
-                        <div className="relative aspect-square w-full rounded-[2rem] overflow-hidden bg-gray-100 shadow-2xl shadow-primary/5">
+                        <div className="relative aspect-square w-full rounded-md overflow-hidden bg-gray-100 shadow-2xl shadow-primary/5">
                             {event.image_url ? (
                                 <img
                                     src={event.image_url}
@@ -305,7 +305,7 @@ export default function EventDetailsPage() {
                                 <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Hosted By</h3>
                                 <Link
                                     href={`/users/${host.id}`}
-                                    className="flex items-center gap-4 group p-2 -m-2 rounded-2xl hover:bg-white dark:hover:bg-gray-900 transition-colors"
+                                    className="flex items-center gap-4 group p-2 -m-2 rounded-md hover:bg-white dark:hover:bg-gray-900 transition-colors"
                                 >
                                     <Avatar className="h-12 w-12 border-2 border-white dark:border-gray-800 shadow-sm">
                                         <AvatarImage src={host.avatar_url || undefined} alt={host.full_name || "Host"} />
@@ -382,7 +382,7 @@ export default function EventDetailsPage() {
                         {/* Logistics Blocks */}
                         <div className="flex flex-col gap-6">
                             <div className="flex gap-4">
-                                <div className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
+                                <div className="flex flex-col items-center justify-center w-14 h-14 rounded-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
                                     <span className="text-[10px] font-semibold text-gray-400 uppercase leading-none mb-1">
                                         {getMonthAbbr(event.start_time)}
                                     </span>
@@ -402,7 +402,7 @@ export default function EventDetailsPage() {
 
                             {(event.location || event.meet_link) && (
                                 <div className="flex gap-4">
-                                    <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
+                                    <div className="flex items-center justify-center w-14 h-14 rounded-md bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm shrink-0">
                                         <MapPin className="w-6 h-6 text-gray-400" />
                                     </div>
                                     <div className="flex flex-col justify-center">
@@ -418,12 +418,12 @@ export default function EventDetailsPage() {
                         </div>
 
                         {/* Registration Card */}
-                        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-6 md:p-8 shadow-xl shadow-gray-200/50 dark:shadow-none">
+                        <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-100 dark:border-gray-800 p-6 md:p-8 shadow-xl shadow-gray-200/50 dark:shadow-none">
                             <div className="flex flex-col gap-6">
                                 <div className="flex items-center justify-between">
                                     <h3 className="font-semibold text-xl">Registration</h3>
                                     {!isPastEvent && (
-                                        <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-lg">
+                                        <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-md">
                                             Open
                                         </span>
                                     )}
@@ -438,7 +438,7 @@ export default function EventDetailsPage() {
                                             onClick={handleToggleRegistration}
                                             disabled={isRegistering}
                                             size="lg"
-                                            className={`w-full h-14 text-lg font-semibold rounded-2xl transition-all ${isRegistered
+                                            className={`w-full h-14 text-lg font-semibold rounded-md transition-all ${isRegistered
                                                 ? "bg-green-600 hover:bg-green-700 text-white"
                                                 : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:scale-[1.02] active:scale-[0.98]"
                                                 }`}
@@ -469,10 +469,10 @@ export default function EventDetailsPage() {
                                             href={event.meet_link}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-primary/30 transition-colors group"
+                                            className="flex items-center justify-between p-4 rounded-md bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-primary/30 transition-colors group"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-white dark:bg-gray-900 rounded-lg">
+                                                <div className="p-2 bg-white dark:bg-gray-900 rounded-md">
                                                     <SiGooglemeet className="w-5 h-5 text-[#00897B]" />
                                                 </div>
                                                 <span className="font-semibold">Join Google Meet</span>
@@ -505,10 +505,10 @@ export default function EventDetailsPage() {
                 isOpen={showDeleteModal}
                 onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
             >
-                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-2xl rounded-[2rem] border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-2xl rounded-md border border-gray-100 dark:border-gray-800 overflow-hidden">
                     <Dialog className="p-8">
                         <div className="flex flex-col items-center text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-6">
+                            <div className="w-16 h-16 rounded-md bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-6">
                                 <Trash2 className="w-8 h-8 text-red-500" />
                             </div>
                             <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>
@@ -521,7 +521,7 @@ export default function EventDetailsPage() {
                                     size="lg"
                                     onClick={handleDelete}
                                     disabled={isDeleting}
-                                    className="w-full h-14 rounded-2xl font-semibold"
+                                    className="w-full h-14 rounded-md font-semibold"
                                 >
                                     {isDeleting ? "Deleting..." : "Yes, Delete Event"}
                                 </Button>
@@ -530,7 +530,7 @@ export default function EventDetailsPage() {
                                     size="lg"
                                     onClick={() => setShowDeleteModal(false)}
                                     disabled={isDeleting}
-                                    className="w-full h-14 rounded-2xl font-semibold text-gray-500"
+                                    className="w-full h-14 rounded-md font-semibold text-gray-500"
                                 >
                                     Keep Event
                                 </Button>
