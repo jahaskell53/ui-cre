@@ -3,6 +3,7 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 function BackIcon({ className }: { className?: string }) {
@@ -25,6 +26,14 @@ function MoonIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M13.5 9.5C12.6304 10.3696 11.4746 10.8333 10.25 10.8333C8.02537 10.8333 6.25 9.05793 6.25 6.83333C6.25 5.60875 6.71375 4.45292 7.58333 3.58333C6.5 3.58333 5.5 4.08333 4.75 4.83333C3.16667 6.41667 3.16667 8.91667 4.75 10.5C6.33333 12.0833 8.83333 12.0833 10.4167 10.5C11.1667 9.75 11.6667 8.75 11.6667 7.66667C11.6667 8.83333 11.1667 9.83333 10.4167 10.5833L13.5 9.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function ArrowRightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -96,6 +105,25 @@ export default function SettingsPage() {
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400">Choose between light and dark mode.</p>
               </div>
+            </div>
+
+            {/* Newsletter Preferences Section */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+              <div className="flex flex-col gap-1 mb-6">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Newsletter</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Manage your CRE news feed and email newsletter preferences.</p>
+              </div>
+
+              <Link
+                href="/news/settings"
+                className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Newsletter Preferences</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Customize your news feed, location preferences, and delivery schedule</span>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+              </Link>
             </div>
           </div>
         </div>
