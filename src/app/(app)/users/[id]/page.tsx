@@ -179,8 +179,50 @@ export default function UserProfilePage() {
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </button>
+                </div>
 
-                    <div className="flex items-center gap-2">
+                {/* Profile Header */}
+                <div className="px-4 py-6 md:px-6">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <Avatar className="h-16 w-16 md:h-20 md:w-20">
+                                <AvatarImage src={profile.avatar_url || undefined} />
+                                <AvatarFallback
+                                    className="text-white text-2xl font-medium"
+                                    style={{ background: generateAuroraGradient(displayName) }}
+                                >
+                                    {initials}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{displayName}</h1>
+                                <div className="flex items-center gap-2 mt-1">
+                                    {profile.roles && profile.roles.length > 0 && (
+                                        <>
+                                            {profile.roles.map((role) => (
+                                                <span
+                                                    key={role}
+                                                    className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded"
+                                                >
+                                                    {role}
+                                                </span>
+                                            ))}
+                                        </>
+                                    )}
+                                </div>
+                                {profile.website && (
+                                    <a
+                                        href={profile.website}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mt-2"
+                                    >
+                                        <ArrowUpRight className="w-4 h-4" />
+                                        {profile.website.replace(/^https?:\/\//, '')}
+                                    </a>
+                                )}
+                            </div>
+                        </div>
                         {isOwnProfile ? (
                             <Button
                                 onClick={() => router.push("/profile")}
@@ -201,49 +243,6 @@ export default function UserProfilePage() {
                                 Message
                             </Button>
                         )}
-                    </div>
-                </div>
-
-                {/* Profile Header */}
-                <div className="px-4 py-6 md:px-6">
-                    <div className="flex items-center gap-4">
-                        <Avatar className="h-16 w-16 md:h-20 md:w-20">
-                            <AvatarImage src={profile.avatar_url || undefined} />
-                            <AvatarFallback
-                                className="text-white text-2xl font-medium"
-                                style={{ background: generateAuroraGradient(displayName) }}
-                            >
-                                {initials}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{displayName}</h1>
-                            <div className="flex items-center gap-2 mt-1">
-                                {profile.roles && profile.roles.length > 0 && (
-                                    <>
-                                        {profile.roles.map((role) => (
-                                            <span
-                                                key={role}
-                                                className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded"
-                                            >
-                                                {role}
-                                            </span>
-                                        ))}
-                                    </>
-                                )}
-                            </div>
-                            {profile.website && (
-                                <a
-                                    href={profile.website}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mt-2"
-                                >
-                                    <ArrowUpRight className="w-4 h-4" />
-                                    {profile.website.replace(/^https?:\/\//, '')}
-                                </a>
-                            )}
-                        </div>
                     </div>
                 </div>
 
