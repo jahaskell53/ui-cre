@@ -137,28 +137,23 @@ export default function UserProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+            <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
             </div>
         );
     }
 
     if (!profile) {
         return (
-            <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900 p-6">
-                <div className="max-w-2xl">
-                    <Button
-                        variant="ghost"
-                        size="icon"
+            <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+                <div className="text-center">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">User not found</div>
+                    <button
                         onClick={() => router.back()}
-                        className="mb-6"
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                        <ArrowLeft className="size-4" />
-                    </Button>
-                    <div className="text-center py-12">
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">User not found</h2>
-                        <p className="text-gray-500 dark:text-gray-400">The user profile you&apos;re looking for doesn&apos;t exist.</p>
-                    </div>
+                        Back
+                    </button>
                 </div>
             </div>
         );
@@ -174,176 +169,188 @@ export default function UserProfilePage() {
     const isOwnProfile = currentUser?.id === profile.id;
 
     return (
-        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-            <div className="flex flex-col gap-8 p-6">
-                <div className="max-w-3xl mx-auto w-full">
+        <div className="flex h-screen bg-white dark:bg-gray-900">
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* Top Header Bar */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
                     <button
                         onClick={() => router.back()}
-                        className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors mb-8 group"
+                        className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
                     >
-                        <ArrowLeft className="size-4 group-hover:-translate-x-1 transition-transform" />
-                        Back to Directory
+                        <ArrowLeft className="w-5 h-5" />
                     </button>
 
-                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8 shadow-sm">
-                        <div className="flex flex-col items-center text-center">
-                            <Avatar className="h-24 w-24 mb-6 ring-4 ring-gray-50 dark:ring-gray-800">
-                                <AvatarImage src={profile.avatar_url || undefined} />
-                                <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-2xl font-bold text-white">
-                                    {initials}
-                                </AvatarFallback>
-                            </Avatar>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                                {displayName}
-                            </h1>
-                            {profile.roles && profile.roles.length > 0 && (
-                                <div className="flex flex-wrap gap-2 justify-center mb-6">
-                                    {profile.roles.map((role) => (
-                                        <span
-                                            key={role}
-                                            className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700"
-                                        >
-                                            {role}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+                    <div className="flex items-center gap-2">
+                        {isOwnProfile ? (
+                            <Button
+                                onClick={() => router.push("/profile")}
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-700 dark:text-gray-300"
+                            >
+                                Edit Profile
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={() => router.push(`/messages?user_id=${profile.id}`)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-700 dark:text-gray-300"
+                            >
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                Message
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Profile Header */}
+                <div className="px-4 py-6 md:px-6">
+                    <div className="flex items-center gap-4">
+                        <Avatar className="h-16 w-16 md:h-20 md:w-20">
+                            <AvatarImage src={profile.avatar_url || undefined} />
+                            <AvatarFallback
+                                className="text-white text-2xl font-medium"
+                                style={{ background: generateAuroraGradient(displayName) }}
+                            >
+                                {initials}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{displayName}</h1>
+                            <div className="flex items-center gap-2 mt-1">
+                                {profile.roles && profile.roles.length > 0 && (
+                                    <>
+                                        {profile.roles.map((role) => (
+                                            <span
+                                                key={role}
+                                                className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded"
+                                            >
+                                                {role}
+                                            </span>
+                                        ))}
+                                    </>
+                                )}
+                            </div>
                             {profile.website && (
                                 <a
                                     href={profile.website}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                                    className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mt-2"
                                 >
-                                    <ArrowUpRight className="size-4" />
+                                    <ArrowUpRight className="w-4 h-4" />
                                     {profile.website.replace(/^https?:\/\//, '')}
                                 </a>
                             )}
                         </div>
+                    </div>
+                </div>
 
-                        <div className="grid grid-cols-1 gap-4 mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
-                            <div className="flex items-center justify-center gap-8 text-center">
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="px-4 md:px-6 py-4">
+                        {/* Stats */}
+                        <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+                            <div className="flex items-center gap-8">
                                 <div>
-                                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{postsCount}</div>
-                                    <div className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mt-1">Posts</div>
+                                    <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{postsCount}</div>
+                                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Posts</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
-                            {isOwnProfile ? (
-                                <Button
-                                    onClick={() => router.push("/profile")}
-                                    variant="outline"
-                                    className="w-full h-11 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 font-semibold"
-                                >
-                                    Edit Profile
-                                </Button>
+                        {/* Activity Section */}
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Activity</h2>
+
+                            {loadingPosts ? (
+                                <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
+                                    <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                                    <div className="text-sm">Loading activity...</div>
+                                </div>
+                            ) : posts.length === 0 ? (
+                                <div className="text-center py-16">
+                                    <p className="text-gray-500 dark:text-gray-400 font-medium">No activity to show yet</p>
+                                </div>
                             ) : (
-                                <Button
-                                    onClick={() => router.push(`/messages?user_id=${profile.id}`)}
-                                    className="w-full h-11 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 font-semibold gap-2"
-                                >
-                                    <MessageSquare className="size-4" />
-                                    Send Message
-                                </Button>
+                                <div className="space-y-4">
+                                    {posts.map((post) => {
+                                        const isLink = post.type === "link";
+                                        return (
+                                            <div
+                                                key={post.id}
+                                                className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-700 transition-colors"
+                                            >
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                                                    </span>
+                                                    <div className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Heart className="w-3.5 h-3.5" />
+                                                            <span>{post.likes_count || 0}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                            <span>{post.comments_count || 0}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {!isLink && (
+                                                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
+                                                        {post.content}
+                                                    </p>
+                                                )}
+
+                                                {isLink && post.content && (
+                                                    <a
+                                                        href={post.content}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="block border border-gray-200 dark:border-gray-800 rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group mb-3"
+                                                    >
+                                                        <div className="flex items-center gap-3 text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                            <div className="p-2 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+                                                                <ArrowUpRight className="w-4 h-4" />
+                                                            </div>
+                                                            <span className="truncate text-sm">{post.content}</span>
+                                                        </div>
+                                                    </a>
+                                                )}
+
+                                                {post.file_url && (
+                                                    <div className="mt-3">
+                                                        {post.file_url.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
+                                                            <img
+                                                                src={post.file_url}
+                                                                alt="Post attachment"
+                                                                className="w-full rounded-lg border border-gray-200 dark:border-gray-800"
+                                                            />
+                                                        ) : (
+                                                            <div className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                                                <div className="size-10 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400">
+                                                                    <File className="w-4 h-4" />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                                                        {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
+                                                                    </p>
+                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                                        {post.file_url.split('.').pop()?.toUpperCase()} File
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             )}
                         </div>
-                    </div>
-
-                    {/* User Activity Section */}
-                    <div className="mt-12">
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Activity</h2>
-                            <div className="h-px flex-1 bg-gray-100 dark:bg-gray-800 ml-6" />
-                        </div>
-
-                        {loadingPosts ? (
-                            <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
-                                <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
-                                <div className="text-sm">Loading activity...</div>
-                            </div>
-                        ) : posts.length === 0 ? (
-                            <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 rounded-2xl">
-                                <p className="text-gray-500 dark:text-gray-400 font-medium">No activity to show yet</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                {posts.map((post) => {
-                                    const isLink = post.type === "link";
-                                    return (
-                                        <div
-                                            key={post.id}
-                                            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm hover:border-gray-300 dark:hover:border-gray-700 transition-all"
-                                        >
-                                            <div className="flex items-center justify-between mb-4">
-                                                <span className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                                                    {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                                                </span>
-                                                <div className="flex items-center gap-4 text-xs font-bold text-gray-500 dark:text-gray-400">
-                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded-md">
-                                                        <Heart className="w-3.5 h-3.5" />
-                                                        <span>{post.likes_count || 0}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded-md">
-                                                        <MessageCircle className="w-3.5 h-3.5" />
-                                                        <span>{post.comments_count || 0}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {!isLink && (
-                                                <p className="text-gray-700 dark:text-gray-300 text-[15px] leading-relaxed mb-4">
-                                                    {post.content}
-                                                </p>
-                                            )}
-
-                                            {isLink && post.content && (
-                                                <a
-                                                    href={post.content}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="block border border-gray-200 dark:border-gray-800 rounded-xl p-4 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group mb-4"
-                                                >
-                                                    <div className="flex items-center gap-3 text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                        <div className="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
-                                                            <ArrowUpRight className="w-4 h-4" />
-                                                        </div>
-                                                        <span className="truncate font-medium text-sm">{post.content}</span>
-                                                    </div>
-                                                </a>
-                                            )}
-
-                                            {post.file_url && (
-                                                <div className="mt-4">
-                                                    {post.file_url.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
-                                                        <img
-                                                            src={post.file_url}
-                                                            alt="Post attachment"
-                                                            className="w-full rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm"
-                                                        />
-                                                    ) : (
-                                                        <div className="flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                                                            <div className="size-10 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400">
-                                                                <File className="size-5" />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                                                                    {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
-                                                                </p>
-                                                                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mt-0.5">
-                                                                    {post.file_url.split('.').pop()?.toUpperCase()} File
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>

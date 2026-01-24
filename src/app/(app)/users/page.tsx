@@ -88,97 +88,107 @@ function UsersPageContent() {
 
     return (
         <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
-            <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
-                <div className="max-w-5xl mx-auto w-full">
-                    <div className="mb-8">
-                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Search Users</h1>
-                    </div>
+            <div className="flex flex-col overflow-auto h-full">
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                    <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Search Users</h1>
+                </div>
 
-                    <div className="mb-8 relative">
+                {/* Search Input */}
+                <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-800">
+                    <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 dark:text-gray-500" />
                         <Input
                             placeholder="Search by name..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 h-11 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg shadow-sm focus:ring-2 focus:ring-gray-900/5 dark:focus:ring-gray-100/5"
+                            className="pl-10 h-10 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                             autoFocus
                         />
                     </div>
+                </div>
 
-                    {loading && (
-                        <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 gap-3">
-                            <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin" />
-                            <div className="text-sm font-medium">Searching...</div>
-                        </div>
-                    )}
-
-                    {!loading && searchQuery.trim() && users.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-2xl">
-                            <Search className="size-8 mb-3 opacity-20" />
-                            <div className="text-sm font-medium">No users found for &quot;{searchQuery}&quot;</div>
-                        </div>
-                    )}
-
-                    {!loading && users.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {users.map((userProfile) => {
-                                const displayName = userProfile.full_name || "Unknown User";
-                                const initials = displayName
-                                    .split(" ")
-                                    .map(n => n[0])
-                                    .join("")
-                                    .toUpperCase()
-                                    .slice(0, 2);
-
-                                return (
-                                    <div
-                                        key={userProfile.id}
-                                        onClick={() => handleUserClick(userProfile.id)}
-                                        className="flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all cursor-pointer group shadow-sm hover:shadow-md"
-                                    >
-                                        <Avatar className="h-12 w-12 border-2 border-white dark:border-gray-800 shadow-sm">
-                                            <AvatarImage src={userProfile.avatar_url || undefined} />
-                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-sm font-semibold text-white">
-                                                {initials}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-black dark:group-hover:text-white transition-colors">
-                                                {displayName}
-                                            </div>
-                                            {userProfile.roles && userProfile.roles.length > 0 && (
-                                                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                                    {userProfile.roles.map((role) => (
-                                                        <span
-                                                            key={role}
-                                                            className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded border border-gray-200 dark:border-gray-700"
-                                                        >
-                                                            {role}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="text-gray-300 dark:text-gray-700 group-hover:text-gray-400 dark:group-hover:text-gray-600 transition-colors">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {!searchQuery.trim() && (
-                        <div className="flex flex-col items-center justify-center py-24 text-gray-400 dark:text-gray-500">
-                            <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 border border-gray-100 dark:border-gray-800">
-                                <Search className="size-6" />
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="px-4 py-4">
+                        {loading && (
+                            <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 gap-3">
+                                <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin" />
+                                <div className="text-sm">Searching...</div>
                             </div>
-                            <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1">Search Directory</h3>
-                            <p className="text-sm max-w-xs text-center">Enter a name to find people in your network and view their professional profiles.</p>
-                        </div>
-                    )}
+                        )}
+
+                        {!loading && searchQuery.trim() && users.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
+                                <Search className="size-8 mb-3 opacity-20" />
+                                <div className="text-sm">No users found for &quot;{searchQuery}&quot;</div>
+                            </div>
+                        )}
+
+                        {!loading && users.length > 0 && (
+                            <div className="space-y-1">
+                                {users.map((userProfile) => {
+                                    const displayName = userProfile.full_name || "Unknown User";
+                                    const initials = displayName
+                                        .split(" ")
+                                        .map(n => n[0])
+                                        .join("")
+                                        .toUpperCase()
+                                        .slice(0, 2);
+
+                                    return (
+                                        <div
+                                            key={userProfile.id}
+                                            onClick={() => handleUserClick(userProfile.id)}
+                                            className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                                        >
+                                            <Avatar className="h-10 w-10">
+                                                <AvatarImage src={userProfile.avatar_url || undefined} />
+                                                <AvatarFallback 
+                                                    style={{ background: generateAuroraGradient(displayName) }} 
+                                                    className="text-sm font-medium text-white"
+                                                >
+                                                    {initials}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                                                    {displayName}
+                                                </div>
+                                                {userProfile.roles && userProfile.roles.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {userProfile.roles.map((role) => (
+                                                            <span
+                                                                key={role}
+                                                                className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded"
+                                                            >
+                                                                {role}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="text-gray-400 dark:text-gray-600">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {!searchQuery.trim() && (
+                            <div className="flex flex-col items-center justify-center py-24 text-gray-400 dark:text-gray-500">
+                                <div className="w-12 h-12 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
+                                    <Search className="size-5" />
+                                </div>
+                                <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1 text-sm">Search Directory</h3>
+                                <p className="text-xs max-w-xs text-center">Enter a name to find people in your network</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -188,8 +198,8 @@ function UsersPageContent() {
 export default function UsersPage() {
     return (
         <Suspense fallback={
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="w-6 h-6 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin" />
+            <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
             </div>
         }>
             <UsersPageContent />
