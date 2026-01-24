@@ -7,7 +7,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { useDateFormatter } from "react-aria";
 import type { DateRangePickerProps as AriaDateRangePickerProps, DateValue } from "react-aria-components";
 import { DateRangePicker as AriaDateRangePicker, Dialog as AriaDialog, Group as AriaGroup, Popover as AriaPopover, useLocale } from "react-aria-components";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
 import { cx } from "@/utils/cx";
 import { DateInput } from "./date-input";
 import { RangeCalendar } from "./range-calendar";
@@ -79,7 +79,8 @@ export const DateRangePicker = ({ value: valueProp, defaultValue, onChange, onAp
     return (
         <AriaDateRangePicker aria-label="Date range picker" shouldCloseOnSelect={false} {...props} value={value} onChange={setValue}>
             <AriaGroup>
-                <Button size="md" color="secondary" iconLeading={CalendarIcon}>
+                <Button size="default" variant="secondary">
+                    <CalendarIcon className="size-4" />
                     {!value ? <span className="text-placeholder">Select dates</span> : `${formattedStartDate} – ${formattedEndDate}`}
                 </Button>
             </AriaGroup>
@@ -132,8 +133,8 @@ export const DateRangePicker = ({ value: valueProp, defaultValue, onChange, onAp
                                     </div>
                                     <div className="grid w-full grid-cols-2 gap-3 md:flex md:w-auto">
                                         <Button
-                                            size="md"
-                                            color="secondary"
+                                            size="default"
+                                            variant="secondary"
                                             onClick={() => {
                                                 onCancel?.();
                                                 close();
@@ -142,8 +143,8 @@ export const DateRangePicker = ({ value: valueProp, defaultValue, onChange, onAp
                                             Cancel
                                         </Button>
                                         <Button
-                                            size="md"
-                                            color="primary"
+                                            size="default"
+                                            variant="default"
                                             onClick={() => {
                                                 onApply?.();
                                                 close();

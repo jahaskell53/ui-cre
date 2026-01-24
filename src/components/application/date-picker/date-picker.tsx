@@ -6,7 +6,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { useDateFormatter } from "react-aria";
 import type { DatePickerProps as AriaDatePickerProps, DateValue } from "react-aria-components";
 import { DatePicker as AriaDatePicker, Dialog as AriaDialog, Group as AriaGroup, Popover as AriaPopover } from "react-aria-components";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
 import { cx } from "@/utils/cx";
 import { Calendar } from "./calendar";
 
@@ -32,7 +32,8 @@ export const DatePicker = ({ value: valueProp, defaultValue, onChange, onApply, 
     return (
         <AriaDatePicker shouldCloseOnSelect={false} {...props} value={value} onChange={setValue}>
             <AriaGroup>
-                <Button size="md" color="secondary" iconLeading={CalendarIcon}>
+                <Button size="default" variant="secondary">
+                    <CalendarIcon className="size-4" />
                     {formattedDate}
                 </Button>
             </AriaGroup>
@@ -57,8 +58,8 @@ export const DatePicker = ({ value: valueProp, defaultValue, onChange, onApply, 
                             </div>
                             <div className="grid grid-cols-2 gap-3 border-t border-secondary p-4">
                                 <Button
-                                    size="md"
-                                    color="secondary"
+                                    size="default"
+                                    variant="secondary"
                                     onClick={() => {
                                         onCancel?.();
                                         close();
@@ -67,8 +68,8 @@ export const DatePicker = ({ value: valueProp, defaultValue, onChange, onApply, 
                                     Cancel
                                 </Button>
                                 <Button
-                                    size="md"
-                                    color="primary"
+                                    size="default"
+                                    variant="default"
                                     onClick={() => {
                                         onApply?.();
                                         close();

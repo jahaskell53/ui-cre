@@ -5,7 +5,7 @@ import { useId, useRef, useState } from "react";
 import { File as FileTypeIcon } from "lucide-react";
 import { CheckCircle, Trash as Trash01, UploadCloud as UploadCloud02, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
@@ -223,7 +223,7 @@ export const FileUploadDropZone = ({
                         onChange={handleInputFileChange}
                     />
                     <label htmlFor={id} className="flex cursor-pointer">
-                        <Button color="link-color" size="md" isDisabled={isDisabled} onClick={() => inputRef.current?.click()}>
+                        <Button variant="link" size="default" disabled={isDisabled} onClick={() => inputRef.current?.click()}>
                             Click to upload <span className="md:hidden">and attach files</span>
                         </Button>
                     </label>
@@ -305,7 +305,7 @@ export const FileListItemProgressBar = ({ name, size, progress, failed, type, fi
                 )}
 
                 {failed && (
-                    <Button color="link-destructive" size="sm" onClick={onRetry} className="mt-1.5">
+                    <Button variant="link" size="sm" onClick={onRetry} className="mt-1.5 text-destructive">
                         Try again
                     </Button>
                 )}
@@ -360,7 +360,7 @@ export const FileListItemProgressFill = ({ name, size, progress, failed, type, f
                     </div>
 
                     {failed && (
-                        <Button color="link-destructive" size="sm" onClick={onRetry} className="mt-1.5">
+                        <Button variant="link" size="sm" onClick={onRetry} className="mt-1.5 text-destructive">
                             Try again
                         </Button>
                     )}

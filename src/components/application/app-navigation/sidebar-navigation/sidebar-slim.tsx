@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Button as AriaButton, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { AvatarLabelGroup } from "@/components/base/avatar/avatar-label-group";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
@@ -213,11 +213,12 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
 
                             <div className="absolute top-1/2 right-0 -translate-y-1/2">
                                 <Button
-                                    size="sm"
-                                    color="tertiary"
-                                    iconLeading={<LogOut01 className="size-5 text-fg-quaternary transition-inherit-all group-hover:text-fg-quaternary_hover" />}
+                                    size="icon-sm"
+                                    variant="ghost"
                                     className="p-1.5!"
-                                />
+                                >
+                                    <LogOut01 className="size-5 text-fg-quaternary transition-inherit-all group-hover:text-fg-quaternary_hover" />
+                                </Button>
                             </div>
                         </div>
                     </div>

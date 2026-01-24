@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { cx } from "@/utils/cx";
 import type { PaginationRootProps } from "./pagination-base";
@@ -47,11 +47,12 @@ const MobilePagination = ({ page = 1, total = 10, className, onPageChange }: Mob
         <nav aria-label="Pagination" className={cx("flex items-center justify-between md:hidden", className)}>
             <Button
                 aria-label="Go to previous page"
-                iconLeading={ArrowLeft}
-                color="secondary"
+                variant="secondary"
                 size="sm"
                 onClick={() => onPageChange?.(Math.max(0, page - 1))}
-            />
+            >
+                <ArrowLeft className="size-4" />
+            </Button>
 
             <span className="text-sm text-fg-secondary">
                 Page <span className="font-medium">{page}</span> of <span className="font-medium">{total}</span>
@@ -59,11 +60,12 @@ const MobilePagination = ({ page = 1, total = 10, className, onPageChange }: Mob
 
             <Button
                 aria-label="Go to next page"
-                iconLeading={ArrowRight}
-                color="secondary"
+                variant="secondary"
                 size="sm"
                 onClick={() => onPageChange?.(Math.min(total, page + 1))}
-            />
+            >
+                <ArrowRight className="size-4" />
+            </Button>
         </nav>
     );
 };
@@ -80,14 +82,16 @@ export const PaginationPageDefault = ({ rounded, page = 1, total = 10, className
         >
             <div className="hidden flex-1 justify-start md:flex">
                 <Pagination.PrevTrigger asChild>
-                    <Button iconLeading={ArrowLeft} color="link-gray" size="sm">
+                    <Button variant="link" size="sm">
+                        <ArrowLeft className="size-4" />
                         {isDesktop ? "Previous" : undefined}{" "}
                     </Button>
                 </Pagination.PrevTrigger>
             </div>
 
             <Pagination.PrevTrigger asChild className="md:hidden">
-                <Button iconLeading={ArrowLeft} color="secondary" size="sm">
+                <Button variant="secondary" size="sm">
+                    <ArrowLeft className="size-4" />
                     {isDesktop ? "Previous" : undefined}
                 </Button>
             </Pagination.PrevTrigger>
@@ -116,14 +120,16 @@ export const PaginationPageDefault = ({ rounded, page = 1, total = 10, className
 
             <div className="hidden flex-1 justify-end md:flex">
                 <Pagination.NextTrigger asChild>
-                    <Button iconTrailing={ArrowRight} color="link-gray" size="sm">
+                    <Button variant="link" size="sm">
                         {isDesktop ? "Next" : undefined}
+                        <ArrowRight className="size-4" />
                     </Button>
                 </Pagination.NextTrigger>
             </div>
             <Pagination.NextTrigger asChild className="md:hidden">
-                <Button iconTrailing={ArrowRight} color="secondary" size="sm">
+                <Button variant="secondary" size="sm">
                     {isDesktop ? "Next" : undefined}
+                    <ArrowRight className="size-4" />
                 </Button>
             </Pagination.NextTrigger>
         </Pagination.Root>
@@ -252,7 +258,7 @@ export const PaginationCardMinimal = ({ page = 1, total = 10, align = "left", on
 
             <nav aria-label="Pagination" className={cx("hidden items-center gap-3 md:flex", align === "center" && "justify-between")}>
                 <div className={cx(align === "center" && "flex flex-1 justify-start")}>
-                    <Button isDisabled={page === 1} color="secondary" size="sm" onClick={() => onPageChange?.(Math.max(0, page - 1))}>
+                    <Button disabled={page === 1} variant="secondary" size="sm" onClick={() => onPageChange?.(Math.max(0, page - 1))}>
                         Previous
                     </Button>
                 </div>
@@ -268,7 +274,7 @@ export const PaginationCardMinimal = ({ page = 1, total = 10, align = "left", on
                 </span>
 
                 <div className={cx(align === "center" && "flex flex-1 justify-end")}>
-                    <Button isDisabled={page === total} color="secondary" size="sm" onClick={() => onPageChange?.(Math.min(total, page + 1))}>
+                    <Button disabled={page === total} variant="secondary" size="sm" onClick={() => onPageChange?.(Math.min(total, page + 1))}>
                         Next
                     </Button>
                 </div>

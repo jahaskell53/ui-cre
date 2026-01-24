@@ -16,7 +16,7 @@ import {
     Heading as AriaHeading,
     useSlottedContext,
 } from "react-aria-components";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
 import { cx } from "@/utils/cx";
 import { CalendarCell } from "./cell";
 import { DateInput } from "./date-input";
@@ -43,13 +43,8 @@ const PresetButton = ({ value, children, ...props }: HTMLAttributes<HTMLButtonEl
     return (
         <Button
             {...props}
-            // It's important to give `null` explicitly to the `slot` prop
-            // otherwise the button will throw an error due to not using one of
-            // the required slots inside the Calendar component.
-            // Passing `null` will tell the button to not use a slot context.
-            slot={null}
-            size="md"
-            color="secondary"
+            size="default"
+            variant="secondary"
             onClick={handleClick}
         >
             {children}
@@ -71,9 +66,13 @@ export const Calendar = ({ highlightedDates, className, ...props }: CalendarProp
         <ContextWrapper>
             <AriaCalendar {...props} className={(state) => cx("flex flex-col gap-3", typeof className === "function" ? className(state) : className)}>
                 <header className="flex items-center justify-between">
-                    <Button slot="previous" iconLeading={ChevronLeft} size="sm" color="tertiary" className="size-8" />
+                    <Button slot="previous" size="icon-sm" variant="ghost" className="size-8">
+                        <ChevronLeft className="size-4" />
+                    </Button>
                     <AriaHeading className="text-sm font-semibold text-fg-secondary" />
-                    <Button slot="next" iconLeading={ChevronRight} size="sm" color="tertiary" className="size-8" />
+                    <Button slot="next" size="icon-sm" variant="ghost" className="size-8">
+                        <ChevronRight className="size-4" />
+                    </Button>
                 </header>
 
                 <div className="flex gap-3">

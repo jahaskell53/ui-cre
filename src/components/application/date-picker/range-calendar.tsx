@@ -16,7 +16,7 @@ import {
     RangeCalendarStateContext,
     useSlottedContext,
 } from "react-aria-components";
-import { Button } from "@/components/base/buttons/button";
+import { Button } from "@/components/ui/button";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { CalendarCell } from "./cell";
 import { DateInput } from "./date-input";
@@ -53,9 +53,8 @@ const MobilePresetButton = ({ value, children, ...props }: HTMLAttributes<HTMLBu
     return (
         <Button
             {...props}
-            slot={null}
             size="sm"
-            color="link-color"
+            variant="link"
             onClick={() => {
                 context?.setValue(value);
                 context?.setFocusedDate(value.start as CalendarDate);
@@ -90,13 +89,17 @@ export const RangeCalendar = ({ presets, ...props }: RangeCalendarProps) => {
             >
                 <div className="flex flex-col gap-3 px-6 py-5">
                     <header className="relative flex items-center justify-between md:justify-start">
-                        <Button slot="previous" iconLeading={ChevronLeft} size="sm" color="tertiary" className="size-8" />
+                        <Button slot="previous" size="icon-sm" variant="ghost" className="size-8">
+                            <ChevronLeft className="size-4" />
+                        </Button>
 
                         <h2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-fg-secondary">
                             <RangeCalendarTitle part="start" />
                         </h2>
 
-                        <Button slot="next" iconLeading={ChevronRight} size="sm" color="tertiary" className="size-8 md:hidden" />
+                        <Button slot="next" size="icon-sm" variant="ghost" className="size-8 md:hidden">
+                            <ChevronRight className="size-4" />
+                        </Button>
                     </header>
 
                     {!isDesktop && (
@@ -138,7 +141,9 @@ export const RangeCalendar = ({ presets, ...props }: RangeCalendarProps) => {
                                 <RangeCalendarTitle part="end" />
                             </h2>
 
-                            <Button slot="next" iconLeading={ChevronRight} size="sm" color="tertiary" className="size-8" />
+                            <Button slot="next" size="icon-sm" variant="ghost" className="size-8">
+                                <ChevronRight className="size-4" />
+                            </Button>
                         </header>
 
                         <AriaCalendarGrid weekdayStyle="short" offset={{ months: 1 }} className="w-max">
