@@ -391,7 +391,7 @@ export default function BoardPage() {
                 </div>
                 <div className="flex justify-end">
                   <Button
-                    className="bg-brand-600 hover:bg-brand-700 text-white"
+                    className="bg-black hover:bg-gray-900 text-white"
                     onClick={() => {
                       setErrorMessage(null);
                       close();

@@ -50,13 +50,13 @@ export const styles = sortCx({
     colors: {
         primary: {
             root: [
-                "bg-brand-solid text-white shadow-xs-skeumorphic ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover",
+                "bg-black text-white shadow-xs-skeumorphic ring-1 ring-transparent ring-inset hover:bg-gray-900 data-loading:bg-gray-900",
                 // Inner border gradient
                 "before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0%",
                 // Disabled styles
                 "disabled:bg-disabled disabled:shadow-xs disabled:ring-disabled_subtle",
                 // Icon styles
-                "*:data-icon:text-button-primary-icon hover:*:data-icon:text-button-primary-icon_hover",
+                "*:data-icon:text-white hover:*:data-icon:text-white",
             ].join(" "),
         },
         secondary: {

@@ -168,7 +168,7 @@ export default function ManageEventsPage() {
                             <Calendar className="w-10 h-10 text-gray-300" />
                         </div>
                         <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No {activeTab} events</h2>
-                        <p className="text-gray-500 font-medium mb-8">Ready to host something amazing?</p>
+                        <p className="text-gray-500 font-medium mb-8">Ready to host a webinar?</p>
                         <Link href="/events/new">
                             <Button size="lg" className="rounded-md font-semibold h-12 px-8">
                                 <Plus className="w-5 h-5 mr-2" />
