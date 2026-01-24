@@ -13,6 +13,7 @@ interface QuestionsStepProps {
   onNext: () => void;
   isLoading: boolean;
   isLastQuestion: boolean;
+  initialInterests: string[];
 }
 
 function BackIcon({ className }: { className?: string }) {
@@ -33,8 +34,10 @@ export default function QuestionsStep({
   onNext,
   isLoading,
   isLastQuestion,
+  initialInterests,
 }: QuestionsStepProps) {
   const canProceed = currentAnswer.trim() !== "";
+  const validInterests = initialInterests.filter(interest => interest.trim() !== "");
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
@@ -42,6 +45,35 @@ export default function QuestionsStep({
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
           Let&apos;s refine your interests
         </h2>
+
+        {(validInterests.length > 0 || conversation.length > 0) && (
+          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
+            {validInterests.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Initial interests:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  {validInterests.map((interest, index) => (
+                    <li key={index} className="text-sm text-gray-600 dark:text-gray-400">
+                      {interest}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {conversation.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your answers so far:</p>
+                {conversation.map((turn, idx) => (
+                  <div key={idx} className="text-sm mb-2">
+                    <p className="text-gray-600 dark:text-gray-400 mb-1">Q: {turn.question}</p>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">A: {turn.answer}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -54,18 +86,6 @@ export default function QuestionsStep({
             ></div>
           </div>
         </div>
-
-        {conversation.length > 0 && (
-          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Your answers so far:</p>
-            {conversation.map((turn, idx) => (
-              <div key={idx} className="text-sm">
-                <p className="text-gray-600 dark:text-gray-400 mb-1">Q: {turn.question}</p>
-                <p className="text-gray-900 dark:text-gray-100 font-medium">A: {turn.answer}</p>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {isLoading && isLastQuestion && !canProceed ? (

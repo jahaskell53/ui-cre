@@ -468,6 +468,7 @@ export default function RegisterPage() {
               onNext={handleQuestionNext}
               isLoading={isLoading}
               isLastQuestion={currentQuestionIndex === clarifyingQuestions.length - 1}
+              initialInterests={interests}
             />
           )}
 
@@ -514,7 +515,7 @@ export default function RegisterPage() {
             />
           )}
 
-          {currentStep === "confirmation" && (
+          {currentStep === "confirmation" && user?.email && (
             <ConfirmationStep
               userEmail={user.email}
               onBackToNews={handleBackToNews}
