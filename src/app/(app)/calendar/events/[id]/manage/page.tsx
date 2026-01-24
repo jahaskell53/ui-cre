@@ -43,6 +43,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { generateAuroraGradient, getInitials } from "@/app/(app)/people/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { supabase } from "@/utils/supabase";
+import { SearchIcon } from "@/app/(app)/people/icons";
 
 interface Event {
     id: string;
@@ -103,6 +105,12 @@ export default function EventManageDashboard() {
     const [blasts, setBlasts] = useState<Blast[]>([]);
     const [isLoadingBlasts, setIsLoadingBlasts] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [peopleSearchQuery, setPeopleSearchQuery] = useState("");
+    const [peopleSearchResults, setPeopleSearchResults] = useState<Array<{ id: string; name: string; email: string | null }>>([]);
+    const [isSearchingPeople, setIsSearchingPeople] = useState(false);
+    const [showPeoplePreview, setShowPeoplePreview] = useState(false);
+    const peopleSearchContainerRef = useRef<HTMLDivElement>(null);
+    const peopleSearchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (eventId) {
@@ -121,6 +129,47 @@ export default function EventManageDashboard() {
             fetchBlasts();
         }
     }, [eventId, activeTab]);
+
+    // Search people with debouncing
+    useEffect(() => {
+        if (peopleSearchDebounceRef.current) {
+            clearTimeout(peopleSearchDebounceRef.current);
+        }
+
+        if (peopleSearchQuery.trim().length === 0) {
+            setPeopleSearchResults([]);
+            setShowPeoplePreview(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            searchPeople(peopleSearchQuery);
+        }, 300);
+
+        peopleSearchDebounceRef.current = timer;
+
+        return () => {
+            if (peopleSearchDebounceRef.current) {
+                clearTimeout(peopleSearchDebounceRef.current);
+            }
+        };
+    }, [peopleSearchQuery]);
+
+    // Close preview when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (peopleSearchContainerRef.current && !peopleSearchContainerRef.current.contains(event.target as Node)) {
+                setShowPeoplePreview(false);
+            }
+        };
+
+        if (showPeoplePreview) {
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => {
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }
+    }, [showPeoplePreview]);
 
     const fetchEventDetails = async () => {
         try {
@@ -286,6 +335,45 @@ export default function EventManageDashboard() {
 
     const removeEmail = (email: string) => {
         setSelectedEmails(selectedEmails.filter(e => e !== email));
+    };
+
+    const searchPeople = async (query: string) => {
+        if (!query.trim()) {
+            setPeopleSearchResults([]);
+            setShowPeoplePreview(false);
+            return;
+        }
+
+        setIsSearchingPeople(true);
+        setShowPeoplePreview(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from("people")
+                .select("id, name, email")
+                .eq("user_id", user.id)
+                .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+                .limit(5);
+
+            if (error) throw error;
+
+            setPeopleSearchResults(data || []);
+        } catch (error) {
+            console.error("Error searching people:", error);
+            setPeopleSearchResults([]);
+        } finally {
+            setIsSearchingPeople(false);
+        }
+    };
+
+    const handleSelectPerson = (person: { id: string; name: string; email: string | null }) => {
+        if (person.email && !selectedEmails.includes(person.email)) {
+            setSelectedEmails([...selectedEmails, person.email]);
+        }
+        setPeopleSearchQuery("");
+        setShowPeoplePreview(false);
     };
 
     const fetchGuests = async () => {
@@ -745,6 +833,78 @@ export default function EventManageDashboard() {
                     </DialogHeader>
 
                     <div className="space-y-6 mt-4">
+                        <div className="space-y-3">
+                            <Label htmlFor="people-search" className="text-sm font-semibold text-gray-900 dark:text-gray-100 ml-1">
+                                Search from People
+                            </Label>
+                            <div className="relative" ref={peopleSearchContainerRef}>
+                                <div className="relative">
+                                    <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4 z-10" />
+                                    <Input
+                                        id="people-search"
+                                        value={peopleSearchQuery}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPeopleSearchQuery(e.target.value)}
+                                        onFocus={() => {
+                                            if (peopleSearchQuery.trim() && peopleSearchResults.length > 0) {
+                                                setShowPeoplePreview(true);
+                                            }
+                                        }}
+                                        placeholder="Search by name or email..."
+                                        className="h-11 pl-8 rounded-md border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium shadow-none"
+                                    />
+                                </div>
+
+                                {/* People Search Preview Dropdown */}
+                                {showPeoplePreview && peopleSearchQuery.trim() && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md shadow-lg z-50 max-h-80 overflow-y-auto">
+                                        {isSearchingPeople ? (
+                                            <div className="flex items-center justify-center py-4">
+                                                <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin" />
+                                            </div>
+                                        ) : peopleSearchResults.length > 0 ? (
+                                            <div className="py-1">
+                                                {peopleSearchResults.map((person) => {
+                                                    const displayName = person.name || "Unknown";
+                                                    const initials = getInitials(displayName);
+
+                                                    return (
+                                                        <div
+                                                            key={person.id}
+                                                            onClick={() => handleSelectPerson(person)}
+                                                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                                                        >
+                                                            <Avatar className="h-8 w-8 border border-gray-200 dark:border-gray-700">
+                                                                <AvatarFallback
+                                                                    style={{ background: generateAuroraGradient(displayName) }}
+                                                                    className="text-xs font-semibold text-white"
+                                                                >
+                                                                    {initials}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                                                    {displayName}
+                                                                </div>
+                                                                {person.email && (
+                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                                        {person.email}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
+                                                No people found
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="space-y-3">
                             <Label htmlFor="emails" className="text-sm font-semibold text-gray-900 dark:text-gray-100 ml-1">
                                 Add Emails
