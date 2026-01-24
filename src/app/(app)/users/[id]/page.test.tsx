@@ -6,7 +6,11 @@ import { supabase } from '@/utils/supabase'
 
 // Mock dependencies
 vi.mock('@/hooks/use-user')
-vi.mock('@/utils/supabase')
+vi.mock('@/utils/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
