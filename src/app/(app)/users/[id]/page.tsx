@@ -8,7 +8,7 @@ import { supabase } from "@/utils/supabase";
 import { useUser } from "@/hooks/use-user";
 import { ArrowLeft, Heart, MessageCircle, ArrowUpRight, File, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { generateAuroraGradient } from "@/app/(app)/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 
 interface UserProfile {
     id: string;

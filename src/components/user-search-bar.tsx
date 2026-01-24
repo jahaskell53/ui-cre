@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/utils/supabase";
-import { generateAuroraGradient } from "@/app/(app)/people/utils";
-import { SearchIcon } from "@/app/(app)/people/icons";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { SearchIcon } from "@/app/(app)/network/icons";
 import { cn } from "@/lib/utils";
 
 interface UserProfile {

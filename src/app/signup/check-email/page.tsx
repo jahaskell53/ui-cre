@@ -20,7 +20,7 @@ function CheckEmailContent() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 // User has confirmed email and has a session
-                router.push("/people/connect");
+                router.push("/network/connect");
             }
         };
 
@@ -35,7 +35,7 @@ function CheckEmailContent() {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
             if (session) {
-                router.push("/people/connect");
+                router.push("/network/connect");
             }
         });
 

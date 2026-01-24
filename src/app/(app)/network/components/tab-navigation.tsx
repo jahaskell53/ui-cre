@@ -61,13 +61,13 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
       }
       
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-        if (pathname === "/people" || pathname === "/people/map") {
+        if (pathname === "/network" || pathname === "/network/map") {
           e.preventDefault();
           setIsSearchExpanded(true);
         }
       } else if (e.key === "Escape") {
-        // Clear search if we're on people/map page and there's an active search query
-        if ((pathname === "/people" || pathname === "/people/map") && searchQuery.trim()) {
+        // Clear search if we're on network/map page and there's an active search query
+        if ((pathname === "/network" || pathname === "/network/map") && searchQuery.trim()) {
           e.preventDefault();
           setSearchQuery("");
           setIsSearchExpanded(false);
@@ -82,14 +82,14 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
   }, [pathname, searchQuery, setSearchQuery]);
   
   const tabs = [
-    { href: "/people", label: "People", value: "people" },
-    { href: "/people/board", label: "Board", value: "board" },
-    { href: "/people/map", label: "Map", value: "map" },
+    { href: "/network", label: "Network", value: "network" },
+    { href: "/network/board", label: "Board", value: "board" },
+    { href: "/network/map", label: "Map", value: "map" },
   ];
 
   const isActive = (href: string) => {
-    if (href === "/people") {
-      return pathname === "/people";
+    if (href === "/network") {
+      return pathname === "/network";
     }
     return pathname?.startsWith(href);
   };
@@ -103,8 +103,8 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
 
       if (e.key === "Tab") {
         const currentIndex = tabs.findIndex((tab) => {
-          if (tab.href === "/people") {
-            return pathname === "/people";
+          if (tab.href === "/network") {
+            return pathname === "/network";
           }
           return pathname?.startsWith(tab.href);
         });
@@ -150,8 +150,8 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
           })}
         </div>
         <div className="flex items-center gap-3">
-          {/* Star filter button - shown only on people page */}
-          {pathname === "/people" && (
+          {/* Star filter button - shown only on network page */}
+          {pathname === "/network" && (
             <button
               onClick={() => {
                 const newShowStarredOnly = !showStarredOnly;
@@ -179,8 +179,8 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
               />
             </button>
           )}
-          {/* Refresh button - shown on both people and map pages */}
-          {(pathname === "/people" || pathname === "/people/map") && (
+          {/* Refresh button - shown on both network and map pages */}
+          {(pathname === "/network" || pathname === "/network/map") && (
             <button
               onClick={() => refetchPeople()}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -192,8 +192,8 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
             </button>
           )}
           
-          {/* Search - shown on both people and map pages */}
-          {(pathname === "/people" || pathname === "/people/map") && (
+          {/* Search - shown on both network and map pages */}
+          {(pathname === "/network" || pathname === "/network/map") && (
             <>
               {isSearchExpanded ? (
                 <div className="relative">
@@ -236,8 +236,8 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
             </>
           )}
           
-          {/* Filter type and select all - only shown on people page */}
-          {pathname === "/people" && (
+          {/* Filter type and select all - only shown on network page */}
+          {pathname === "/network" && (
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

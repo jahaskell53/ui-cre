@@ -10,10 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
 import { cn } from "@/lib/utils";
-import { StarIcon, MailIcon, PlusIcon } from "@/app/(app)/people/icons";
-import { generateAuroraGradient, getInitials } from "@/app/(app)/people/utils";
-import { usePeople } from "@/app/(app)/people/people-context";
-import type { Person } from "@/app/(app)/people/types";
+import { StarIcon, MailIcon, PlusIcon } from "@/app/(app)/network/icons";
+import { generateAuroraGradient, getInitials } from "@/app/(app)/network/utils";
+import { usePeople } from "@/app/(app)/network/people-context";
+import type { Person } from "@/app/(app)/network/types";
 
 interface PeopleListProps {
   people: Person[];
@@ -249,7 +249,7 @@ export function PeopleList({
               : `${filteredPeople.length} ${showStarredOnly ? "Starred" : ""} People`}
           </span>
           <Link
-            href="/people/create"
+            href="/network/create"
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
             aria-label="Create new"
           >

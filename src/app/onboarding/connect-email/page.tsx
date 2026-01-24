@@ -74,7 +74,7 @@ function ConnectEmailPageContent() {
           setSyncing(false);
           // Redirect to people page after short delay
           setTimeout(() => {
-            router.push('/people');
+            router.push('/network');
           }, 2000);
         } else if (latestIntegration.status === 'error') {
           setSyncing(false);
@@ -115,7 +115,7 @@ function ConnectEmailPageContent() {
   }
 
   function handleSkip() {
-    router.push('/people');
+    router.push('/network');
   }
 
   if (syncing) {

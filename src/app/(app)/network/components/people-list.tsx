@@ -281,7 +281,7 @@ export function PeopleList({
       } else if (e.key === "Enter") {
         if (selectedPerson) {
           e.preventDefault();
-          router.push(`/people/${selectedPerson.id}`);
+          router.push(`/network/${selectedPerson.id}`);
         }
       }
     };
@@ -344,7 +344,7 @@ export function PeopleList({
               : `${filteredPeople.length} ${showStarredOnly ? "Starred" : ""} People`}
           </span>
           <Link
-            href="/people/create"
+            href="/network/create"
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
             aria-label="Create new"
           >
@@ -379,7 +379,7 @@ export function PeopleList({
                 onMouseEnter={() => onSelectPerson(person)}
                 onClick={() => {
                   onSelectPerson(person);
-                  router.push(`/people/${person.id}`);
+                  router.push(`/network/${person.id}`);
                 }}
                 className={cn(
                   "flex items-center px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer group",

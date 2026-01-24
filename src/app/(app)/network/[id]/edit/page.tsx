@@ -89,7 +89,7 @@ export default function EditPersonPage() {
   }, [personId]);
 
   const handleBack = () => {
-    router.push(`/people/${personId}`);
+    router.push(`/network/${personId}`);
   };
 
   const handleAddOwnedAddress = () => {
@@ -139,7 +139,7 @@ export default function EditPersonPage() {
       // Refetch people data after successful update
       await refetchPeople();
 
-      router.push(`/people/${personId}`);
+      router.push(`/network/${personId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save changes");
     } finally {

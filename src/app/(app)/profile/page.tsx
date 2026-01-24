@@ -10,7 +10,7 @@ import { supabase } from "@/utils/supabase";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Upload } from "lucide-react";
 import { EmailIntegrations } from "@/components/integrations/EmailIntegrations";
-import { generateAuroraGradient } from "@/app/(app)/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 
 function BackIcon({ className }: { className?: string }) {
   return (

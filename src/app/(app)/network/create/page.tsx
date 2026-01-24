@@ -47,7 +47,7 @@ export default function CreatePersonPage() {
   const [facebookUrl, setFacebookUrl] = useState("");
 
   const handleBack = () => {
-    router.push("/people");
+    router.push("/network");
   };
 
   const handleAddOwnedAddress = () => {
@@ -98,7 +98,7 @@ export default function CreatePersonPage() {
       const data = await response.json();
       // Refetch people data after successful creation
       await refetchPeople();
-      router.push(`/people/${data.id}`);
+      router.push(`/network/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create person");
     } finally {

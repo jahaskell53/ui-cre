@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { X, File, Loader2, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/utils/supabase";
-import { generateAuroraGradient } from "@/app/(app)/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 
 interface CreatePostInlineProps {
     onSuccess: () => void;

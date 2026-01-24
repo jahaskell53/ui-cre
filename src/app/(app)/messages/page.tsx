@@ -9,7 +9,7 @@ import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { ArrowUp, Plus, Search, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { generateAuroraGradient } from "@/app/(app)/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { motion, AnimatePresence } from "motion/react";
 
 interface Conversation {

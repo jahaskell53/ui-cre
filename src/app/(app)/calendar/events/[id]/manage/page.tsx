@@ -40,11 +40,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { generateAuroraGradient, getInitials } from "@/app/(app)/people/utils";
+import { generateAuroraGradient, getInitials } from "@/app/(app)/network/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
-import { SearchIcon } from "@/app/(app)/people/icons";
+import { SearchIcon } from "@/app/(app)/network/icons";
 
 interface Event {
     id: string;

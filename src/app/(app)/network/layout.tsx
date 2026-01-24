@@ -25,16 +25,16 @@ export default function PeopleLayout({
   const [reverse, setReverse] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Check if we're on a detail page (e.g., /people/[id] or /people/[id]/edit)
-  const isDetailPage = pathname?.match(/^\/people\/[^/]+(\/.*)?$/) && 
-                       pathname !== "/people/create" &&
-                       pathname !== "/people/board" &&
-                       pathname !== "/people/map";
+  // Check if we're on a detail page (e.g., /network/[id] or /network/[id]/edit)
+  const isDetailPage = pathname?.match(/^\/network\/[^/]+(\/.*)?$/) && 
+                       pathname !== "/network/create" &&
+                       pathname !== "/network/board" &&
+                       pathname !== "/network/map";
   
-  const shouldHideDetailPanel = pathname === "/people/create" ||
+  const shouldHideDetailPanel = pathname === "/network/create" ||
                                 isDetailPage;
   
-  const shouldHideTabs = isDetailPage || pathname === "/people/create";
+  const shouldHideTabs = isDetailPage || pathname === "/network/create";
 
   // Fetch people from database
   const fetchPeople = async () => {
@@ -62,17 +62,17 @@ export default function PeopleLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refetch when navigating to /people after being away
+  // Refetch when navigating to /network after being away
   useEffect(() => {
-    if (pathname === "/people") {
+    if (pathname === "/network") {
       fetchPeople();
     }
   }, [pathname]);
 
-  // Refetch when page becomes visible (user returns to tab) and we're on the main /people page
+  // Refetch when page becomes visible (user returns to tab) and we're on the main /network page
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && pathname === "/people") {
+      if (document.visibilityState === "visible" && pathname === "/network") {
         fetchPeople();
       }
     };

@@ -14,20 +14,20 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('OAuth error:', error);
       return NextResponse.redirect(
-        new URL('/people/connect?error=oauth_failed', request.url)
+        new URL('/network/connect?error=oauth_failed', request.url)
       );
     }
 
     if (!code || !state) {
       return NextResponse.redirect(
-        new URL('/people/connect?error=missing_params', request.url)
+        new URL('/network/connect?error=missing_params', request.url)
       );
     }
 
     // Extract user ID and redirect from state
     const stateParts = state.split(':');
     const userId = stateParts[0];
-    const redirectTo = stateParts[2] ? decodeURIComponent(stateParts[2]) : '/people/connect';
+    const redirectTo = stateParts[2] ? decodeURIComponent(stateParts[2]) : '/network/connect';
 
     // Exchange code for grant
     const grantResponse = await exchangeCodeForGrant(code);
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in OAuth callback:', error);
     return NextResponse.redirect(
-      new URL('/people/connect?error=callback_failed', request.url)
+      new URL('/network/connect?error=callback_failed', request.url)
     );
   }
 }

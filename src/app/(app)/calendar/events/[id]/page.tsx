@@ -7,7 +7,7 @@ import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { generateAuroraGradient, getInitials } from "@/app/(app)/people/utils";
+import { generateAuroraGradient, getInitials } from "@/app/(app)/network/utils";
 import { useUser } from "@/hooks/use-user";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";

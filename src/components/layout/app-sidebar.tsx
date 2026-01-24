@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageSquare, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/(app)/people/icons";
-import AccountCard from "@/app/(app)/people/account-card";
+import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/(app)/network/icons";
+import AccountCard from "@/app/(app)/network/account-card";
 import { UserSearchBar, type UserSearchBarRef } from "@/components/user-search-bar";
 
 interface AppSidebarProps {
@@ -111,19 +111,19 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           )}
         </Link>
         <Link
-          href="/people"
+          href="/network"
           className={cn(
             "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
             isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
-            isActive("/people")
+            isActive("/network")
               ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               : "text-gray-600 dark:text-gray-400"
           )}
-          title={isCollapsed ? "People" : undefined}
+          title={isCollapsed ? "Network" : undefined}
         >
           <PeopleIcon className="w-4 h-4" />
           {!isCollapsed && (
-            <span className={cn("text-sm", isActive("/people") && "font-medium")}>People</span>
+            <span className={cn("text-sm", isActive("/network") && "font-medium")}>Network</span>
           )}
         </Link>
         <Link

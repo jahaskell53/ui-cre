@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { generateAuroraGradient } from "@/app/(app)/people/utils";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 
 export interface UserSuggestion {
     id: string;

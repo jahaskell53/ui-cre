@@ -49,7 +49,7 @@ function ConnectEmailPageContent() {
               clearTimeout(timeoutId);
               // Redirect after showing success
               setTimeout(() => {
-                router.push('/people');
+                router.push('/network');
               }, 2000);
               return;
             } else if (latestIntegration.status === 'error') {
@@ -116,7 +116,7 @@ function ConnectEmailPageContent() {
   }
 
   function handleSkip() {
-    router.push('/people');
+    router.push('/network');
   }
 
   return (

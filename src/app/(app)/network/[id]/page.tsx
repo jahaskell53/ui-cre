@@ -319,7 +319,7 @@ export default function PersonDetailPage() {
   };
 
   const handleBack = () => {
-    router.push("/people");
+    router.push("/network");
   };
 
   // Handle Escape key to exit detailed view
@@ -344,7 +344,7 @@ export default function PersonDetailPage() {
 
       if (e.key === "Escape") {
         e.preventDefault();
-        router.push("/people");
+        router.push("/network");
       }
     };
 
@@ -488,7 +488,7 @@ export default function PersonDetailPage() {
       // Refetch people data after successful deletion
       await refetchPeople();
 
-      router.push('/people');
+      router.push('/network');
     } catch (error) {
       console.error('Error deleting person:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete person');
@@ -646,7 +646,7 @@ export default function PersonDetailPage() {
             <button
               onClick={() => {
                 if (personId) {
-                  router.push(`/people/${personId}/edit`);
+                  router.push(`/network/${personId}/edit`);
                 }
               }}
               className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500"
