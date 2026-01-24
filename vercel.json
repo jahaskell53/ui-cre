@@ -17,6 +17,9 @@
     },
     "src/app/api/news/send-scheduled-newsletters/route.ts": {
       "maxDuration": 300
+    },
+    "src/app/api/news/test-newsletter/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -43,6 +46,10 @@
     {
       "path": "/api/news/send-scheduled-newsletters",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/news/test-newsletter",
+      "schedule": "0 16 * * 5"
     }
   ]
 }

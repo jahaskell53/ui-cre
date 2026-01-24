@@ -151,7 +151,7 @@ export default function PeopleLayout({
           <div
             ref={resizeRef}
             onMouseDown={handleMouseDown}
-            className="w-1 flex items-center justify-center cursor-col-resize flex-shrink-0 group"
+            className="w-1 hidden lg:flex items-center justify-center cursor-col-resize flex-shrink-0 group"
           >
             <div className="w-px h-full bg-gray-200 dark:bg-gray-800 group-hover:bg-gray-300 dark:group-hover:bg-gray-700 transition-colors" />
           </div>
@@ -159,7 +159,9 @@ export default function PeopleLayout({
 
         {/* Right Detail Panel */}
         {!shouldHideDetailPanel && (
-          <DetailPanel selectedPerson={selectedPerson} panelWidth={panelWidth} />
+          <div className="hidden lg:block h-full">
+            <DetailPanel selectedPerson={selectedPerson} panelWidth={panelWidth} />
+          </div>
         )}
       </div>
     </PeopleProvider>
