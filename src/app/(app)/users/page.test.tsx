@@ -7,7 +7,11 @@ import { supabase } from '@/utils/supabase'
 
 // Mock dependencies
 vi.mock('@/hooks/use-user')
-vi.mock('@/utils/supabase')
+vi.mock('@/utils/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}))
 
 const mockUser = {
   id: 'user-123',
