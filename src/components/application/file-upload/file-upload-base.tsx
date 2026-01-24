@@ -6,7 +6,6 @@ import { File as FileTypeIcon } from "lucide-react";
 import { CheckCircle, Trash as Trash01, UploadCloud as UploadCloud02, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
@@ -377,7 +376,14 @@ export const FileListItemProgressFill = ({ name, size, progress, failed, type, f
                     )}
                 </div>
 
-                <ButtonUtility color="tertiary" tooltip="Delete" icon={Trash01} size="xs" className="-mt-2 -mr-2 self-start" onClick={onDelete} />
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" className="-mt-2 -mr-2 self-start" onClick={onDelete} aria-label="Delete">
+                            <Trash01 className="size-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Delete</TooltipContent>
+                </Tooltip>
             </div>
         </motion.li>
     );

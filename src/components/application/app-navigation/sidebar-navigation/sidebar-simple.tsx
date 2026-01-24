@@ -96,12 +96,9 @@ export const SidebarNavigationSimple = ({
                 {!isCollapsed && (
                     <div onClick={onSearchClick} className="cursor-pointer">
                         <Input
-                            shortcut
-                            size="sm"
                             aria-label="Search"
                             placeholder="Search"
-                            icon={Search}
-                            isReadOnly
+                            readOnly
                             className="pointer-events-none"
                         />
                     </div>
