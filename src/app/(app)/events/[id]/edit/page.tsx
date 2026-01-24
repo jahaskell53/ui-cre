@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X, Video } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X, Video, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import Link from "next/link";
 
 const colorOptions = [
@@ -39,10 +40,25 @@ const generateTimeOptions = () => {
 
 const timeOptions = generateTimeOptions();
 
-export default function NewEventPage() {
+// Round time to nearest 30-minute interval
+const roundToNearest30Minutes = (timeString: string): string => {
+    const [hours, minutes] = timeString.split(":").map(Number);
+    const roundedMinutes = Math.round(minutes / 30) * 30;
+    const finalMinutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+    const finalHours = roundedMinutes === 60 ? (hours + 1) % 24 : hours;
+    return `${finalHours.toString().padStart(2, "0")}:${finalMinutes.toString().padStart(2, "0")}`;
+};
+
+export default function EditEventPage() {
     const router = useRouter();
-    const [isLoading, setIsLoading] = useState(false);
+    const params = useParams();
+    const eventId = params.id as string;
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
@@ -53,6 +69,11 @@ export default function NewEventPage() {
     const [color, setColor] = useState("blue");
     const [imageUrl, setImageUrl] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [meetLink, setMeetLink] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetchEvent();
+    }, [eventId]);
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -81,6 +102,32 @@ export default function NewEventPage() {
             setError(err.message || "Failed to upload image");
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const fetchEvent = async () => {
+        try {
+            const response = await fetch(`/api/events?id=${eventId}`);
+            if (!response.ok) throw new Error("Failed to fetch event");
+            const data = await response.json();
+
+            setTitle(data.title);
+            setDescription(data.description || "");
+            setLocation(data.location || "");
+            setColor(data.color || "blue");
+            setImageUrl(data.image_url || "");
+            setMeetLink(data.meet_link || null);
+
+            const start = new Date(data.start_time);
+            const end = new Date(data.end_time);
+
+            setStartDate(start);
+            setStartTime(roundToNearest30Minutes(start.toTimeString().slice(0, 5)));
+            setEndTime(roundToNearest30Minutes(end.toTimeString().slice(0, 5)));
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -113,11 +160,11 @@ export default function NewEventPage() {
             return;
         }
 
-        setIsLoading(true);
+        setIsSaving(true);
 
         try {
-            const response = await fetch("/api/events", {
-                method: "POST",
+            const response = await fetch(`/api/events?id=${eventId}`, {
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     title,
@@ -132,33 +179,52 @@ export default function NewEventPage() {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || "Failed to create event");
+                throw new Error(errorData.error || "Failed to update event");
             }
 
-            router.push("/calendar");
+            router.push("/events/manage");
         } catch (err: any) {
             setError(err.message);
         } finally {
-            setIsLoading(false);
+            setIsSaving(false);
         }
     };
 
-    // Set default dates to today
-    const today = new Date();
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/events?id=${eventId}`, { method: "DELETE" });
+            if (!response.ok) throw new Error("Failed to delete event");
+            router.push("/events/manage");
+        } catch (err: any) {
+            setError(err.message);
+            setIsDeleting(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+                <div className="flex items-center justify-center py-12">
+                    <div className="text-gray-500 dark:text-gray-400">Loading event...</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
             {/* Top Header Bar */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
                 <button
-                    onClick={() => router.push("/calendar")}
+                    onClick={() => router.push("/events/manage")}
                     className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Create New Event</h1>
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Event</h1>
                 <div className="w-9" /> {/* Spacer for centering */}
             </div>
 
@@ -167,7 +233,7 @@ export default function NewEventPage() {
                 <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
 
                 {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
                         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                     </div>
                 )}
@@ -203,7 +269,6 @@ export default function NewEventPage() {
                         <DatePicker
                             date={startDate}
                             onDateChange={setStartDate}
-                            minDate={today}
                             placeholder="Select date"
                         />
                         <Select value={startTime} onValueChange={setStartTime}>
@@ -249,13 +314,33 @@ export default function NewEventPage() {
                         />
                     </div>
 
-                    {/* Google Meet Info */}
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                        <Video className="size-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                            A Google Meet link will be automatically created for this event.
-                        </p>
-                    </div>
+                    {/* Google Meet Link (Read-only) */}
+                    {meetLink && (
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <Video className="size-4" />
+                                Google Meet Link
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    value={meetLink}
+                                    readOnly
+                                    className="h-11 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400"
+                                />
+                                <a
+                                    href={meetLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center h-11 px-4 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors shrink-0"
+                                >
+                                    Join
+                                </a>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                This link was automatically generated and cannot be changed.
+                            </p>
+                        </div>
+                    )}
 
                     <div className="flex flex-col gap-2">
                         <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -294,7 +379,7 @@ export default function NewEventPage() {
                                 <img
                                     src={imageUrl}
                                     alt="Event cover"
-                                    className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                                    className="w-full h-48 object-cover rounded-md border border-gray-200 dark:border-gray-700"
                                 />
                                 <button
                                     type="button"
@@ -328,23 +413,74 @@ export default function NewEventPage() {
                         )}
                     </div>
 
-                    <div className="flex gap-3 pt-4">
-                        <Link href="/calendar" className="flex-1">
-                            <Button type="button" variant="outline" className="w-full h-11">
-                                Cancel
+                    <div className="flex flex-col gap-3 pt-4">
+                        <div className="flex gap-3">
+                            <Link href="/events/manage" className="flex-1">
+                                <Button type="button" variant="outline" className="w-full h-11">
+                                    Cancel
+                                </Button>
+                            </Link>
+                            <Button
+                                type="submit"
+                                disabled={isSaving}
+                                className="flex-1 h-11 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
+                            >
+                                {isSaving ? "Saving..." : "Save Changes"}
                             </Button>
-                        </Link>
+                        </div>
                         <Button
-                            type="submit"
-                            disabled={isLoading}
-                            className="flex-1 h-11 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
+                            type="button"
+                            variant="destructive"
+                            onClick={() => setShowDeleteModal(true)}
+                            disabled={isSaving || isDeleting}
+                            className="h-9 w-9 p-0"
                         >
-                            {isLoading ? "Creating..." : "Create Event"}
+                            <Trash2 className="w-4 h-4" />
                         </Button>
                     </div>
                 </form>
                 </div>
             </div>
+
+            {/* Delete Event Confirmation Modal */}
+            <ModalOverlay
+                isOpen={showDeleteModal}
+                onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
+            >
+                <Modal className="max-w-md bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+                    <Dialog className="p-8">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-16 h-16 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6">
+                                <Trash2 className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>
+                            <p className="text-gray-500 font-medium mb-8">
+                                Are you sure you want to delete <span className="text-gray-900 dark:text-gray-100 font-semibold">"{title}"</span>? This action is permanent.
+                            </p>
+                            <div className="flex flex-col w-full gap-3">
+                                <Button
+                                    variant="destructive"
+                                    size="lg"
+                                    onClick={handleDelete}
+                                    disabled={isDeleting}
+                                    className="w-full h-14 rounded-md font-semibold"
+                                >
+                                    {isDeleting ? "Deleting..." : "Yes, Delete Event"}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="lg"
+                                    onClick={() => setShowDeleteModal(false)}
+                                    disabled={isDeleting}
+                                    className="w-full h-14 rounded-md font-semibold text-gray-500"
+                                >
+                                    Keep Event
+                                </Button>
+                            </div>
+                        </div>
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
         </div>
     );
 }

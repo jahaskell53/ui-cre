@@ -94,7 +94,7 @@ export async function POST(
 
         // Generate email content
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        const eventUrl = `${baseUrl}/calendar/events/${eventId}`;
+        const eventUrl = `${baseUrl}/events/${eventId}`;
 
         const htmlContent = `
 <!DOCTYPE html>

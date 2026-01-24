@@ -231,7 +231,7 @@ export default function EventManageDashboard() {
     };
 
     const handleShare = async () => {
-        const shareUrl = `${window.location.origin}/calendar/events/${eventId}`;
+        const shareUrl = `${window.location.origin}/events/${eventId}`;
 
         if (navigator.share) {
             try {
@@ -422,7 +422,7 @@ export default function EventManageDashboard() {
             {/* Top Header Bar */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
                 <button
-                    onClick={() => router.push(`/calendar/events/${event.id}`)}
+                    onClick={() => router.push(`/events/${event.id}`)}
                     className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -443,7 +443,7 @@ export default function EventManageDashboard() {
                             {event.title}
                         </h1>
                     </div>
-                    <Link href={`/calendar/events/${event.id}`}>
+                    <Link href={`/events/${event.id}`}>
                         <Button variant="outline" className="rounded-md font-semibold bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 gap-2">
                             Event Page
                             <ExternalLink className="w-4 h-4" />
@@ -486,7 +486,7 @@ export default function EventManageDashboard() {
                             <div className="font-semibold text-gray-900 dark:text-white">Invite Guests</div>
                         </div>
                     </button>
-                    <Link href={`/calendar/events/${eventId}/send-blast`}>
+                    <Link href={`/events/${eventId}/send-blast`}>
                         <button className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm text-left w-full">
                             <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center text-purple-600">
                                 <MessageSquare className="w-6 h-6" />
@@ -562,7 +562,7 @@ export default function EventManageDashboard() {
                                 </div>
 
                                 <div className="flex items-center gap-3">
-                                    <Link href={`/calendar/events/${event.id}/edit`}>
+                                    <Link href={`/events/${event.id}/edit`}>
                                         <Button variant="secondary" className="rounded-md font-semibold px-6">Edit Event</Button>
                                     </Link>
                                     <Button
@@ -727,7 +727,7 @@ export default function EventManageDashboard() {
                                         Send messages to all registered attendees
                                     </p>
                                 </div>
-                                <Link href={`/calendar/events/${eventId}/send-blast`}>
+                                <Link href={`/events/${eventId}/send-blast`}>
                                     <Button
                                         variant="secondary"
                                         className="rounded-md font-semibold bg-gray-100"
@@ -749,7 +749,7 @@ export default function EventManageDashboard() {
                                     </div>
                                     <div className="font-semibold text-gray-900 dark:text-white mb-1">No Blasts Sent Yet</div>
                                     <p className="text-sm font-semibold text-gray-400 mb-6">Send your first email blast to all registered attendees.</p>
-                                    <Link href={`/calendar/events/${eventId}/send-blast`}>
+                                    <Link href={`/events/${eventId}/send-blast`}>
                                         <Button
                                             variant="secondary"
                                             className="rounded-md font-semibold"

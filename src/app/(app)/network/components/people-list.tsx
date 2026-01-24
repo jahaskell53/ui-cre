@@ -503,7 +503,7 @@ export function PeopleList({
                   variant="outline"
                   onClick={() => {
                     setShowInviteModal(false);
-                    router.push("/calendar/events/new");
+                    router.push("/events/new");
                   }}
                 >
                   Create Event

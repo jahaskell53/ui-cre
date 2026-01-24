@@ -127,19 +127,19 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           )}
         </Link>
         <Link
-          href="/calendar"
+          href="/events"
           className={cn(
             "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
             isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
-            isActive("/calendar")
+            isActive("/events")
               ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               : "text-gray-600 dark:text-gray-400"
           )}
-          title={isCollapsed ? "Calendar" : undefined}
+          title={isCollapsed ? "Events" : undefined}
         >
           <CalendarIcon className="w-4 h-4" />
           {!isCollapsed && (
-            <span className={cn("text-sm", isActive("/calendar") && "font-medium")}>Calendar</span>
+            <span className={cn("text-sm", isActive("/events") && "font-medium")}>Events</span>
           )}
         </Link>
         <Link

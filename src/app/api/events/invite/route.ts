@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
             hour: "numeric",
             minute: "2-digit",
         });
-        const eventUrl = `${baseUrl}/calendar/events/${event.id}`;
+        const eventUrl = `${baseUrl}/events/${event.id}`;
 
         const emailContent = generateEventInviteEmail({
             hostName,

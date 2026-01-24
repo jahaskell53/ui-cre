@@ -156,7 +156,7 @@ export default function CalendarPage() {
                                 </span>
                                 <div className="flex flex-col gap-1 mt-2 overflow-hidden">
                                     {dayEvents.map((event) => (
-                                        <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                        <Link key={event.id} href={`/events/${event.id}`}>
                                             <div className={`p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-xs font-semibold cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}>
                                                 <p className="truncate">{event.title}</p>
                                                 <p className="text-[10px] text-gray-500 dark:text-gray-400">{formatEventTime(event.start_time, event.end_time)}</p>
@@ -236,7 +236,7 @@ export default function CalendarPage() {
                                                 const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
                                                 const minuteOffset = startDate.getMinutes();
                                                 return (
-                                                    <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                                    <Link key={event.id} href={`/events/${event.id}`}>
                                                         <div
                                                             className={`absolute left-1 right-1 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-xs font-semibold z-10 cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}
                                                             style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
@@ -294,7 +294,7 @@ export default function CalendarPage() {
                                         const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
                                         const minuteOffset = startDate.getMinutes();
                                         return (
-                                            <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                            <Link key={event.id} href={`/events/${event.id}`}>
                                                 <div
                                                     className={`absolute left-2 right-2 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 border-l-4 rounded-md text-sm font-semibold z-10 cursor-pointer hover:border-gray-300 dark:hover:border-gray-700 hover:shadow-sm transition-all text-gray-900 dark:text-gray-100 ${colorClasses[event.color] || colorClasses.blue}`}
                                                     style={{ height: `${Math.max(duration * 60, 30)}px`, top: `${minuteOffset}px` }}
@@ -320,16 +320,16 @@ export default function CalendarPage() {
             <div className="flex flex-col gap-8 p-6">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Seminar Calendar</h1>
+                        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Events</h1>
                     </div>
                     <div className="flex gap-3 w-full lg:w-auto">
-                        <Link href="/calendar/events/manage">
+                        <Link href="/events/manage">
                             <Button variant="outline">
                                 <Calendar className="size-4" />
                                 My Events
                             </Button>
                         </Link>
-                        <Link href="/calendar/events/new">
+                        <Link href="/events/new">
                             <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
                                 <Plus className="size-4" />
                                 Create New
@@ -437,7 +437,7 @@ export default function CalendarPage() {
                                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-md text-center">
                                     <Calendar className="size-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">No upcoming events</p>
-                                    <Link href="/calendar/events/new">
+                                    <Link href="/events/new">
                                         <Button variant="outline" size="sm" className="w-full">
                                             <Plus className="size-3 mr-1" />
                                             Create Event
@@ -455,7 +455,7 @@ export default function CalendarPage() {
                                         const colorDot = colorClasses[event.color]?.split(" ")[0] || "bg-blue-50";
 
                                         return (
-                                            <Link key={event.id} href={`/calendar/events/${event.id}`}>
+                                            <Link key={event.id} href={`/events/${event.id}`}>
                                                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-md flex flex-col gap-3 hover:border-gray-300 dark:hover:border-gray-700 transition-colors hover:shadow-sm cursor-pointer">
                                                     <div>
                                                         <div className="flex items-center gap-2 mb-1">
@@ -488,7 +488,7 @@ export default function CalendarPage() {
                                     })
                             )}
                             {events.filter(e => new Date(e.start_time) >= new Date()).length > 5 && (
-                                <Link href="/calendar/events/manage">
+                                <Link href="/events/manage">
                                     <Button variant="ghost" size="sm" className="w-full text-gray-500 hover:text-gray-700">
                                         View all events
                                     </Button>

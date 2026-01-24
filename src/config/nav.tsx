@@ -14,9 +14,9 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         href: "/listings",
     },
     {
-        label: "Seminar Calendar",
+        label: "Events",
         icon: Calendar,
-        href: "/calendar",
+        href: "/events",
         badge: <Badge className="ml-3" color="orange" type="pill-color" size="sm">Coming Soon</Badge>,
     },
     {

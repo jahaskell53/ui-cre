@@ -147,7 +147,7 @@ export default function EventDetailsPage() {
         try {
             const response = await fetch(`/api/events?id=${eventId}`, { method: "DELETE" });
             if (!response.ok) throw new Error("Failed to delete event");
-            router.push("/calendar");
+            router.push("/events");
         } catch (err: any) {
             setError(err.message);
             setIsDeleting(false);
@@ -155,7 +155,7 @@ export default function EventDetailsPage() {
     };
 
     const handleShare = async () => {
-        const shareUrl = `${window.location.origin}/calendar/events/${eventId}`;
+        const shareUrl = `${window.location.origin}/events/${eventId}`;
 
         if (navigator.share) {
             try {
@@ -232,11 +232,11 @@ export default function EventDetailsPage() {
                     </div>
                     <Button
                         variant="ghost"
-                        onClick={() => router.push("/calendar")}
+                        onClick={() => router.push("/events")}
                         className="text-gray-500 hover:text-gray-900 group"
                     >
                         <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
-                        Back to Calendar
+                        Back to Events
                     </Button>
                 </div>
             </div>
@@ -251,7 +251,7 @@ export default function EventDetailsPage() {
             <header className="sticky top-0 z-50 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
                 <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                     <button
-                        onClick={() => router.push("/calendar")}
+                        onClick={() => router.push("/events")}
                         className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,14 +270,14 @@ export default function EventDetailsPage() {
                             {isShared ? "Copied" : "Share"}
                         </Button>
                         {isOwner && (
-                            <Link href={`/calendar/events/${event.id}/edit`}>
+                            <Link href={`/events/${event.id}/edit`}>
                                 <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
                                     <Edit className="w-4 h-4 mr-2" />
                                     Edit
                                 </Button>
                             </Link>
                         )}
-                        <Link href={`/calendar/events/${event.id}/manage`}>
+                        <Link href={`/events/${event.id}/manage`}>
                             <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
                                 Manage
                             </Button>

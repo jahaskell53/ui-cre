@@ -107,7 +107,7 @@ export default function ManageEventsPage() {
             <div className="border-b border-gray-200 dark:border-gray-800">
                 <div className="max-w-4xl mx-auto px-6 flex items-center justify-between py-3">
                     <button
-                        onClick={() => router.push("/calendar")}
+                        onClick={() => router.push("/events")}
                         className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +148,7 @@ export default function ManageEventsPage() {
                                 </button>
                             </div>
                             {/* Create New Button */}
-                            <Link href="/calendar/events/new">
+                            <Link href="/events/new">
                                 <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 hidden lg:flex">
                                     <Plus className="size-4" />
                                     Create New
@@ -169,7 +169,7 @@ export default function ManageEventsPage() {
                         </div>
                         <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No {activeTab} events</h2>
                         <p className="text-gray-500 font-medium mb-8">Ready to host something amazing?</p>
-                        <Link href="/calendar/events/new">
+                        <Link href="/events/new">
                             <Button size="lg" className="rounded-md font-semibold h-12 px-8">
                                 <Plus className="w-5 h-5 mr-2" />
                                 Create Event
@@ -236,7 +236,7 @@ export default function ManageEventsPage() {
                                                         )}
                                                     </div>
 
-                                                    <Link href={`/calendar/events/${event.id}/manage`}>
+                                                    <Link href={`/events/${event.id}/manage`}>
                                                         <Button
                                                             variant="secondary"
                                                             size="sm"
@@ -275,7 +275,7 @@ export default function ManageEventsPage() {
 
             {/* Create Event Floating Button (Mobile) */}
             <div className="fixed bottom-8 right-8 lg:hidden">
-                <Link href="/calendar/events/new">
+                <Link href="/events/new">
                     <Button size="icon" className="w-14 h-14 rounded-full">
                         <Plus className="w-6 h-6" />
                     </Button>
