@@ -3,7 +3,7 @@
 import type { FC, HTMLAttributes, MouseEventHandler, ReactNode } from "react";
 import { ChevronDown, Share2 as Share04 } from "lucide-react";
 import { Link as AriaLink } from "react-aria-components";
-import { Badge } from "@/components/base/badges/badges";
+import { Badge } from "@/components/ui/badge";
 import { cx, sortCx } from "@/utils/cx";
 
 const styles = sortCx({
@@ -40,7 +40,7 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
     const badgeElement = !iconOnly && badge
         ? typeof badge === "string" || typeof badge === "number"
             ? (
-                <Badge className="ml-3" color="gray" type="pill-color" size="sm">
+                <Badge className="ml-3" variant="secondary">
                     {badge}
                 </Badge>
             )

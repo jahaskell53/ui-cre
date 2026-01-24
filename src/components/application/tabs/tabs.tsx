@@ -4,8 +4,8 @@ import type { ComponentPropsWithRef, ReactNode } from "react";
 import { Fragment, createContext, useContext } from "react";
 import type { TabListProps as AriaTabListProps, TabProps as AriaTabProps, TabRenderProps as AriaTabRenderProps } from "react-aria-components";
 import { Tab as AriaTab, TabList as AriaTabList, TabPanel as AriaTabPanel, Tabs as AriaTabs, TabsContext, useSlottedContext } from "react-aria-components";
-import type { BadgeColors } from "@/components/base/badges/badge-types";
-import { Badge } from "@/components/base/badges/badges";
+type BadgeColors = "gray" | "brand";
+import { Badge } from "@/components/ui/badge";
 import { cx } from "@/utils/cx";
 
 type Orientation = "horizontal" | "vertical";
@@ -196,9 +196,7 @@ export const Tab = (props: TabComponentProps) => {
                     {typeof children === "function" ? children(state) : children || label}
                     {badge && (
                         <Badge
-                            size={size}
-                            type="pill-color"
-                            color={getColorStyles(state)[type] as BadgeColors}
+                            variant={getColorStyles(state)[type] === "brand" ? "default" : "secondary"}
                             className={cx("hidden transition-inherit-all md:flex", size === "sm" && "-my-px")}
                         >
                             {badge}

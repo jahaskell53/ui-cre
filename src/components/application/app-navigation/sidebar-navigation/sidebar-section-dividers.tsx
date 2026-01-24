@@ -1,7 +1,7 @@
 "use client";
 
 import { Search as SearchLg } from "lucide-react";
-import { Input } from "@/components/base/input/input";
+import { Input } from "@/components/ui/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountCard } from "../base-components/nav-account-card";

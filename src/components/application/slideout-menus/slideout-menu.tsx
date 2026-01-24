@@ -7,7 +7,8 @@ import type {
     ModalRenderProps as AriaModalRenderProps,
 } from "react-aria-components";
 import { Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Modal as AriaModal, ModalOverlay as AriaModalOverlay } from "react-aria-components";
-import { CloseButton } from "@/components/base/buttons/close-button";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import { cx } from "@/utils/cx";
 
 interface ModalOverlayProps extends AriaModalOverlayProps, RefAttributes<HTMLDivElement> {}
@@ -95,7 +96,9 @@ const Header = ({ className, children, onClose, ...props }: SlideoutHeaderProps)
     return (
         <header {...props} className={cx("relative z-1 w-full px-4 pt-6 md:px-6", className)}>
             {children}
-            <CloseButton size="md" className="absolute top-3 right-3 shrink-0" onClick={onClose} />
+            <Button size="icon" variant="ghost" className="absolute top-3 right-3 shrink-0" onClick={onClose} aria-label="Close">
+                <X className="size-5" />
+            </Button>
         </header>
     );
 };

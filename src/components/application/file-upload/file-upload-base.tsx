@@ -6,8 +6,9 @@ import { File as FileTypeIcon } from "lucide-react";
 import { CheckCircle, Trash as Trash01, UploadCloud as UploadCloud02, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
 import { cx } from "@/utils/cx";
 
@@ -295,12 +296,22 @@ export const FileListItemProgressBar = ({ name, size, progress, failed, type, fi
                         </div>
                     </div>
 
-                    <ButtonUtility color="tertiary" tooltip="Delete" icon={Trash01} size="xs" className="-mt-2 -mr-2 self-start" onClick={onDelete} />
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon-sm" className="-mt-2 -mr-2 self-start" onClick={onDelete} aria-label="Delete">
+                                <Trash01 className="size-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete</TooltipContent>
+                    </Tooltip>
                 </div>
 
                 {!failed && (
                     <div className="mt-1 w-full">
-                        <ProgressBar labelPosition="right" max={100} min={0} value={progress} />
+                        <div className="flex items-center gap-3">
+                            <Progress value={progress} className="flex-1" />
+                            <span className="shrink-0 text-sm font-medium text-secondary tabular-nums">{progress}%</span>
+                        </div>
                     </div>
                 )}
 

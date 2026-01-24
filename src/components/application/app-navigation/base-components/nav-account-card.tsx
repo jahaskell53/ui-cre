@@ -8,8 +8,7 @@ import { BookOpen as BookOpen01, ChevronsUpDown as ChevronSelectorVertical, LogO
 import { useFocusManager } from "react-aria";
 import type { DialogProps as AriaDialogProps } from "react-aria-components";
 import { Button as AriaButton, Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { AvatarLabelGroup } from "@/components/base/avatar/avatar-label-group";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
@@ -170,12 +169,10 @@ export const NavAccountCard = ({
             {iconOnly ? (
                 <AriaDialogTrigger>
                     <AriaButton className="flex cursor-pointer items-center justify-center rounded-md p-1.5 text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2 pressed:bg-primary_hover pressed:text-fg-quaternary_hover">
-                        <Avatar
-                            size="md"
-                            src={avatarUrl}
-                            initials={initials}
-                            status="online"
-                        />
+                        <Avatar>
+                            <AvatarImage src={avatarUrl} alt={displayName} />
+                            <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
                     </AriaButton>
                     <AriaPopover
                         placement={popoverPlacement ?? (isDesktop ? "right bottom" : "top right")}
@@ -196,13 +193,16 @@ export const NavAccountCard = ({
                 </AriaDialogTrigger>
             ) : (
                 <>
-                    <AvatarLabelGroup
-                        size="md"
-                        src={avatarUrl}
-                        title={displayName}
-                        subtitle={email}
-                        status="online"
-                    />
+                    <div className="flex items-center gap-2">
+                        <Avatar>
+                            <AvatarImage src={avatarUrl} alt={displayName} />
+                            <AvatarFallback>{initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-secondary truncate">{displayName}</p>
+                            <p className="text-sm text-tertiary truncate">{email}</p>
+                        </div>
+                    </div>
 
                     <div className="absolute top-1.5 right-1.5">
                         <AriaDialogTrigger>

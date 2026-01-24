@@ -2,7 +2,7 @@
 
 import type { ComponentPropsWithRef, HTMLAttributes, ReactNode, Ref, TdHTMLAttributes, ThHTMLAttributes } from "react";
 import { createContext, isValidElement, useContext } from "react";
-import { ArrowDown, ChevronsUpDown as ChevronSelectorVertical, Copy as Copy01, Edit as Edit01, HelpCircle, Trash as Trash01 } from "lucide-react";
+import { ArrowDown, ChevronsUpDown as ChevronSelectorVertical, Copy as Copy01, Edit as Edit01, HelpCircle, MoreVertical as DotsVertical, Trash as Trash01 } from "lucide-react";
 import type {
     CellProps as AriaCellProps,
     ColumnProps as AriaColumnProps,
@@ -21,30 +21,39 @@ import {
     TableHeader as AriaTableHeader,
     useTableOptions,
 } from "react-aria-components";
-import { Badge } from "@/components/base/badges/badges";
-import { Checkbox } from "@/components/base/checkbox/checkbox";
-import { Dropdown } from "@/components/base/dropdown/dropdown";
-import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cx } from "@/utils/cx";
 
 export const TableRowActionsDropdown = () => (
-    <Dropdown.Root>
-        <Dropdown.DotsButton />
-
-        <Dropdown.Popover className="w-min">
-            <Dropdown.Menu>
-                <Dropdown.Item icon={Edit01}>
-                    <span className="pr-4">Edit</span>
-                </Dropdown.Item>
-                <Dropdown.Item icon={Copy01}>
-                    <span className="pr-4">Copy link</span>
-                </Dropdown.Item>
-                <Dropdown.Item icon={Trash01}>
-                    <span className="pr-4">Delete</span>
-                </Dropdown.Item>
-            </Dropdown.Menu>
-        </Dropdown.Popover>
-    </Dropdown.Root>
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            <button className="flex items-center justify-center rounded-md p-1 text-fg-quaternary hover:bg-primary_hover hover:text-fg-quaternary_hover">
+                <DotsVertical className="size-4" />
+            </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-min">
+            <DropdownMenuItem>
+                <Edit01 className="size-4 mr-2" />
+                <span className="pr-4">Edit</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+                <Copy01 className="size-4 mr-2" />
+                <span className="pr-4">Copy link</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+                <Trash01 className="size-4 mr-2" />
+                <span className="pr-4">Delete</span>
+            </DropdownMenuItem>
+        </DropdownMenuContent>
+    </DropdownMenu>
 );
 
 const TableContext = createContext<{ size: "sm" | "md" }>({ size: "md" });
@@ -90,7 +99,7 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
                         isValidElement(badge) ? (
                             badge
                         ) : (
-                            <Badge color="brand" size="sm">
+                            <Badge variant="default">
                                 {badge}
                             </Badge>
                         )
@@ -190,10 +199,15 @@ const TableHead = ({ className, tooltip, label, children, ...props }: TableHeadP
                     </div>
 
                     {tooltip && (
-                        <Tooltip title={tooltip} placement="top">
-                            <TooltipTrigger className="cursor-pointer text-fg-quaternary transition duration-100 ease-linear hover:text-fg-quaternary_hover focus:text-fg-quaternary_hover">
-                                <HelpCircle className="size-4" />
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button className="cursor-pointer text-fg-quaternary transition duration-100 ease-linear hover:text-fg-quaternary_hover focus:text-fg-quaternary_hover">
+                                    <HelpCircle className="size-4" />
+                                </button>
                             </TooltipTrigger>
+                            <TooltipContent>
+                                {tooltip}
+                            </TooltipContent>
                         </Tooltip>
                     )}
 

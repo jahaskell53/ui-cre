@@ -2,10 +2,11 @@
 
 import { useState, type ReactNode } from "react";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { Input } from "@/components/base/input/input";
+import { Input } from "@/components/ui/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cx } from "@/utils/cx";
 import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountCard } from "../base-components/nav-account-card";
@@ -77,14 +78,20 @@ export const SidebarNavigationSimple = ({
                     ) : (
                         <UntitledLogo className="h-12" />
                     )}
-                    <ButtonUtility
-                        icon={isCollapsed ? ChevronRight : ChevronLeft}
-                        color="tertiary"
-                        size="sm"
-                        tooltip={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                        onClick={handleToggleCollapse}
-                        className="absolute top-0 right-2 lg:right-3"
-                    />
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                                onClick={handleToggleCollapse}
+                                className="absolute top-0 right-2 lg:right-3"
+                            >
+                                {isCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{isCollapsed ? "Expand sidebar" : "Collapse sidebar"}</TooltipContent>
+                    </Tooltip>
                 </div>
                 {!isCollapsed && (
                     <div onClick={onSearchClick} className="cursor-pointer">

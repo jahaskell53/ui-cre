@@ -3,9 +3,9 @@
 import type { FC, ReactNode } from "react";
 import { Bell as Bell01, LifeBuoy as LifeBuoy01, Search as SearchLg, Settings as Settings01 } from "lucide-react";
 import { Button as AriaButton, DialogTrigger, Popover } from "react-aria-components";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { BadgeWithDot } from "@/components/base/badges/badges";
-import { Input } from "@/components/base/input/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { useUser } from "@/hooks/use-user";
 import { cx } from "@/utils/cx";
@@ -79,9 +79,10 @@ export const HeaderNavigationBase = ({
                                 href="#"
                                 icon={Settings01}
                                 badge={
-                                    <BadgeWithDot color="success" type="modern" size="sm">
+                                    <Badge className="bg-green-100 text-green-700 border-green-200">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-green-600 mr-1.5" />
                                         Online
-                                    </BadgeWithDot>
+                                    </Badge>
                                 }
                             >
                                 Settings
@@ -158,10 +159,15 @@ export const HeaderNavigationBase = ({
                                             )
                                         }
                                     >
-                                        <Avatar 
-                                            alt={profile?.full_name || user.email || "User"} 
-                                            src={profile?.avatar_url || undefined} 
-                                            size="md" 
+                                        <Avatar>
+                                            <AvatarImage 
+                                                src={profile?.avatar_url || undefined} 
+                                                alt={profile?.full_name || user.email || "User"}
+                                            />
+                                            <AvatarFallback>
+                                                {(profile?.full_name || user.email || "User").substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar> 
                                         />
                                     </AriaButton>
                                     <Popover

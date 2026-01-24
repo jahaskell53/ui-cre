@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Search as SearchLg } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { Input } from "@/components/base/input/input";
+import { Input } from "@/components/ui/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { cx } from "@/utils/cx";
 import { MobileNavigationHeader } from "../base-components/mobile-header";

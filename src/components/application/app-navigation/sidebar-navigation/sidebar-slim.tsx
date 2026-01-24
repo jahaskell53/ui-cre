@@ -5,10 +5,10 @@ import { useState } from "react";
 import { LifeBuoy as LifeBuoy01, LogOut as LogOut01, Settings as Settings01 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button as AriaButton, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { AvatarLabelGroup } from "@/components/base/avatar/avatar-label-group";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
 import { cx } from "@/utils/cx";
@@ -100,7 +100,10 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
                                 cx("group relative inline-flex rounded-full", (isPressed || isFocused) && "outline-2 outline-offset-2 outline-focus-ring")
                             }
                         >
-                            <Avatar status="online" src="https://www.untitledui.com/images/avatars/olivia-rhye?fm=webp&q=80" size="md" alt="Olivia Rhye" />
+                            <Avatar>
+                                <AvatarImage src="https://www.untitledui.com/images/avatars/olivia-rhye?fm=webp&q=80" alt="Olivia Rhye" />
+                                <AvatarFallback>OR</AvatarFallback>
+                            </Avatar>
                         </AriaButton>
                         <AriaPopover
                             placement="right bottom"
@@ -154,7 +157,14 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
                                 <p className="text-sm text-tertiary">olivia@untitledui.com</p>
                             </div>
                             <div className="absolute top-2.5 right-0">
-                                <ButtonUtility size="sm" color="tertiary" tooltip="Log out" icon={LogOut01} />
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon-sm" aria-label="Log out">
+                                            <LogOut01 className="size-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Log out</TooltipContent>
+                                </Tooltip>
                             </div>
                         </div>
                     </div>
@@ -203,13 +213,16 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
                         </div>
 
                         <div className="relative flex items-center gap-3 border-t border-secondary pt-6 pr-8 pl-2">
-                            <AvatarLabelGroup
-                                status="online"
-                                size="md"
-                                src="https://www.untitledui.com/images/avatars/olivia-rhye?fm=webp&q=80"
-                                title="Olivia Rhye"
-                                subtitle="olivia@untitledui.com"
-                            />
+                            <div className="flex items-center gap-2">
+                                <Avatar>
+                                    <AvatarImage src="https://www.untitledui.com/images/avatars/olivia-rhye?fm=webp&q=80" alt="Olivia Rhye" />
+                                    <AvatarFallback>OR</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-secondary truncate">Olivia Rhye</p>
+                                    <p className="text-sm text-tertiary truncate">olivia@untitledui.com</p>
+                                </div>
+                            </div>
 
                             <div className="absolute top-1/2 right-0 -translate-y-1/2">
                                 <Button
