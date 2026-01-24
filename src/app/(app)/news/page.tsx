@@ -200,7 +200,7 @@ export default function NewsPage() {
               <select
                 value={selectedDateRange}
                 onChange={(e) => setSelectedDateRange(e.target.value)}
-                className="absolute inset-y-0 right-0 w-28 pr-2 py-2 border border-gray-200 dark:border-gray-800 border-l-0 rounded-r-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
+                className="absolute inset-y-0 right-0 w-28 pr-2 py-2 border border-gray-200 dark:border-gray-800 border-l-0 rounded-r-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm text-right focus:outline-none appearance-none cursor-pointer"
               >
                 <option value="last-week">Last Week</option>
                 <option value="last-month">Last Month</option>
