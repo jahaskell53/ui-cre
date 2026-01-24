@@ -139,7 +139,7 @@ export default function NewsPage() {
 
   return (
     <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-      <div className="flex flex-col gap-8 p-6">
+      <div className="flex flex-col gap-8 p-6 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
           <div>
@@ -283,9 +283,9 @@ export default function NewsPage() {
                 href={article.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm"
+                className="block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm overflow-hidden"
               >
-                <div className="flex gap-4">
+                <div className="flex gap-4 min-w-0">
                   <div className="shrink-0 w-32 h-24 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
                     <img
                       src={article.image_url && article.image_url !== "null" && article.image_url !== "undefined" ? article.image_url : "/placeholder.jpg"}
@@ -297,9 +297,9 @@ export default function NewsPage() {
                       }}
                     />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                  <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 min-w-0 flex-1">
                         {article.title}
                       </h3>
                       <ExternalLink className="size-4 shrink-0 text-gray-400" />
