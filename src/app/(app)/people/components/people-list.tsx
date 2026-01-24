@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Trash2, Download, X } from "lucide-react";
+import { Trash2, Download, X, Mail, Calendar, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +38,11 @@ export function PeopleList({
   const { setPeople, selectedIds, setSelectedIds } = usePeople();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [events, setEvents] = useState<Array<{ id: string; title: string; start_time: string; end_time: string }>>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [isSendingInvites, setIsSendingInvites] = useState(false);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const filteredPeople = showStarredOnly ? people.filter((p) => p.starred) : people;
 
@@ -142,6 +147,89 @@ export function PeopleList({
     URL.revokeObjectURL(url);
   };
 
+  const fetchEvents = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const response = await fetch("/api/events");
+      if (!response.ok) throw new Error("Failed to fetch events");
+      const data = await response.json();
+      // Filter to only upcoming events
+      const now = new Date();
+      const upcomingEvents = data.filter((e: { start_time: string }) => new Date(e.start_time) >= now);
+      setEvents(upcomingEvents);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  const handleOpenInviteModal = () => {
+    setShowInviteModal(true);
+    setSelectedEventId(null);
+    fetchEvents();
+  };
+
+  const handleSendInvites = async () => {
+    if (!selectedEventId) {
+      alert("Please select an event");
+      return;
+    }
+
+    const selectedPeople = people.filter((p) => selectedIds.has(p.id));
+    const emails = selectedPeople
+      .map((p) => p.email)
+      .filter((email): email is string => Boolean(email));
+
+    if (emails.length === 0) {
+      alert("Selected people don't have email addresses");
+      return;
+    }
+
+    setIsSendingInvites(true);
+    try {
+      const response = await fetch("/api/events/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id: selectedEventId,
+          emails: emails,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to send invitations");
+      }
+
+      const result = await response.json();
+      alert(result.message || "Invitations sent successfully!");
+      setShowInviteModal(false);
+      setSelectedIds(new Set());
+    } catch (error: any) {
+      console.error("Error sending invites:", error);
+      alert(error.message || "Failed to send invitations. Please try again.");
+    } finally {
+      setIsSendingInvites(false);
+    }
+  };
+
+  const formatEventDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const formatEventTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
   // Handle arrow key navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -222,6 +310,13 @@ export function PeopleList({
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenInviteModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              Invite
+            </button>
             <button
               onClick={handleDownloadCSV}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors"
@@ -369,6 +464,114 @@ export function PeopleList({
                 {isDeleting ? "Deleting..." : "Delete"}
               </Button>
             </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
+      {/* Invite to Event Modal */}
+      <ModalOverlay
+        isOpen={showInviteModal}
+        onOpenChange={(isOpen) => !isOpen && setShowInviteModal(false)}
+      >
+        <Modal className="max-w-2xl bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center">
+                <Mail className="w-6 h-6 text-blue-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  Invite to Event
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Select an event to invite {selectedIds.size} {selectedIds.size === 1 ? "person" : "people"} to
+                </p>
+              </div>
+            </div>
+
+            {isLoadingEvents ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+              </div>
+            ) : events.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  You don't have any upcoming events to invite people to.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    router.push("/calendar/events/new");
+                  }}
+                >
+                  Create Event
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="max-h-96 overflow-y-auto mb-6 space-y-2">
+                  {events.map((event) => (
+                    <button
+                      key={event.id}
+                      onClick={() => setSelectedEventId(event.id)}
+                      className={cn(
+                        "w-full text-left p-4 rounded-md border transition-colors",
+                        selectedEventId === event.id
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                          : "border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                            {event.title}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {formatEventDate(event.start_time)} at {formatEventTime(event.start_time)}
+                          </p>
+                        </div>
+                        {selectedEventId === event.id && (
+                          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowInviteModal(false)}
+                    disabled={isSendingInvites}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSendInvites}
+                    disabled={!selectedEventId || isSendingInvites}
+                    className="flex items-center gap-2"
+                  >
+                    {isSendingInvites ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4" />
+                        Send Invitations
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
           </Dialog>
         </Modal>
       </ModalOverlay>
