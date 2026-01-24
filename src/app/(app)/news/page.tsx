@@ -159,7 +159,7 @@ export default function NewsPage() {
             ) : (
               <Link href="/news/register">
                 <Button className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200">
-                  Register
+                  Register for Newsletter
                 </Button>
               </Link>
             )}
