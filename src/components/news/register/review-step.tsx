@@ -7,6 +7,7 @@ interface ReviewStepProps {
   onPreferencesChange: (preferences: string[]) => void;
   onBack: () => void;
   onContinue: () => void;
+  onStartOver: () => void;
 }
 
 function BackIcon({ className }: { className?: string }) {
@@ -22,6 +23,7 @@ export default function ReviewStep({
   onPreferencesChange,
   onBack,
   onContinue,
+  onStartOver,
 }: ReviewStepProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
@@ -90,13 +92,24 @@ export default function ReviewStep({
         </div>
 
         <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={onBack}
-          >
-            <BackIcon className="w-4 h-4 mr-2" />
-            Back
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={onBack}
+            >
+              <BackIcon className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onStartOver}
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              Start Over
+            </Button>
+          </div>
           <Button
             onClick={onContinue}
             disabled={preferences.length === 0 || preferences.every(p => !p.trim())}

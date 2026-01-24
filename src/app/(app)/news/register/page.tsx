@@ -427,23 +427,6 @@ export default function RegisterPage() {
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
       <RegisterNavBar title={getNavTitle()} />
-      
-      {/* Start Over Button - show on all steps except initial and confirmation */}
-      {currentStep !== "initial-interests" && currentStep !== "confirmation" && (
-        <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-2 bg-white dark:bg-gray-900">
-          <div className="max-w-4xl mx-auto">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleStartOver}
-              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-            >
-              Start Over
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
@@ -466,6 +449,7 @@ export default function RegisterPage() {
               onAnswerChange={setCurrentAnswer}
               onPrevious={handleQuestionPrevious}
               onNext={handleQuestionNext}
+              onStartOver={handleStartOver}
               isLoading={isLoading}
               isLastQuestion={currentQuestionIndex === clarifyingQuestions.length - 1}
               initialInterests={interests}
@@ -478,6 +462,7 @@ export default function RegisterPage() {
               onPreferencesChange={setPreferences}
               onBack={handleReviewBack}
               onContinue={handleReviewContinue}
+              onStartOver={handleStartOver}
             />
           )}
 
@@ -510,6 +495,7 @@ export default function RegisterPage() {
               }}
               onBack={handleCompleteBack}
               onSubmit={handleCompleteSubmit}
+              onStartOver={handleStartOver}
               isLoading={isLoading}
               error={error}
             />

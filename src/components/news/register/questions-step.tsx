@@ -11,6 +11,7 @@ interface QuestionsStepProps {
   onAnswerChange: (answer: string) => void;
   onPrevious: () => void;
   onNext: () => void;
+  onStartOver: () => void;
   isLoading: boolean;
   isLastQuestion: boolean;
   initialInterests: string[];
@@ -32,6 +33,7 @@ export default function QuestionsStep({
   onAnswerChange,
   onPrevious,
   onNext,
+  onStartOver,
   isLoading,
   isLastQuestion,
   initialInterests,
@@ -110,15 +112,26 @@ export default function QuestionsStep({
           </div>
 
           <div className="flex justify-between pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onPrevious}
-              disabled={currentQuestionIndex === 0}
-            >
-              <BackIcon className="w-4 h-4 mr-2" />
-              Previous
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onPrevious}
+                disabled={currentQuestionIndex === 0}
+              >
+                <BackIcon className="w-4 h-4 mr-2" />
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onStartOver}
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              >
+                Start Over
+              </Button>
+            </div>
             <Button
               type="button"
               onClick={onNext}

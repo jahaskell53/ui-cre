@@ -19,6 +19,7 @@ interface CompleteStepProps {
   onPreferredSendTimesChange: (times: PreferredSendTime[]) => void;
   onBack: () => void;
   onSubmit: () => void;
+  onStartOver: () => void;
   isLoading: boolean;
   error: string | null;
 }
@@ -44,6 +45,7 @@ export default function CompleteStep({
   onPreferredSendTimesChange,
   onBack,
   onSubmit,
+  onStartOver,
   isLoading,
   error,
 }: CompleteStepProps) {
@@ -215,14 +217,25 @@ export default function CompleteStep({
 
         {/* Submit Button */}
         <div className="flex justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onBack}
-          >
-            <BackIcon className="w-4 h-4 mr-2" />
-            Back
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onBack}
+            >
+              <BackIcon className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onStartOver}
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              Start Over
+            </Button>
+          </div>
           <Button
             type="submit"
             disabled={
