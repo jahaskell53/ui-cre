@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getRegistrationState, saveRegistrationState } from "@/lib/news/registration-state";
+import RegisterNavBar from "@/components/news/register-nav-bar";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -51,9 +52,13 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-      <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      <RegisterNavBar title="Review Preferences" />
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+        <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               Review your preferences

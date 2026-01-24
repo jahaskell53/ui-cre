@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { saveRegistrationState, getRegistrationState, getDefaultState, clearRegistrationState } from "@/lib/news/registration-state";
+import RegisterNavBar from "@/components/news/register-nav-bar";
 
 // Helper function to detect user's timezone
 function detectTimezone(): string {
@@ -13,14 +14,6 @@ function detectTimezone(): string {
   } catch {
     return "UTC";
   }
-}
-
-function BackIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
 }
 
 export default function RegisterPage() {
@@ -134,10 +127,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-      <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
-        {/* Step 1: Initial Interests */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      <RegisterNavBar title="Register for Newsletter" />
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+        <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
+          {/* Step 1: Initial Interests */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 What interests you?
@@ -190,15 +187,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push('/news')}
-                >
-                  <BackIcon className="w-4 h-4 mr-2" />
-                  Back
-                </Button>
+              <div className="flex justify-end">
                 <Button
                   type="submit"
                   disabled={isLoading || interests.filter(interest => interest.trim() !== "").length === 0}
@@ -210,12 +199,13 @@ export default function RegisterPage() {
             </form>
           </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-8">
-            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-          </div>
-        )}
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-8">
+              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

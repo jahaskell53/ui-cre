@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
+import RegisterNavBar from "@/components/news/register-nav-bar";
 
 export default function ConfirmationPage() {
   const router = useRouter();
@@ -17,9 +18,13 @@ export default function ConfirmationPage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-      <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-8 mb-8 max-w-2xl mx-auto text-center">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      <RegisterNavBar title="Registration Complete" />
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+        <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-8 mb-8 max-w-2xl mx-auto text-center">
           <div className="mb-6">
             <svg className="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

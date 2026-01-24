@@ -8,14 +8,7 @@ import { UsCity } from "@/lib/news/cities";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { getRegistrationState, saveRegistrationState, PreferredSendTime, clearRegistrationState } from "@/lib/news/registration-state";
-
-function BackIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+import RegisterNavBar from "@/components/news/register-nav-bar";
 
 // Helper function to detect user's timezone
 function detectTimezone(): string {
@@ -187,9 +180,13 @@ export default function CompletePage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-      <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      <RegisterNavBar title="Complete Registration" />
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+        <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               Complete your registration

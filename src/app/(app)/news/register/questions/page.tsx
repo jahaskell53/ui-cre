@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getRegistrationState, saveRegistrationState, ConversationTurn } from "@/lib/news/registration-state";
+import RegisterNavBar from "@/components/news/register-nav-bar";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -197,9 +198,6 @@ export default function QuestionsPage() {
     }
   };
 
-  const handleBack = () => {
-    router.push("/news/register");
-  };
 
   if (clarifyingQuestions.length === 0) {
     return (
@@ -214,9 +212,13 @@ export default function QuestionsPage() {
   const canProceed = answers[currentQuestionIndex]?.trim() || false;
 
   return (
-    <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-      <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
+    <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      <RegisterNavBar title="Refine Your Interests" />
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+        <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Let&apos;s refine your interests
@@ -256,10 +258,11 @@ export default function QuestionsPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={currentQuestionIndex === 0 ? handleBack : handlePrevious}
+                  onClick={handlePrevious}
+                  disabled={currentQuestionIndex === 0}
                 >
                   <BackIcon className="w-4 h-4 mr-2" />
-                  {currentQuestionIndex === 0 ? "Back" : "Previous"}
+                  Previous
                 </Button>
                 <Button
                   type="button"
@@ -277,11 +280,12 @@ export default function QuestionsPage() {
             </div>
           )}
 
-          {error && (
-            <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-            </div>
-          )}
+            {error && (
+              <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
