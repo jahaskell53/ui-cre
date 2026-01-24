@@ -28,12 +28,8 @@ export default function BoardPage() {
     showStarredOnly,
   } = usePeople();
 
-  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
-    { id: "to-contact", title: "To Contact", cards: [] },
-    { id: "in-progress", title: "In Progress", cards: [] },
-    { id: "follow-up", title: "Follow Up", cards: [] },
-    { id: "done", title: "Done", cards: [] },
-  ]);
+  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
+  const [isLoadingColumns, setIsLoadingColumns] = useState(true);
 
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
@@ -52,26 +48,19 @@ export default function BoardPage() {
         
         if (columnTitles.length > 0) {
           // Generate columns with IDs from titles
-          // Try to preserve existing IDs by matching titles, otherwise generate new IDs
-          setKanbanColumns((prevColumns) => {
-            const newColumns: KanbanColumn[] = columnTitles.map((title: string, index: number) => {
-              // Try to find existing column with same title to preserve ID
-              const existingColumn = prevColumns.find((col) => col.title === title);
-              if (existingColumn) {
-                return { ...existingColumn, title, cards: [] };
-              }
-              // Otherwise generate new ID
-              return {
-                id: generateColumnId(title, index),
-                title: title,
-                cards: [],
-              };
-            });
-            return newColumns;
+          const newColumns: KanbanColumn[] = columnTitles.map((title: string, index: number) => {
+            return {
+              id: generateColumnId(title, index),
+              title: title,
+              cards: [],
+            };
           });
+          setKanbanColumns(newColumns);
         }
       } catch (error) {
         console.error("Error fetching kanban columns:", error);
+      } finally {
+        setIsLoadingColumns(false);
       }
     };
 
@@ -361,23 +350,60 @@ export default function BoardPage() {
 
   return (
     <>
-      <KanbanBoard
-        people={people}
-        columns={kanbanColumns}
-        draggedCard={draggedCard}
-        draggedOverColumn={draggedOverColumn}
-        onColumnsChange={handleKanbanColumnsChange}
-        onDragStart={handleCardDragStart}
-        onDragEnd={handleCardDragEnd}
-        onColumnDragOver={handleColumnDragOver}
-        onColumnDragLeave={handleColumnDragLeave}
-        onSelectPerson={setSelectedPerson}
-        onToggleStar={handleToggleStar}
-        onAddPersonToColumn={handleAddPersonToColumn}
-        onDeletePerson={handleDeletePerson}
-        onAddColumn={handleAddColumn}
-        onDeleteColumn={handleDeleteColumn}
-      />
+      {isLoadingColumns ? (
+        <div className="flex-1 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
+          <div className="flex gap-4 p-4 h-full">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="flex flex-col w-64 flex-shrink-0 overflow-hidden bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+              >
+                {/* Column Header Skeleton */}
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-24" />
+                </div>
+                {/* Column Cards Skeleton */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
+                  <div className="space-y-2">
+                    {[...Array(3)].map((_, j) => (
+                      <div
+                        key={j}
+                        className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-24 mb-2" />
+                            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-16" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <KanbanBoard
+          people={people}
+          columns={kanbanColumns}
+          draggedCard={draggedCard}
+          draggedOverColumn={draggedOverColumn}
+          onColumnsChange={handleKanbanColumnsChange}
+          onDragStart={handleCardDragStart}
+          onDragEnd={handleCardDragEnd}
+          onColumnDragOver={handleColumnDragOver}
+          onColumnDragLeave={handleColumnDragLeave}
+          onSelectPerson={setSelectedPerson}
+          onToggleStar={handleToggleStar}
+          onAddPersonToColumn={handleAddPersonToColumn}
+          onDeletePerson={handleDeletePerson}
+          onAddColumn={handleAddColumn}
+          onDeleteColumn={handleDeleteColumn}
+        />
+      )}
 
       {/* Error Modal */}
       <ModalOverlay isOpen={errorMessage !== null} onOpenChange={(isOpen) => !isOpen && setErrorMessage(null)}>
