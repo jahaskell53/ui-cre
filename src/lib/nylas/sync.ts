@@ -38,7 +38,8 @@ interface EmailCheckInput {
 }
 
 /**
- * Batch check multiple emails using Gemini API
+ * Categorize email addresses using Gemini API
+ * Categorizes the set of unique email addresses to determine which are important
  * Checks up to 20 emails at once (Gemini context limit)
  */
 async function batchCheckAutomatedEmails(
@@ -83,19 +84,31 @@ async function batchCheckAutomatedEmails(
     const batch = toCheck.slice(i, i + BATCH_SIZE);
 
     try {
-      // Create a batch prompt
+      // Create a list of unique email addresses for categorization
       const emailList = batch.map((input, idx) => {
-        return `${idx + 1}. Email: ${input.email}, Name: ${input.name || '(not provided)'}, Subject: ${input.subject || '(not provided)'}`;
+        return `${idx + 1}. ${input.email}${input.name ? ` (${input.name})` : ''}`;
       }).join('\n');
 
-      const prompt = `Analyze the following email addresses and determine which ones are from bots, automated systems, listservs, newsletters, or mass mailing services (not from single human individuals).
+      const prompt = `Categorize the following set of email addresses. For each email address, assign it to one of these categories:
 
+- "person": Email from a single human individual (personal or professional contact)
+- "other": Everything else (newsletters, automated systems, bots, marketing, system notifications, etc.)
+
+Email addresses:
 ${emailList}
 
-Respond with a JSON object mapping each email address to "true" if it's automated/bot/listserv/newsletter, or "false" if it's from a single person. Format: {"email1@example.com": true, "email2@example.com": false, ...}`;
+Respond with a JSON object mapping each email address to its category. Format: {"john@example.com": "person", "newsletter@example.com": "other", ...}`;
 
       const response = await makeGeminiCall('gemini-2.5-flash-lite', prompt, {
-        operation: 'batchCheckAutomatedEmails',
+        operation: 'categorizeEmailAddresses',
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          additionalProperties: {
+            type: 'STRING',
+            enum: ['person', 'other']
+          }
+        }
       });
       const text = response.candidates[0].content.parts[0].text.trim();
 
@@ -105,7 +118,9 @@ Respond with a JSON object mapping each email address to "true" if it's automate
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           for (const input of batch) {
-            const isAutomated = parsed[input.email.toLowerCase()] === true || parsed[input.email] === true;
+            const category = parsed[input.email.toLowerCase()] || parsed[input.email];
+            // Only "person" is not automated; "other" is considered automated
+            const isAutomated = category !== 'person';
             results.set(input.email.toLowerCase(), isAutomated);
             cache.set(input.email.toLowerCase(), isAutomated);
           }
@@ -126,7 +141,7 @@ Respond with a JSON object mapping each email address to "true" if it's automate
         }
       }
     } catch (error) {
-      console.error(`Error batch checking emails (batch ${i / BATCH_SIZE + 1}):`, error);
+      console.error(`Error categorizing email addresses (batch ${i / BATCH_SIZE + 1}):`, error);
       // Fallback to heuristics on error
       for (const input of batch) {
         const isAutomated = isAutomatedEmailFallback(input.email, undefined, input.name);
