@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getRegistrationState, saveRegistrationState, ConversationTurn } from "@/lib/news/registration-state";
 
@@ -13,14 +13,62 @@ function BackIcon({ className }: { className?: string }) {
   );
 }
 
+interface QuestionComponentProps {
+  question: string;
+  questionIndex: number;
+  totalQuestions: number;
+  answer: string;
+  onAnswerChange: (answer: string) => void;
+  isLastQuestion: boolean;
+  isGenerating: boolean;
+}
+
+function QuestionComponent({
+  question,
+  questionIndex,
+  totalQuestions,
+  answer,
+  onAnswerChange,
+  isLastQuestion,
+  isGenerating,
+}: QuestionComponentProps) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Question {questionIndex + 1} of {totalQuestions}
+        </h3>
+        <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+          <div
+            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${((questionIndex + 1) / totalQuestions) * 100}%` }}
+          ></div>
+        </div>
+      </div>
+      
+      <div>
+        <label className="block text-base font-medium text-gray-900 dark:text-gray-100 mb-3">
+          {question}
+        </label>
+        <textarea
+          value={answer}
+          onChange={(e) => onAnswerChange(e.target.value)}
+          placeholder="Type your answer here..."
+          required
+          rows={4}
+          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function QuestionsPage() {
   const router = useRouter();
-  const params = useParams();
-  const questionIndex = parseInt(params.index as string, 10);
-
   const [clarifyingQuestions, setClarifyingQuestions] = useState<string[]>([]);
   const [conversation, setConversation] = useState<ConversationTurn[]>([]);
-  const [currentAnswer, setCurrentAnswer] = useState("");
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,33 +81,54 @@ export default function QuestionsPage() {
     setClarifyingQuestions(state.clarifyingQuestions);
     setConversation(state.conversation || []);
     
-    // If we're on a question we've already answered, load that answer
-    if (state.conversation && questionIndex < state.conversation.length) {
-      setCurrentAnswer(state.conversation[questionIndex].answer);
+    // Initialize answers array from conversation if available
+    const initialAnswers = state.clarifyingQuestions.map((_, index) => 
+      state.conversation && state.conversation[index] 
+        ? state.conversation[index].answer 
+        : ""
+    );
+    setAnswers(initialAnswers);
+    
+    // Set current question to first unanswered question
+    const firstUnanswered = initialAnswers.findIndex(answer => !answer.trim());
+    if (firstUnanswered !== -1) {
+      setCurrentQuestionIndex(firstUnanswered);
+    } else {
+      setCurrentQuestionIndex(state.clarifyingQuestions.length - 1);
     }
-  }, [questionIndex, router]);
+  }, [router]);
 
-  const handleAnswerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentAnswer.trim()) return;
+  const handleAnswerChange = (answer: string) => {
+    const newAnswers = [...answers];
+    newAnswers[currentQuestionIndex] = answer;
+    setAnswers(newAnswers);
+  };
 
+  const handleNext = () => {
+    if (!answers[currentQuestionIndex]?.trim()) return;
+    
+    // Save current answer to conversation
     const newConversation = [
-      ...conversation.slice(0, questionIndex),
+      ...conversation.slice(0, currentQuestionIndex),
       {
-        question: clarifyingQuestions[questionIndex],
-        answer: currentAnswer.trim(),
+        question: clarifyingQuestions[currentQuestionIndex],
+        answer: answers[currentQuestionIndex].trim(),
       },
     ];
-
-    // Save conversation progress
+    setConversation(newConversation);
     saveRegistrationState({ conversation: newConversation });
 
-    if (questionIndex < clarifyingQuestions.length - 1) {
-      // Move to next question
-      router.push(`/news/register/questions/${questionIndex + 1}`);
+    if (currentQuestionIndex < clarifyingQuestions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
       // Last question - generate enhanced description
-      await generateEnhancedDescription(newConversation);
+      generateEnhancedDescription(newConversation);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
   };
 
@@ -129,11 +198,7 @@ export default function QuestionsPage() {
   };
 
   const handleBack = () => {
-    if (questionIndex > 0) {
-      router.push(`/news/register/questions/${questionIndex - 1}`);
-    } else {
-      router.push("/news/register");
-    }
+    router.push("/news/register");
   };
 
   if (clarifyingQuestions.length === 0) {
@@ -144,26 +209,18 @@ export default function QuestionsPage() {
     );
   }
 
+  const currentQuestion = clarifyingQuestions[currentQuestionIndex];
+  const isLastQuestion = currentQuestionIndex === clarifyingQuestions.length - 1;
+  const canProceed = answers[currentQuestionIndex]?.trim() || false;
+
   return (
     <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
       <div className="px-2 sm:px-4 max-w-4xl mx-auto w-full py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm p-6 mb-8">
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                Let&apos;s refine your interests
-              </h2>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Question {questionIndex + 1} of {clarifyingQuestions.length}
-              </span>
-            </div>
-
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
-              <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((questionIndex + 1) / clarifyingQuestions.length) * 100}%` }}
-              ></div>
-            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Let&apos;s refine your interests
+            </h2>
 
             {conversation.length > 0 && (
               <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg space-y-3">
@@ -178,49 +235,46 @@ export default function QuestionsPage() {
             )}
           </div>
 
-          {isLoading && questionIndex === clarifyingQuestions.length - 1 && !currentAnswer.trim() ? (
+          {isLoading && isLastQuestion && !canProceed ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-4"></div>
               <p className="text-gray-600 dark:text-gray-400">Generating your preferences...</p>
             </div>
           ) : (
-            <form onSubmit={handleAnswerSubmit} className="space-y-6">
-              <div>
-                <label className="block text-base font-medium text-gray-900 dark:text-gray-100 mb-3">
-                  {clarifyingQuestions[questionIndex]}
-                </label>
-                <textarea
-                  value={currentAnswer}
-                  onChange={(e) => setCurrentAnswer(e.target.value)}
-                  placeholder="Type your answer here..."
-                  required
-                  rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                />
-              </div>
+            <div className="space-y-6">
+              <QuestionComponent
+                question={currentQuestion}
+                questionIndex={currentQuestionIndex}
+                totalQuestions={clarifyingQuestions.length}
+                answer={answers[currentQuestionIndex] || ""}
+                onAnswerChange={handleAnswerChange}
+                isLastQuestion={isLastQuestion}
+                isGenerating={isLoading}
+              />
 
-              <div className="flex justify-between">
+              <div className="flex justify-between pt-4">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={handleBack}
+                  onClick={currentQuestionIndex === 0 ? handleBack : handlePrevious}
                 >
                   <BackIcon className="w-4 h-4 mr-2" />
-                  Back
+                  {currentQuestionIndex === 0 ? "Back" : "Previous"}
                 </Button>
                 <Button
-                  type="submit"
-                  disabled={isLoading || !currentAnswer.trim()}
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isLoading || !canProceed}
                   className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                 >
                   {isLoading
                     ? "Processing..."
-                    : questionIndex < clarifyingQuestions.length - 1
-                      ? "Next Question"
-                      : "Generate Summary"}
+                    : isLastQuestion
+                      ? "Generate Summary"
+                      : "Next Question"}
                 </Button>
               </div>
-            </form>
+            </div>
           )}
 
           {error && (

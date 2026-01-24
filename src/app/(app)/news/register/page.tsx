@@ -112,9 +112,9 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Save questions and navigate to first question
+        // Save questions and navigate to questions page
         saveRegistrationState({ clarifyingQuestions: data.questions, conversation: [] });
-        router.push("/news/register/questions/0");
+        router.push("/news/register/questions");
       } else {
         setError(data.error || "Failed to generate questions");
         setIsLoading(false);

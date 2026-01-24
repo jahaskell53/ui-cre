@@ -23,7 +23,7 @@ export default function ReviewPage() {
     if (!state || !state.preferences || state.preferences.length === 0) {
       // If no preferences, go back to questions or initial interests
       if (state?.clarifyingQuestions && state.clarifyingQuestions.length > 0) {
-        router.push(`/news/register/questions/${state.clarifyingQuestions.length - 1}`);
+        router.push("/news/register/questions");
       } else {
         router.push("/news/register");
       }
@@ -39,11 +39,7 @@ export default function ReviewPage() {
   };
 
   const handleBack = () => {
-    if (clarifyingQuestions.length > 0) {
-      router.push(`/news/register/questions/${clarifyingQuestions.length - 1}`);
-    } else {
-      router.push("/news/register");
-    }
+    router.push("/news/register/questions");
   };
 
   if (preferences.length === 0) {
