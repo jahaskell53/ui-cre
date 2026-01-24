@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Filter, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, Filter, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PropertyMap, type Property } from "@/components/application/map/property-map";
+import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 
 const PAGE_SIZE = 200;
@@ -169,18 +170,10 @@ export default function MapPage() {
     }, [page, searchQuery, filters, fetchProperties]);
 
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-    const currentPageDisplay = page + 1;
 
-    const handleNext = () => {
-        if (currentPageDisplay < totalPages) {
-            setPage(prev => prev + 1);
-        }
-    };
-
-    const handlePrev = () => {
-        if (page > 0) {
-            setPage(prev => prev - 1);
-        }
+    const handlePageChange = (newPage: number) => {
+        // Pagination component uses 1-indexed pages, convert to 0-indexed
+        setPage(newPage - 1);
     };
 
     return (
@@ -394,30 +387,13 @@ export default function MapPage() {
 
                         {/* Pagination Footer */}
                         {!loading && totalPages > 1 && (
-                            <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handlePrev}
-                                    disabled={page === 0}
-                                    className="h-8 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400"
-                                >
-                                    <ChevronLeft className="size-4" />
-                                    Prev
-                                </Button>
-                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                                    {currentPageDisplay} / {totalPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleNext}
-                                    disabled={currentPageDisplay >= totalPages}
-                                    className="h-8 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400"
-                                >
-                                    Next
-                                    <ChevronRight className="size-4" />
-                                </Button>
+                            <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                                <PaginationButtonGroup
+                                    page={page + 1}
+                                    total={totalPages}
+                                    onPageChange={handlePageChange}
+                                    align="center"
+                                />
                             </div>
                         )}
                     </div>
