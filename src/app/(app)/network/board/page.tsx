@@ -7,6 +7,8 @@ import { createToggleStarHandler } from "../utils";
 import type { KanbanColumn, KanbanCard, Person } from "../types";
 import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
 import { Button } from "@/components/ui/button";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
+import { HelpCircle } from "lucide-react";
 
 // Helper function to generate column ID from title
 function generateColumnId(title: string, index: number): string {
@@ -34,6 +36,7 @@ export default function BoardPage() {
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   // Fetch kanban column titles from database
   useEffect(() => {
@@ -348,8 +351,54 @@ export default function BoardPage() {
     }
   };
 
+  const tourSteps: TourStep[] = [
+    {
+      id: "columns",
+      target: '[data-tour="column-title"]',
+      title: "Organize with Columns",
+      content: "Columns help you organize your network. Click any column title to rename it, or drag and drop people between columns.",
+      position: "bottom",
+    },
+    {
+      id: "add-person",
+      target: '[data-tour="add-person-button"]',
+      title: "Add People to Columns",
+      content: "Click the + button to add people to a column. Search for contacts and select them to add them to your board.",
+      position: "bottom",
+    },
+    {
+      id: "person-cards",
+      target: '[data-tour="person-card"]',
+      title: "Person Cards",
+      content: "Each person appears as a card. You can drag cards between columns, click to view details, or star important contacts.",
+      position: "right",
+    },
+    {
+      id: "add-column",
+      target: '[data-tour="add-column-button"]',
+      title: "Create New Columns",
+      content: "Add custom columns to organize your network however you want. Click here to create a new column.",
+      position: "left",
+    },
+  ];
+
   return (
-    <>
+    <div className="relative flex-1 overflow-hidden">
+      {/* Tour Start Button */}
+      {!isLoadingColumns && kanbanColumns.length > 0 && (
+        <div className="absolute top-4 right-4 z-10">
+          <Button
+            onClick={() => setIsTourOpen(true)}
+            variant="outline"
+            size="sm"
+            className="bg-white dark:bg-gray-900 shadow-sm"
+          >
+            <HelpCircle className="size-4 mr-2" />
+            Take a Tour
+          </Button>
+        </div>
+      )}
+
       {isLoadingColumns ? (
         <div className="flex-1 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
           <div className="flex gap-4 p-4 h-full">
@@ -405,6 +454,16 @@ export default function BoardPage() {
         />
       )}
 
+      {/* Guided Tour */}
+      <GuidedTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onComplete={() => {
+          console.log("Tour completed!");
+        }}
+      />
+
       {/* Error Modal */}
       <ModalOverlay isOpen={errorMessage !== null} onOpenChange={(isOpen) => !isOpen && setErrorMessage(null)}>
         <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
@@ -431,7 +490,7 @@ export default function BoardPage() {
           </Dialog>
         </Modal>
       </ModalOverlay>
-    </>
+    </div>
   );
 }
 

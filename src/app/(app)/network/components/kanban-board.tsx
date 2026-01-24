@@ -128,16 +128,19 @@ export function KanbanBoard({
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <h3
-                    className="text-sm font-medium text-gray-900 dark:text-gray-100 cursor-text hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded -mx-2 -my-1 truncate"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartEdit(column.id, column.title);
-                    }}
-                    title="Click to edit"
-                  >
-                    {column.title}
-                  </h3>
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <h3
+                      data-tour="column-title"
+                      className="text-sm font-medium text-gray-900 dark:text-gray-100 cursor-text hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded -mx-2 -my-1 truncate"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit(column.id, column.title);
+                      }}
+                      title="Click to edit"
+                    >
+                      {column.title}
+                    </h3>
+                  </div>
                 )}
                 <div className="flex items-center gap-2">
                   <Button
@@ -158,6 +161,7 @@ export function KanbanBoard({
                   >
                     <DropdownMenuTrigger asChild>
                       <Button
+                        data-tour="add-person-button"
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0 hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -250,6 +254,7 @@ export function KanbanBoard({
                   return (
                     <div
                       key={card.id}
+                      data-tour="person-card"
                       draggable
                       onDragStart={() => onDragStart(card.id)}
                       onDragEnd={onDragEnd}
@@ -319,6 +324,7 @@ export function KanbanBoard({
         {/* Add Column Button */}
         <div className="flex-shrink-0 w-64">
           <button
+            data-tour="add-column-button"
             onClick={() => setIsAddColumnModalOpen(true)}
             className="w-full h-full min-h-[200px] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
