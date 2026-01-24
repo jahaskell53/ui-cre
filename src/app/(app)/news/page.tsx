@@ -157,7 +157,7 @@ export default function NewsPage() {
                 <span>Registered</span>
               </div>
             ) : (
-              <Link href="/news/settings">
+              <Link href="/news/register">
                 <Button>
                   Register
                 </Button>
