@@ -70,6 +70,18 @@ interface Attendee {
     avatar_url: string | null;
 }
 
+interface Blast {
+    id: string;
+    event_id: string;
+    user_id: string;
+    subject: string;
+    message: string;
+    recipient_count: number;
+    sent_count: number;
+    failed_count: number;
+    created_at: string;
+}
+
 export default function EventManageDashboard() {
     const router = useNextRouter();
     const params = useNextParams();
@@ -88,6 +100,8 @@ export default function EventManageDashboard() {
     const [attendees, setAttendees] = useState<Attendee[]>([]);
     const [registrationCount, setRegistrationCount] = useState(0);
     const [isLoadingGuests, setIsLoadingGuests] = useState(false);
+    const [blasts, setBlasts] = useState<Blast[]>([]);
+    const [isLoadingBlasts, setIsLoadingBlasts] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -99,6 +113,12 @@ export default function EventManageDashboard() {
     useEffect(() => {
         if (eventId && activeTab === "Guests") {
             fetchGuests();
+        }
+    }, [eventId, activeTab]);
+
+    useEffect(() => {
+        if (eventId && activeTab === "Blasts") {
+            fetchBlasts();
         }
     }, [eventId, activeTab]);
 
@@ -281,6 +301,21 @@ export default function EventManageDashboard() {
             console.error("Error fetching guests:", err);
         } finally {
             setIsLoadingGuests(false);
+        }
+    };
+
+    const fetchBlasts = async () => {
+        setIsLoadingBlasts(true);
+        try {
+            const response = await fetch(`/api/events/${eventId}/blasts`);
+            if (response.ok) {
+                const data = await response.json();
+                setBlasts(data || []);
+            }
+        } catch (err) {
+            console.error("Error fetching blasts:", err);
+        } finally {
+            setIsLoadingBlasts(false);
         }
     };
 
@@ -614,22 +649,80 @@ export default function EventManageDashboard() {
                                     </Button>
                                 </Link>
                             </div>
-                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center">
-                                <div className="w-16 h-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md flex items-center justify-center mb-4">
-                                    <MessageSquare className="w-8 h-8 text-gray-200" />
+
+                            {isLoadingBlasts ? (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex items-center justify-center">
+                                    <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
                                 </div>
-                                <div className="font-semibold text-gray-900 dark:text-white mb-1">No Blasts Sent Yet</div>
-                                <p className="text-sm font-semibold text-gray-400 mb-6">Send your first email blast to all registered attendees.</p>
-                                <Link href={`/calendar/events/${eventId}/send-blast`}>
-                                    <Button
-                                        variant="secondary"
-                                        className="rounded-md font-semibold"
-                                    >
-                                        <Send className="w-4 h-4 mr-1.5" />
-                                        Send a Blast
-                                    </Button>
-                                </Link>
-                            </div>
+                            ) : blasts.length === 0 ? (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center">
+                                    <div className="w-16 h-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md flex items-center justify-center mb-4">
+                                        <MessageSquare className="w-8 h-8 text-gray-200" />
+                                    </div>
+                                    <div className="font-semibold text-gray-900 dark:text-white mb-1">No Blasts Sent Yet</div>
+                                    <p className="text-sm font-semibold text-gray-400 mb-6">Send your first email blast to all registered attendees.</p>
+                                    <Link href={`/calendar/events/${eventId}/send-blast`}>
+                                        <Button
+                                            variant="secondary"
+                                            className="rounded-md font-semibold"
+                                        >
+                                            <Send className="w-4 h-4 mr-1.5" />
+                                            Send a Blast
+                                        </Button>
+                                    </Link>
+                                </div>
+                            ) : (
+                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden">
+                                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                        {blasts.map((blast) => {
+                                            const sentDate = new Date(blast.created_at);
+                                            const formattedDate = sentDate.toLocaleDateString("en-US", {
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
+                                            });
+                                            const formattedTime = sentDate.toLocaleTimeString("en-US", {
+                                                hour: "numeric",
+                                                minute: "2-digit",
+                                            });
+
+                                            return (
+                                                <div
+                                                    key={blast.id}
+                                                    className="p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                                                >
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="flex-1 space-y-3">
+                                                            <div>
+                                                                <h3 className="font-semibold text-gray-900 dark:text-white text-lg mb-1">
+                                                                    {blast.subject}
+                                                                </h3>
+                                                                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                                                                    {blast.message}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <Mail className="w-3.5 h-3.5" />
+                                                                    {blast.sent_count} of {blast.recipient_count} sent
+                                                                </span>
+                                                                {blast.failed_count > 0 && (
+                                                                    <span className="text-red-500">
+                                                                        {blast.failed_count} failed
+                                                                    </span>
+                                                                )}
+                                                                <span>
+                                                                    {formattedDate} at {formattedTime}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

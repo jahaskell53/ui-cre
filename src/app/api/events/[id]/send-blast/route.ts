@@ -154,11 +154,32 @@ You're receiving this because you registered for this event.
         ).length;
         const failed = results.length - successful;
 
+        // Save the blast record
+        const { data: blast, error: blastError } = await supabase
+            .from("event_blasts")
+            .insert({
+                event_id: eventId,
+                user_id: user.id,
+                subject,
+                message,
+                recipient_count: emailAddresses.length,
+                sent_count: successful,
+                failed_count: failed,
+            })
+            .select()
+            .single();
+
+        if (blastError) {
+            console.error("Error saving blast record:", blastError);
+            // Continue even if saving fails - email was sent
+        }
+
         return NextResponse.json({
             success: true,
             sent: successful,
             failed,
             total: emailAddresses.length,
+            blast_id: blast?.id,
         });
     } catch (error: any) {
         console.error("Error sending blast:", error);
