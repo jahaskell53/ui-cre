@@ -351,7 +351,7 @@ export default function RegisterPage() {
               </p>
               <Button
                 onClick={() => router.push('/news')}
-                className="px-6 py-3"
+                className="px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
               >
                 Back to News
               </Button>
@@ -418,6 +418,7 @@ export default function RegisterPage() {
                 <Button
                   type="submit"
                   disabled={isLoading || interests.filter(interest => interest.trim() !== "").length === 0}
+                  className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                 >
                   {isLoading ? "Processing..." : "Continue"}
                 </Button>
@@ -504,6 +505,7 @@ export default function RegisterPage() {
                   <Button
                     type="submit"
                     disabled={isLoading || !currentAnswer.trim()}
+                    className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                   >
                     {isLoading
                       ? "Processing..."
@@ -597,6 +599,7 @@ export default function RegisterPage() {
                 <Button
                   onClick={handleEnhancedReview}
                   disabled={preferences.length === 0 || preferences.every(p => !p.trim())}
+                  className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                 >
                   Looks Good, Continue
                 </Button>
@@ -767,6 +770,7 @@ export default function RegisterPage() {
                     !timezone.trim() ||
                     preferredSendTimes.length === 0
                   }
+                  className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                 >
                   {isLoading ? "Sending Newsletter..." : "Register and Test Newsletter"}
                 </Button>
