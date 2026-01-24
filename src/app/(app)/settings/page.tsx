@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Moon } from "lucide-react";
+import { Moon, HelpCircle } from "lucide-react";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
+import { Button } from "@/components/ui/button";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -36,6 +38,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -43,8 +46,38 @@ export default function SettingsPage() {
 
   const currentTheme = theme === "system" ? "light" : theme;
 
+  const tourSteps: TourStep[] = [
+    {
+      id: "theme",
+      target: '[data-tour="theme-toggle"]',
+      title: "Change Theme",
+      content: "Switch between light and dark mode to customize your viewing experience.",
+      position: "bottom",
+    },
+    {
+      id: "newsletter",
+      target: '[data-tour="newsletter-settings"]',
+      title: "Newsletter Preferences",
+      content: "Manage your CRE news feed preferences, including location interests and delivery schedule.",
+      position: "bottom",
+    },
+  ];
+
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+    <div className="relative flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      {/* Tour Start Button */}
+      <div className="absolute top-4 right-4 z-10">
+        <Button
+          onClick={() => setIsTourOpen(true)}
+          variant="outline"
+          size="sm"
+          className="bg-white dark:bg-gray-900 shadow-sm"
+        >
+          <HelpCircle className="size-4 mr-2" />
+          Take a Tour
+        </Button>
+      </div>
+
       <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3">
           <button
@@ -70,7 +103,7 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-4">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Interface theme</label>
                 {mounted && (
-                  <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg max-w-xs">
+                  <div data-tour="theme-toggle" className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg max-w-xs">
                     <button
                       onClick={() => setTheme("light")}
                       className={cn(
@@ -110,6 +143,7 @@ export default function SettingsPage() {
 
               <Link
                 href="/news/settings"
+                data-tour="newsletter-settings"
                 className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
               >
                 <div className="flex flex-col gap-1">
@@ -122,6 +156,16 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Guided Tour */}
+      <GuidedTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onComplete={() => {
+          console.log("Settings tour completed!");
+        }}
+      />
     </div>
   );
 }

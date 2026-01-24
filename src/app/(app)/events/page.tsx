@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, MapPin } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, MapPin, HelpCircle } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 type ViewType = "month" | "week" | "day";
 
@@ -24,6 +25,7 @@ export default function CalendarPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isTourOpen, setIsTourOpen] = useState(false);
 
     useEffect(() => {
         fetchEvents();
@@ -315,8 +317,45 @@ export default function CalendarPage() {
         );
     };
 
+    const tourSteps: TourStep[] = [
+        {
+            id: "create-event",
+            target: '[data-tour="create-event"]',
+            title: "Create Events",
+            content: "Click here to create a new event. You can schedule meetings, set locations, and add Google Meet links.",
+            position: "bottom",
+        },
+        {
+            id: "view-toggle",
+            target: '[data-tour="view-toggle"]',
+            title: "Switch Views",
+            content: "Switch between Month, Week, and Day views to see your events in different timeframes.",
+            position: "bottom",
+        },
+        {
+            id: "calendar",
+            target: '[data-tour="calendar"]',
+            title: "Calendar View",
+            content: "View all your events on the calendar. Click on any event to see details and manage it.",
+            position: "top",
+        },
+    ];
+
     return (
-        <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+        <div className="relative flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+            {/* Tour Start Button */}
+            <div className="absolute top-6 right-6 z-10">
+                <Button
+                    onClick={() => setIsTourOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-gray-900 shadow-sm"
+                >
+                    <HelpCircle className="size-4 mr-2" />
+                    Take a Tour
+                </Button>
+            </div>
+
             <div className="flex flex-col gap-8 p-6">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
                     <div>
@@ -330,7 +369,7 @@ export default function CalendarPage() {
                             </Button>
                         </Link>
                         <Link href="/events/new">
-                            <Button className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
+                            <Button data-tour="create-event" className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200">
                                 <Plus className="size-4" />
                                 Create New
                             </Button>
@@ -340,7 +379,7 @@ export default function CalendarPage() {
 
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                     <div className="xl:col-span-3">
-                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-x-auto">
+                        <div data-tour="calendar" className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-x-auto">
                             {/* Calendar Header */}
                             <div className="border-b border-gray-200 dark:border-gray-800 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-gray-900 min-w-[700px]">
                                 <div className="flex items-center gap-4 flex-wrap">
@@ -389,7 +428,7 @@ export default function CalendarPage() {
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="flex bg-gray-50 dark:bg-gray-800 p-1 rounded-md">
+                                <div data-tour="view-toggle" className="flex bg-gray-50 dark:bg-gray-800 p-1 rounded-md">
                                     <button
                                         onClick={() => setCurrentView("month")}
                                         className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${currentView === "month"
@@ -498,6 +537,16 @@ export default function CalendarPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Guided Tour */}
+            <GuidedTour
+                steps={tourSteps}
+                isOpen={isTourOpen}
+                onClose={() => setIsTourOpen(false)}
+                onComplete={() => {
+                    console.log("Events tour completed!");
+                }}
+            />
         </div>
     );
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Newspaper, ExternalLink, Calendar, MapPin, Settings, Search, X, Check } from "lucide-react";
+import { Newspaper, ExternalLink, Calendar, MapPin, Settings, Search, X, Check, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 interface Article {
   id: string;
@@ -41,6 +42,7 @@ export default function NewsPage() {
   const [selectedDateRange, setSelectedDateRange] = useState<string>("last-week");
   const [placeholderIndex, setPlaceholderIndex] = useState<number>(0);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   useEffect(() => {
     fetchArticles();
@@ -137,8 +139,45 @@ export default function NewsPage() {
   const displayArticles = isSearchMode ? searchResults : articles;
   const isCurrentlyLoading = isLoading || isSearching;
 
+  const tourSteps: TourStep[] = [
+    {
+      id: "news-search",
+      target: '[data-tour="news-search"]',
+      title: "Search News",
+      content: "Search for specific real estate news topics. Use natural language queries like 'office space in South Bay' or 'mortgage rates'.",
+      position: "bottom",
+    },
+    {
+      id: "news-articles",
+      target: '[data-tour="news-articles"]',
+      title: "Browse Articles",
+      content: "View personalized news articles based on your preferences. Click any article to read the full story.",
+      position: "top",
+    },
+    {
+      id: "news-register",
+      target: '[data-tour="news-register"]',
+      title: "Newsletter Registration",
+      content: "Register for personalized newsletters to receive curated news based on your interests and markets.",
+      position: "bottom",
+    },
+  ];
+
   return (
-    <div className="flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+    <div className="relative flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
+      {/* Tour Start Button */}
+      <div className="absolute top-6 right-6 z-10">
+        <Button
+          onClick={() => setIsTourOpen(true)}
+          variant="outline"
+          size="sm"
+          className="bg-white dark:bg-gray-900 shadow-sm"
+        >
+          <HelpCircle className="size-4 mr-2" />
+          Take a Tour
+        </Button>
+      </div>
+
       <div className="flex flex-col gap-8 p-6 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
@@ -158,7 +197,7 @@ export default function NewsPage() {
               </div>
             ) : (
               <Link href="/news/register">
-                <Button className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200">
+                <Button data-tour="news-register" className="bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200">
                   Register for Newsletter
                 </Button>
               </Link>
@@ -176,7 +215,7 @@ export default function NewsPage() {
 
         {/* Search Bar */}
         <div className="max-w-2xl">
-          <div className="relative flex">
+          <div data-tour="news-search" className="relative flex">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" strokeWidth={2} />
             </div>
@@ -262,7 +301,7 @@ export default function NewsPage() {
             )}
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div data-tour="news-articles" className="grid gap-4">
             {isSearchMode && (
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -342,6 +381,16 @@ export default function NewsPage() {
           </div>
         )}
       </div>
+
+      {/* Guided Tour */}
+      <GuidedTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onComplete={() => {
+          console.log("News tour completed!");
+        }}
+      />
     </div>
   );
 }

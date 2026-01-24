@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Filter, Loader2, X } from "lucide-react";
+import { Search, Filter, Loader2, X, HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { PropertyMap, type Property } from "@/components/application/map/property-map";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 const PAGE_SIZE = 200;
 
@@ -39,6 +40,7 @@ export default function MapPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [filters, setFilters] = useState<Filters>(defaultFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [isTourOpen, setIsTourOpen] = useState(false);
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -176,8 +178,52 @@ export default function MapPage() {
         setPage(newPage - 1);
     };
 
+    const tourSteps: TourStep[] = [
+        {
+            id: "search",
+            target: '[data-tour="listings-search"]',
+            title: "Search Listings",
+            content: "Search for properties by address, headline, or location. The map and list will update in real-time.",
+            position: "bottom",
+        },
+        {
+            id: "filters",
+            target: '[data-tour="listings-filters"]',
+            title: "Filter Properties",
+            content: "Filter listings by price, cap rate, and square footage. The badge shows how many filters are active.",
+            position: "bottom",
+        },
+        {
+            id: "property-list",
+            target: '[data-tour="property-list"]',
+            title: "Browse Properties",
+            content: "Click on any property in the list to see it highlighted on the map. Scroll to see more results.",
+            position: "right",
+        },
+        {
+            id: "map",
+            target: '[data-tour="property-map"]',
+            title: "Interactive Map",
+            content: "View all properties on an interactive map. Click markers to see property details and navigate between listings.",
+            position: "left",
+        },
+    ];
+
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden p-6">
+        <div className="relative flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden p-6">
+            {/* Tour Start Button */}
+            <div className="absolute top-6 right-6 z-20">
+                <Button
+                    onClick={() => setIsTourOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-gray-900 shadow-sm"
+                >
+                    <HelpCircle className="size-4 mr-2" />
+                    Take a Tour
+                </Button>
+            </div>
+
             <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
                 {/* Header */}
                 <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
@@ -186,7 +232,7 @@ export default function MapPage() {
                             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Property Map</h1>
                         </div>
                         <div className="flex gap-2 w-full sm:w-auto">
-                            <div className="relative w-full sm:w-32 lg:w-64">
+                            <div data-tour="listings-search" className="relative w-full sm:w-32 lg:w-64">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
                                 <Input
                                     placeholder="Search zip, address, market..."
@@ -200,7 +246,7 @@ export default function MapPage() {
                             </div>
                             <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" className="border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 relative">
+                                    <Button data-tour="listings-filters" variant="outline" className="border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 relative">
                                         <Filter className="size-4" />
                                         Filters
                                         {activeFilterCount > 0 && (
@@ -320,7 +366,7 @@ export default function MapPage() {
 
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
                     {/* Map Sidebar */}
-                    <div className="w-full lg:w-80 h-1/2 lg:h-full border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 z-10">
+                    <div data-tour="property-list" className="w-full lg:w-80 h-1/2 lg:h-full border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900 z-10">
                         <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
                             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 {loading ? 'Loading...' : `Results ${page * PAGE_SIZE + 1}-${Math.min((page + 1) * PAGE_SIZE, totalCount)}`}
@@ -399,7 +445,7 @@ export default function MapPage() {
                     </div>
 
                     {/* Interactive Map */}
-                    <div className="flex-1 relative">
+                    <div data-tour="property-map" className="flex-1 relative">
                         <PropertyMap
                             properties={properties}
                             selectedId={selectedId}
@@ -408,6 +454,16 @@ export default function MapPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Guided Tour */}
+            <GuidedTour
+                steps={tourSteps}
+                isOpen={isTourOpen}
+                onClose={() => setIsTourOpen(false)}
+                onComplete={() => {
+                    console.log("Listings tour completed!");
+                }}
+            />
         </div>
     );
 }

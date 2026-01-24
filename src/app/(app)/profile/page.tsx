@@ -8,9 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Upload } from "lucide-react";
+import { Upload, HelpCircle } from "lucide-react";
 import { EmailIntegrations } from "@/components/integrations/EmailIntegrations";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -33,6 +34,7 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   const roles = ["Property Owner", "Broker", "Lender"];
 
@@ -179,8 +181,45 @@ export default function ProfilePage() {
 
   const initials = fullName ? getInitials(fullName) : (user.email?.split("@")[0]?.substring(0, 2).toUpperCase() || "U");
 
+  const tourSteps: TourStep[] = [
+    {
+      id: "avatar",
+      target: '[data-tour="avatar-upload"]',
+      title: "Upload Profile Photo",
+      content: "Click here to upload a profile photo. Your photo will be visible to other users in the network.",
+      position: "bottom",
+    },
+    {
+      id: "profile-info",
+      target: '[data-tour="profile-info"]',
+      title: "Edit Profile Information",
+      content: "Update your name, website, and roles. These details help others understand your role in the industry.",
+      position: "bottom",
+    },
+    {
+      id: "email-integration",
+      target: '[data-tour="email-integration"]',
+      title: "Connect Email",
+      content: "Connect your email account to automatically sync contacts and interactions with your network.",
+      position: "top",
+    },
+  ];
+
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+    <div className="relative flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
+      {/* Tour Start Button */}
+      <div className="absolute top-4 right-4 z-10">
+        <Button
+          onClick={() => setIsTourOpen(true)}
+          variant="outline"
+          size="sm"
+          className="bg-white dark:bg-gray-900 shadow-sm"
+        >
+          <HelpCircle className="size-4 mr-2" />
+          Take a Tour
+        </Button>
+      </div>
+
       {/* Navigation Bar */}
       <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3">
@@ -225,7 +264,7 @@ export default function ProfilePage() {
                 </Avatar>
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-3">
-                    <label className="cursor-pointer">
+                    <label data-tour="avatar-upload" className="cursor-pointer">
                       <input
                         type="file"
                         className="hidden"
@@ -262,7 +301,7 @@ export default function ProfilePage() {
             </div>
 
             {/* Form Fields */}
-            <div className="space-y-6">
+            <div data-tour="profile-info" className="space-y-6">
               <div>
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                   Email
@@ -339,7 +378,9 @@ export default function ProfilePage() {
                   Connect your email and calendar to automatically import and sync your contacts.
                 </p>
               </div>
-              <EmailIntegrations />
+              <div data-tour="email-integration">
+                <EmailIntegrations />
+              </div>
             </section>
 
             {/* Actions */}
@@ -361,6 +402,16 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Guided Tour */}
+      <GuidedTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onComplete={() => {
+          console.log("Profile tour completed!");
+        }}
+      />
     </div>
   );
 }

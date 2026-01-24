@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
-import { ArrowUp, Plus, Search, X } from "lucide-react";
+import { ArrowUp, Plus, Search, X, HelpCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { motion, AnimatePresence } from "motion/react";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 interface Conversation {
     other_user_id: string;
@@ -93,6 +94,7 @@ export default function MessagesPage() {
     const [searchLoading, setSearchLoading] = useState(false);
     const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
     const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
+    const [isTourOpen, setIsTourOpen] = useState(false);
 
     useEffect(() => {
         loadConversations();
@@ -363,18 +365,56 @@ export default function MessagesPage() {
             .slice(0, 2);
     };
 
+    const tourSteps: TourStep[] = [
+        {
+            id: "new-message",
+            target: '[data-tour="new-message"]',
+            title: "Start New Conversation",
+            content: "Click here to search for users and start a new conversation. Type a name to find contacts.",
+            position: "bottom",
+        },
+        {
+            id: "conversations",
+            target: '[data-tour="conversations-list"]',
+            title: "Your Conversations",
+            content: "View all your conversations here. Click on any conversation to open it and see messages.",
+            position: "right",
+        },
+        {
+            id: "message-input",
+            target: '[data-tour="message-input"]',
+            title: "Send Messages",
+            content: "Type your message here and press Enter to send. Messages are delivered in real-time.",
+            position: "top",
+        },
+    ];
+
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+        <div className="relative flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
+            {/* Tour Start Button */}
+            <div className="absolute top-6 right-6 z-10">
+                <Button
+                    onClick={() => setIsTourOpen(true)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white dark:bg-gray-900 shadow-sm"
+                >
+                    <HelpCircle className="size-4 mr-2" />
+                    Take a Tour
+                </Button>
+            </div>
+
             <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
                     <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Messages</h1>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)] min-h-[600px]">
                     {/* Conversations List */}
-                    <div className="lg:col-span-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
+                    <div data-tour="conversations-list" className="lg:col-span-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
                         <div className="p-4 border-b border-gray-200 dark:border-gray-800">
                             <div className="flex items-center justify-between mb-2">
                                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Conversations</h2>
                                 <button
+                                    data-tour="new-message"
                                     onClick={() => {
                                         setShowNewMessage(!showNewMessage);
                                         setSearchQuery("");
@@ -682,7 +722,7 @@ export default function MessagesPage() {
 
                                 {/* Message Input */}
                                 <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-                                    <div className="flex gap-3 items-end">
+                                    <div data-tour="message-input" className="flex gap-3 items-end">
                                         <div className="flex-1 relative">
                                             <Textarea
                                                 placeholder="Type a message..."
@@ -734,6 +774,16 @@ export default function MessagesPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Guided Tour */}
+            <GuidedTour
+                steps={tourSteps}
+                isOpen={isTourOpen}
+                onClose={() => setIsTourOpen(false)}
+                onComplete={() => {
+                    console.log("Messages tour completed!");
+                }}
+            />
         </div>
     );
 }
