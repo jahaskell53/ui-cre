@@ -1,18 +1,31 @@
 import Nylas from 'nylas';
 
-if (!process.env.NYLAS_API_KEY) {
-  throw new Error('Missing NYLAS_API_KEY environment variable');
+let cachedNylasClient: Nylas | null = null;
+
+export function assertNylasConfigured() {
+  if (!process.env.NYLAS_API_KEY) {
+    throw new Error('Missing NYLAS_API_KEY environment variable');
+  }
+
+  if (!process.env.NYLAS_CLIENT_ID) {
+    throw new Error('Missing NYLAS_CLIENT_ID environment variable');
+  }
 }
 
-if (!process.env.NYLAS_CLIENT_ID) {
-  throw new Error('Missing NYLAS_CLIENT_ID environment variable');
-}
+export function getNylasClient(): Nylas {
+  if (cachedNylasClient) return cachedNylasClient;
 
-// Initialize Nylas client
-export const nylasClient = new Nylas({
-  apiKey: process.env.NYLAS_API_KEY,
-  apiUri: process.env.NYLAS_API_URI || 'https://api.us.nylas.com',
-});
+  if (!process.env.NYLAS_API_KEY) {
+    throw new Error('Missing NYLAS_API_KEY environment variable');
+  }
+
+  cachedNylasClient = new Nylas({
+    apiKey: process.env.NYLAS_API_KEY,
+    apiUri: process.env.NYLAS_API_URI || 'https://api.us.nylas.com',
+  });
+
+  return cachedNylasClient;
+}
 
 export const nylasConfig = {
   clientId: process.env.NYLAS_CLIENT_ID,

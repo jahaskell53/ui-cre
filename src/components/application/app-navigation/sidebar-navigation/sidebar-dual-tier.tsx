@@ -51,7 +51,7 @@ export const SidebarNavigationDualTier = ({ activeUrl, hideBorder, items, footer
             >
                 <div className="flex flex-col gap-5 px-4 lg:px-5">
                     <UntitledLogo className="h-12" />
-                    <Input shortcut size="sm" aria-label="Search" placeholder="Search" icon={SearchLg} />
+                    <Input aria-label="Search" placeholder="Search" />
                 </div>
 
                 <NavList activeUrl={activeUrl} items={items} className="lg:hidden" />

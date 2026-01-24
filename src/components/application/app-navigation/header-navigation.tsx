@@ -64,7 +64,7 @@ export const HeaderNavigationBase = ({
                 <aside className="flex h-full max-w-full flex-col justify-between overflow-auto border-r border-secondary bg-primary pt-4 lg:pt-6">
                     <div className="flex flex-col gap-5 px-4 lg:px-5">
                         <UntitledLogo className="h-12" />
-                        <Input shortcut size="sm" aria-label="Search" placeholder="Search" icon={SearchLg} />
+                        <Input aria-label="Search" placeholder="Search" />
                     </div>
 
                     <NavList items={items} />
@@ -167,8 +167,7 @@ export const HeaderNavigationBase = ({
                                             <AvatarFallback>
                                                 {(profile?.full_name || user.email || "User").substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
-                                        </Avatar> 
-                                        />
+                                        </Avatar>
                                     </AriaButton>
                                     <Popover
                                         placement="bottom right"
@@ -206,7 +205,7 @@ export const HeaderNavigationBase = ({
                                 </ul>
                             </nav>
 
-                            <Input shortcut aria-label="Search" placeholder="Search" icon={SearchLg} size="sm" className="max-w-xs" />
+                            <Input aria-label="Search" placeholder="Search" className="max-w-xs" />
                         </div>
                     </section>
                 )}
