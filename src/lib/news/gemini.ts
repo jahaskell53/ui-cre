@@ -1,4 +1,5 @@
 import { GoogleGenAI, GenerateContentParameters } from '@google/genai';
+import { getLangfuseClient } from '../../../instrumentation';
 
 export interface GeminiResponse {
   candidates: Array<{
@@ -7,7 +8,17 @@ export interface GeminiResponse {
         text: string;
       }>;
     };
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      totalTokenCount?: number;
+    };
   }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
 }
 
 // Initialize Gemini client (singleton)
@@ -27,7 +38,7 @@ function getGeminiClient(): GoogleGenAI {
   return geminiClient;
 }
 
-// Helper function to create Gemini API call
+// Helper function to create Gemini API call with Langfuse tracing
 export async function makeGeminiCall(
   model: string,
   prompt: string,
@@ -56,9 +67,42 @@ export async function makeGeminiCall(
     }
   };
 
+  // Create Langfuse generation span for tracing
+  const langfuse = getLangfuseClient();
+  const modelParameters: Record<string, string | number | boolean> = {};
+  if (options.temperature !== undefined) modelParameters.temperature = options.temperature;
+  if (options.maxTokens !== undefined) modelParameters.maxOutputTokens = options.maxTokens;
+  if (options.responseMimeType !== undefined) modelParameters.responseMimeType = options.responseMimeType;
+
+  const generation = langfuse?.generation({
+    name: options.operation,
+    input: prompt,
+    model: model,
+    modelParameters,
+    metadata: {
+      traceId: options.traceId,
+      ...options.properties,
+    },
+  });
+
   try {
     const response = await client.models.generateContent(params);
     const latency = Date.now() - startTime;
+
+    // Extract response text and token usage
+    const responseText = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const usage = response.usageMetadata;
+
+    // Update Langfuse generation with output and usage
+    generation?.update({
+      output: responseText,
+      usage: usage ? {
+        input: usage.promptTokenCount || 0,
+        output: usage.candidatesTokenCount || 0,
+        total: usage.totalTokenCount || 0,
+      } : undefined,
+    });
+    generation?.end();
 
     // Log operation for debugging
     console.log(`[Gemini] ${options.operation} completed in ${latency}ms`);
@@ -66,6 +110,15 @@ export async function makeGeminiCall(
     return response as GeminiResponse;
   } catch (error) {
     const latency = Date.now() - startTime;
+
+    // Update Langfuse generation with error
+    generation?.update({
+      output: error instanceof Error ? error.message : 'Unknown error',
+      level: 'ERROR',
+      statusMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+    generation?.end();
+
     console.error(`[Gemini] ${options.operation} failed after ${latency}ms:`, error);
     throw error;
   }
