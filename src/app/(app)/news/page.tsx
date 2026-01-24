@@ -163,12 +163,14 @@ export default function NewsPage() {
                 </Button>
               </Link>
             )}
-            <Link href="/news/settings">
-              <Button variant="outline">
-                <Settings className="size-4" />
-                Preferences
-              </Button>
-            </Link>
+            {isRegistered === true && (
+              <Link href="/news/settings">
+                <Button variant="outline">
+                  <Settings className="size-4" />
+                  Preferences
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
