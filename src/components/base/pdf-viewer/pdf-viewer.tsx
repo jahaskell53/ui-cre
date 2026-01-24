@@ -5,7 +5,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { RefreshCw as RefreshCw01, File as File02, ArrowUpRight } from 'lucide-react';
-import { Button } from '@/components/base/buttons/button';
+import { Button } from '@/components/ui/button';
 
 // Set up the worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -49,7 +49,8 @@ export const PdfViewer = ({ url, title }: PdfViewerProps) => {
                         {numPages || '--'} Pages
                     </div>
                 </div>
-                <Button size="sm" color="secondary" iconLeading={ArrowUpRight} onClick={() => window.open(url, '_blank')}>
+                <Button size="sm" variant="secondary" onClick={() => window.open(url, '_blank')}>
+                    <ArrowUpRight className="size-4" />
                     Open
                 </Button>
             </div>
@@ -73,7 +74,7 @@ export const PdfViewer = ({ url, title }: PdfViewerProps) => {
                                 <p className="text-sm text-primary font-semibold">Failed to load PDF</p>
                                 <p className="text-xs text-tertiary mt-1">This might be due to CORS or a private file.</p>
                             </div>
-                            <Button size="sm" color="secondary" onClick={() => window.open(url, '_blank')}>
+                            <Button size="sm" variant="secondary" onClick={() => window.open(url, '_blank')}>
                                 Open in new tab
                             </Button>
                         </div>

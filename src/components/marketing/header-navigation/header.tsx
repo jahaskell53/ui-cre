@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button as AriaButton, Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
-import { Button } from "@/components/base/buttons/button";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
 import { DropdownMenuSimple } from "@/components/marketing/header-navigation/dropdown-header-navigation";
@@ -72,8 +73,8 @@ const MobileFooter = () => {
                 <ul className="grid grid-flow-col grid-cols-2 grid-rows-4 gap-x-6 gap-y-3">
                     {footerNavItems.map((navItem) => (
                         <li key={navItem.label}>
-                            <Button color="link-gray" size="lg" href={navItem.href}>
-                                {navItem.label}
+                            <Button variant="link" size="lg" asChild>
+                                <Link href={navItem.href || "#"}>{navItem.label}</Link>
                             </Button>
                         </li>
                     ))}
@@ -81,7 +82,7 @@ const MobileFooter = () => {
             </div>
             <div className="flex flex-col gap-3">
                 <Button size="lg">Sign up</Button>
-                <Button color="secondary" size="lg">
+                <Button variant="secondary" size="lg">
                     Log in
                 </Button>
             </div>
@@ -177,10 +178,10 @@ export const Header = ({ items = headerNavItems, isFullWidth, isFloating, classN
                     </div>
 
                     <div className="hidden items-center gap-3 md:flex">
-                        <Button color="secondary" size={isFloating ? "md" : "lg"}>
+                        <Button variant="secondary" size={isFloating ? "default" : "lg"}>
                             Log in
                         </Button>
-                        <Button color="primary" size={isFloating ? "md" : "lg"}>
+                        <Button variant="default" size={isFloating ? "default" : "lg"}>
                             Sign up
                         </Button>
                     </div>
