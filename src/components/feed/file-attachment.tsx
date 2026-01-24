@@ -1,7 +1,7 @@
 import { File } from "lucide-react";
 import dynamic from "next/dynamic";
 
-const PdfViewer = dynamic(() => import("@/components/base/pdf-viewer/pdf-viewer").then(mod => mod.PdfViewer), {
+const PdfViewer = dynamic(() => import("@/components/application/pdf-viewer/pdf-viewer").then(mod => mod.PdfViewer), {
     ssr: false,
     loading: () => <div className="w-full h-[400px] border border-secondary rounded-xl animate-pulse bg-secondary/10 flex items-center justify-center text-tertiary">Loading viewer...</div>
 });

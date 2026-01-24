@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { Button } from "@/components/ui/button";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { cx } from "@/utils/cx";
@@ -303,31 +302,46 @@ export const PaginationButtonGroup = ({ align = "left", page = 1, total = 10, ..
             <Pagination.Root {...props} page={page} total={total}>
                 <Pagination.Context>
                     {({ pages }) => (
-                        <ButtonGroup size="md">
+                        <div className="relative z-0 inline-flex w-max -space-x-px rounded-lg shadow-xs">
                             <Pagination.PrevTrigger asChild>
-                                <ButtonGroupItem iconLeading={ArrowLeft}>{isDesktop ? "Previous" : undefined}</ButtonGroupItem>
+                                <Button variant="outline" size="default" className="rounded-r-none">
+                                    <ArrowLeft className="size-4" />
+                                    {isDesktop && "Previous"}
+                                </Button>
                             </Pagination.PrevTrigger>
 
                             {pages.map((page, index) =>
                                 page.type === "page" ? (
                                     <Pagination.Item key={index} {...page} asChild>
-                                        <ButtonGroupItem isSelected={page.isCurrent} className="size-10 items-center justify-center">
+                                        <Button 
+                                            variant={page.isCurrent ? "default" : "outline"} 
+                                            size="default"
+                                            className="size-10 items-center justify-center rounded-none"
+                                        >
                                             {page.value}
-                                        </ButtonGroupItem>
+                                        </Button>
                                     </Pagination.Item>
                                 ) : (
                                     <Pagination.Ellipsis key={index}>
-                                        <ButtonGroupItem className="pointer-events-none size-10 items-center justify-center rounded-none!">
+                                        <Button 
+                                            variant="outline" 
+                                            size="default"
+                                            className="pointer-events-none size-10 items-center justify-center rounded-none"
+                                            disabled
+                                        >
                                             &#8230;
-                                        </ButtonGroupItem>
+                                        </Button>
                                     </Pagination.Ellipsis>
                                 ),
                             )}
 
                             <Pagination.NextTrigger asChild>
-                                <ButtonGroupItem iconTrailing={ArrowRight}>{isDesktop ? "Next" : undefined}</ButtonGroupItem>
+                                <Button variant="outline" size="default" className="rounded-l-none">
+                                    {isDesktop && "Next"}
+                                    <ArrowRight className="size-4" />
+                                </Button>
                             </Pagination.NextTrigger>
-                        </ButtonGroup>
+                        </div>
                     )}
                 </Pagination.Context>
             </Pagination.Root>
