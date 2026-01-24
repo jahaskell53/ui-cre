@@ -80,7 +80,7 @@ export async function getGrant(grantId: string): Promise<NylasGrant | null> {
   assertNylasConfigured();
   const nylasClient = getNylasClient();
   try {
-    const grant = await (nylasClient.auth as any).grants.find({
+    const grant = await nylasClient.grants.find({
       grantId,
     });
 
@@ -98,7 +98,7 @@ export async function revokeGrant(grantId: string) {
   assertNylasConfigured();
   const nylasClient = getNylasClient();
   try {
-    await (nylasClient.auth as any).grants.destroy({
+    await nylasClient.grants.destroy({
       grantId,
     });
     return true;
