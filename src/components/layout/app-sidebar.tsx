@@ -200,7 +200,7 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
 
       {/* Account Card */}
       <div className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
-        <AccountCard isCollapsed={isCollapsed} />
+        <AccountCard isCollapsed={isCollapsed} onNavigate={isDesktop ? undefined : onMobileClose} />
       </div>
     </>
   );
@@ -336,7 +336,7 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
         </nav>
 
         <div className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
-          <AccountCard isCollapsed={false} />
+          <AccountCard isCollapsed={false} onNavigate={onMobileClose} />
         </div>
       </aside>
     </>
