@@ -216,14 +216,11 @@ export function EmailIntegrations() {
     <div className="space-y-6">
       {/* Sync Status Message */}
       {syncing && (
-        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm border border-blue-200 dark:border-blue-800">
-          <div className="flex items-start gap-2">
-            <Loader2 className="h-4 w-4 mt-0.5 flex-shrink-0 animate-spin" />
-            <div>
-              <div className="font-medium mb-1">Sync in progress</div>
-              <div className="text-xs text-blue-500 dark:text-blue-400">
-                Sync is running in the background. You can close this page and check back later.
-              </div>
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800">
+          <div>
+            <div className="font-medium mb-1">Sync in progress</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Sync is running in the background. You can close this page and check back later.
             </div>
           </div>
         </div>
