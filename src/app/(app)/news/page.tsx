@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Newspaper, ExternalLink, Calendar, MapPin, Settings, Search, X } from "lucide-react";
+import { Newspaper, ExternalLink, Calendar, MapPin, Settings, Search, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -31,6 +31,7 @@ const placeholderQueries = [
 export default function NewsPage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
 
   // Search states
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -43,7 +44,23 @@ export default function NewsPage() {
 
   useEffect(() => {
     fetchArticles();
+    checkRegistrationStatus();
   }, []);
+
+  const checkRegistrationStatus = async () => {
+    try {
+      const response = await fetch("/api/news/preferences");
+      if (response.ok) {
+        const data = await response.json();
+        setIsRegistered(data.newsletter_active || false);
+      } else {
+        setIsRegistered(false);
+      }
+    } catch (error) {
+      console.error("Failed to check registration status:", error);
+      setIsRegistered(false);
+    }
+  };
 
   // Rotate placeholder queries every 3 seconds, only when input is empty and not focused
   useEffect(() => {
@@ -134,6 +151,18 @@ export default function NewsPage() {
             </p>
           </div>
           <div className="flex gap-3">
+            {isRegistered === null ? null : isRegistered ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+                <Check className="size-4 text-green-600 dark:text-green-400" />
+                <span>Registered</span>
+              </div>
+            ) : (
+              <Link href="/news/settings">
+                <Button>
+                  Register
+                </Button>
+              </Link>
+            )}
             <Link href="/news/settings">
               <Button variant="outline">
                 <Settings className="size-4" />
