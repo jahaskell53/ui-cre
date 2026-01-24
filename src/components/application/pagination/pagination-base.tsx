@@ -235,12 +235,11 @@ const Trigger: FC<TriggerProps> = ({ children, style, className, asChild = false
         return <>{children({ isDisabled, onClick: handleClick })}</>;
     }
 
-    // If the children is a valid element, we need to clone it and pass the isDisabled and onClick to the cloned element.
+    // If the children is a valid element, we need to clone it and pass the disabled and onClick to the cloned element.
     if (asChild && isValidElement(children)) {
         return cloneElement(children, {
             onClick: handleClick,
             disabled: isDisabled,
-            isDisabled,
             "aria-label": ariaLabel || defaultAriaLabel,
             style: { ...(children.props as HTMLAttributes<HTMLElement>).style, ...style },
             className: [computedClassName, (children.props as HTMLAttributes<HTMLElement>).className].filter(Boolean).join(" ") || undefined,
