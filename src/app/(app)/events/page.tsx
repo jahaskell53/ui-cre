@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, MapPin, HelpCircle } from "lucide-react";
+import { usePageTour } from "@/hooks/use-page-tour";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, MapPin } from "lucide-react";
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,6 +27,9 @@ export default function CalendarPage() {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isTourOpen, setIsTourOpen] = useState(false);
+
+    // Listen for tour trigger from sidebar
+    usePageTour(() => setIsTourOpen(true));
 
     useEffect(() => {
         fetchEvents();
@@ -343,19 +347,6 @@ export default function CalendarPage() {
 
     return (
         <div className="relative flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-            {/* Tour Start Button */}
-            <div className="absolute top-6 right-6 z-10">
-                <Button
-                    onClick={() => setIsTourOpen(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white dark:bg-gray-900 shadow-sm"
-                >
-                    <HelpCircle className="size-4 mr-2" />
-                    Take a Tour
-                </Button>
-            </div>
-
             <div className="flex flex-col gap-8 p-6">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
                     <div>

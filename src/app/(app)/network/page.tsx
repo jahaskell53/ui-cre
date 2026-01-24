@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { parse, isValid } from "date-fns";
 import { PeopleList } from "./components/people-list";
 import { usePeople } from "./people-context";
 import { createToggleStarHandler } from "./utils";
 import type { TimelineItem } from "./types";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
-import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
 
 // Helper function to parse date strings from timeline
 function parseTimelineDate(dateStr: string): Date | null {
@@ -161,6 +160,9 @@ export default function PeoplePage() {
 
   const [isTourOpen, setIsTourOpen] = useState(false);
 
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
+
   const tourSteps: TourStep[] = [
     {
       id: "tabs",
@@ -201,21 +203,6 @@ export default function PeoplePage() {
 
   return (
     <div className="relative flex-1 overflow-hidden">
-      {/* Tour Start Button */}
-      {!loading && filteredPeople.length > 0 && (
-        <div className="absolute top-4 right-4 z-10">
-          <Button
-            onClick={() => setIsTourOpen(true)}
-            variant="outline"
-            size="sm"
-            className="bg-white dark:bg-gray-900 shadow-sm"
-          >
-            <HelpCircle className="size-4 mr-2" />
-            Take a Tour
-          </Button>
-        </div>
-      )}
-
       <PeopleList
         people={filteredPeople}
         selectedPerson={selectedPerson}

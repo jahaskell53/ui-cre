@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { KanbanBoard } from "../components/kanban-board";
 import { usePeople } from "../people-context";
 import { createToggleStarHandler } from "../utils";
@@ -8,7 +9,6 @@ import type { KanbanColumn, KanbanCard, Person } from "../types";
 import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
 import { Button } from "@/components/ui/button";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
-import { HelpCircle } from "lucide-react";
 
 // Helper function to generate column ID from title
 function generateColumnId(title: string, index: number): string {
@@ -37,6 +37,9 @@ export default function BoardPage() {
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
 
   // Fetch kanban column titles from database
   useEffect(() => {
@@ -384,21 +387,6 @@ export default function BoardPage() {
 
   return (
     <div className="relative flex-1 overflow-hidden">
-      {/* Tour Start Button */}
-      {!isLoadingColumns && kanbanColumns.length > 0 && (
-        <div className="absolute top-4 right-4 z-10">
-          <Button
-            onClick={() => setIsTourOpen(true)}
-            variant="outline"
-            size="sm"
-            className="bg-white dark:bg-gray-900 shadow-sm"
-          >
-            <HelpCircle className="size-4 mr-2" />
-            Take a Tour
-          </Button>
-        </div>
-      )}
-
       {isLoadingColumns ? (
         <div className="flex-1 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
           <div className="flex gap-4 p-4 h-full">

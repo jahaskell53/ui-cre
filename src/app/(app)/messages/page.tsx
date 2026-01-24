@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
-import { ArrowUp, Plus, Search, X, HelpCircle } from "lucide-react";
+import { ArrowUp, Plus, Search, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -95,6 +96,9 @@ export default function MessagesPage() {
     const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
     const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
     const [isTourOpen, setIsTourOpen] = useState(false);
+
+    // Listen for tour trigger from sidebar
+    usePageTour(() => setIsTourOpen(true));
 
     useEffect(() => {
         loadConversations();
@@ -391,19 +395,6 @@ export default function MessagesPage() {
 
     return (
         <div className="relative flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
-            {/* Tour Start Button */}
-            <div className="absolute top-6 right-6 z-10">
-                <Button
-                    onClick={() => setIsTourOpen(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white dark:bg-gray-900 shadow-sm"
-                >
-                    <HelpCircle className="size-4 mr-2" />
-                    Take a Tour
-                </Button>
-            </div>
-
             <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
                     <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Messages</h1>
 

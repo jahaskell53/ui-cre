@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { PropertiesMapView } from "../components/properties-map-view";
 import { usePeople } from "../people-context";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
-import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
 
 export default function MapPage() {
   const { people, searchQuery, showStarredOnly, setSelectedPerson } = usePeople();
   const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
 
   const tourSteps: TourStep[] = [
     {
@@ -30,21 +32,6 @@ export default function MapPage() {
 
   return (
     <div className="relative flex-1 overflow-hidden">
-      {/* Tour Start Button */}
-      {people.length > 0 && (
-        <div className="absolute top-4 right-4 z-10">
-          <Button
-            onClick={() => setIsTourOpen(true)}
-            variant="outline"
-            size="sm"
-            className="bg-white dark:bg-gray-900 shadow-sm"
-          >
-            <HelpCircle className="size-4 mr-2" />
-            Take a Tour
-          </Button>
-        </div>
-      )}
-
       <PropertiesMapView
         people={people}
         searchQuery={searchQuery}

@@ -119,9 +119,21 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
         </div>
       )}
 
-      {/* Tour Button */}
+      {/* Tour Buttons */}
       {!isCollapsed && (
-        <div className="px-3 py-2">
+        <div className="px-3 py-2 space-y-2">
+          <Button
+            onClick={() => {
+              // Trigger page-specific tour via custom event
+              window.dispatchEvent(new CustomEvent('trigger-page-tour'));
+            }}
+            variant="outline"
+            size="sm"
+            className="w-full bg-white dark:bg-gray-900 shadow-sm"
+          >
+            <HelpCircle className="size-4 mr-2" />
+            Take a Tour
+          </Button>
           <Button
             onClick={() => setIsTourOpen(true)}
             variant="outline"
@@ -302,11 +314,39 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           )}
         </div>
 
-        <div className="px-3 py-2">
+        <div data-tour="sidebar-search" className="px-3 py-2">
           <UserSearchBar ref={searchBarRef} />
         </div>
 
-        <nav className="py-2 space-y-0.5 px-3">
+        {/* Tour Buttons */}
+        <div className="px-3 py-2 space-y-2">
+          <Button
+            onClick={() => {
+              // Trigger page-specific tour via custom event
+              window.dispatchEvent(new CustomEvent('trigger-page-tour'));
+              onMobileClose?.();
+            }}
+            variant="outline"
+            size="sm"
+            className="w-full bg-white dark:bg-gray-900 shadow-sm"
+          >
+            <HelpCircle className="size-4 mr-2" />
+            Take a Tour
+          </Button>
+          <Button
+            onClick={() => {
+              setIsTourOpen(true);
+              onMobileClose?.();
+            }}
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs"
+          >
+            App Overview
+          </Button>
+        </div>
+
+        <nav data-tour="sidebar-nav" className="py-2 space-y-0.5 px-3">
           <Link
             href="/"
             onClick={onMobileClose}
@@ -387,9 +427,19 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           </Link>
         </nav>
 
-        <div className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
+        <div data-tour="account-card" className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
           <AccountCard isCollapsed={false} />
         </div>
+
+        {/* App-Level Guided Tour */}
+        <GuidedTour
+          steps={appTourSteps}
+          isOpen={isTourOpen}
+          onClose={() => setIsTourOpen(false)}
+          onComplete={() => {
+            console.log("App tour completed!");
+          }}
+        />
       </aside>
     </>
   );

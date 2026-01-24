@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, HelpCircle } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { FeedItem, Post } from "@/components/feed/feed-item";
 import { CreatePostInline } from "@/components/feed/create-post-inline";
 import { NotificationCard } from "@/components/notifications/notification-card";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
-import { Button } from "@/components/ui/button";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
     return (
@@ -44,6 +44,9 @@ export default function FeedPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [notificationsLoading, setNotificationsLoading] = useState(true);
     const [isTourOpen, setIsTourOpen] = useState(false);
+
+    // Listen for tour trigger from sidebar
+    usePageTour(() => setIsTourOpen(true));
 
     useEffect(() => {
         if (!userLoading) {
@@ -263,19 +266,6 @@ export default function FeedPage() {
 
     return (
         <div className="relative flex flex-col gap-8 p-6 overflow-auto h-full">
-            {/* Tour Start Button */}
-            <div className="absolute top-6 right-6 z-10">
-                <Button
-                    onClick={() => setIsTourOpen(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white dark:bg-gray-900 shadow-sm"
-                >
-                    <HelpCircle className="size-4 mr-2" />
-                    Take a Tour
-                </Button>
-            </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3 flex flex-col gap-6">
                     <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">

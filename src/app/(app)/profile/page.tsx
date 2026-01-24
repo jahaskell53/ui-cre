@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Upload, HelpCircle } from "lucide-react";
+import { Upload } from "lucide-react";
 import { EmailIntegrations } from "@/components/integrations/EmailIntegrations";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
@@ -35,6 +36,9 @@ export default function ProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
 
   const roles = ["Property Owner", "Broker", "Lender"];
 
@@ -207,19 +211,6 @@ export default function ProfilePage() {
 
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
-      {/* Tour Start Button */}
-      <div className="absolute top-4 right-4 z-10">
-        <Button
-          onClick={() => setIsTourOpen(true)}
-          variant="outline"
-          size="sm"
-          className="bg-white dark:bg-gray-900 shadow-sm"
-        >
-          <HelpCircle className="size-4 mr-2" />
-          Take a Tour
-        </Button>
-      </div>
-
       {/* Navigation Bar */}
       <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3">

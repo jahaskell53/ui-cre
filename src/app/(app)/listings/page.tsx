@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Filter, Loader2, X, HelpCircle } from "lucide-react";
+import { usePageTour } from "@/hooks/use-page-tour";
+import { Search, Filter, Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,9 @@ export default function MapPage() {
     const [filters, setFilters] = useState<Filters>(defaultFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [isTourOpen, setIsTourOpen] = useState(false);
+
+    // Listen for tour trigger from sidebar
+    usePageTour(() => setIsTourOpen(true));
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -211,19 +215,6 @@ export default function MapPage() {
 
     return (
         <div className="relative flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden p-6">
-            {/* Tour Start Button */}
-            <div className="absolute top-6 right-6 z-20">
-                <Button
-                    onClick={() => setIsTourOpen(true)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white dark:bg-gray-900 shadow-sm"
-                >
-                    <HelpCircle className="size-4 mr-2" />
-                    Take a Tour
-                </Button>
-            </div>
-
             <div className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
                 {/* Header */}
                 <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">

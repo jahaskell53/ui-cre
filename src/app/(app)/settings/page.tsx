@@ -2,12 +2,12 @@
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Moon, HelpCircle } from "lucide-react";
+import { Moon } from "lucide-react";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
-import { Button } from "@/components/ui/button";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -40,6 +40,9 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
 
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -65,19 +68,6 @@ export default function SettingsPage() {
 
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden bg-white dark:bg-gray-900">
-      {/* Tour Start Button */}
-      <div className="absolute top-4 right-4 z-10">
-        <Button
-          onClick={() => setIsTourOpen(true)}
-          variant="outline"
-          size="sm"
-          className="bg-white dark:bg-gray-900 shadow-sm"
-        >
-          <HelpCircle className="size-4 mr-2" />
-          Take a Tour
-        </Button>
-      </div>
-
       <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-3 bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3">
           <button

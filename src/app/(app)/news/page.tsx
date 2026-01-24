@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Newspaper, ExternalLink, Calendar, MapPin, Settings, Search, X, Check, HelpCircle } from "lucide-react";
+import { usePageTour } from "@/hooks/use-page-tour";
+import { Newspaper, ExternalLink, Calendar, MapPin, Settings, Search, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
@@ -43,6 +44,9 @@ export default function NewsPage() {
   const [placeholderIndex, setPlaceholderIndex] = useState<number>(0);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
 
   useEffect(() => {
     fetchArticles();
@@ -165,19 +169,6 @@ export default function NewsPage() {
 
   return (
     <div className="relative flex flex-col h-full overflow-auto bg-white dark:bg-gray-900">
-      {/* Tour Start Button */}
-      <div className="absolute top-6 right-6 z-10">
-        <Button
-          onClick={() => setIsTourOpen(true)}
-          variant="outline"
-          size="sm"
-          className="bg-white dark:bg-gray-900 shadow-sm"
-        >
-          <HelpCircle className="size-4 mr-2" />
-          Take a Tour
-        </Button>
-      </div>
-
       <div className="flex flex-col gap-8 p-6 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">

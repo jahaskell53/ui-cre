@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -262,6 +263,9 @@ export default function PersonDetailPage() {
   const resizeRef = useRef<HTMLDivElement>(null);
   const [timelineFilter, setTimelineFilter] = useState<'all' | 'meeting' | 'email' | 'note'>('all');
   const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
 
   const personId = params.id as string;
 
