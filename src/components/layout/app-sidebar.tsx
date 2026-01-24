@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useRef, useImperativeHandle } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageSquare, Newspaper, X, HelpCircle } from "lucide-react";
@@ -9,7 +9,6 @@ import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, 
 import AccountCard from "@/app/(app)/network/account-card";
 import { UserSearchBar, type UserSearchBarRef } from "@/components/user-search-bar";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
-import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 import { Button } from "@/components/ui/button";
 
 interface AppSidebarProps {
@@ -32,7 +31,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
   const pathname = usePathname();
   const searchBarRef = useRef<UserSearchBarRef>(null);
   const isDesktop = useBreakpoint("lg");
-  const [isTourOpen, setIsTourOpen] = useState(false);
 
   useImperativeHandle(ref, () => ({
     focusSearch: () => {
@@ -46,30 +44,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
     }
     return pathname?.startsWith(href);
   };
-
-  const appTourSteps: TourStep[] = [
-    {
-      id: "sidebar-navigation",
-      target: '[data-tour="sidebar-nav"]',
-      title: "Navigate the App",
-      content: "Use the sidebar to navigate between different sections: Home, Listings, Network, Events, News, and Messages.",
-      position: "right",
-    },
-    {
-      id: "sidebar-search",
-      target: '[data-tour="sidebar-search"]',
-      title: "Quick Search",
-      content: "Search for users, contacts, or content across the app. This search helps you find people and information quickly.",
-      position: "right",
-    },
-    {
-      id: "account-card",
-      target: '[data-tour="account-card"]',
-      title: "Your Account",
-      content: "Access your profile and settings from here. Click to view your account details and preferences.",
-      position: "top",
-    },
-  ];
 
   const sidebarContent = (
     <>
@@ -119,9 +93,9 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
         </div>
       )}
 
-      {/* Tour Buttons */}
+      {/* Tour Button */}
       {!isCollapsed && (
-        <div className="px-3 py-2 space-y-2">
+        <div className="px-3 py-2">
           <Button
             onClick={() => {
               // Trigger page-specific tour via custom event
@@ -133,15 +107,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           >
             <HelpCircle className="size-4 mr-2" />
             Take a Tour
-          </Button>
-          <Button
-            onClick={() => setIsTourOpen(true)}
-            variant="outline"
-            size="sm"
-            className="w-full bg-white dark:bg-gray-900 shadow-sm"
-          >
-            <HelpCircle className="size-4 mr-2" />
-            App Tour
           </Button>
         </div>
       )}
@@ -256,16 +221,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
       <div data-tour="account-card" className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
         <AccountCard isCollapsed={isCollapsed} />
       </div>
-
-      {/* App-Level Guided Tour */}
-      <GuidedTour
-        steps={appTourSteps}
-        isOpen={isTourOpen}
-        onClose={() => setIsTourOpen(false)}
-        onComplete={() => {
-          console.log("App tour completed!");
-        }}
-      />
     </>
   );
 
@@ -318,8 +273,8 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           <UserSearchBar ref={searchBarRef} />
         </div>
 
-        {/* Tour Buttons */}
-        <div className="px-3 py-2 space-y-2">
+        {/* Tour Button */}
+        <div className="px-3 py-2">
           <Button
             onClick={() => {
               // Trigger page-specific tour via custom event
@@ -332,17 +287,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           >
             <HelpCircle className="size-4 mr-2" />
             Take a Tour
-          </Button>
-          <Button
-            onClick={() => {
-              setIsTourOpen(true);
-              onMobileClose?.();
-            }}
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs"
-          >
-            App Overview
           </Button>
         </div>
 
@@ -430,16 +374,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
         <div data-tour="account-card" className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
           <AccountCard isCollapsed={false} />
         </div>
-
-        {/* App-Level Guided Tour */}
-        <GuidedTour
-          steps={appTourSteps}
-          isOpen={isTourOpen}
-          onClose={() => setIsTourOpen(false)}
-          onComplete={() => {
-            console.log("App tour completed!");
-          }}
-        />
       </aside>
     </>
   );
