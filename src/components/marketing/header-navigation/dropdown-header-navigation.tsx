@@ -1,4 +1,4 @@
-import { BookClosed, FileCode as FileCode01, LifeBuoy as LifeBuoy01, PlayCircle, Star as Stars02 } from "lucide-react";
+import { Book, FileCode as FileCode01, LifeBuoy as LifeBuoy01, PlayCircle, Star as Stars02 } from "lucide-react";
 import { NavMenuItemLink } from "./base-components/nav-menu-item";
 
 const items = [
@@ -6,7 +6,7 @@ const items = [
         title: "Blog",
         subtitle: "The latest industry new and guides curated by our expert team.",
         href: "/blog",
-        Icon: BookClosed,
+        Icon: Book,
     },
     {
         title: "Customer stories",
