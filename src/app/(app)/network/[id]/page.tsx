@@ -674,9 +674,9 @@ export default function PersonDetailPage() {
         </div>
 
         {/* Profile Header */}
-        <div className="px-6 py-6">
+        <div className="px-4 py-6 md:px-6">
           <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
+            <Avatar className="h-16 w-16 md:h-20 md:w-20">
               <AvatarFallback
                 className="text-white text-2xl font-medium"
                 style={{ background: generateAuroraGradient(person.name) }}
@@ -728,7 +728,7 @@ export default function PersonDetailPage() {
 
         {/* Tabs */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 border-b border-gray-200 dark:border-gray-800">
+          <div className="px-4 md:px-6 border-b border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between">
               <TabsList className="bg-transparent h-auto p-0 space-x-6">
                 <TabsTrigger
@@ -795,7 +795,7 @@ export default function PersonDetailPage() {
 
           <TabsContent value="timeline" className="flex-1 overflow-hidden m-0">
             <ScrollArea className="h-full">
-              <div className="px-6 py-4">
+              <div className="px-4 md:px-6 py-4">
                 {/* Timeline entries */}
                 <div className="relative space-y-0">
                   {/* Vertical line through icons */}
@@ -930,7 +930,7 @@ export default function PersonDetailPage() {
 
           <TabsContent value="about" className="flex-1 overflow-hidden m-0">
             <ScrollArea className="h-full">
-              <div className="px-6 py-4 space-y-6">
+              <div className="px-4 md:px-6 py-4 space-y-6">
                 {/* Bio Section */}
                 {person.bio && (
                   <div>
@@ -1013,18 +1013,20 @@ export default function PersonDetailPage() {
       <div
         ref={resizeRef}
         onMouseDown={handleMouseDown}
-        className="w-1 flex items-center justify-center cursor-col-resize flex-shrink-0 group"
+        className="w-1 hidden lg:flex items-center justify-center cursor-col-resize flex-shrink-0 group"
       >
         <div className="w-px h-full bg-gray-200 dark:bg-gray-800 group-hover:bg-gray-300 dark:group-hover:bg-gray-700 transition-colors" />
       </div>
 
       {/* Right Sidebar */}
-      <PersonDetailSidebar
-        person={person}
-        onToggleStar={handleToggleStar}
-        firstName={firstName}
-        panelWidth={panelWidth}
-      />
+      <div className="hidden lg:block h-full">
+        <PersonDetailSidebar
+          person={person}
+          onToggleStar={handleToggleStar}
+          firstName={firstName}
+          panelWidth={panelWidth}
+        />
+      </div>
 
       {/* Delete Note Confirmation Modal */}
       <ModalOverlay
