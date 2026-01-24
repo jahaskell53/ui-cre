@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus, Trash2, Clock, MapPin, Globe } from "lucide-react";
+import { Loader2, Plus, Trash2, Clock, MapPin, Globe, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import LocationSelector from "@/components/news/LocationSelector";
 import CitySelector from "@/components/news/CitySelector";
 import { UsCity } from "@/lib/news/cities";
+import { clearRegistrationState } from "@/lib/news/registration-state";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -132,6 +133,11 @@ export default function NewsSettingsPage() {
     setPreferredSendTimes(updated);
   };
 
+  const handleStartFromScratch = () => {
+    clearRegistrationState();
+    router.push("/news/register");
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-white dark:bg-gray-900">
@@ -158,6 +164,22 @@ export default function NewsSettingsPage() {
       <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
         <div className="max-w-2xl mx-auto p-6">
           <div className="space-y-6">
+
+            {/* Start from Scratch Option */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+              <div className="flex flex-col gap-1 mb-4">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Reset Preferences</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Start over and go through the preference setup process again</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={handleStartFromScratch}
+                className="w-full sm:w-auto"
+              >
+                <RotateCcw className="size-4 mr-2" />
+                Start from Scratch
+              </Button>
+            </div>
 
             {/* Newsletter Toggle */}
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
