@@ -1,4 +1,4 @@
-import { nylasClient, nylasConfig, NYLAS_SYNC_CONFIG, getProviderScopes } from './config';
+import { assertNylasConfigured, getNylasClient, nylasConfig, NYLAS_SYNC_CONFIG, getProviderScopes } from './config';
 import type { Provider } from './config';
 
 export interface NylasGrant {
@@ -36,10 +36,12 @@ export interface NylasCalendarEvent {
  * Generate OAuth URL for email/calendar provider
  */
 export function generateAuthUrl(provider: Provider, state?: string) {
+  assertNylasConfigured();
+  const nylasClient = getNylasClient();
   const providerScopes = getProviderScopes(provider);
   
   const config = {
-    clientId: nylasConfig.clientId,
+    clientId: nylasConfig.clientId!,
     redirectUri: nylasConfig.redirectUri,
     provider: getProviderString(provider),
     scopes: providerScopes,
@@ -54,10 +56,12 @@ export function generateAuthUrl(provider: Provider, state?: string) {
  * Exchange authorization code for grant
  */
 export async function exchangeCodeForGrant(code: string) {
+  assertNylasConfigured();
+  const nylasClient = getNylasClient();
   try {
     const response = await nylasClient.auth.exchangeCodeForToken({
-      clientId: nylasConfig.clientId,
-      clientSecret: nylasConfig.apiKey, // In Nylas v3, API key acts as client secret
+      clientId: nylasConfig.clientId!,
+      clientSecret: nylasConfig.apiKey!, // In Nylas v3, API key acts as client secret
       redirectUri: nylasConfig.redirectUri,
       code,
     });
@@ -73,6 +77,8 @@ export async function exchangeCodeForGrant(code: string) {
  * Get grant details
  */
 export async function getGrant(grantId: string): Promise<NylasGrant | null> {
+  assertNylasConfigured();
+  const nylasClient = getNylasClient();
   try {
     const grant = await (nylasClient.auth as any).grants.find({
       grantId,
@@ -89,6 +95,8 @@ export async function getGrant(grantId: string): Promise<NylasGrant | null> {
  * Revoke a grant (disconnect email/calendar)
  */
 export async function revokeGrant(grantId: string) {
+  assertNylasConfigured();
+  const nylasClient = getNylasClient();
   try {
     await (nylasClient.auth as any).grants.destroy({
       grantId,
@@ -155,6 +163,8 @@ export async function getMessages(
   limit: number = NYLAS_SYNC_CONFIG.emailLimit,
   receivedAfter?: number
 ): Promise<NylasMessage[]> {
+  assertNylasConfigured();
+  const nylasClient = getNylasClient();
   try {
     // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
     const requestLimit = Math.min(20, NYLAS_SYNC_CONFIG.maxPerRequest);
@@ -194,6 +204,8 @@ export async function getCalendarEvents(
   limit: number = NYLAS_SYNC_CONFIG.calendarLimit,
   startAfter?: number
 ): Promise<NylasCalendarEvent[]> {
+  assertNylasConfigured();
+  const nylasClient = getNylasClient();
   try {
     // Convert Unix timestamp to string for Nylas API (expects Unix timestamp as string)
     const startAfterStr = startAfter?.toString();
@@ -251,6 +263,8 @@ export async function getCalendarEvents(
  * List all calendars for a grant
  */
 export async function getCalendars(grantId: string) {
+  assertNylasConfigured();
+  const nylasClient = getNylasClient();
   try {
     const calendars = await nylasClient.calendars.list({
       identifier: grantId,
@@ -280,5 +294,3 @@ function generateRandomState(): string {
   return Math.random().toString(36).substring(2, 15) +
          Math.random().toString(36).substring(2, 15);
 }
-
-export { nylasClient };
