@@ -13,6 +13,7 @@ interface Profile {
   is_admin: boolean | null;
   theme_preference: string | null;
   updated_at: string | null;
+  tour_visited_pages: string[] | null;
 }
 
 export function useUser() {

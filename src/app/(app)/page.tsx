@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -9,6 +10,7 @@ import { supabase } from "@/utils/supabase";
 import { FeedItem, Post } from "@/components/feed/feed-item";
 import { CreatePostInline } from "@/components/feed/create-post-inline";
 import { NotificationCard } from "@/components/notifications/notification-card";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
     return (
@@ -41,6 +43,10 @@ export default function FeedPage() {
     const [showingLiked, setShowingLiked] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [notificationsLoading, setNotificationsLoading] = useState(true);
+    const [isTourOpen, setIsTourOpen] = useState(false);
+
+    // Listen for tour trigger from sidebar
+    usePageTour(() => setIsTourOpen(true));
 
     useEffect(() => {
         if (!userLoading) {
@@ -227,8 +233,39 @@ export default function FeedPage() {
         );
     }
 
+    const tourSteps: TourStep[] = [
+        {
+            id: "create-post",
+            target: '[data-tour="create-post"]',
+            title: "Create Posts",
+            content: "Share updates, announcements, or insights with your network. Click here to create a new post.",
+            position: "bottom",
+        },
+        {
+            id: "posts-feed",
+            target: '[data-tour="posts-feed"]',
+            title: "View Posts",
+            content: "See all posts from your network. Like and comment to engage with your community.",
+            position: "top",
+        },
+        {
+            id: "liked-filter",
+            target: '[data-tour="liked-filter"]',
+            title: "Filter Liked Posts",
+            content: "Click here to view only posts you've liked. Great for finding content you want to revisit.",
+            position: "bottom",
+        },
+        {
+            id: "notifications",
+            target: '[data-tour="notifications"]',
+            title: "Recent Notifications",
+            content: "Stay updated with recent notifications. Click 'View all' to see your complete notification history.",
+            position: "left",
+        },
+    ];
+
     return (
-        <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
+        <div className="relative flex flex-col gap-8 p-6 overflow-auto h-full">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-6">
                     <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
@@ -236,6 +273,7 @@ export default function FeedPage() {
                             {showingLiked ? "Liked Posts" : "Posts"}
                         </h2>
                         <button
+                            data-tour="liked-filter"
                             onClick={() => setShowingLiked(!showingLiked)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                                 showingLiked
@@ -249,16 +287,18 @@ export default function FeedPage() {
                     </div>
 
                     {user && (
-                        <CreatePostInline
-                            onSuccess={handlePostCreated}
-                            userId={user.id}
-                            isAdmin={profile?.is_admin || false}
-                            userAvatarUrl={profile?.avatar_url || null}
-                            userFullName={profile?.full_name || null}
-                        />
+                        <div data-tour="create-post">
+                            <CreatePostInline
+                                onSuccess={handlePostCreated}
+                                userId={user.id}
+                                isAdmin={profile?.is_admin || false}
+                                userAvatarUrl={profile?.avatar_url || null}
+                                userFullName={profile?.full_name || null}
+                            />
+                        </div>
                     )}
 
-                    <div className="grid gap-6">
+                    <div data-tour="posts-feed" className="grid gap-6">
                         {posts.filter(p => !showingLiked || p.is_liked).length === 0 ? (
                             <div className="text-center py-12 text-sm text-gray-500 dark:text-gray-400">
                                 {showingLiked ? "You haven't liked any posts yet." : "No posts yet. Be the first to share something!"}
@@ -283,7 +323,7 @@ export default function FeedPage() {
                 </div>
 
                 <div className="order-1 lg:order-2 lg:col-span-1">
-                    <div className="flex flex-col gap-4">
+                    <div data-tour="notifications" className="flex flex-col gap-4">
                         <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
                             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">Notifications</h2>
                             <Link
@@ -310,6 +350,16 @@ export default function FeedPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Guided Tour */}
+            <GuidedTour
+                steps={tourSteps}
+                isOpen={isTourOpen}
+                onClose={() => setIsTourOpen(false)}
+                onComplete={() => {
+                    console.log("Home tour completed!");
+                }}
+            />
         </div>
     );
 }

@@ -23,6 +23,7 @@ vi.mock('next/navigation', () => ({
   }),
   useParams: () => ({}),
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
 }))
 
 const mockUser = {

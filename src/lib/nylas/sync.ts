@@ -45,7 +45,8 @@ interface EmailCheckInput {
  */
 async function batchCheckAutomatedEmails(
   emailInputs: EmailCheckInput[],
-  cache: Map<string, boolean>
+  cache: Map<string, boolean>,
+  trace?: any
 ): Promise<Map<string, boolean>> {
   const apiKey = process.env.GEMINI_API_KEY;
   const results = new Map<string, boolean>();
@@ -443,7 +444,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
     // Step 2: Batch check all emails with Gemini
     console.log(`Step 2/5: Batch checking ${emailInputs.length} emails for automation...`);
-    const automatedResults = await batchCheckAutomatedEmails(emailInputs, automatedEmailCache);
+    const automatedResults = await batchCheckAutomatedEmails(emailInputs, automatedEmailCache, trace);
     console.log(`Completed batch check. Found ${Array.from(automatedResults.values()).filter(v => v).length} automated emails`);
 
     // Step 3: First pass - Identify contacts we've emailed

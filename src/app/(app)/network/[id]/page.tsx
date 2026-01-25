@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { useParams, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,8 @@ import { LocationIcon } from "../icons";
 import { PersonDetailSidebar } from "../components/person-detail-sidebar";
 import { usePeople } from "../people-context";
 import type { Person, TimelineItem } from "../types";
-import { Cake } from "lucide-react";
+import { Cake, HelpCircle } from "lucide-react";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 // Generate a deterministic hash from a string
 function hashString(str: string): number {
@@ -260,6 +262,10 @@ export default function PersonDetailPage() {
   const [isDragging, setIsDragging] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const [timelineFilter, setTimelineFilter] = useState<'all' | 'meeting' | 'email' | 'note'>('all');
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
 
   const personId = params.id as string;
 
@@ -549,6 +555,23 @@ export default function PersonDetailPage() {
     ? allTimeline 
     : allTimeline.filter(item => item.type === timelineFilter);
 
+  const tourSteps: TourStep[] = [
+    {
+      id: "contact-menu",
+      target: '[data-tour="contact-menu"]',
+      title: "Quick Contact Actions",
+      content: "Click here to quickly email or call this person. You can also copy their contact information.",
+      position: "bottom",
+    },
+    {
+      id: "timeline-tab",
+      target: '[data-tour="timeline-tab"]',
+      title: "View Interaction History",
+      content: "The timeline shows all your interactions with this person - emails, meetings, and notes. Filter by type to see specific interactions.",
+      position: "bottom",
+    },
+  ];
+
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900">
       {/* Main Content Area */}
@@ -563,9 +586,18 @@ export default function PersonDetailPage() {
           </button>
 
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsTourOpen(true)}
+              variant="outline"
+              size="sm"
+              className="bg-white dark:bg-gray-900 shadow-sm"
+            >
+              <HelpCircle className="size-4 mr-2" />
+              Tour
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
+                <button data-tour="contact-menu" className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500">
                   <MessageIcon className="w-5 h-5" />
                 </button>
               </DropdownMenuTrigger>
@@ -733,6 +765,7 @@ export default function PersonDetailPage() {
               <TabsList className="bg-transparent h-auto p-0 space-x-6">
                 <TabsTrigger
                   value="timeline"
+                  data-tour="timeline-tab"
                   className="bg-transparent px-0 py-2 text-sm font-medium data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=active]:shadow-none data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 border-b-2 border-transparent data-[state=active]:border-gray-900 dark:data-[state=active]:border-gray-100 rounded-none"
                 >
                   Timeline
@@ -1058,6 +1091,16 @@ export default function PersonDetailPage() {
           </Dialog>
         </Modal>
       </ModalOverlay>
+
+      {/* Guided Tour */}
+      <GuidedTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onComplete={() => {
+          console.log("Person detail tour completed!");
+        }}
+      />
 
       {/* Delete Person Confirmation Modal */}
       <ModalOverlay

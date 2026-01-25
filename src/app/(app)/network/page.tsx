@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { parse, isValid } from "date-fns";
 import { PeopleList } from "./components/people-list";
 import { usePeople } from "./people-context";
 import { createToggleStarHandler } from "./utils";
 import type { TimelineItem } from "./types";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 // Helper function to parse date strings from timeline
 function parseTimelineDate(dateStr: string): Date | null {
@@ -156,15 +158,70 @@ export default function PeoplePage() {
     }
   }, [filteredPeople, selectedPerson, setSelectedPerson]);
 
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Listen for tour trigger from sidebar
+  usePageTour(() => setIsTourOpen(true));
+
+  const tourSteps: TourStep[] = [
+    {
+      id: "tabs",
+      target: '[data-tour="network-tab"]',
+      title: "Navigate Between Views",
+      content: "Use these tabs to switch between Network list, Board view, and Map view. Each view offers different ways to interact with your contacts.",
+      position: "bottom",
+    },
+    {
+      id: "search",
+      target: '[data-tour="search-bar"]',
+      title: "Search Your Network",
+      content: "Search across names, emails, phone numbers, addresses, and categories. Press Cmd+F (Mac) or Ctrl+F (Windows) to quickly open search.",
+      position: "bottom",
+    },
+    {
+      id: "star-filter",
+      target: '[data-tour="star-filter"]',
+      title: "Filter Starred Contacts",
+      content: "Click the star icon to filter and show only your starred contacts. Star important people to quickly find them later.",
+      position: "bottom",
+    },
+    {
+      id: "person-item",
+      target: '[data-tour="person-item"]',
+      title: "Select and View Contacts",
+      content: "Click any person to view their details in the side panel. Use arrow keys to navigate between contacts, or drag and drop to organize.",
+      position: "right",
+    },
+    {
+      id: "create-person",
+      target: '[data-tour="create-person-button"]',
+      title: "Add New Contacts",
+      content: "Click the + button to create a new contact. Fill in their information to start tracking your relationship.",
+      position: "bottom",
+    },
+  ];
+
   return (
-    <PeopleList
-      people={filteredPeople}
-      selectedPerson={selectedPerson}
-      showStarredOnly={showStarredOnly}
-      loading={loading}
-      onSelectPerson={setSelectedPerson}
-      onToggleStar={handleToggleStar}
-      onDragStart={() => {}}
-    />
+    <div className="relative flex-1 overflow-hidden">
+      <PeopleList
+        people={filteredPeople}
+        selectedPerson={selectedPerson}
+        showStarredOnly={showStarredOnly}
+        loading={loading}
+        onSelectPerson={setSelectedPerson}
+        onToggleStar={handleToggleStar}
+        onDragStart={() => {}}
+      />
+
+      {/* Guided Tour */}
+      <GuidedTour
+        steps={tourSteps}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onComplete={() => {
+          console.log("Network tour completed!");
+        }}
+      />
+    </div>
   );
 }

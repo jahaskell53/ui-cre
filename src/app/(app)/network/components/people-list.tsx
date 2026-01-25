@@ -345,6 +345,7 @@ export function PeopleList({
           </span>
           <Link
             href="/network/create"
+            data-tour="create-person-button"
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
             aria-label="Create new"
           >
@@ -367,10 +368,11 @@ export function PeopleList({
           </div>
         ) : (
           <div ref={listContainerRef} className="divide-y divide-gray-100 dark:divide-gray-800">
-            {filteredPeople.map((person) => (
+            {filteredPeople.map((person, index) => (
               <div
                 key={person.id}
                 data-person-id={person.id}
+                data-tour={index === 0 ? "person-item" : undefined}
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.effectAllowed = "move";

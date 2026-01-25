@@ -26,6 +26,7 @@ vi.mock('next/navigation', () => ({
   }),
   useParams: () => ({}),
   useSearchParams: () => createMockSearchParams(),
+  usePathname: () => '/',
 }))
 
 // Mock fetch to handle relative URLs in test environment

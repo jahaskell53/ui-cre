@@ -3,7 +3,7 @@
 import { forwardRef, useRef, useImperativeHandle } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Newspaper, X } from "lucide-react";
+import { MessageSquare, Newspaper, X, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/(app)/network/icons";
 import AccountCard from "@/app/(app)/network/account-card";
@@ -87,13 +87,13 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
 
       {/* Search */}
       {!isCollapsed && (
-        <div className="px-3 py-2">
+        <div data-tour="sidebar-search" className="px-3 py-2">
           <UserSearchBar ref={searchBarRef} />
         </div>
       )}
 
       {/* Navigation */}
-      <nav className={cn("py-2 space-y-0.5", isCollapsed ? "px-2" : "px-3")}>
+      <nav data-tour="sidebar-nav" className={cn("py-2 space-y-0.5", isCollapsed ? "px-2" : "px-3")}>
         <Link
           href="/"
           onClick={onMobileClose}
@@ -198,9 +198,27 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
         </Link>
       </nav>
 
-      {/* Account Card */}
-      <div className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
-        <AccountCard isCollapsed={isCollapsed} onNavigate={isDesktop ? undefined : onMobileClose} />
+      {/* Tour Button and Account Card */}
+      <div className="mt-auto">
+        {!isCollapsed && (
+          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => {
+                // Trigger page-specific tour via custom event
+                window.dispatchEvent(new CustomEvent('trigger-page-tour'));
+              }}
+              className={cn(
+                "flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer w-full px-2 py-1.5 text-gray-600 dark:text-gray-400 text-sm"
+              )}
+            >
+              <HelpCircle className="w-4 h-4" />
+              Take a Tour
+            </button>
+          </div>
+        )}
+        <div data-tour="account-card" className="p-3">
+          <AccountCard isCollapsed={isCollapsed} onNavigate={isDesktop ? undefined : onMobileClose} />
+        </div>
       </div>
     </>
   );
@@ -250,11 +268,11 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           )}
         </div>
 
-        <div className="px-3 py-2">
+        <div data-tour="sidebar-search" className="px-3 py-2">
           <UserSearchBar ref={searchBarRef} />
         </div>
 
-        <nav className="py-2 space-y-0.5 px-3">
+        <nav data-tour="sidebar-nav" className="py-2 space-y-0.5 px-3">
           <Link
             href="/"
             onClick={onMobileClose}
@@ -335,8 +353,26 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           </Link>
         </nav>
 
-        <div className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
-          <AccountCard isCollapsed={false} onNavigate={onMobileClose} />
+        {/* Tour Button and Account Card */}
+        <div className="mt-auto">
+          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => {
+                // Trigger page-specific tour via custom event
+                window.dispatchEvent(new CustomEvent('trigger-page-tour'));
+                onMobileClose?.();
+              }}
+              className={cn(
+                "flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer w-full px-2 py-1.5 text-gray-600 dark:text-gray-400 text-sm"
+              )}
+            >
+              <HelpCircle className="w-4 h-4" />
+              Take a Tour
+            </button>
+          </div>
+          <div data-tour="account-card" className="p-3">
+            <AccountCard isCollapsed={false} onNavigate={onMobileClose} />
+          </div>
         </div>
       </aside>
     </>

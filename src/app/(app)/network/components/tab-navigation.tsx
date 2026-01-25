@@ -137,6 +137,7 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
               <Link
                 key={tab.value}
                 href={tab.href}
+                data-tour={tab.value === "network" ? "network-tab" : tab.value === "board" ? "board-tab" : "map-tab"}
                 className={cn(
                   "px-0 py-1 text-sm font-medium border-b-2 rounded-none transition-colors",
                   active
@@ -153,6 +154,7 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
           {/* Star filter button - shown only on network page */}
           {pathname === "/network" && (
             <button
+              data-tour="star-filter"
               onClick={() => {
                 const newShowStarredOnly = !showStarredOnly;
                 setShowStarredOnly(newShowStarredOnly);
@@ -196,7 +198,7 @@ export function TabNavigation({ sortBy, reverse, onSortChange, onReverseChange }
           {(pathname === "/network" || pathname === "/network/map") && (
             <>
               {isSearchExpanded ? (
-                <div className="relative">
+                <div className="relative" data-tour="search-bar">
                   <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
                   <Input
                     ref={searchInputRef}
