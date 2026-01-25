@@ -292,7 +292,7 @@ export default function NewsPage() {
             )}
           </div>
         ) : (
-          <div data-tour="news-articles" className="grid gap-4">
+          <div className="grid gap-4">
             {isSearchMode && (
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -307,12 +307,13 @@ export default function NewsPage() {
                 </Button>
               </div>
             )}
-            {displayArticles.map((article) => (
+            {displayArticles.map((article, index) => (
               <a
                 key={article.id}
                 href={article.link}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-tour={index === 0 ? "news-articles" : undefined}
                 className="block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm overflow-hidden"
               >
                 <div className="flex gap-4 min-w-0">
