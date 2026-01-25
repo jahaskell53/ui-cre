@@ -210,7 +210,7 @@ async function collectPaginatedItems<T>(
       }
 
       // Fetch next page
-      const result = await currentIterator.next();
+      const result = await currentIterator!.next();
 
       if (result.done) {
         break;

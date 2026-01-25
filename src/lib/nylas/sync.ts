@@ -339,6 +339,18 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
     const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit, receivedAfter);
     console.log(`Fetched ${messages.length} ${isIncremental ? 'new ' : ''}messages from Nylas`);
 
+    // Create Langfuse trace for email sync
+    const langfuse = getLangfuseClient();
+    const trace = langfuse?.trace({
+      name: 'syncEmailContacts',
+      metadata: {
+        grantId,
+        userId,
+        isIncremental,
+        totalMessages: messages.length,
+      },
+    });
+
     const contactsMap = new Map<string, Contact>();
     const emailInteractions: EmailInteraction[] = [];
 
@@ -703,10 +715,27 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
     console.log('Recalculating network strength...');
     await recalculateNetworkStrengthForUser(supabase, userId);
 
+    // Update trace with final results
+    const automatedCount = Array.from(automatedResults.values()).filter(v => v).length;
+    trace?.update({
+      output: {
+        contactsProcessed: contacts.length,
+        interactionsInserted: interactionCount,
+        messagesProcessed: messages.length,
+        uniqueEmails: emailInputs.length,
+        automatedFiltered: automatedCount,
+        contactsWeveEmailed: contactsWeveEmailed.size,
+      },
+    });
+
     console.log(`✅ Email sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing email contacts:', error);
+    trace?.update({
+      output: { error: error instanceof Error ? error.message : 'Unknown error' },
+      level: 'ERROR',
+    });
     throw error;
   }
 }
