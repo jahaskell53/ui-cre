@@ -23,12 +23,21 @@ vi.mock('next/dynamic', () => ({
 const mockUser = {
   id: 'user-123',
   email: 'test@example.com',
-}
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as any
 
 const mockProfile = {
   id: 'user-123',
   full_name: 'Test User',
   avatar_url: null,
+  website: null,
+  roles: null,
+  is_admin: null,
+  theme_preference: null,
+  updated_at: null,
 }
 
 describe('FeedPage', () => {
@@ -38,6 +47,7 @@ describe('FeedPage', () => {
       user: mockUser,
       profile: mockProfile,
       loading: false,
+      refreshProfile: vi.fn(),
     })
   })
 
@@ -87,6 +97,7 @@ describe('FeedPage', () => {
       user: mockUser,
       profile: mockProfile,
       loading: true,
+      refreshProfile: vi.fn(),
     })
 
     render(<FeedPage />)

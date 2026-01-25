@@ -28,7 +28,11 @@ global.fetch = vi.fn()
 const mockUser = {
   id: 'user-123',
   email: 'test@example.com',
-}
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as any
 
 describe('MessagesPage', () => {
   beforeEach(() => {
@@ -37,6 +41,7 @@ describe('MessagesPage', () => {
       user: mockUser,
       profile: null,
       loading: false,
+      refreshProfile: vi.fn(),
     })
     vi.mocked(global.fetch).mockClear()
     
@@ -49,8 +54,8 @@ describe('MessagesPage', () => {
     })
     
     // Mock scrollTo method for refs
-    Element.prototype.scrollTo = vi.fn()
-    HTMLDivElement.prototype.scrollTo = vi.fn()
+    Element.prototype.scrollTo = vi.fn() as any
+    HTMLDivElement.prototype.scrollTo = vi.fn() as any
     
     // Mock Supabase
     vi.mocked(supabase.from).mockReturnValue({

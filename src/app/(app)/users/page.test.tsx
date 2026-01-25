@@ -16,7 +16,11 @@ vi.mock('@/utils/supabase', () => ({
 const mockUser = {
   id: 'user-123',
   email: 'test@example.com',
-}
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as any
 
 describe('UsersPage', () => {
   beforeEach(() => {
@@ -25,6 +29,7 @@ describe('UsersPage', () => {
       user: mockUser,
       profile: null,
       loading: false,
+      refreshProfile: vi.fn(),
     })
   })
 

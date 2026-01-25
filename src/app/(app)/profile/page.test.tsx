@@ -28,7 +28,11 @@ vi.mock('next/navigation', () => ({
 const mockUser = {
   id: 'user-123',
   email: 'test@example.com',
-}
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as any
 
 const mockProfile = {
   id: 'user-123',
@@ -36,6 +40,9 @@ const mockProfile = {
   website: 'https://example.com',
   avatar_url: 'https://example.com/avatar.jpg',
   roles: ['Property Owner'],
+  is_admin: null,
+  theme_preference: null,
+  updated_at: null,
 }
 
 describe('ProfilePage', () => {
@@ -45,6 +52,7 @@ describe('ProfilePage', () => {
       user: mockUser,
       profile: mockProfile,
       loading: false,
+      refreshProfile: vi.fn(),
     })
   })
 
@@ -109,6 +117,7 @@ describe('ProfilePage', () => {
       user: null,
       profile: null,
       loading: false,
+      refreshProfile: vi.fn(),
     })
 
     render(<ProfilePage />)

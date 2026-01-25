@@ -323,6 +323,10 @@ function parseEmailAddress(emailString: string): {
  * @param lastSyncAt - Optional timestamp of last sync (for incremental sync)
  */
 export async function syncEmailContacts(grantId: string, userId: string, lastSyncAt?: Date | null) {
+  // Create Langfuse trace for email sync (declared outside try block for catch block access)
+  const langfuse = getLangfuseClient();
+  let trace: any = undefined;
+
   try {
     const isIncremental = !!lastSyncAt;
     console.log(`Starting ${isIncremental ? 'incremental' : 'full'} email sync for grant ${grantId}`);
@@ -333,9 +337,8 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
     const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit, receivedAfter);
     console.log(`Fetched ${messages.length} ${isIncremental ? 'new ' : ''}messages from Nylas`);
 
-    // Create Langfuse trace for email sync
-    const langfuse = getLangfuseClient();
-    const trace = langfuse?.trace({
+    // Initialize trace with messages count
+    trace = langfuse?.trace({
       name: 'syncEmailContacts',
       metadata: {
         grantId,
@@ -741,6 +744,10 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
  * @param lastSyncAt - Optional timestamp of last sync (for incremental sync)
  */
 export async function syncCalendarContacts(grantId: string, userId: string, lastSyncAt?: Date | null) {
+  // Create Langfuse trace for calendar filtering (declared outside try block for catch block access)
+  const langfuse = getLangfuseClient();
+  let trace: any = undefined;
+
   try {
     const isIncremental = !!lastSyncAt;
     console.log(`Starting ${isIncremental ? 'incremental' : 'full'} calendar sync for grant ${grantId}`);
@@ -751,9 +758,8 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
     const events = await getCalendarEvents(grantId, NYLAS_SYNC_CONFIG.calendarLimit, startAfter);
     console.log(`Fetched ${events.length} ${isIncremental ? 'new ' : ''}calendar events from Nylas`);
 
-    // Create Langfuse trace for calendar filtering
-    const langfuse = getLangfuseClient();
-    const trace = langfuse?.trace({
+    // Initialize trace with events count
+    trace = langfuse?.trace({
       name: 'syncCalendarContacts',
       metadata: {
         grantId,
@@ -779,14 +785,31 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
     const integrationId = integration?.id;
     const userEmail = integration?.email_address?.toLowerCase();
 
+    // Log input events
+    console.log(`[Calendar Filter] INPUT: ${events.length} events`);
+    for (const event of events) {
+      const eventDate = event.when?.startTime
+        ? new Date(event.when.startTime * 1000).toISOString().split('T')[0]
+        : 'no-date';
+      const participantEmails = event.participants?.map(p => p.email).filter(Boolean).join(', ') || 'none';
+      console.log(`  - "${event.title || '(no title)'}" [${eventDate}] participants: [${participantEmails}]`);
+    }
+
     // Create span for filtering logic
     const filterSpan = trace?.span({
       name: 'filterCalendarEvents',
       input: {
         totalEvents: events.length,
         userEmail,
+        events: events.map(e => ({
+          title: e.title,
+          date: e.when?.startTime ? new Date(e.when.startTime * 1000).toISOString() : null,
+          participants: e.participants?.map(p => p.email).filter(Boolean),
+        })),
       },
     });
+
+    const processedEvents: Array<{ title: string | null; date: string; contacts: string[] }> = [];
 
     for (const event of events) {
       // Skip events that don't have invitees (participants)
@@ -807,6 +830,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
       }
 
       eventsProcessed++;
+      const eventContacts: string[] = [];
 
       const date = event.when?.startTime
         ? new Date(event.when.startTime * 1000).toISOString()
@@ -838,6 +862,8 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
             interaction_count: (existing?.interaction_count || 0) + 1,
             source: existing?.source === 'email' ? 'email' : 'calendar',
           });
+
+          eventContacts.push(parsed.email);
 
           // Track calendar meeting interaction
           calendarInteractions.push({
@@ -871,6 +897,8 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
           source: existing?.source === 'email' ? 'email' : 'calendar',
         });
 
+        eventContacts.push(parsed.email);
+
         // Track calendar meeting interaction for organizer too
         calendarInteractions.push({
           email: parsed.email,
@@ -880,6 +908,22 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
           calendar_id: event.calendarId || '',
         });
       }
+
+      // Track this processed event
+      if (eventContacts.length > 0) {
+        processedEvents.push({
+          title: subject,
+          date,
+          contacts: eventContacts,
+        });
+      }
+    }
+
+    // Log output events
+    console.log(`[Calendar Filter] OUTPUT: ${eventsProcessed} events passed, ${eventsFiltered} filtered out`);
+    for (const event of processedEvents) {
+      const eventDate = event.date.split('T')[0];
+      console.log(`  ✓ "${event.title || '(no title)'}" [${eventDate}] → contacts: [${event.contacts.join(', ')}]`);
     }
 
     // End filter span with results
@@ -889,6 +933,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         eventsFiltered,
         uniqueContacts: contactsMap.size,
         totalInteractions: calendarInteractions.length,
+        processedEvents,
       },
     });
 
