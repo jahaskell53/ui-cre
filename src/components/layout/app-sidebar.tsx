@@ -9,7 +9,6 @@ import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, 
 import AccountCard from "@/app/(app)/network/account-card";
 import { UserSearchBar, type UserSearchBarRef } from "@/components/user-search-bar";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
-import { Button } from "@/components/ui/button";
 
 interface AppSidebarProps {
   isCollapsed?: boolean;
@@ -90,24 +89,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
       {!isCollapsed && (
         <div data-tour="sidebar-search" className="px-3 py-2">
           <UserSearchBar ref={searchBarRef} />
-        </div>
-      )}
-
-      {/* Tour Button */}
-      {!isCollapsed && (
-        <div className="px-3 py-2">
-          <Button
-            onClick={() => {
-              // Trigger page-specific tour via custom event
-              window.dispatchEvent(new CustomEvent('trigger-page-tour'));
-            }}
-            variant="outline"
-            size="sm"
-            className="w-full bg-white dark:bg-gray-900 shadow-sm"
-          >
-            <HelpCircle className="size-4 mr-2" />
-            Take a Tour
-          </Button>
         </div>
       )}
 
@@ -217,9 +198,27 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
         </Link>
       </nav>
 
-      {/* Account Card */}
-      <div data-tour="account-card" className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
-        <AccountCard isCollapsed={isCollapsed} onNavigate={isDesktop ? undefined : onMobileClose} />
+      {/* Tour Button and Account Card */}
+      <div className="mt-auto">
+        {!isCollapsed && (
+          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => {
+                // Trigger page-specific tour via custom event
+                window.dispatchEvent(new CustomEvent('trigger-page-tour'));
+              }}
+              className={cn(
+                "flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer w-full px-2 py-1.5 text-gray-600 dark:text-gray-400 text-sm"
+              )}
+            >
+              <HelpCircle className="w-4 h-4" />
+              Take a Tour
+            </button>
+          </div>
+        )}
+        <div data-tour="account-card" className="p-3">
+          <AccountCard isCollapsed={isCollapsed} onNavigate={isDesktop ? undefined : onMobileClose} />
+        </div>
       </div>
     </>
   );
@@ -271,23 +270,6 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
 
         <div data-tour="sidebar-search" className="px-3 py-2">
           <UserSearchBar ref={searchBarRef} />
-        </div>
-
-        {/* Tour Button */}
-        <div className="px-3 py-2">
-          <Button
-            onClick={() => {
-              // Trigger page-specific tour via custom event
-              window.dispatchEvent(new CustomEvent('trigger-page-tour'));
-              onMobileClose?.();
-            }}
-            variant="outline"
-            size="sm"
-            className="w-full bg-white dark:bg-gray-900 shadow-sm"
-          >
-            <HelpCircle className="size-4 mr-2" />
-            Take a Tour
-          </Button>
         </div>
 
         <nav data-tour="sidebar-nav" className="py-2 space-y-0.5 px-3">
@@ -371,8 +353,26 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           </Link>
         </nav>
 
-        <div data-tour="account-card" className="mt-auto border-t border-gray-200 dark:border-gray-800 p-3">
-          <AccountCard isCollapsed={false} onNavigate={onMobileClose} />
+        {/* Tour Button and Account Card */}
+        <div className="mt-auto">
+          <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => {
+                // Trigger page-specific tour via custom event
+                window.dispatchEvent(new CustomEvent('trigger-page-tour'));
+                onMobileClose?.();
+              }}
+              className={cn(
+                "flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer w-full px-2 py-1.5 text-gray-600 dark:text-gray-400 text-sm"
+              )}
+            >
+              <HelpCircle className="w-4 h-4" />
+              Take a Tour
+            </button>
+          </div>
+          <div data-tour="account-card" className="p-3">
+            <AccountCard isCollapsed={false} onNavigate={onMobileClose} />
+          </div>
         </div>
       </aside>
     </>
