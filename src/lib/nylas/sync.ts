@@ -1,5 +1,6 @@
 import { getMessages, getCalendarEvents, NylasRateLimitError, type NylasMessage, type NylasCalendarEvent } from './client';
 import { NYLAS_SYNC_CONFIG } from './config';
+import { getLangfuseClient } from '../../../instrumentation';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { recalculateNetworkStrengthForUser } from '@/lib/network-strength';
 import { makeGeminiCall } from '@/lib/news/gemini';
@@ -727,8 +728,22 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
     const events = await getCalendarEvents(grantId, NYLAS_SYNC_CONFIG.calendarLimit, startAfter);
     console.log(`Fetched ${events.length} ${isIncremental ? 'new ' : ''}calendar events from Nylas`);
 
+    // Create Langfuse trace for calendar filtering
+    const langfuse = getLangfuseClient();
+    const trace = langfuse?.trace({
+      name: 'syncCalendarContacts',
+      metadata: {
+        grantId,
+        userId,
+        isIncremental,
+        totalEvents: events.length,
+      },
+    });
+
     const contactsMap = new Map<string, Contact>();
     const calendarInteractions: CalendarInteraction[] = [];
+    let eventsFiltered = 0;
+    let eventsProcessed = 0;
 
     // Get integration ID and user email for tracking
     const supabase = createAdminClient();
@@ -740,6 +755,15 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 
     const integrationId = integration?.id;
     const userEmail = integration?.email_address?.toLowerCase();
+
+    // Create span for filtering logic
+    const filterSpan = trace?.span({
+      name: 'filterCalendarEvents',
+      input: {
+        totalEvents: events.length,
+        userEmail,
+      },
+    });
 
     for (const event of events) {
       // Skip events that don't have invitees (participants)
@@ -755,8 +779,11 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
       }
 
       if (!hasInvitees) {
+        eventsFiltered++;
         continue;
       }
+
+      eventsProcessed++;
 
       const date = event.when?.startTime
         ? new Date(event.when.startTime * 1000).toISOString()
@@ -831,6 +858,16 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         });
       }
     }
+
+    // End filter span with results
+    filterSpan?.end({
+      output: {
+        eventsProcessed,
+        eventsFiltered,
+        uniqueContacts: contactsMap.size,
+        totalInteractions: calendarInteractions.length,
+      },
+    });
 
     // Store contacts in database (batched)
     const contacts = Array.from(contactsMap.values());
@@ -1002,10 +1039,24 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
     // Recalculate network strength for all people after timeline updates
     await recalculateNetworkStrengthForUser(supabase, userId);
 
+    // Update trace with final results
+    trace?.update({
+      output: {
+        contactsProcessed: contacts.length,
+        interactionsInserted: interactionCount,
+        eventsFiltered,
+        eventsProcessed,
+      },
+    });
+
     console.log(`Calendar sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing calendar contacts:', error);
+    trace?.update({
+      output: { error: error instanceof Error ? error.message : 'Unknown error' },
+      level: 'ERROR',
+    });
     throw error;
   }
 }
