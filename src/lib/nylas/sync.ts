@@ -102,14 +102,8 @@ Respond with a JSON object mapping each email address to its category. Format: {
 
       const response = await makeGeminiCall('gemini-2.5-flash-lite', prompt, {
         operation: 'categorizeEmailAddresses',
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          additionalProperties: {
-            type: 'STRING',
-            enum: ['person', 'other']
-          }
-        }
+        // Note: Can't use responseSchema here because email addresses are dynamic keys
+        // and Gemini requires explicit properties for OBJECT type
       });
       const text = response.candidates[0].content.parts[0].text.trim();
 
