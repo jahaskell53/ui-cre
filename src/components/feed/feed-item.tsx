@@ -177,7 +177,6 @@ export const FeedItem = ({
                                 }`}
                             >
                                 <HeartIcon isLiked={post.is_liked || false} className="size-4" />
-                                {post.likes_count || 0}
                             </button>
                             <button
                                 onClick={() => setShowComments(!showComments)}
