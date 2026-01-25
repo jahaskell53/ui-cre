@@ -62,12 +62,60 @@ export function GuidedTour({
     const timer = setTimeout(() => {
       const rect = element.getBoundingClientRect()
       const position = currentStepData.position || "bottom"
+      const tooltipHeight = 200 // Approximate tooltip height
+      const tooltipWidth = 300 // Approximate tooltip width
+      const padding = 20 // Padding from viewport edges
       
       let top = 0
       let left = 0
       let side: "top" | "right" | "bottom" | "left" = position
 
-      switch (position) {
+      // Determine best position based on available space
+      const spaceAbove = rect.top
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceLeft = rect.left
+      const spaceRight = window.innerWidth - rect.right
+
+      // Auto-adjust position if preferred position doesn't have enough space
+      if (position === "bottom" && spaceBelow < tooltipHeight + padding) {
+        // Try top if bottom doesn't fit
+        if (spaceAbove > tooltipHeight + padding) {
+          side = "top"
+        } else if (spaceRight > tooltipWidth + padding) {
+          side = "right"
+        } else if (spaceLeft > tooltipWidth + padding) {
+          side = "left"
+        }
+      } else if (position === "top" && spaceAbove < tooltipHeight + padding) {
+        // Try bottom if top doesn't fit
+        if (spaceBelow > tooltipHeight + padding) {
+          side = "bottom"
+        } else if (spaceRight > tooltipWidth + padding) {
+          side = "right"
+        } else if (spaceLeft > tooltipWidth + padding) {
+          side = "left"
+        }
+      } else if (position === "right" && spaceRight < tooltipWidth + padding) {
+        // Try left if right doesn't fit
+        if (spaceLeft > tooltipWidth + padding) {
+          side = "left"
+        } else if (spaceBelow > tooltipHeight + padding) {
+          side = "bottom"
+        } else if (spaceAbove > tooltipHeight + padding) {
+          side = "top"
+        }
+      } else if (position === "left" && spaceLeft < tooltipWidth + padding) {
+        // Try right if left doesn't fit
+        if (spaceRight > tooltipWidth + padding) {
+          side = "right"
+        } else if (spaceBelow > tooltipHeight + padding) {
+          side = "bottom"
+        } else if (spaceAbove > tooltipHeight + padding) {
+          side = "top"
+        }
+      }
+
+      switch (side) {
         case "top":
           top = rect.top - 10
           left = rect.left + rect.width / 2
@@ -84,6 +132,17 @@ export function GuidedTour({
           top = rect.top + rect.height / 2
           left = rect.right + 10
           break
+      }
+
+      // Ensure tooltip stays within viewport bounds
+      const maxLeft = window.innerWidth - tooltipWidth - padding
+      const maxTop = window.innerHeight - tooltipHeight - padding
+      
+      if (side === "bottom" || side === "top") {
+        left = Math.max(padding, Math.min(left, maxLeft))
+      }
+      if (side === "left" || side === "right") {
+        top = Math.max(padding, Math.min(top, maxTop))
       }
 
       setTooltipPosition({ top, left, side })
