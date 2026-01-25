@@ -100,7 +100,7 @@ export function KanbanBoard({
   };
 
   return (
-    <div className="flex-1 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
+    <div className="flex-1 h-full overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
       <div className="flex gap-4 p-4 h-full">
         {columns.map((column) => (
           <div
