@@ -102,6 +102,7 @@ Respond with a JSON object mapping each email address to its category. Format: {
 
       const response = await makeGeminiCall('gemini-2.5-flash-lite', prompt, {
         operation: 'categorizeEmailAddresses',
+        traceId: trace?.id,
         // Note: Can't use responseSchema here because email addresses are dynamic keys
         // and Gemini requires explicit properties for OBJECT type
       });
@@ -329,13 +330,37 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
   try {
     const isIncremental = !!lastSyncAt;
-    console.log(`Starting ${isIncremental ? 'incremental' : 'full'} email sync for grant ${grantId}`);
+    if (isIncremental && lastSyncAt) {
+      const daysAgo = Math.round((Date.now() - lastSyncAt.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`Starting incremental email sync for grant ${grantId}`);
+      console.log(`  Processing emails since: ${lastSyncAt.toISOString()} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
+    } else {
+      console.log(`Starting full email sync for grant ${grantId}`);
+      console.log(`  Processing all emails (no previous sync timestamp)`);
+    }
 
     // Convert lastSyncAt to Unix timestamp for Nylas API
     const receivedAfter = lastSyncAt ? Math.floor(lastSyncAt.getTime() / 1000) : undefined;
 
     const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit, receivedAfter);
     console.log(`Fetched ${messages.length} ${isIncremental ? 'new ' : ''}messages from Nylas`);
+    
+    // Calculate date range of messages processed
+    if (messages.length > 0) {
+      const messageDates = messages
+        .map(m => m.date ? new Date(m.date * 1000) : null)
+        .filter((d): d is Date => d !== null)
+        .sort((a, b) => a.getTime() - b.getTime());
+      
+      if (messageDates.length > 0) {
+        const oldestDate = messageDates[0];
+        const newestDate = messageDates[messageDates.length - 1];
+        const daysSpan = Math.round((newestDate.getTime() - oldestDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        console.log(`  Email date range: ${oldestDate.toISOString()} to ${newestDate.toISOString()} (spanning ${daysSpan} day${daysSpan !== 1 ? 's' : ''})`);
+        console.log(`  Oldest email: ${oldestDate.toISOString()} (${Math.round((Date.now() - oldestDate.getTime()) / (1000 * 60 * 60 * 24))} days ago)`);
+      }
+    }
 
     // Initialize trace with messages count
     trace = langfuse?.trace({
@@ -450,6 +475,9 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
     console.log(`Identified ${contactsWeveEmailed.size} contacts we've emailed`);
 
+    // Track emails that actually had interactions for summary
+    const emailsWithInteractions = new Set<string>();
+
     // Step 4: Second pass - Process all messages and track interactions
     console.log('Step 4/5: Processing messages and tracking interactions...');
     for (let i = 0; i < messages.length; i++) {
@@ -472,6 +500,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           if (emailLower &&
             emailLower !== userEmail &&
             !automatedResults.get(emailLower)) {
+            emailsWithInteractions.add(emailLower);
             const existing = contactsMap.get(parsed.email);
 
             contactsMap.set(parsed.email, {
@@ -509,7 +538,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           emailLower !== userEmail &&
           !automatedResults.get(emailLower) &&
           contactsWeveEmailed.has(emailLower)) {
-
+          emailsWithInteractions.add(emailLower);
           const existing = contactsMap.get(parsed.email);
 
           contactsMap.set(parsed.email, {
@@ -714,6 +743,22 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
     // Update trace with final results
     const automatedCount = Array.from(automatedResults.values()).filter(v => v).length;
+    const acceptedCount = emailInputs.length - automatedCount;
+    
+    // Collect accepted and filtered email addresses for summary
+    const acceptedEmails: string[] = [];
+    const filteredEmails: string[] = [];
+    
+    for (const input of emailInputs) {
+      const emailLower = input.email.toLowerCase();
+      const isAutomated = automatedResults.get(emailLower);
+      if (isAutomated) {
+        filteredEmails.push(input.email);
+      } else {
+        acceptedEmails.push(input.email);
+      }
+    }
+    
     trace?.update({
       output: {
         contactsProcessed: contacts.length,
@@ -724,6 +769,71 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
         contactsWeveEmailed: contactsWeveEmailed.size,
       },
     });
+
+    // Summary log of email processing with specific email addresses
+    // Map lowercase emails back to original case for display
+    const emailCaseMap = new Map<string, string>();
+    for (const input of emailInputs) {
+      emailCaseMap.set(input.email.toLowerCase(), input.email);
+    }
+    
+    const emailsWithInteractionsList = Array.from(emailsWithInteractions).map(e => emailCaseMap.get(e) || e);
+    const emailsWithoutInteractions = acceptedEmails.filter(email => !emailsWithInteractions.has(email.toLowerCase()));
+    
+    // Calculate date range for summary
+    let oldestEmailDate: Date | null = null;
+    let newestEmailDate: Date | null = null;
+    if (messages.length > 0) {
+      const messageDates = messages
+        .map(m => m.date ? new Date(m.date * 1000) : null)
+        .filter((d): d is Date => d !== null);
+      
+      if (messageDates.length > 0) {
+        oldestEmailDate = messageDates.reduce((oldest, current) => 
+          current.getTime() < oldest.getTime() ? current : oldest
+        );
+        newestEmailDate = messageDates.reduce((newest, current) => 
+          current.getTime() > newest.getTime() ? current : newest
+        );
+      }
+    }
+    
+    console.log('\n📊 Email Processing Summary:');
+    if (lastSyncAt) {
+      const daysAgo = Math.round((Date.now() - lastSyncAt.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`  Sync type: Incremental (processing emails since ${lastSyncAt.toISOString()}, ${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
+    } else {
+      console.log(`  Sync type: Full (processing all emails)`);
+      if (oldestEmailDate) {
+        const daysAgo = Math.round((Date.now() - oldestEmailDate.getTime()) / (1000 * 60 * 60 * 24));
+        console.log(`  Oldest email processed: ${oldestEmailDate.toISOString()} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
+      }
+    }
+    if (oldestEmailDate && newestEmailDate) {
+      const daysSpan = Math.round((newestEmailDate.getTime() - oldestEmailDate.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`  Email date range: ${oldestEmailDate.toISOString()} to ${newestEmailDate.toISOString()} (${daysSpan} day${daysSpan !== 1 ? 's' : ''} span)`);
+    }
+    console.log(`  Total messages processed: ${messages.length}`);
+    console.log(`  Unique email addresses found: ${emailInputs.length}`);
+    console.log(`  ├─ Passed automated filter (not bots/newsletters): ${acceptedCount}`);
+    console.log(`  │  ├─ With actual interactions (became contacts): ${emailsWithInteractionsList.length}`);
+    if (emailsWithInteractionsList.length > 0) {
+      console.log(`  │  │  ${emailsWithInteractionsList.join(', ')}`);
+    }
+    console.log(`  │  └─ Without interactions (CC/BCC/other fields): ${emailsWithoutInteractions.length}`);
+    if (emailsWithoutInteractions.length > 0) {
+      console.log(`  │     ${emailsWithoutInteractions.join(', ')}`);
+    }
+    console.log(`  └─ Filtered (automated/bots): ${automatedCount}`);
+    if (filteredEmails.length > 0) {
+      console.log(`     ${filteredEmails.join(', ')}`);
+    }
+    console.log(`\n  📝 Contact Creation:`);
+    console.log(`     Contacts created/updated: ${contacts.length}`);
+    console.log(`     Note: Contacts are created when you send an email to someone.`);
+    console.log(`     Received emails from people you've emailed update interaction counts.`);
+    console.log(`     Interactions tracked: ${interactionCount}`);
+    console.log('');
 
     console.log(`✅ Email sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
@@ -1159,9 +1269,10 @@ export async function syncAllContacts(grantId: string, userId: string): Promise<
   const isFirstSync = !integration?.first_sync_at;
 
   if (lastSyncAt) {
-    console.log(`Incremental sync: fetching data since ${lastSyncAt.toISOString()}`);
+    const daysAgo = Math.round((Date.now() - lastSyncAt.getTime()) / (1000 * 60 * 60 * 24));
+    console.log(`Incremental sync: fetching data since ${lastSyncAt.toISOString()} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
   } else {
-    console.log('Full sync: no previous sync timestamp found');
+    console.log('Full sync: no previous sync timestamp found - processing all emails');
   }
 
   let emailCount = 0;

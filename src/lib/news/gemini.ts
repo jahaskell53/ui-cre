@@ -74,13 +74,18 @@ export async function makeGeminiCall(
   if (options.maxTokens !== undefined) modelParameters.maxOutputTokens = options.maxTokens;
   if (options.responseMimeType !== undefined) modelParameters.responseMimeType = options.responseMimeType;
 
+  // Ensure input is properly formatted for Langfuse
+  // Langfuse expects input/output to be serializable (string, object, or array)
+  // Make sure prompt is a non-empty string
+  const inputForLangfuse = prompt && prompt.trim() ? prompt.trim() : '';
+
   const generation = langfuse?.generation({
     name: options.operation,
-    input: prompt,
+    input: inputForLangfuse,
     model: model,
-    modelParameters,
+    modelParameters: Object.keys(modelParameters).length > 0 ? modelParameters : undefined,
+    traceId: options.traceId,
     metadata: {
-      traceId: options.traceId,
       ...options.properties,
     },
   });
@@ -93,16 +98,24 @@ export async function makeGeminiCall(
     const responseText = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const usage = response.usageMetadata;
 
+    // Ensure output is properly formatted for Langfuse
+    // Langfuse expects input/output to be serializable (string, object, or array)
+    // Make sure responseText is a non-empty string
+    const outputForLangfuse = responseText && responseText.trim() ? responseText.trim() : '';
+
     // Update Langfuse generation with output and usage
-    generation?.update({
-      output: responseText,
-      usage: usage ? {
-        input: usage.promptTokenCount || 0,
-        output: usage.candidatesTokenCount || 0,
-        total: usage.totalTokenCount || 0,
-      } : undefined,
-    });
-    generation?.end();
+    // Make sure to pass output as a proper value, not undefined or null
+    if (generation) {
+      generation.update({
+        output: outputForLangfuse,
+        usage: usage ? {
+          input: usage.promptTokenCount || 0,
+          output: usage.candidatesTokenCount || 0,
+          total: usage.totalTokenCount || 0,
+        } : undefined,
+      });
+      generation.end();
+    }
 
     // Log operation for debugging
     console.log(`[Gemini] ${options.operation} completed in ${latency}ms`);

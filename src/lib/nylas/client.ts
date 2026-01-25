@@ -205,12 +205,35 @@ async function collectPaginatedItems<T>(
     try {
       // Create or resume iterator
       if (!currentIterator) {
-        const asyncList = createAsyncList();
-        currentIterator = asyncList[Symbol.asyncIterator]();
+        try {
+          const asyncList = createAsyncList();
+          currentIterator = asyncList[Symbol.asyncIterator]();
+        } catch (createError: any) {
+          // If iterator creation fails, clean up and throw
+          currentIterator = null;
+          throw createError;
+        }
       }
 
-      // Fetch next page
-      const result = await currentIterator!.next();
+      // Fetch next page - wrap in a way that ensures all internal promises are handled
+      let result;
+      try {
+        // Create a promise that will catch any rejections from the iterator
+        // The Nylas SDK's iterator creates internal promises that may reject
+        const nextPromise = currentIterator!.next();
+        
+        // Wrap it to ensure we catch all possible rejections
+        result = await Promise.resolve(nextPromise).catch((err: any) => {
+          // Clean up iterator on any error to prevent further rejections
+          currentIterator = null;
+          throw err;
+        });
+      } catch (iteratorError: any) {
+        // If iterator.next() throws synchronously or rejects, handle it
+        // Clean up iterator immediately to prevent further rejections
+        currentIterator = null;
+        throw iteratorError;
+      }
 
       if (result.done) {
         break;
@@ -246,6 +269,16 @@ async function collectPaginatedItems<T>(
       // Log rate limit headers from error if available
       logRateLimitHeaders(error?.headers, `${context} error`);
 
+      // Clean up iterator immediately to prevent unhandled promise rejections
+      // Set to null before any async operations to ensure no pending promises remain
+      currentIterator = null;
+
+      // Give a longer delay to let any pending promises from the Nylas SDK's iterator settle
+      // The Nylas SDK creates internal promises that may reject asynchronously
+      // This delay gives them time to reject and be caught by our error handling
+      // before we continue with retry logic
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       if (isRetryableError(error) && retryCount < BACKOFF_CONFIG.maxRetries) {
         const delay = getRetryDelay(error, retryCount);
         console.log(`[${context}] Retryable error (${error?.statusCode}). Waiting ${Math.round(delay / 1000)}s before retry ${retryCount + 1}/${BACKOFF_CONFIG.maxRetries}`);
@@ -253,12 +286,17 @@ async function collectPaginatedItems<T>(
         await new Promise(resolve => setTimeout(resolve, delay));
         retryCount++;
 
-        // Reset iterator to start fresh after rate limit
-        currentIterator = null;
-
-        // If we have items, we might want to continue from where we left off
-        // For now, we'll restart but skip already-fetched items by continuing to collect
+        // Continue loop to create a fresh iterator
         continue;
+      }
+
+      // Handle grant not found errors (404) - these are permanent and shouldn't be retried
+      if (error?.statusCode === 404 || error?.type === 'grant.not_found' || error?.message?.includes('No Grant found')) {
+        console.error(`[${context}] Grant not found (404) - this is a permanent error, not retrying`);
+        const grantError = new Error(error?.message || `No Grant found for this Grant ID`);
+        (grantError as any).statusCode = 404;
+        (grantError as any).type = 'grant.not_found';
+        throw grantError;
       }
 
       // Non-retryable error or max retries exceeded
@@ -290,6 +328,7 @@ async function collectPaginatedItems<T>(
  * @param limit - Maximum number of messages to fetch
  * @param receivedAfter - Optional Unix timestamp to only fetch messages received after this time (for incremental sync)
  * @throws {NylasRateLimitError} When rate limited after max retries
+ * @throws {Error} When grant is not found (404) or other non-retryable errors
  */
 export async function getMessages(
   grantId: string,
@@ -298,6 +337,28 @@ export async function getMessages(
 ): Promise<NylasMessage[]> {
   assertNylasConfigured();
   const nylasClient = getNylasClient();
+
+  // Validate grant exists before attempting to fetch messages
+  // This prevents unhandled promise rejections from the async iterator
+  try {
+    const grant = await getGrant(grantId);
+    if (!grant) {
+      const error = new Error(`No Grant found for this Grant ID: ${grantId}`);
+      (error as any).statusCode = 404;
+      (error as any).type = 'grant.not_found';
+      throw error;
+    }
+  } catch (error: any) {
+    // If getGrant throws (e.g., network error), check if it's a grant not found error
+    if (error?.statusCode === 404 || error?.type === 'grant.not_found') {
+      const grantError = new Error(`No Grant found for this Grant ID: ${grantId}`);
+      (grantError as any).statusCode = 404;
+      (grantError as any).type = 'grant.not_found';
+      throw grantError;
+    }
+    // For other errors from getGrant, log but continue - the iterator will handle it
+    console.warn('Could not validate grant, proceeding with message fetch:', error?.message);
+  }
 
   // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
   const requestLimit = Math.min(20, NYLAS_SYNC_CONFIG.maxPerRequest);
@@ -319,14 +380,26 @@ export async function getMessages(
     queryParams,
   });
 
-  const allMessages = await collectPaginatedItems<NylasMessage>(
-    createMessageIterator,
-    limit,
-    'messages'
-  );
+  try {
+    const allMessages = await collectPaginatedItems<NylasMessage>(
+      createMessageIterator,
+      limit,
+      'messages'
+    );
 
-  console.log(`Successfully fetched ${allMessages.length} messages`);
-  return allMessages;
+    console.log(`Successfully fetched ${allMessages.length} messages`);
+    return allMessages;
+  } catch (error: any) {
+    // Re-throw grant not found errors with proper structure
+    if (error?.statusCode === 404 || error?.type === 'grant.not_found' || error?.message?.includes('No Grant found')) {
+      const grantError = new Error(`No Grant found for this Grant ID: ${grantId}`);
+      (grantError as any).statusCode = 404;
+      (grantError as any).type = 'grant.not_found';
+      throw grantError;
+    }
+    // Re-throw other errors as-is
+    throw error;
+  }
 }
 
 /**
@@ -343,6 +416,28 @@ export async function getCalendarEvents(
 ): Promise<NylasCalendarEvent[]> {
   assertNylasConfigured();
   const nylasClient = getNylasClient();
+
+  // Validate grant exists before attempting to fetch calendars/events
+  // This prevents unhandled promise rejections from the async iterator
+  try {
+    const grant = await getGrant(grantId);
+    if (!grant) {
+      const error = new Error(`No Grant found for this Grant ID: ${grantId}`);
+      (error as any).statusCode = 404;
+      (error as any).type = 'grant.not_found';
+      throw error;
+    }
+  } catch (error: any) {
+    // If getGrant throws (e.g., network error), check if it's a grant not found error
+    if (error?.statusCode === 404 || error?.type === 'grant.not_found') {
+      const grantError = new Error(`No Grant found for this Grant ID: ${grantId}`);
+      (grantError as any).statusCode = 404;
+      (grantError as any).type = 'grant.not_found';
+      throw grantError;
+    }
+    // For other errors from getGrant, log but continue - the iterator will handle it
+    console.warn('Could not validate grant, proceeding with calendar fetch:', error?.message);
+  }
 
   // Convert Unix timestamp to string for Nylas API (expects Unix timestamp as string)
   const startAfterStr = startAfter?.toString();
@@ -389,7 +484,14 @@ export async function getCalendarEvents(
         `calendar:${calendar.id}`
       );
       allEvents.push(...calendarEvents);
-    } catch (err) {
+    } catch (err: any) {
+      // If it's a grant not found error, propagate it up immediately
+      if (err?.statusCode === 404 || err?.type === 'grant.not_found' || err?.message?.includes('No Grant found')) {
+        const grantError = new Error(`No Grant found for this Grant ID: ${grantId}`);
+        (grantError as any).statusCode = 404;
+        (grantError as any).type = 'grant.not_found';
+        throw grantError;
+      }
       // If it's a rate limit error, propagate it up
       if (err instanceof NylasRateLimitError) {
         console.log(`Rate limited on calendar ${calendar.id}. Returning ${allEvents.length} events collected so far.`);

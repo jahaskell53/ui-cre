@@ -6,6 +6,36 @@ import { flushLangfuse } from '../instrumentation';
 
 const sqsClient = new SQSClient({});
 
+// Handle unhandled promise rejections to prevent Lambda crashes
+// These can occur when Nylas SDK creates promises that reject after we've moved on
+// The Nylas SDK's async iterator creates internal promises that may reject asynchronously
+// even after we've caught the main error and moved on
+// 
+// IMPORTANT: This handler must be registered at module load time, before any async operations
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  const errorInfo = {
+    message: reason?.message || String(reason),
+    errorType: reason?.errorType,
+    statusCode: reason?.statusCode,
+    type: reason?.type,
+    name: reason?.name,
+  };
+  
+  console.error('[UNHANDLED REJECTION HANDLER] Caught unhandled promise rejection:', JSON.stringify(errorInfo, null, 2));
+  
+  // For Nylas SDK errors (429 rate limits, 404 grant not found, etc.), these are expected
+  // and will be handled by our retry logic or error handling in the Lambda handler.
+  // We log them here for visibility but don't want them to crash the Lambda.
+  
+  // The key is that we've already logged the error, and the actual error handling
+  // happens in collectPaginatedItems or the Lambda handler's try-catch.
+  // By handling the unhandled rejection here, we prevent Lambda from seeing it as a fatal error.
+  
+  // Note: In Node.js, once a promise is unhandled, calling .catch() doesn't help.
+  // However, by handling the unhandledRejection event, we're telling Node.js we've handled it.
+  // Lambda will still log it, but it won't crash the function if we handle it properly.
+});
+
 /**
  * Lambda handler for processing email sync jobs from SQS
  *
@@ -69,8 +99,23 @@ export const handler: SQSHandler = async (event: SQSEvent, context: Context): Pr
       }
 
       // Message will be automatically deleted from queue on successful completion
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing sync job:', error);
+
+      // Check if it's a non-retryable error (e.g., grant not found)
+      const isGrantNotFound = error?.statusCode === 404 || 
+                              error?.type === 'grant.not_found' ||
+                              error?.message?.includes('No Grant found');
+      
+      if (isGrantNotFound) {
+        console.error('Grant not found - this is a permanent error, not retrying:', {
+          grantId: JSON.parse(record.body)?.grantId,
+          error: error?.message,
+        });
+        // Don't add to failures - this message shouldn't be retried
+        // The integration status has already been updated to 'error' in syncAllContacts
+        continue;
+      }
 
       // If we're close to timeout, mark as failed for retry
       const timeRemaining = context.getRemainingTimeInMillis();
