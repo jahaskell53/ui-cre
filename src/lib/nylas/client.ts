@@ -1,6 +1,85 @@
 import { assertNylasConfigured, getNylasClient, nylasConfig, NYLAS_SYNC_CONFIG, getProviderScopes } from './config';
 import type { Provider } from './config';
 
+/**
+ * Exponential backoff configuration
+ */
+const BACKOFF_CONFIG = {
+  initialDelayMs: 1000,    // Start with 1 second
+  maxDelayMs: 60000,       // Cap at 60 seconds
+  maxRetries: 5,           // Maximum retry attempts
+  backoffMultiplier: 2,    // Double the delay each retry
+  jitterFactor: 0.1,       // Add 10% random jitter
+};
+
+/**
+ * Check if an error is retryable (rate limit or transient server error)
+ */
+function isRetryableError(error: any): boolean {
+  const statusCode = error?.statusCode || error?.status;
+  // Retry on rate limits (429) and server errors (5xx)
+  return statusCode === 429 || (statusCode >= 500 && statusCode < 600);
+}
+
+/**
+ * Extract retry delay from error headers or calculate with exponential backoff
+ */
+function getRetryDelay(error: any, attempt: number): number {
+  // Check for Retry-After header (in seconds)
+  const retryAfter = error?.headers?.['retry-after'];
+  if (retryAfter) {
+    const retryAfterMs = parseInt(retryAfter, 10) * 1000;
+    if (!isNaN(retryAfterMs) && retryAfterMs > 0) {
+      console.log(`Using Retry-After header: ${retryAfter}s`);
+      return Math.min(retryAfterMs, BACKOFF_CONFIG.maxDelayMs);
+    }
+  }
+
+  // Calculate exponential backoff with jitter
+  const baseDelay = BACKOFF_CONFIG.initialDelayMs * Math.pow(BACKOFF_CONFIG.backoffMultiplier, attempt);
+  const jitter = baseDelay * BACKOFF_CONFIG.jitterFactor * Math.random();
+  return Math.min(baseDelay + jitter, BACKOFF_CONFIG.maxDelayMs);
+}
+
+/**
+ * Log Nylas rate limit headers for monitoring
+ */
+function logRateLimitHeaders(headers: Record<string, string> | undefined, context: string) {
+  if (!headers) return;
+
+  const providerRequestCount = headers['nylas-provider-request-count'];
+  const gmailQuotaUsage = headers['nylas-gmail-quota-usage'];
+
+  if (providerRequestCount || gmailQuotaUsage) {
+    console.log(`[${context}] Nylas headers - Provider requests: ${providerRequestCount || 'N/A'}, Gmail quota: ${gmailQuotaUsage || 'N/A'}`);
+  }
+}
+
+/**
+ * Custom error class for Nylas rate limit errors
+ */
+export class NylasRateLimitError extends Error {
+  public readonly statusCode: number;
+  public readonly retryAfterMs: number;
+  public readonly headers?: Record<string, string>;
+  public readonly itemsCollected: number;
+
+  constructor(
+    message: string,
+    statusCode: number,
+    retryAfterMs: number,
+    itemsCollected: number,
+    headers?: Record<string, string>
+  ) {
+    super(message);
+    this.name = 'NylasRateLimitError';
+    this.statusCode = statusCode;
+    this.retryAfterMs = retryAfterMs;
+    this.itemsCollected = itemsCollected;
+    this.headers = headers;
+  }
+}
+
 export interface NylasGrant {
   id: string;
   provider: string;
@@ -110,41 +189,94 @@ export async function revokeGrant(grantId: string) {
 
 /**
  * Collect paginated items from Nylas async iterator with retry logic
- * Adds delay between page requests to avoid rate limits
+ * Implements exponential backoff for rate limits and transient errors
  */
 async function collectPaginatedItems<T>(
-  asyncList: any,
-  maxItems: number
+  createAsyncList: () => any,
+  maxItems: number,
+  context: string
 ): Promise<T[]> {
   const items: T[] = [];
   let pageCount = 0;
+  let retryCount = 0;
+  let currentIterator: AsyncIterator<any> | null = null;
 
-  try {
-    for await (const page of asyncList) {
+  while (items.length < maxItems && retryCount <= BACKOFF_CONFIG.maxRetries) {
+    try {
+      // Create or resume iterator
+      if (!currentIterator) {
+        const asyncList = createAsyncList();
+        currentIterator = asyncList[Symbol.asyncIterator]();
+      }
+
+      // Fetch next page
+      const result = await currentIterator.next();
+
+      if (result.done) {
+        break;
+      }
+
+      const page = result.value;
       pageCount++;
       items.push(...page.data);
-      console.log(`Fetched page ${pageCount}: ${page.data.length} items (total: ${items.length})`);
+
+      // Log rate limit headers for monitoring
+      logRateLimitHeaders(page.headers, `${context} page ${pageCount}`);
+
+      console.log(`[${context}] Fetched page ${pageCount}: ${page.data.length} items (total: ${items.length})`);
 
       if (items.length >= maxItems) break;
 
-      // Add delay between page requests to avoid rate limits (except after last page)
-      // Wait 100ms between requests to stay under rate limits
-      if (page.data.length > 0) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-  } catch (error: any) {
-    console.error('Error during pagination:', error);
+      // Add delay between page requests to avoid rate limits
+      // Increase delay based on provider request count if available
+      const providerRequests = parseInt(page.headers?.['nylas-provider-request-count'] || '0', 10);
+      const baseDelay = 100;
+      const adaptiveDelay = providerRequests > 10 ? baseDelay * 2 : baseDelay;
 
-    // If it's a rate limit error, log the details but return what we got
-    if (error?.statusCode === 429) {
-      console.log(`Rate limited after ${pageCount} pages. Returning ${items.length} items collected so far.`);
-      const retryAfter = error?.headers?.['retry-after'];
-      if (retryAfter) {
-        console.log(`Retry-After header suggests waiting ${retryAfter} seconds`);
+      if (page.data.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, adaptiveDelay));
       }
-    } else {
-      // Re-throw non-rate-limit errors
+
+      // Reset retry count on successful page fetch
+      retryCount = 0;
+
+    } catch (error: any) {
+      console.error(`[${context}] Error during pagination (attempt ${retryCount + 1}):`, error?.message || error);
+
+      // Log rate limit headers from error if available
+      logRateLimitHeaders(error?.headers, `${context} error`);
+
+      if (isRetryableError(error) && retryCount < BACKOFF_CONFIG.maxRetries) {
+        const delay = getRetryDelay(error, retryCount);
+        console.log(`[${context}] Retryable error (${error?.statusCode}). Waiting ${Math.round(delay / 1000)}s before retry ${retryCount + 1}/${BACKOFF_CONFIG.maxRetries}`);
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+        retryCount++;
+
+        // Reset iterator to start fresh after rate limit
+        currentIterator = null;
+
+        // If we have items, we might want to continue from where we left off
+        // For now, we'll restart but skip already-fetched items by continuing to collect
+        continue;
+      }
+
+      // Non-retryable error or max retries exceeded
+      if (error?.statusCode === 429) {
+        const retryAfterMs = getRetryDelay(error, retryCount);
+        console.log(`[${context}] Rate limit exceeded after ${retryCount} retries. Collected ${items.length} items.`);
+
+        // Throw a structured error that callers can handle
+        throw new NylasRateLimitError(
+          `Rate limited after ${pageCount} pages and ${retryCount} retries`,
+          429,
+          retryAfterMs,
+          items.length,
+          error?.headers
+        );
+      }
+
+      // Re-throw other errors
       throw error;
     }
   }
@@ -157,6 +289,7 @@ async function collectPaginatedItems<T>(
  * @param grantId - The Nylas grant ID
  * @param limit - Maximum number of messages to fetch
  * @param receivedAfter - Optional Unix timestamp to only fetch messages received after this time (for incremental sync)
+ * @throws {NylasRateLimitError} When rate limited after max retries
  */
 export async function getMessages(
   grantId: string,
@@ -165,32 +298,35 @@ export async function getMessages(
 ): Promise<NylasMessage[]> {
   assertNylasConfigured();
   const nylasClient = getNylasClient();
-  try {
-    // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
-    const requestLimit = Math.min(20, NYLAS_SYNC_CONFIG.maxPerRequest);
-    const queryParams: Record<string, any> = {
-      limit: requestLimit,
-    };
 
-    if (receivedAfter) {
-      queryParams.received_after = receivedAfter;
-      console.log(`Fetching up to ${limit} messages received after ${new Date(receivedAfter * 1000).toISOString()} (using limit=${requestLimit} per request)`);
-    } else {
-      console.log(`Fetching up to ${limit} messages (full sync, using limit=${requestLimit} per request)`);
-    }
+  // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
+  const requestLimit = Math.min(20, NYLAS_SYNC_CONFIG.maxPerRequest);
+  const queryParams: Record<string, any> = {
+    limit: requestLimit,
+  };
 
-    const asyncMessages = nylasClient.messages.list({
-      identifier: grantId,
-      queryParams,
-    });
-
-    const allMessages = await collectPaginatedItems<NylasMessage>(asyncMessages, limit);
-    console.log(`Successfully fetched ${allMessages.length} messages`);
-    return allMessages;
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    return [];
+  if (receivedAfter) {
+    queryParams.received_after = receivedAfter;
+    console.log(`Fetching up to ${limit} messages received after ${new Date(receivedAfter * 1000).toISOString()} (using limit=${requestLimit} per request)`);
+  } else {
+    console.log(`Fetching up to ${limit} messages (full sync, using limit=${requestLimit} per request)`);
   }
+
+  // Create a factory function for the async iterator
+  // This allows collectPaginatedItems to recreate the iterator on retry
+  const createMessageIterator = () => nylasClient.messages.list({
+    identifier: grantId,
+    queryParams,
+  });
+
+  const allMessages = await collectPaginatedItems<NylasMessage>(
+    createMessageIterator,
+    limit,
+    'messages'
+  );
+
+  console.log(`Successfully fetched ${allMessages.length} messages`);
+  return allMessages;
 }
 
 /**
@@ -198,6 +334,7 @@ export async function getMessages(
  * @param grantId - The Nylas grant ID
  * @param limit - Maximum number of events to fetch
  * @param startAfter - Optional Unix timestamp to only fetch events starting after this time (for incremental sync)
+ * @throws {NylasRateLimitError} When rate limited after max retries
  */
 export async function getCalendarEvents(
   grantId: string,
@@ -206,57 +343,65 @@ export async function getCalendarEvents(
 ): Promise<NylasCalendarEvent[]> {
   assertNylasConfigured();
   const nylasClient = getNylasClient();
-  try {
-    // Convert Unix timestamp to string for Nylas API (expects Unix timestamp as string)
-    const startAfterStr = startAfter?.toString();
-    
-    if (startAfter) {
-      console.log(`Fetching up to ${limit} calendar events starting after ${new Date(startAfter * 1000).toISOString()}`);
-    } else {
-      console.log(`Fetching up to ${limit} calendar events (full sync)`);
-    }
-    
-    const calendars = await getCalendars(grantId);
 
-    if (calendars.length === 0) {
-      console.log('No calendars found');
-      return [];
-    }
+  // Convert Unix timestamp to string for Nylas API (expects Unix timestamp as string)
+  const startAfterStr = startAfter?.toString();
 
-    const eventsPerCalendar = Math.ceil(limit / calendars.length);
-    const allEvents: NylasCalendarEvent[] = [];
+  if (startAfter) {
+    console.log(`Fetching up to ${limit} calendar events starting after ${new Date(startAfter * 1000).toISOString()}`);
+  } else {
+    console.log(`Fetching up to ${limit} calendar events (full sync)`);
+  }
 
-    for (const calendar of calendars) {
-      const remainingQuota = limit - allEvents.length;
-      if (remainingQuota <= 0) break;
+  const calendars = await getCalendars(grantId);
 
-      const calendarLimit = Math.min(eventsPerCalendar, remainingQuota);
-
-      try {
-        // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
-        const requestLimit = Math.min(20, Math.min(calendarLimit, NYLAS_SYNC_CONFIG.maxPerRequest));
-        const asyncEvents = nylasClient.events.list({
-          identifier: grantId,
-          queryParams: {
-            calendarId: calendar.id,
-            limit: requestLimit,
-            ...(startAfterStr && { start: startAfterStr }),
-          },
-        });
-
-        const calendarEvents = await collectPaginatedItems<NylasCalendarEvent>(asyncEvents, calendarLimit);
-        allEvents.push(...calendarEvents);
-      } catch (err) {
-        console.error(`Error fetching events from calendar ${calendar.id}:`, err);
-        continue;
-      }
-    }
-
-    return allEvents.slice(0, limit);
-  } catch (error) {
-    console.error('Error fetching calendar events:', error);
+  if (calendars.length === 0) {
+    console.log('No calendars found');
     return [];
   }
+
+  const eventsPerCalendar = Math.ceil(limit / calendars.length);
+  const allEvents: NylasCalendarEvent[] = [];
+
+  for (const calendar of calendars) {
+    const remainingQuota = limit - allEvents.length;
+    if (remainingQuota <= 0) break;
+
+    const calendarLimit = Math.min(eventsPerCalendar, remainingQuota);
+
+    // Always use limit=20 or lower to avoid rate limits (per Nylas API requirement)
+    const requestLimit = Math.min(20, Math.min(calendarLimit, NYLAS_SYNC_CONFIG.maxPerRequest));
+
+    // Create a factory function for the async iterator
+    const createEventIterator = () => nylasClient.events.list({
+      identifier: grantId,
+      queryParams: {
+        calendarId: calendar.id,
+        limit: requestLimit,
+        ...(startAfterStr && { start: startAfterStr }),
+      },
+    });
+
+    try {
+      const calendarEvents = await collectPaginatedItems<NylasCalendarEvent>(
+        createEventIterator,
+        calendarLimit,
+        `calendar:${calendar.id}`
+      );
+      allEvents.push(...calendarEvents);
+    } catch (err) {
+      // If it's a rate limit error, propagate it up
+      if (err instanceof NylasRateLimitError) {
+        console.log(`Rate limited on calendar ${calendar.id}. Returning ${allEvents.length} events collected so far.`);
+        throw err;
+      }
+      // Log and continue for other errors
+      console.error(`Error fetching events from calendar ${calendar.id}:`, err);
+      continue;
+    }
+  }
+
+  return allEvents.slice(0, limit);
 }
 
 /**

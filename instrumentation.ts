@@ -20,6 +20,16 @@ export function getLangfuseClient(): Langfuse | null {
   return langfuseClient;
 }
 
+/**
+ * Flush Langfuse events - must be called before Lambda terminates
+ * to ensure all traces are sent
+ */
+export async function flushLangfuse(): Promise<void> {
+  if (langfuseClient) {
+    await langfuseClient.flushAsync();
+  }
+}
+
 // Next.js calls this function when the app starts
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {

@@ -1,4 +1,4 @@
-import { getMessages, getCalendarEvents, type NylasMessage, type NylasCalendarEvent } from './client';
+import { getMessages, getCalendarEvents, NylasRateLimitError, type NylasMessage, type NylasCalendarEvent } from './client';
 import { NYLAS_SYNC_CONFIG } from './config';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { recalculateNetworkStrengthForUser } from '@/lib/network-strength';
@@ -1011,34 +1011,105 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 }
 
 /**
+ * Result from sync operation
+ */
+export interface SyncResult {
+  emailCount: number;
+  calendarCount: number;
+  isIncremental: boolean;
+  rateLimited?: boolean;
+  retryAfterMs?: number;
+}
+
+/**
  * Sync all contacts from both email and calendar
  * Performs incremental sync if last_sync_at exists, otherwise full sync
+ * Handles rate limits gracefully by saving partial results and signaling for delayed retry
  */
-export async function syncAllContacts(grantId: string, userId: string) {
+export async function syncAllContacts(grantId: string, userId: string): Promise<SyncResult> {
   const supabase = createAdminClient();
 
+  // Fetch integration to get last_sync_at for incremental sync
+  const { data: integration } = await supabase
+    .from('integrations')
+    .select('first_sync_at, last_sync_at')
+    .eq('nylas_grant_id', grantId)
+    .single();
+
+  const lastSyncAt = integration?.last_sync_at ? new Date(integration.last_sync_at) : null;
+  const isFirstSync = !integration?.first_sync_at;
+
+  if (lastSyncAt) {
+    console.log(`Incremental sync: fetching data since ${lastSyncAt.toISOString()}`);
+  } else {
+    console.log('Full sync: no previous sync timestamp found');
+  }
+
+  let emailCount = 0;
+  let calendarCount = 0;
+  let rateLimited = false;
+  let retryAfterMs: number | undefined;
+
   try {
-    // Fetch integration to get last_sync_at for incremental sync
-    const { data: integration } = await supabase
-      .from('integrations')
-      .select('first_sync_at, last_sync_at')
-      .eq('nylas_grant_id', grantId)
-      .single();
-
-    const lastSyncAt = integration?.last_sync_at ? new Date(integration.last_sync_at) : null;
-    const isFirstSync = !integration?.first_sync_at;
-
-    if (lastSyncAt) {
-      console.log(`Incremental sync: fetching data since ${lastSyncAt.toISOString()}`);
-    } else {
-      console.log('Full sync: no previous sync timestamp found');
-    }
-
     // Run sequentially to avoid hitting Nylas rate limits
-    const emailCount = await syncEmailContacts(grantId, userId, lastSyncAt);
-    const calendarCount = await syncCalendarContacts(grantId, userId, lastSyncAt);
+    emailCount = await syncEmailContacts(grantId, userId, lastSyncAt);
+  } catch (error) {
+    if (error instanceof NylasRateLimitError) {
+      console.log(`Email sync rate limited. Collected ${error.itemsCollected} items before limit.`);
+      rateLimited = true;
+      retryAfterMs = error.retryAfterMs;
+      // Continue to try calendar sync - it might work if rate limit is per-endpoint
+    } else {
+      console.error('Error syncing email contacts:', error);
+      // Update integration with error status
+      await supabase
+        .from('integrations')
+        .update({
+          status: 'error',
+          sync_error: error instanceof Error ? error.message : 'Unknown error',
+        })
+        .eq('nylas_grant_id', grantId);
+      throw error;
+    }
+  }
 
-    // Update integration sync status
+  try {
+    calendarCount = await syncCalendarContacts(grantId, userId, lastSyncAt);
+  } catch (error) {
+    if (error instanceof NylasRateLimitError) {
+      console.log(`Calendar sync rate limited. Collected ${error.itemsCollected} items before limit.`);
+      rateLimited = true;
+      // Use the longer retry delay if both are rate limited
+      retryAfterMs = Math.max(retryAfterMs || 0, error.retryAfterMs);
+    } else {
+      console.error('Error syncing calendar contacts:', error);
+      // Update integration with error status
+      await supabase
+        .from('integrations')
+        .update({
+          status: 'error',
+          sync_error: error instanceof Error ? error.message : 'Unknown error',
+        })
+        .eq('nylas_grant_id', grantId);
+      throw error;
+    }
+  }
+
+  // Update integration sync status
+  if (rateLimited) {
+    // Partial sync completed - mark as rate_limited so we can retry later
+    await supabase
+      .from('integrations')
+      .update({
+        status: 'rate_limited',
+        sync_error: `Rate limited. Retry after ${Math.round((retryAfterMs || 60000) / 1000)}s. Partial sync: ${emailCount} emails, ${calendarCount} calendar events.`,
+        // Don't update last_sync_at so next sync picks up where we left off
+      })
+      .eq('nylas_grant_id', grantId);
+
+    console.log(`Partial sync completed: ${emailCount} emails, ${calendarCount} calendar events. Rate limited - retry after ${Math.round((retryAfterMs || 60000) / 1000)}s`);
+  } else {
+    // Full sync completed successfully
     const updateData: Record<string, any> = {
       last_sync_at: new Date().toISOString(),
       status: 'active',
@@ -1055,19 +1126,14 @@ export async function syncAllContacts(grantId: string, userId: string) {
       .update(updateData)
       .eq('nylas_grant_id', grantId);
 
-    return { emailCount, calendarCount, isIncremental: !!lastSyncAt };
-  } catch (error) {
-    console.error('Error syncing all contacts:', error);
-
-    // Update integration with error status
-    await supabase
-      .from('integrations')
-      .update({
-        status: 'error',
-        sync_error: error instanceof Error ? error.message : 'Unknown error',
-      })
-      .eq('nylas_grant_id', grantId);
-
-    throw error;
+    console.log(`Sync completed successfully: ${emailCount} emails, ${calendarCount} calendar events`);
   }
+
+  return {
+    emailCount,
+    calendarCount,
+    isIncremental: !!lastSyncAt,
+    rateLimited,
+    retryAfterMs,
+  };
 }
