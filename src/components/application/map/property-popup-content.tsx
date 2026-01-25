@@ -50,7 +50,7 @@ export function PropertyPopupContent({
         {(capRate || squareFootage) && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {capRate && (
-              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+              <Badge className="text-[11px] font-semibold px-2 py-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-0">
                 {capRate}
               </Badge>
             )}
