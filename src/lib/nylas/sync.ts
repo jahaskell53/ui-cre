@@ -1,5 +1,6 @@
-import { getMessages, getCalendarEvents, type NylasMessage, type NylasCalendarEvent } from './client';
+import { getMessages, getCalendarEvents, NylasRateLimitError, type NylasMessage, type NylasCalendarEvent } from './client';
 import { NYLAS_SYNC_CONFIG } from './config';
+import { getLangfuseClient } from '../../../instrumentation';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { recalculateNetworkStrengthForUser } from '@/lib/network-strength';
 import { makeGeminiCall } from '@/lib/news/gemini';
@@ -38,7 +39,8 @@ interface EmailCheckInput {
 }
 
 /**
- * Batch check multiple emails using Gemini API
+ * Categorize email addresses using Gemini API
+ * Categorizes the set of unique email addresses to determine which are important
  * Checks up to 20 emails at once (Gemini context limit)
  */
 async function batchCheckAutomatedEmails(
@@ -83,19 +85,26 @@ async function batchCheckAutomatedEmails(
     const batch = toCheck.slice(i, i + BATCH_SIZE);
 
     try {
-      // Create a batch prompt
+      // Create a list of unique email addresses for categorization
       const emailList = batch.map((input, idx) => {
-        return `${idx + 1}. Email: ${input.email}, Name: ${input.name || '(not provided)'}, Subject: ${input.subject || '(not provided)'}`;
+        return `${idx + 1}. ${input.email}${input.name ? ` (${input.name})` : ''}`;
       }).join('\n');
 
-      const prompt = `Analyze the following email addresses and determine which ones are from bots, automated systems, listservs, newsletters, or mass mailing services (not from single human individuals).
+      const prompt = `Categorize the following set of email addresses. For each email address, assign it to one of these categories:
 
+- "person": Email from a single human individual (personal or professional contact)
+- "other": Everything else (newsletters, automated systems, bots, marketing, system notifications, etc.)
+
+Email addresses:
 ${emailList}
 
-Respond with a JSON object mapping each email address to "true" if it's automated/bot/listserv/newsletter, or "false" if it's from a single person. Format: {"email1@example.com": true, "email2@example.com": false, ...}`;
+Respond with a JSON object mapping each email address to its category. Format: {"john@example.com": "person", "newsletter@example.com": "other", ...}`;
 
       const response = await makeGeminiCall('gemini-2.5-flash-lite', prompt, {
-        operation: 'batchCheckAutomatedEmails',
+        operation: 'categorizeEmailAddresses',
+        traceId: trace?.id,
+        // Note: Can't use responseSchema here because email addresses are dynamic keys
+        // and Gemini requires explicit properties for OBJECT type
       });
       const text = response.candidates[0].content.parts[0].text.trim();
 
@@ -105,7 +114,9 @@ Respond with a JSON object mapping each email address to "true" if it's automate
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           for (const input of batch) {
-            const isAutomated = parsed[input.email.toLowerCase()] === true || parsed[input.email] === true;
+            const category = parsed[input.email.toLowerCase()] || parsed[input.email];
+            // Only "person" is not automated; "other" is considered automated
+            const isAutomated = category !== 'person';
             results.set(input.email.toLowerCase(), isAutomated);
             cache.set(input.email.toLowerCase(), isAutomated);
           }
@@ -126,7 +137,7 @@ Respond with a JSON object mapping each email address to "true" if it's automate
         }
       }
     } catch (error) {
-      console.error(`Error batch checking emails (batch ${i / BATCH_SIZE + 1}):`, error);
+      console.error(`Error categorizing email addresses (batch ${i / BATCH_SIZE + 1}):`, error);
       // Fallback to heuristics on error
       for (const input of batch) {
         const isAutomated = isAutomatedEmailFallback(input.email, undefined, input.name);
@@ -313,15 +324,54 @@ function parseEmailAddress(emailString: string): {
  * @param lastSyncAt - Optional timestamp of last sync (for incremental sync)
  */
 export async function syncEmailContacts(grantId: string, userId: string, lastSyncAt?: Date | null) {
+  // Create Langfuse trace for email sync (declared outside try block for catch block access)
+  const langfuse = getLangfuseClient();
+  let trace: any = undefined;
+
   try {
     const isIncremental = !!lastSyncAt;
-    console.log(`Starting ${isIncremental ? 'incremental' : 'full'} email sync for grant ${grantId}`);
+    if (isIncremental && lastSyncAt) {
+      const daysAgo = Math.round((Date.now() - lastSyncAt.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`Starting incremental email sync for grant ${grantId}`);
+      console.log(`  Processing emails since: ${lastSyncAt.toISOString()} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
+    } else {
+      console.log(`Starting full email sync for grant ${grantId}`);
+      console.log(`  Processing all emails (no previous sync timestamp)`);
+    }
 
     // Convert lastSyncAt to Unix timestamp for Nylas API
     const receivedAfter = lastSyncAt ? Math.floor(lastSyncAt.getTime() / 1000) : undefined;
 
     const messages = await getMessages(grantId, NYLAS_SYNC_CONFIG.emailLimit, receivedAfter);
     console.log(`Fetched ${messages.length} ${isIncremental ? 'new ' : ''}messages from Nylas`);
+    
+    // Calculate date range of messages processed
+    if (messages.length > 0) {
+      const messageDates = messages
+        .map(m => m.date ? new Date(m.date * 1000) : null)
+        .filter((d): d is Date => d !== null)
+        .sort((a, b) => a.getTime() - b.getTime());
+      
+      if (messageDates.length > 0) {
+        const oldestDate = messageDates[0];
+        const newestDate = messageDates[messageDates.length - 1];
+        const daysSpan = Math.round((newestDate.getTime() - oldestDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        console.log(`  Email date range: ${oldestDate.toISOString()} to ${newestDate.toISOString()} (spanning ${daysSpan} day${daysSpan !== 1 ? 's' : ''})`);
+        console.log(`  Oldest email: ${oldestDate.toISOString()} (${Math.round((Date.now() - oldestDate.getTime()) / (1000 * 60 * 60 * 24))} days ago)`);
+      }
+    }
+
+    // Initialize trace with messages count
+    trace = langfuse?.trace({
+      name: 'syncEmailContacts',
+      metadata: {
+        grantId,
+        userId,
+        isIncremental,
+        totalMessages: messages.length,
+      },
+    });
 
     const contactsMap = new Map<string, Contact>();
     const emailInteractions: EmailInteraction[] = [];
@@ -425,6 +475,9 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
     console.log(`Identified ${contactsWeveEmailed.size} contacts we've emailed`);
 
+    // Track emails that actually had interactions for summary
+    const emailsWithInteractions = new Set<string>();
+
     // Step 4: Second pass - Process all messages and track interactions
     console.log('Step 4/5: Processing messages and tracking interactions...');
     for (let i = 0; i < messages.length; i++) {
@@ -447,6 +500,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           if (emailLower &&
             emailLower !== userEmail &&
             !automatedResults.get(emailLower)) {
+            emailsWithInteractions.add(emailLower);
             const existing = contactsMap.get(parsed.email);
 
             contactsMap.set(parsed.email, {
@@ -484,7 +538,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
           emailLower !== userEmail &&
           !automatedResults.get(emailLower) &&
           contactsWeveEmailed.has(emailLower)) {
-
+          emailsWithInteractions.add(emailLower);
           const existing = contactsMap.get(parsed.email);
 
           contactsMap.set(parsed.email, {
@@ -687,10 +741,108 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
     console.log('Recalculating network strength...');
     await recalculateNetworkStrengthForUser(supabase, userId);
 
+    // Update trace with final results
+    const automatedCount = Array.from(automatedResults.values()).filter(v => v).length;
+    const acceptedCount = emailInputs.length - automatedCount;
+    
+    // Collect accepted and filtered email addresses for summary
+    const acceptedEmails: string[] = [];
+    const filteredEmails: string[] = [];
+    
+    for (const input of emailInputs) {
+      const emailLower = input.email.toLowerCase();
+      const isAutomated = automatedResults.get(emailLower);
+      if (isAutomated) {
+        filteredEmails.push(input.email);
+      } else {
+        acceptedEmails.push(input.email);
+      }
+    }
+    
+    trace?.update({
+      output: {
+        contactsProcessed: contacts.length,
+        interactionsInserted: interactionCount,
+        messagesProcessed: messages.length,
+        uniqueEmails: emailInputs.length,
+        automatedFiltered: automatedCount,
+        contactsWeveEmailed: contactsWeveEmailed.size,
+      },
+    });
+
+    // Summary log of email processing with specific email addresses
+    // Map lowercase emails back to original case for display
+    const emailCaseMap = new Map<string, string>();
+    for (const input of emailInputs) {
+      emailCaseMap.set(input.email.toLowerCase(), input.email);
+    }
+    
+    const emailsWithInteractionsList = Array.from(emailsWithInteractions).map(e => emailCaseMap.get(e) || e);
+    const emailsWithoutInteractions = acceptedEmails.filter(email => !emailsWithInteractions.has(email.toLowerCase()));
+    
+    // Calculate date range for summary
+    let oldestEmailDate: Date | null = null;
+    let newestEmailDate: Date | null = null;
+    if (messages.length > 0) {
+      const messageDates = messages
+        .map(m => m.date ? new Date(m.date * 1000) : null)
+        .filter((d): d is Date => d !== null);
+      
+      if (messageDates.length > 0) {
+        oldestEmailDate = messageDates.reduce((oldest, current) => 
+          current.getTime() < oldest.getTime() ? current : oldest
+        );
+        newestEmailDate = messageDates.reduce((newest, current) => 
+          current.getTime() > newest.getTime() ? current : newest
+        );
+      }
+    }
+    
+    console.log('\n📊 Email Processing Summary:');
+    if (lastSyncAt) {
+      const daysAgo = Math.round((Date.now() - lastSyncAt.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`  Sync type: Incremental (processing emails since ${lastSyncAt.toISOString()}, ${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
+    } else {
+      console.log(`  Sync type: Full (processing all emails)`);
+      if (oldestEmailDate) {
+        const daysAgo = Math.round((Date.now() - oldestEmailDate.getTime()) / (1000 * 60 * 60 * 24));
+        console.log(`  Oldest email processed: ${oldestEmailDate.toISOString()} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
+      }
+    }
+    if (oldestEmailDate && newestEmailDate) {
+      const daysSpan = Math.round((newestEmailDate.getTime() - oldestEmailDate.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`  Email date range: ${oldestEmailDate.toISOString()} to ${newestEmailDate.toISOString()} (${daysSpan} day${daysSpan !== 1 ? 's' : ''} span)`);
+    }
+    console.log(`  Total messages processed: ${messages.length}`);
+    console.log(`  Unique email addresses found: ${emailInputs.length}`);
+    console.log(`  ├─ Passed automated filter (not bots/newsletters): ${acceptedCount}`);
+    console.log(`  │  ├─ With actual interactions (became contacts): ${emailsWithInteractionsList.length}`);
+    if (emailsWithInteractionsList.length > 0) {
+      console.log(`  │  │  ${emailsWithInteractionsList.join(', ')}`);
+    }
+    console.log(`  │  └─ Without interactions (CC/BCC/other fields): ${emailsWithoutInteractions.length}`);
+    if (emailsWithoutInteractions.length > 0) {
+      console.log(`  │     ${emailsWithoutInteractions.join(', ')}`);
+    }
+    console.log(`  └─ Filtered (automated/bots): ${automatedCount}`);
+    if (filteredEmails.length > 0) {
+      console.log(`     ${filteredEmails.join(', ')}`);
+    }
+    console.log(`\n  📝 Contact Creation:`);
+    console.log(`     Contacts created/updated: ${contacts.length}`);
+    console.log(`     Note: Contacts are created when you send an email to someone.`);
+    console.log(`     Received emails from people you've emailed update interaction counts.`);
+    console.log(`     Interactions tracked: ${interactionCount}`);
+    console.log('');
+
     console.log(`✅ Email sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing email contacts:', error);
+    trace?.update({
+      output: { error: error instanceof Error ? error.message : 'Unknown error' },
+      level: 'ERROR',
+    });
     throw error;
   }
 }
@@ -702,6 +854,10 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
  * @param lastSyncAt - Optional timestamp of last sync (for incremental sync)
  */
 export async function syncCalendarContacts(grantId: string, userId: string, lastSyncAt?: Date | null) {
+  // Create Langfuse trace for calendar filtering (declared outside try block for catch block access)
+  const langfuse = getLangfuseClient();
+  let trace: any = undefined;
+
   try {
     const isIncremental = !!lastSyncAt;
     console.log(`Starting ${isIncremental ? 'incremental' : 'full'} calendar sync for grant ${grantId}`);
@@ -712,8 +868,21 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
     const events = await getCalendarEvents(grantId, NYLAS_SYNC_CONFIG.calendarLimit, startAfter);
     console.log(`Fetched ${events.length} ${isIncremental ? 'new ' : ''}calendar events from Nylas`);
 
+    // Initialize trace with events count
+    trace = langfuse?.trace({
+      name: 'syncCalendarContacts',
+      metadata: {
+        grantId,
+        userId,
+        isIncremental,
+        totalEvents: events.length,
+      },
+    });
+
     const contactsMap = new Map<string, Contact>();
     const calendarInteractions: CalendarInteraction[] = [];
+    let eventsFiltered = 0;
+    let eventsProcessed = 0;
 
     // Get integration ID and user email for tracking
     const supabase = createAdminClient();
@@ -725,6 +894,32 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 
     const integrationId = integration?.id;
     const userEmail = integration?.email_address?.toLowerCase();
+
+    // Log input events
+    console.log(`[Calendar Filter] INPUT: ${events.length} events`);
+    for (const event of events) {
+      const eventDate = event.when?.startTime
+        ? new Date(event.when.startTime * 1000).toISOString().split('T')[0]
+        : 'no-date';
+      const participantEmails = event.participants?.map(p => p.email).filter(Boolean).join(', ') || 'none';
+      console.log(`  - "${event.title || '(no title)'}" [${eventDate}] participants: [${participantEmails}]`);
+    }
+
+    // Create span for filtering logic
+    const filterSpan = trace?.span({
+      name: 'filterCalendarEvents',
+      input: {
+        totalEvents: events.length,
+        userEmail,
+        events: events.map(e => ({
+          title: e.title,
+          date: e.when?.startTime ? new Date(e.when.startTime * 1000).toISOString() : null,
+          participants: e.participants?.map(p => p.email).filter(Boolean),
+        })),
+      },
+    });
+
+    const processedEvents: Array<{ title: string | null; date: string; contacts: string[] }> = [];
 
     for (const event of events) {
       // Skip events that don't have invitees (participants)
@@ -740,8 +935,12 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
       }
 
       if (!hasInvitees) {
+        eventsFiltered++;
         continue;
       }
+
+      eventsProcessed++;
+      const eventContacts: string[] = [];
 
       const date = event.when?.startTime
         ? new Date(event.when.startTime * 1000).toISOString()
@@ -773,6 +972,8 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
             interaction_count: (existing?.interaction_count || 0) + 1,
             source: existing?.source === 'email' ? 'email' : 'calendar',
           });
+
+          eventContacts.push(parsed.email);
 
           // Track calendar meeting interaction
           calendarInteractions.push({
@@ -806,6 +1007,8 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
           source: existing?.source === 'email' ? 'email' : 'calendar',
         });
 
+        eventContacts.push(parsed.email);
+
         // Track calendar meeting interaction for organizer too
         calendarInteractions.push({
           email: parsed.email,
@@ -815,7 +1018,34 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
           calendar_id: event.calendarId || '',
         });
       }
+
+      // Track this processed event
+      if (eventContacts.length > 0) {
+        processedEvents.push({
+          title: subject,
+          date,
+          contacts: eventContacts,
+        });
+      }
     }
+
+    // Log output events
+    console.log(`[Calendar Filter] OUTPUT: ${eventsProcessed} events passed, ${eventsFiltered} filtered out`);
+    for (const event of processedEvents) {
+      const eventDate = event.date.split('T')[0];
+      console.log(`  ✓ "${event.title || '(no title)'}" [${eventDate}] → contacts: [${event.contacts.join(', ')}]`);
+    }
+
+    // End filter span with results
+    filterSpan?.end({
+      output: {
+        eventsProcessed,
+        eventsFiltered,
+        uniqueContacts: contactsMap.size,
+        totalInteractions: calendarInteractions.length,
+        processedEvents,
+      },
+    });
 
     // Store contacts in database (batched)
     const contacts = Array.from(contactsMap.values());
@@ -987,43 +1217,129 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
     // Recalculate network strength for all people after timeline updates
     await recalculateNetworkStrengthForUser(supabase, userId);
 
+    // Update trace with final results
+    trace?.update({
+      output: {
+        contactsProcessed: contacts.length,
+        interactionsInserted: interactionCount,
+        eventsFiltered,
+        eventsProcessed,
+      },
+    });
+
     console.log(`Calendar sync complete: ${contacts.length} contacts processed, ${interactionCount} interactions batch inserted`);
     return contacts.length;
   } catch (error) {
     console.error('Error syncing calendar contacts:', error);
+    trace?.update({
+      output: { error: error instanceof Error ? error.message : 'Unknown error' },
+      level: 'ERROR',
+    });
     throw error;
   }
 }
 
 /**
+ * Result from sync operation
+ */
+export interface SyncResult {
+  emailCount: number;
+  calendarCount: number;
+  isIncremental: boolean;
+  rateLimited?: boolean;
+  retryAfterMs?: number;
+}
+
+/**
  * Sync all contacts from both email and calendar
  * Performs incremental sync if last_sync_at exists, otherwise full sync
+ * Handles rate limits gracefully by saving partial results and signaling for delayed retry
  */
-export async function syncAllContacts(grantId: string, userId: string) {
+export async function syncAllContacts(grantId: string, userId: string): Promise<SyncResult> {
   const supabase = createAdminClient();
 
+  // Fetch integration to get last_sync_at for incremental sync
+  const { data: integration } = await supabase
+    .from('integrations')
+    .select('first_sync_at, last_sync_at')
+    .eq('nylas_grant_id', grantId)
+    .single();
+
+  const lastSyncAt = integration?.last_sync_at ? new Date(integration.last_sync_at) : null;
+  const isFirstSync = !integration?.first_sync_at;
+
+  if (lastSyncAt) {
+    const daysAgo = Math.round((Date.now() - lastSyncAt.getTime()) / (1000 * 60 * 60 * 24));
+    console.log(`Incremental sync: fetching data since ${lastSyncAt.toISOString()} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)`);
+  } else {
+    console.log('Full sync: no previous sync timestamp found - processing all emails');
+  }
+
+  let emailCount = 0;
+  let calendarCount = 0;
+  let rateLimited = false;
+  let retryAfterMs: number | undefined;
+
   try {
-    // Fetch integration to get last_sync_at for incremental sync
-    const { data: integration } = await supabase
-      .from('integrations')
-      .select('first_sync_at, last_sync_at')
-      .eq('nylas_grant_id', grantId)
-      .single();
-
-    const lastSyncAt = integration?.last_sync_at ? new Date(integration.last_sync_at) : null;
-    const isFirstSync = !integration?.first_sync_at;
-
-    if (lastSyncAt) {
-      console.log(`Incremental sync: fetching data since ${lastSyncAt.toISOString()}`);
-    } else {
-      console.log('Full sync: no previous sync timestamp found');
-    }
-
     // Run sequentially to avoid hitting Nylas rate limits
-    const emailCount = await syncEmailContacts(grantId, userId, lastSyncAt);
-    const calendarCount = await syncCalendarContacts(grantId, userId, lastSyncAt);
+    emailCount = await syncEmailContacts(grantId, userId, lastSyncAt);
+  } catch (error) {
+    if (error instanceof NylasRateLimitError) {
+      console.log(`Email sync rate limited. Collected ${error.itemsCollected} items before limit.`);
+      rateLimited = true;
+      retryAfterMs = error.retryAfterMs;
+      // Continue to try calendar sync - it might work if rate limit is per-endpoint
+    } else {
+      console.error('Error syncing email contacts:', error);
+      // Update integration with error status
+      await supabase
+        .from('integrations')
+        .update({
+          status: 'error',
+          sync_error: error instanceof Error ? error.message : 'Unknown error',
+        })
+        .eq('nylas_grant_id', grantId);
+      throw error;
+    }
+  }
 
-    // Update integration sync status
+  try {
+    calendarCount = await syncCalendarContacts(grantId, userId, lastSyncAt);
+  } catch (error) {
+    if (error instanceof NylasRateLimitError) {
+      console.log(`Calendar sync rate limited. Collected ${error.itemsCollected} items before limit.`);
+      rateLimited = true;
+      // Use the longer retry delay if both are rate limited
+      retryAfterMs = Math.max(retryAfterMs || 0, error.retryAfterMs);
+    } else {
+      console.error('Error syncing calendar contacts:', error);
+      // Update integration with error status
+      await supabase
+        .from('integrations')
+        .update({
+          status: 'error',
+          sync_error: error instanceof Error ? error.message : 'Unknown error',
+        })
+        .eq('nylas_grant_id', grantId);
+      throw error;
+    }
+  }
+
+  // Update integration sync status
+  if (rateLimited) {
+    // Partial sync completed - mark as rate_limited so we can retry later
+    await supabase
+      .from('integrations')
+      .update({
+        status: 'rate_limited',
+        sync_error: `Rate limited. Retry after ${Math.round((retryAfterMs || 60000) / 1000)}s. Partial sync: ${emailCount} emails, ${calendarCount} calendar events.`,
+        // Don't update last_sync_at so next sync picks up where we left off
+      })
+      .eq('nylas_grant_id', grantId);
+
+    console.log(`Partial sync completed: ${emailCount} emails, ${calendarCount} calendar events. Rate limited - retry after ${Math.round((retryAfterMs || 60000) / 1000)}s`);
+  } else {
+    // Full sync completed successfully
     const updateData: Record<string, any> = {
       last_sync_at: new Date().toISOString(),
       status: 'active',
@@ -1040,19 +1356,14 @@ export async function syncAllContacts(grantId: string, userId: string) {
       .update(updateData)
       .eq('nylas_grant_id', grantId);
 
-    return { emailCount, calendarCount, isIncremental: !!lastSyncAt };
-  } catch (error) {
-    console.error('Error syncing all contacts:', error);
-
-    // Update integration with error status
-    await supabase
-      .from('integrations')
-      .update({
-        status: 'error',
-        sync_error: error instanceof Error ? error.message : 'Unknown error',
-      })
-      .eq('nylas_grant_id', grantId);
-
-    throw error;
+    console.log(`Sync completed successfully: ${emailCount} emails, ${calendarCount} calendar events`);
   }
+
+  return {
+    emailCount,
+    calendarCount,
+    isIncremental: !!lastSyncAt,
+    rateLimited,
+    retryAfterMs,
+  };
 }

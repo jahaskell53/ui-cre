@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForGrant } from '@/lib/nylas/client';
 import { createClient } from '@/utils/supabase/server';
-import { syncAllContacts } from '@/lib/nylas/sync';
+import { enqueueEmailSync } from '@/utils/sqs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,10 +59,15 @@ export async function GET(request: NextRequest) {
       throw dbError;
     }
 
-    // Trigger background sync - don't await to avoid blocking redirect
-    syncAllContacts(grantResponse.grantId, userId)
-      .then(() => console.log('Initial sync completed successfully'))
-      .catch((err) => console.error('Failed to trigger sync:', err));
+    // Enqueue sync job to SQS for async processing by Lambda
+    // This ensures all syncs go through Lambda for consistency and scalability
+    try {
+      await enqueueEmailSync(grantResponse.grantId, userId);
+      console.log('Initial sync job enqueued for Lambda processing');
+    } catch (syncError) {
+      // Log error but don't fail the OAuth flow - sync can be retried manually
+      console.error('Failed to enqueue initial sync job:', syncError);
+    }
 
     // Redirect to success page or back to where they came from
     return NextResponse.redirect(

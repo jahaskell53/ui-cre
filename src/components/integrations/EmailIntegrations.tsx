@@ -216,14 +216,11 @@ export function EmailIntegrations() {
     <div className="space-y-6">
       {/* Sync Status Message */}
       {syncing && (
-        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm border border-blue-200 dark:border-blue-800">
-          <div className="flex items-start gap-2">
-            <Loader2 className="h-4 w-4 mt-0.5 flex-shrink-0 animate-spin" />
-            <div>
-              <div className="font-medium mb-1">Sync in progress</div>
-              <div className="text-xs text-blue-500 dark:text-blue-400">
-                Sync is running in the background. You can close this page and check back later.
-              </div>
+        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800">
+          <div>
+            <div className="font-medium mb-1">Sync in progress</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Sync is running in the background. You can close this page and check back later.
             </div>
           </div>
         </div>
@@ -241,10 +238,10 @@ export function EmailIntegrations() {
               return (
                 <div
                   key={integration.id}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+                  className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 flex items-center justify-center">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
                       <Image
                         src={providerConfig.logo}
                         alt={providerConfig.name}
@@ -253,13 +250,13 @@ export function EmailIntegrations() {
                         className="object-contain"
                       />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
                           {integration.email_address}
                         </span>
                         {integration.status === 'active' && (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-600" />
                         )}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -268,7 +265,7 @@ export function EmailIntegrations() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       variant="outline"
                       size="sm"

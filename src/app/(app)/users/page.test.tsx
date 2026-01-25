@@ -7,12 +7,20 @@ import { supabase } from '@/utils/supabase'
 
 // Mock dependencies
 vi.mock('@/hooks/use-user')
-vi.mock('@/utils/supabase')
+vi.mock('@/utils/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}))
 
 const mockUser = {
   id: 'user-123',
   email: 'test@example.com',
-}
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as any
 
 describe('UsersPage', () => {
   beforeEach(() => {
@@ -21,6 +29,7 @@ describe('UsersPage', () => {
       user: mockUser,
       profile: null,
       loading: false,
+      refreshProfile: vi.fn(),
     })
   })
 

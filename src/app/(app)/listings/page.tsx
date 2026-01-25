@@ -32,6 +32,29 @@ const defaultFilters: Filters = {
     sqftMax: "",
 };
 
+function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
+    return (
+        <>
+            {Array.from({ length: count }).map((_, i) => (
+                <div key={i} className="p-4">
+                    <div className="aspect-video bg-gray-200 dark:bg-gray-700 rounded-lg mb-3 animate-pulse" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3 mt-2" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/3 mt-2" />
+                    <div className="flex justify-between items-center mt-3">
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-14" />
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-20" />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 items-center">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-12" />
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-16" />
+                    </div>
+                </div>
+            ))}
+        </>
+    );
+}
+
 export default function MapPage() {
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
@@ -366,10 +389,7 @@ export default function MapPage() {
 
                         <div className="flex-1 overflow-auto divide-y divide-gray-200 dark:divide-gray-800">
                             {loading ? (
-                                <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400 gap-3 h-full">
-                                    <Loader2 className="w-6 h-6 animate-spin" />
-                                    <p className="text-sm">Fetching properties...</p>
-                                </div>
+                                <PropertiesListSkeleton />
                             ) : properties.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                                     <p>No geocoded properties found. Run the geocoding script to populate coordinates.</p>

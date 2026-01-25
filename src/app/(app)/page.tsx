@@ -267,7 +267,7 @@ export default function FeedPage() {
     return (
         <div className="relative flex flex-col gap-8 p-6 overflow-auto h-full">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-3 flex flex-col gap-6">
+                <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-6">
                     <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
                         <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">
                             {showingLiked ? "Liked Posts" : "Posts"}
@@ -322,7 +322,7 @@ export default function FeedPage() {
                     </div>
                 </div>
 
-                <div className="lg:col-span-1">
+                <div className="order-1 lg:order-2 lg:col-span-1">
                     <div data-tour="notifications" className="flex flex-col gap-4">
                         <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
                             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">Notifications</h2>

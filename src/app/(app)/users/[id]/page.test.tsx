@@ -6,7 +6,11 @@ import { supabase } from '@/utils/supabase'
 
 // Mock dependencies
 vi.mock('@/hooks/use-user')
-vi.mock('@/utils/supabase')
+vi.mock('@/utils/supabase', () => ({
+  supabase: {
+    from: vi.fn(),
+  },
+}))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -20,7 +24,11 @@ vi.mock('next/navigation', () => ({
 const mockCurrentUser = {
   id: 'current-user',
   email: 'current@example.com',
-}
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as any
 
 const mockProfile = {
   id: 'user-123',
@@ -37,6 +45,7 @@ describe('UserProfilePage', () => {
       user: mockCurrentUser,
       profile: null,
       loading: false,
+      refreshProfile: vi.fn(),
     })
   })
 
@@ -172,9 +181,10 @@ describe('UserProfilePage', () => {
 
   it('should show edit profile button for own profile', async () => {
     vi.mocked(useUser).mockReturnValue({
-      user: { ...mockCurrentUser, id: 'user-123' }, // Same ID as profile
+      user: { ...mockCurrentUser, id: 'user-123' } as any, // Same ID as profile
       profile: null,
       loading: false,
+      refreshProfile: vi.fn(),
     })
 
     const mockSelect = vi.fn().mockReturnValue({

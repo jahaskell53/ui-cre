@@ -20,6 +20,13 @@ provider:
     GEMINI_API_KEY: ${env:GEMINI_API_KEY}
     NEXT_PUBLIC_SUPABASE_URL: ${env:NEXT_PUBLIC_SUPABASE_URL}
     SUPABASE_SERVICE_ROLE_KEY: ${env:SUPABASE_SERVICE_ROLE_KEY}
+    # Langfuse tracing for Gemini calls
+    LANGFUSE_PUBLIC_KEY: ${env:LANGFUSE_PUBLIC_KEY, ''}
+    LANGFUSE_SECRET_KEY: ${env:LANGFUSE_SECRET_KEY, ''}
+    LANGFUSE_BASE_URL: ${env:LANGFUSE_BASE_URL, 'https://cloud.langfuse.com'}
+    # Queue URL for scheduling delayed retries on rate limits
+    SYNC_QUEUE_URL:
+      Ref: EmailSyncQueue
   iam:
     role:
       statements:
@@ -28,6 +35,7 @@ provider:
             - sqs:ReceiveMessage
             - sqs:DeleteMessage
             - sqs:GetQueueAttributes
+            - sqs:SendMessage  # For scheduling delayed retries
           Resource:
             - Fn::GetAtt:
                 - EmailSyncQueue

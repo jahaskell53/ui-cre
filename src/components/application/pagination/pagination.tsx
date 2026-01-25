@@ -147,7 +147,8 @@ export const PaginationPageMinimalCenter = ({ rounded, page = 1, total = 10, cla
         >
             <div className="flex flex-1 justify-start">
                 <Pagination.PrevTrigger asChild>
-                    <Button iconLeading={ArrowLeft} color="secondary" size="sm">
+                    <Button variant="secondary" size="sm">
+                        <ArrowLeft className="size-4" />
                         {isDesktop ? "Previous" : undefined}
                     </Button>
                 </Pagination.PrevTrigger>
@@ -177,8 +178,9 @@ export const PaginationPageMinimalCenter = ({ rounded, page = 1, total = 10, cla
 
             <div className="flex flex-1 justify-end">
                 <Pagination.NextTrigger asChild>
-                    <Button iconTrailing={ArrowRight} color="secondary" size="sm">
+                    <Button variant="secondary" size="sm">
                         {isDesktop ? "Next" : undefined}
+                        <ArrowRight className="size-4" />
                     </Button>
                 </Pagination.NextTrigger>
             </div>
@@ -198,7 +200,8 @@ export const PaginationCardDefault = ({ rounded, page = 1, total = 10, ...props 
         >
             <div className="flex flex-1 justify-start">
                 <Pagination.PrevTrigger asChild>
-                    <Button iconLeading={ArrowLeft} color="secondary" size="sm">
+                    <Button variant="secondary" size="sm">
+                        <ArrowLeft className="size-4" />
                         {isDesktop ? "Previous" : undefined}
                     </Button>
                 </Pagination.PrevTrigger>
@@ -228,8 +231,9 @@ export const PaginationCardDefault = ({ rounded, page = 1, total = 10, ...props 
 
             <div className="flex flex-1 justify-end">
                 <Pagination.NextTrigger asChild>
-                    <Button iconTrailing={ArrowRight} color="secondary" size="sm">
+                    <Button variant="secondary" size="sm">
                         {isDesktop ? "Next" : undefined}
+                        <ArrowRight className="size-4" />
                     </Button>
                 </Pagination.NextTrigger>
             </div>
