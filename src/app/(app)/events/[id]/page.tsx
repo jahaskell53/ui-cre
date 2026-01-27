@@ -413,12 +413,27 @@ export default function EventDetailsPage() {
                             {(event.location || event.meet_link) && (
                                 <div className="flex gap-4">
                                     <div className="flex items-center justify-center w-14 h-14 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shrink-0">
-                                        <MapPin className="w-6 h-6 text-gray-400" />
+                                        {event.meet_link && !event.location ? (
+                                            <SiGooglemeet className="w-6 h-6 text-[#00897B]" />
+                                        ) : (
+                                            <MapPin className="w-6 h-6 text-gray-400" />
+                                        )}
                                     </div>
                                     <div className="flex flex-col justify-center">
-                                        <h2 className="font-semibold text-xl leading-tight">
-                                            {event.location || "Online Event"}
-                                        </h2>
+                                        {event.meet_link && !event.location ? (
+                                            <a
+                                                href={event.meet_link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-semibold text-xl leading-tight text-[#00897B] hover:underline"
+                                            >
+                                                Join Google Meet
+                                            </a>
+                                        ) : (
+                                            <h2 className="font-semibold text-xl leading-tight">
+                                                {event.location || "Online Event"}
+                                            </h2>
+                                        )}
                                         {event.location && (
                                             <p className="text-gray-500 font-medium">Physical Location</p>
                                         )}
@@ -471,26 +486,6 @@ export default function EventDetailsPage() {
                                     </p>
                                 )}
 
-                                {/* Links Section inside Card */}
-                                {isRegistered && event.meet_link && !isPastEvent && (
-                                    <div className="pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-3">
-                                        <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Event Links</h4>
-                                        <a
-                                            href={event.meet_link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-4 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors group"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-white dark:bg-gray-900 rounded-md">
-                                                    <SiGooglemeet className="w-5 h-5 text-[#00897B]" />
-                                                </div>
-                                                <span className="font-semibold">Join Google Meet</span>
-                                            </div>
-                                            <ExternalLink className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                        </a>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
