@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
 
 const colorOptions = [
@@ -50,6 +51,7 @@ export default function NewEventPage() {
     const [startTime, setStartTime] = useState("");
     const [endTime, setEndTime] = useState("");
     const [location, setLocation] = useState("");
+    const [isInPerson, setIsInPerson] = useState(false);
     const [color, setColor] = useState("blue");
     const [imageUrl, setImageUrl] = useState("");
     const [isUploading, setIsUploading] = useState(false);
@@ -235,19 +237,37 @@ export default function NewEventPage() {
                         </Select>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="location" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                            <MapPin className="size-4" />
-                            Location
-                        </Label>
-                        <Input
-                            id="location"
-                            placeholder="Add a physical location (optional)"
-                            value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            className="h-11"
+                    <div className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <div className="flex flex-col">
+                            <Label htmlFor="in-person" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                In Person
+                            </Label>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Enable to add a physical location
+                            </p>
+                        </div>
+                        <Switch
+                            id="in-person"
+                            checked={isInPerson}
+                            onCheckedChange={setIsInPerson}
                         />
                     </div>
+
+                    {isInPerson && (
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="location" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                <MapPin className="size-4" />
+                                Location
+                            </Label>
+                            <Input
+                                id="location"
+                                placeholder="Add a physical location"
+                                value={location}
+                                onChange={(e) => setLocation(e.target.value)}
+                                className="h-11"
+                            />
+                        </div>
+                    )}
 
                     {/* Google Meet Info */}
                     <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
