@@ -96,6 +96,8 @@ export default function EventManageDashboard() {
     const [isShared, setIsShared] = useState(false);
     const [activeTab, setActiveTab] = useState("Overview");
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [emailInput, setEmailInput] = useState("");
     const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
     const [isSendingInvites, setIsSendingInvites] = useState(false);
@@ -407,6 +409,19 @@ export default function EventManageDashboard() {
         }
     };
 
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/events?id=${eventId}`, { method: "DELETE" });
+            if (!response.ok) throw new Error("Failed to delete event");
+            router.push("/events/manage");
+        } catch (err: any) {
+            console.error("Error deleting event:", err);
+            alert("Failed to delete event. Please try again.");
+            setIsDeleting(false);
+        }
+    };
+
     if (isLoading) return (
         <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -443,12 +458,23 @@ export default function EventManageDashboard() {
                             {event.title}
                         </h1>
                     </div>
-                    <Link href={`/events/${event.id}`}>
-                        <Button variant="outline" className="rounded-md font-semibold bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 gap-2">
-                            Event Page
-                            <ExternalLink className="w-4 h-4" />
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="destructive"
+                            onClick={() => setShowDeleteModal(true)}
+                            disabled={isDeleting}
+                            className="rounded-md font-semibold"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
                         </Button>
-                    </Link>
+                        <Link href={`/events/${event.id}`}>
+                            <Button variant="outline" className="rounded-md font-semibold bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 gap-2">
+                                Event Page
+                                <ExternalLink className="w-4 h-4" />
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Tabs */}
@@ -988,6 +1014,46 @@ export default function EventManageDashboard() {
                     </div>
                 </DialogContent>
             </ShadDialog>
+
+            {/* Delete Event Confirmation Modal */}
+            <ModalOverlay
+                isOpen={showDeleteModal}
+                onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
+            >
+                <Modal className="max-w-md bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+                    <Dialog className="p-8">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-16 h-16 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6">
+                                <Trash2 className="w-8 h-8 text-red-500" />
+                            </div>
+                            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>
+                            <p className="text-gray-500 font-medium mb-8">
+                                Are you sure you want to delete <span className="text-gray-900 dark:text-gray-100 font-semibold">"{event.title}"</span>? This action is permanent.
+                            </p>
+                            <div className="flex flex-col w-full gap-3">
+                                <Button
+                                    variant="destructive"
+                                    size="lg"
+                                    onClick={handleDelete}
+                                    disabled={isDeleting}
+                                    className="w-full h-14 rounded-md font-semibold"
+                                >
+                                    {isDeleting ? "Deleting..." : "Yes, Delete Event"}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="lg"
+                                    onClick={() => setShowDeleteModal(false)}
+                                    disabled={isDeleting}
+                                    className="w-full h-14 rounded-md font-semibold text-gray-500"
+                                >
+                                    Keep Event
+                                </Button>
+                            </div>
+                        </div>
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
         </div>
     );
 }

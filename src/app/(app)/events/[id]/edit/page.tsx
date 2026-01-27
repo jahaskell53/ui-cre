@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X, Video, Trash2 } from "lucide-react";
+import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,8 +57,6 @@ export default function EditEventPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
@@ -190,17 +188,6 @@ export default function EditEventPage() {
         }
     };
 
-    const handleDelete = async () => {
-        setIsDeleting(true);
-        try {
-            const response = await fetch(`/api/events?id=${eventId}`, { method: "DELETE" });
-            if (!response.ok) throw new Error("Failed to delete event");
-            router.push("/events/manage");
-        } catch (err: any) {
-            setError(err.message);
-            setIsDeleting(false);
-        }
-    };
 
     if (isLoading) {
         return (
@@ -428,59 +415,10 @@ export default function EditEventPage() {
                                 {isSaving ? "Saving..." : "Save Changes"}
                             </Button>
                         </div>
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            onClick={() => setShowDeleteModal(true)}
-                            disabled={isSaving || isDeleting}
-                            className="h-9 w-9 p-0"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
                     </div>
                 </form>
                 </div>
             </div>
-
-            {/* Delete Event Confirmation Modal */}
-            <ModalOverlay
-                isOpen={showDeleteModal}
-                onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
-            >
-                <Modal className="max-w-md bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
-                    <Dialog className="p-8">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="w-16 h-16 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6">
-                                <Trash2 className="w-8 h-8 text-red-500" />
-                            </div>
-                            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>
-                            <p className="text-gray-500 font-medium mb-8">
-                                Are you sure you want to delete <span className="text-gray-900 dark:text-gray-100 font-semibold">"{title}"</span>? This action is permanent.
-                            </p>
-                            <div className="flex flex-col w-full gap-3">
-                                <Button
-                                    variant="destructive"
-                                    size="lg"
-                                    onClick={handleDelete}
-                                    disabled={isDeleting}
-                                    className="w-full h-14 rounded-md font-semibold"
-                                >
-                                    {isDeleting ? "Deleting..." : "Yes, Delete Event"}
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="lg"
-                                    onClick={() => setShowDeleteModal(false)}
-                                    disabled={isDeleting}
-                                    className="w-full h-14 rounded-md font-semibold text-gray-500"
-                                >
-                                    Keep Event
-                                </Button>
-                            </div>
-                        </div>
-                    </Dialog>
-                </Modal>
-            </ModalOverlay>
         </div>
     );
 }
