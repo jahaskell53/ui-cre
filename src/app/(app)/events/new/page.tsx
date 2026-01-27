@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, Palette, ImagePlus, X, Video } from "lucide-react";
+import { Calendar, Clock, MapPin, ArrowLeft, ImagePlus, X, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,15 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker";
 import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
-
-const colorOptions = [
-    { value: "blue", label: "Blue", class: "bg-blue-500" },
-    { value: "green", label: "Green", class: "bg-green-500" },
-    { value: "purple", label: "Purple", class: "bg-purple-500" },
-    { value: "red", label: "Red", class: "bg-red-500" },
-    { value: "orange", label: "Orange", class: "bg-orange-500" },
-    { value: "black", label: "Gray", class: "bg-gray-700" },
-];
 
 // Generate time options in 30-minute intervals
 const generateTimeOptions = () => {
@@ -52,7 +43,6 @@ export default function NewEventPage() {
     const [endTime, setEndTime] = useState("");
     const [location, setLocation] = useState("");
     const [isInPerson, setIsInPerson] = useState(false);
-    const [color, setColor] = useState("blue");
     const [imageUrl, setImageUrl] = useState("");
     const [isUploading, setIsUploading] = useState(false);
 
@@ -127,7 +117,6 @@ export default function NewEventPage() {
                     start_time: startDateTime.toISOString(),
                     end_time: endDateTime.toISOString(),
                     location,
-                    color,
                     image_url: imageUrl || null,
                 }),
             });
@@ -275,33 +264,6 @@ export default function NewEventPage() {
                         <p className="text-sm text-blue-700 dark:text-blue-300">
                             A Google Meet link will be automatically created for this event.
                         </p>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                            <Palette className="size-4" />
-                            Event Color
-                        </Label>
-                        <Select value={color} onValueChange={setColor}>
-                            <SelectTrigger className="h-11">
-                                <SelectValue>
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-4 h-4 rounded-full ${colorOptions.find(c => c.value === color)?.class}`} />
-                                        {colorOptions.find(c => c.value === color)?.label}
-                                    </div>
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {colorOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-4 h-4 rounded-full ${option.class}`} />
-                                            {option.label}
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
                     </div>
 
                     <div className="flex flex-col gap-2">
