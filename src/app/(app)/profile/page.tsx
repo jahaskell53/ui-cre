@@ -421,7 +421,7 @@ export default function ProfilePage() {
             {/* Danger Zone */}
             <section className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">
               <div className="flex flex-col gap-1 mb-6">
-                <h2 className="text-lg font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Danger Zone</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Once you delete your account, there is no going back. Please be certain.
                 </p>
