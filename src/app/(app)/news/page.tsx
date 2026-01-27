@@ -184,7 +184,7 @@ export default function NewsPage() {
             {isRegistered === null ? null : isRegistered ? (
               <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
                 <Check className="size-4 text-green-600 dark:text-green-400" />
-                <span>Registered</span>
+                <span>Subscribed</span>
               </div>
             ) : (
               <Link href="/news/register">
