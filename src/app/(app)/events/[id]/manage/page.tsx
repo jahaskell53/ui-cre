@@ -28,23 +28,12 @@ import {
 import { SiGooglemeet } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    Dialog as ShadDialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { generateAuroraGradient, getInitials } from "@/app/(app)/network/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { supabase } from "@/utils/supabase";
-import { SearchIcon } from "@/app/(app)/network/icons";
+import { InviteGuestsModal } from "@/components/events/invite-guests-modal";
 
 interface Event {
     id: string;
@@ -98,21 +87,12 @@ export default function EventManageDashboard() {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [emailInput, setEmailInput] = useState("");
-    const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
-    const [isSendingInvites, setIsSendingInvites] = useState(false);
     const [attendees, setAttendees] = useState<Attendee[]>([]);
     const [registrationCount, setRegistrationCount] = useState(0);
     const [isLoadingGuests, setIsLoadingGuests] = useState(false);
     const [blasts, setBlasts] = useState<Blast[]>([]);
     const [isLoadingBlasts, setIsLoadingBlasts] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [peopleSearchQuery, setPeopleSearchQuery] = useState("");
-    const [peopleSearchResults, setPeopleSearchResults] = useState<Array<{ id: string; name: string; email: string | null }>>([]);
-    const [isSearchingPeople, setIsSearchingPeople] = useState(false);
-    const [showPeoplePreview, setShowPeoplePreview] = useState(false);
-    const peopleSearchContainerRef = useRef<HTMLDivElement>(null);
-    const peopleSearchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (eventId) {
@@ -131,47 +111,6 @@ export default function EventManageDashboard() {
             fetchBlasts();
         }
     }, [eventId, activeTab]);
-
-    // Search people with debouncing
-    useEffect(() => {
-        if (peopleSearchDebounceRef.current) {
-            clearTimeout(peopleSearchDebounceRef.current);
-        }
-
-        if (peopleSearchQuery.trim().length === 0) {
-            setPeopleSearchResults([]);
-            setShowPeoplePreview(false);
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            searchPeople(peopleSearchQuery);
-        }, 300);
-
-        peopleSearchDebounceRef.current = timer;
-
-        return () => {
-            if (peopleSearchDebounceRef.current) {
-                clearTimeout(peopleSearchDebounceRef.current);
-            }
-        };
-    }, [peopleSearchQuery]);
-
-    // Close preview when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (peopleSearchContainerRef.current && !peopleSearchContainerRef.current.contains(event.target as Node)) {
-                setShowPeoplePreview(false);
-            }
-        };
-
-        if (showPeoplePreview) {
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => {
-                document.removeEventListener("mousedown", handleClickOutside);
-            };
-        }
-    }, [showPeoplePreview]);
 
     const fetchEventDetails = async () => {
         try {
@@ -280,102 +219,11 @@ export default function EventManageDashboard() {
         });
     };
 
-    const handleInviteSubmit = async () => {
-        let finalEmails = [...selectedEmails];
-
-        // Also add whatever is currently in the input if it's valid
-        if (emailInput.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.trim())) {
-            finalEmails = [...finalEmails, emailInput.trim()];
+    const handleInviteSuccess = () => {
+        // Refresh guests list if on Guests tab
+        if (activeTab === "Guests") {
+            fetchGuests();
         }
-
-        if (finalEmails.length === 0) {
-            alert("Please enter at least one valid email address.");
-            return;
-        }
-
-        setIsSendingInvites(true);
-        try {
-            const response = await fetch("/api/events/invite", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    event_id: eventId,
-                    emails: finalEmails
-                }),
-            });
-
-            if (!response.ok) throw new Error("Failed to send invitations");
-
-            alert("Invitations sent successfully!");
-            setShowInviteModal(false);
-            setSelectedEmails([]);
-            setEmailInput("");
-            // Refresh guests list if on Guests tab
-            if (activeTab === "Guests") {
-                fetchGuests();
-            }
-        } catch (err) {
-            console.error("Error sending invites:", err);
-            alert("Failed to send invitations. Please try again.");
-        } finally {
-            setIsSendingInvites(false);
-        }
-    };
-
-    const handleAddEmail = () => {
-        const trimmed = emailInput.trim();
-        if (!trimmed) return;
-
-        // Simple regex for basic validation
-        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            if (!selectedEmails.includes(trimmed)) {
-                setSelectedEmails([...selectedEmails, trimmed]);
-            }
-            setEmailInput("");
-        }
-    };
-
-    const removeEmail = (email: string) => {
-        setSelectedEmails(selectedEmails.filter(e => e !== email));
-    };
-
-    const searchPeople = async (query: string) => {
-        if (!query.trim()) {
-            setPeopleSearchResults([]);
-            setShowPeoplePreview(false);
-            return;
-        }
-
-        setIsSearchingPeople(true);
-        setShowPeoplePreview(true);
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            const { data, error } = await supabase
-                .from("people")
-                .select("id, name, email")
-                .eq("user_id", user.id)
-                .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
-                .limit(5);
-
-            if (error) throw error;
-
-            setPeopleSearchResults(data || []);
-        } catch (error) {
-            console.error("Error searching people:", error);
-            setPeopleSearchResults([]);
-        } finally {
-            setIsSearchingPeople(false);
-        }
-    };
-
-    const handleSelectPerson = (person: { id: string; name: string; email: string | null }) => {
-        if (person.email && !selectedEmails.includes(person.email)) {
-            setSelectedEmails([...selectedEmails, person.email]);
-        }
-        setPeopleSearchQuery("");
-        setShowPeoplePreview(false);
     };
 
     const fetchGuests = async () => {
@@ -843,177 +691,13 @@ export default function EventManageDashboard() {
                 </div>
             </div>
 
-            {/* Invite Guests Modal (shadcn) */}
-            <ShadDialog open={showInviteModal} onOpenChange={setShowInviteModal}>
-                <DialogContent className="sm:max-w-xl rounded-md border-gray-200 dark:border-gray-800 p-8">
-                    <DialogHeader className="flex flex-col items-center text-center gap-4">
-                        <div className="w-16 h-16 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center">
-                            <Mail className="w-8 h-8 text-blue-500" />
-                        </div>
-                        <div className="space-y-2">
-                            <DialogTitle className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Invite Guests</DialogTitle>
-                            <DialogDescription className="text-gray-500 font-medium text-base">
-                                Send a personalized invitation to your colleagues and associates.
-                            </DialogDescription>
-                        </div>
-                    </DialogHeader>
-
-                    <div className="space-y-6 mt-4">
-                        <div className="space-y-3">
-                            <Label htmlFor="people-search" className="text-sm font-semibold text-gray-900 dark:text-gray-100 ml-1">
-                                Search from People
-                            </Label>
-                            <div className="relative" ref={peopleSearchContainerRef}>
-                                <div className="relative">
-                                    <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4 z-10" />
-                                    <Input
-                                        id="people-search"
-                                        value={peopleSearchQuery}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPeopleSearchQuery(e.target.value)}
-                                        onFocus={() => {
-                                            if (peopleSearchQuery.trim() && peopleSearchResults.length > 0) {
-                                                setShowPeoplePreview(true);
-                                            }
-                                        }}
-                                        placeholder="Search by name or email..."
-                                        className="h-11 pl-8 rounded-md border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium shadow-none"
-                                    />
-                                </div>
-
-                                {/* People Search Preview Dropdown */}
-                                {showPeoplePreview && peopleSearchQuery.trim() && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md shadow-lg z-50 max-h-80 overflow-y-auto">
-                                        {isSearchingPeople ? (
-                                            <div className="flex items-center justify-center py-4">
-                                                <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin" />
-                                            </div>
-                                        ) : peopleSearchResults.length > 0 ? (
-                                            <div className="py-1">
-                                                {peopleSearchResults.map((person) => {
-                                                    const displayName = person.name || "Unknown";
-                                                    const initials = getInitials(displayName);
-
-                                                    return (
-                                                        <div
-                                                            key={person.id}
-                                                            onClick={() => handleSelectPerson(person)}
-                                                            className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                                                        >
-                                                            <Avatar className="h-8 w-8 border border-gray-200 dark:border-gray-700">
-                                                                <AvatarFallback
-                                                                    style={{ background: generateAuroraGradient(displayName) }}
-                                                                    className="text-xs font-semibold text-white"
-                                                                >
-                                                                    {initials}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                                                    {displayName}
-                                                                </div>
-                                                                {person.email && (
-                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                                                        {person.email}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <div className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 text-center">
-                                                No people found
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="space-y-3">
-                            <Label htmlFor="emails" className="text-sm font-semibold text-gray-900 dark:text-gray-100 ml-1">
-                                Add Emails
-                            </Label>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <Input
-                                        id="emails"
-                                        value={emailInput}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmailInput(e.target.value)}
-                                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleAddEmail();
-                                            }
-                                        }}
-                                        placeholder="Paste or enter emails here"
-                                        className="h-11 rounded-md border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium px-4 shadow-none"
-                                    />
-                                </div>
-                                <Button
-                                    type="button"
-                                    onClick={handleAddEmail}
-                                    variant="secondary"
-                                    className="h-11 px-6 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold shadow-none"
-                                >
-                                    Add
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Email Tags */}
-                        {selectedEmails.length > 0 && (
-                            <div className="flex flex-wrap gap-2 p-3 bg-white dark:bg-gray-900 rounded-md border border-dashed border-gray-200 dark:border-gray-800 min-h-[60px]">
-                                {selectedEmails.map((email) => (
-                                    <div
-                                        key={email}
-                                        className="flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-800"
-                                    >
-                                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{email}</span>
-                                        <button
-                                            onClick={() => removeEmail(email)}
-                                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-400 hover:text-gray-600"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                onClick={() => setShowInviteModal(false)}
-                                disabled={isSendingInvites}
-                                className="h-12 rounded-md font-semibold text-gray-500 sm:flex-1"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={() => handleInviteSubmit()}
-                                disabled={isSendingInvites || (selectedEmails.length === 0 && !emailInput)}
-                                className="h-12 rounded-md font-semibold flex items-center justify-center gap-2 sm:flex-1"
-                            >
-                                {isSendingInvites ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        Sending...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send className="w-4 h-4" />
-                                        Send Invitations
-                                    </>
-                                )}
-                            </Button>
-                        </DialogFooter>
-                    </div>
-                </DialogContent>
-            </ShadDialog>
+            {/* Invite Guests Modal */}
+            <InviteGuestsModal
+                isOpen={showInviteModal}
+                onClose={() => setShowInviteModal(false)}
+                eventId={eventId}
+                onSuccess={handleInviteSuccess}
+            />
 
             {/* Delete Event Confirmation Modal */}
             <ModalOverlay
