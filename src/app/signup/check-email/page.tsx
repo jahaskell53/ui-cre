@@ -11,7 +11,11 @@ function CheckEmailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const email = searchParams.get("email");
+    const redirect = searchParams.get("redirect");
     const [isChecking, setIsChecking] = useState(true);
+    const [isResending, setIsResending] = useState(false);
+    const [resendError, setResendError] = useState<string | null>(null);
+    const [resendSuccess, setResendSuccess] = useState(false);
 
     useEffect(() => {
         let intervalId: NodeJS.Timeout;
@@ -20,7 +24,7 @@ function CheckEmailContent() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 // User has confirmed email and has a session
-                router.push("/network/connect");
+                router.push(redirect || "/network/connect");
             }
         };
 
@@ -35,7 +39,7 @@ function CheckEmailContent() {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
             if (session) {
-                router.push("/network/connect");
+                router.push(redirect || "/network/connect");
             }
         });
 
@@ -50,7 +54,34 @@ function CheckEmailContent() {
             clearTimeout(timeoutId);
             subscription.unsubscribe();
         };
-    }, [router]);
+    }, [router, redirect]);
+
+    const handleResend = async () => {
+        if (!email || isResending) return;
+
+        setIsResending(true);
+        setResendError(null);
+        setResendSuccess(false);
+
+        const { error } = await supabase.auth.resend({
+            type: "signup",
+            email,
+            options: {
+                emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+                    redirect || "/network/connect"
+                )}`,
+            },
+        });
+
+        setIsResending(false);
+
+        if (error) {
+            setResendError(error.message || "Failed to resend confirmation email.");
+            return;
+        }
+
+        setResendSuccess(true);
+    };
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
@@ -84,6 +115,31 @@ function CheckEmailContent() {
                     <p>
                         This page will automatically redirect you once you've confirmed your email.
                     </p>
+                    {email && (
+                        <div className="space-y-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
+                                Didn&apos;t receive the email?{" "}
+                                <button
+                                    type="button"
+                                    onClick={handleResend}
+                                    disabled={isResending}
+                                    className="font-medium text-gray-900 dark:text-gray-100 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isResending ? "Resending..." : "Resend confirmation email"}
+                                </button>
+                            </p>
+                            {resendError && (
+                                <p className="text-xs text-red-600 dark:text-red-400">
+                                    {resendError}
+                                </p>
+                            )}
+                            {resendSuccess && (
+                                <p className="text-xs text-green-600 dark:text-green-400">
+                                    We&apos;ve sent another confirmation email.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Back to Sign Up Link */}
