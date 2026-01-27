@@ -9,10 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Upload } from "lucide-react";
+import { Upload, Trash2 } from "lucide-react";
 import { EmailIntegrations } from "@/components/integrations/EmailIntegrations";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
+import { ModalOverlay, Modal, Dialog } from "@/components/application/modals/modal";
 
 function BackIcon({ className }: { className?: string }) {
   return (
@@ -36,6 +37,8 @@ export default function ProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isTourOpen, setIsTourOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Listen for tour trigger from sidebar
   usePageTour(() => setIsTourOpen(true));
@@ -172,6 +175,30 @@ export default function ProfilePage() {
       setError(err.message || "Failed to remove profile photo");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete account");
+      }
+
+      // Sign out and redirect to login
+      await supabase.auth.signOut();
+      router.push("/login");
+    } catch (err: any) {
+      setError(err.message || "Failed to delete account");
+      setIsDeleting(false);
     }
   };
 
@@ -390,6 +417,24 @@ export default function ProfilePage() {
                 Cancel
               </Button>
             </div>
+
+            {/* Danger Zone */}
+            <section className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">
+              <div className="flex flex-col gap-1 mb-6">
+                <h2 className="text-lg font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Once you delete your account, there is no going back. Please be certain.
+                </p>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteModal(true)}
+                className="w-fit"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Account
+              </Button>
+            </section>
           </div>
         </div>
       </div>
@@ -403,6 +448,42 @@ export default function ProfilePage() {
           console.log("Profile tour completed!");
         }}
       />
+
+      {/* Delete Account Confirmation Modal */}
+      <ModalOverlay
+        isOpen={showDeleteModal}
+        onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
+      >
+        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+          <Dialog className="p-6">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 flex items-center justify-center mb-4">
+                <Trash2 className="w-8 h-8 text-red-500" />
+              </div>
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Delete Account?</h2>
+              <p className="text-gray-500 dark:text-gray-400 font-medium">
+                Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Delete Account"}
+              </Button>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </div>
   );
 }
