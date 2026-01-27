@@ -63,16 +63,27 @@ export async function POST(request: NextRequest) {
             eventImageUrl: event.image_url
         });
 
-        // Send emails to all recipients
-        const sendResults = await Promise.all(
-            emails.map(email => emailService.sendEmail(email.trim(), emailContent))
+        // Send single email with all recipients in BCC
+        // Use sender's email as "to" address (required by SMTP), all invite recipients in BCC
+        const trimmedEmails = emails.map(email => email.trim()).filter(email => email.length > 0);
+        if (trimmedEmails.length === 0) {
+            return NextResponse.json({ error: "No valid email addresses provided." }, { status: 400 });
+        }
+
+        // Use sender's email as the "to" address, or fallback to first invitee if sender email unavailable
+        const senderEmail = user.email || trimmedEmails[0];
+        const success = await emailService.sendEmail(
+            senderEmail,
+            emailContent,
+            undefined,
+            trimmedEmails
         );
 
-        const successCount = sendResults.filter(Boolean).length;
-
         return NextResponse.json({
-            success: true,
-            message: `Successfully sent ${successCount} out of ${emails.length} invitations.`
+            success,
+            message: success 
+                ? `Successfully sent invitation to ${trimmedEmails.length} recipient${trimmedEmails.length === 1 ? '' : 's'}.`
+                : "Failed to send invitations."
         });
 
     } catch (error: any) {

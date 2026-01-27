@@ -28,11 +28,12 @@ export class EmailService {
     });
   }
 
-  async sendEmail(to: string, content: EmailContent, cc?: string): Promise<boolean> {
+  async sendEmail(to: string, content: EmailContent, cc?: string, bcc?: string | string[]): Promise<boolean> {
     try {
       if (!this.transporter) {
         console.log('SMTP not configured - simulating email send to:', to);
         if (cc) console.log('CC:', cc);
+        if (bcc) console.log('BCC:', bcc);
         console.log('Subject:', content.subject);
         return true; // Return true for testing purposes
       }
@@ -44,6 +45,7 @@ export class EmailService {
         text: string;
         html: string;
         cc?: string;
+        bcc?: string | string[];
       } = {
         from: process.env.SMTP_FROM || `"Untitled UI" <noreply@untitledui.com>`,
         to,
@@ -54,6 +56,10 @@ export class EmailService {
 
       if (cc) {
         mailOptions.cc = cc;
+      }
+
+      if (bcc) {
+        mailOptions.bcc = bcc;
       }
 
       const result = await this.transporter.sendMail(mailOptions);
