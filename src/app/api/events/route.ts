@@ -1,26 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { createMeetLink } from "@/lib/google-meet";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { data: { user } } = await supabase.auth.getUser();
 
         const searchParams = request.nextUrl.searchParams;
         const eventId = searchParams.get("id");
         const startDate = searchParams.get("start");
         const endDate = searchParams.get("end");
 
-        let query = supabase
+        // For public access (unauthenticated), use admin client to bypass RLS
+        // For authenticated users, use regular client
+        const client = user ? supabase : createAdminClient();
+
+        let query = client
             .from("events")
-            .select("*")
-            .eq("user_id", user.id);
+            .select("*");
+
+        // If authenticated and no eventId specified, filter by user's events
+        // Otherwise, return all events (public access)
+        if (user && !eventId) {
+            query = query.eq("user_id", user.id);
+        }
 
         if (eventId) {
             const { data, error } = await query.eq("id", eventId).single();

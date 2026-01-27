@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { AppSidebar, type AppSidebarRef } from "@/components/layout/app-sidebar";
 import { useUser } from "@/hooks/use-user";
@@ -13,17 +13,22 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading: authLoading } = useUser();
   const sidebarRef = useRef<AppSidebarRef>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+  // Check if current route is a public event page
+  const isPublicEventPage = pathname?.startsWith('/events/') && /^\/events\/[^\/]+$/.test(pathname);
+
   // Redirect to login if not authenticated (only after loading is complete)
+  // Skip redirect for public event pages
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !isPublicEventPage) {
       router.push("/login");
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, router, isPublicEventPage]);
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -36,8 +41,14 @@ export default function AppLayout({
 
   // If not authenticated and not loading, show nothing (redirect will happen via useEffect)
   // But also render children in case there's a race condition - the middleware will handle redirect
-  if (!user) {
+  // Exception: allow public event pages to render without authentication
+  if (!user && !isPublicEventPage) {
     return null;
+  }
+
+  // For public event pages, render without sidebar
+  if (isPublicEventPage) {
+    return <>{children}</>;
   }
 
   return (

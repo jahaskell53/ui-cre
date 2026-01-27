@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-
-        // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const { data: { user } } = await supabase.auth.getUser();
 
         const searchParams = request.nextUrl.searchParams;
         const userId = searchParams.get("id");
@@ -19,8 +14,12 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
-        // Fetch profile for the specified user
-        const { data, error } = await supabase
+        // For public access (unauthenticated), use admin client to bypass RLS
+        // For authenticated users, use regular client
+        const client = user ? supabase : createAdminClient();
+
+        // Fetch profile for the specified user (public access)
+        const { data, error } = await client
             .from("profiles")
             .select("id, full_name, avatar_url, website, roles")
             .eq("id", userId)

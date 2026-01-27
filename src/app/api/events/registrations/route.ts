@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        // For public access (unauthenticated), use admin client to bypass RLS
+        // For authenticated users, use regular client
+        const client = user ? supabase : createAdminClient();
 
         const searchParams = request.nextUrl.searchParams;
         const eventId = searchParams.get("event_id");
@@ -19,21 +19,29 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        // Check if user is registered
-        const { data: registration, error: regError } = await supabase
-            .from("event_registrations")
-            .select("id, created_at")
-            .eq("event_id", eventId)
-            .eq("user_id", user.id)
-            .maybeSingle();
+        let registration = null;
+        let isRegistered = false;
 
-        if (regError) {
-            console.error("Error checking registration:", regError);
-            return NextResponse.json({ error: "Failed to check registration" }, { status: 500 });
+        // Only check user registration if authenticated
+        if (user) {
+            const { data: regData, error: regError } = await supabase
+                .from("event_registrations")
+                .select("id, created_at")
+                .eq("event_id", eventId)
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+            if (regError) {
+                console.error("Error checking registration:", regError);
+                return NextResponse.json({ error: "Failed to check registration" }, { status: 500 });
+            }
+
+            registration = regData;
+            isRegistered = !!regData;
         }
 
-        // Get registration count for this event
-        const { count, error: countError } = await supabase
+        // Get registration count for this event (public)
+        const { count, error: countError } = await client
             .from("event_registrations")
             .select("*", { count: "exact", head: true })
             .eq("event_id", eventId);
@@ -44,8 +52,8 @@ export async function GET(request: NextRequest) {
 
         let attendees = null;
         if (includeAttendees) {
-            // Fetch registrations
-            const { data: registrations, error: registrationsError } = await supabase
+            // Fetch registrations (public)
+            const { data: registrations, error: registrationsError } = await client
                 .from("event_registrations")
                 .select("user_id")
                 .eq("event_id", eventId)
@@ -57,8 +65,9 @@ export async function GET(request: NextRequest) {
                 // Get user IDs
                 const userIds = registrations.map((reg: any) => reg.user_id);
 
-                // Fetch profiles for these users
-                const { data: profiles, error: profilesError } = await supabase
+                // Fetch profiles for these users (use admin client for public access)
+                const profileClient = user ? supabase : createAdminClient();
+                const { data: profiles, error: profilesError } = await profileClient
                     .from("profiles")
                     .select("id, full_name, avatar_url")
                     .in("id", userIds);
@@ -85,7 +94,7 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json({
-            is_registered: !!registration,
+            is_registered: isRegistered,
             registration: registration,
             count: count || 0,
             attendees: attendees,

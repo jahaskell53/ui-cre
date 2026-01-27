@@ -86,6 +86,11 @@ export default function EventDetailsPage() {
     };
 
     const handleToggleRegistration = async () => {
+        if (!user) {
+            router.push(`/signup?redirect=/events/${eventId}`);
+            return;
+        }
+
         setIsRegistering(true);
         try {
             if (isRegistered) {
@@ -277,11 +282,13 @@ export default function EventDetailsPage() {
                                 </Button>
                             </Link>
                         )}
-                        <Link href={`/events/${event.id}/manage`}>
-                            <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
-                                Manage
-                            </Button>
-                        </Link>
+                        {user && (
+                            <Link href={`/events/${event.id}/manage`}>
+                                <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
+                                    Manage
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
             </header>
@@ -457,7 +464,9 @@ export default function EventDetailsPage() {
                                 {!isPastEvent ? (
                                     <>
                                         <p className="text-gray-500 font-medium leading-relaxed">
-                                            Welcome! To join the event, please RSVP below. You'll receive updates and be able to join the call.
+                                            {user 
+                                                ? "Welcome! To join the event, please RSVP below. You'll receive updates and be able to join the call."
+                                                : "Welcome! To RSVP for this event, please create an account or sign in."}
                                         </p>
                                         <Button
                                             onClick={handleToggleRegistration}
@@ -476,7 +485,7 @@ export default function EventDetailsPage() {
                                                     Going
                                                 </span>
                                             ) : (
-                                                "RSVP"
+                                                user ? "RSVP" : "Sign in to RSVP"
                                             )}
                                         </Button>
                                     </>

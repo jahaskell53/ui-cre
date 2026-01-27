@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 
 export default function SignUpPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirect = searchParams.get("redirect");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [fullName, setFullName] = useState("");
@@ -32,6 +34,7 @@ export default function SignUpPage() {
         setIsLoading(true);
         setError(null);
 
+        const redirectUrl = redirect || "/network/connect";
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -40,7 +43,7 @@ export default function SignUpPage() {
                     full_name: fullName || undefined,
                     roles: selectedRoles
                 },
-                emailRedirectTo: `${window.location.origin}/auth/callback?next=/network/connect`,
+                emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectUrl)}`,
             }
         });
 
@@ -50,10 +53,15 @@ export default function SignUpPage() {
             setError(error.message);
         } else if (data.user && data.session) {
             // User is immediately logged in (email confirmation disabled)
-            router.push("/network/connect");
+            router.push(redirect || "/network/connect");
         } else {
             // Redirect to check email page
-            router.push(`/signup/check-email?email=${encodeURIComponent(email)}`);
+            const checkEmailUrl = `/signup/check-email?email=${encodeURIComponent(email)}`;
+            if (redirect) {
+                router.push(`${checkEmailUrl}&redirect=${encodeURIComponent(redirect)}`);
+            } else {
+                router.push(checkEmailUrl);
+            }
         }
     };
 
