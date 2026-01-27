@@ -344,37 +344,37 @@ export function EmailIntegrations() {
             setIntegrationToDelete(null);
           }
         }}
-      >
-        <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
-          <Dialog className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Disconnect Email
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              Are you sure you want to disconnect {integrationToDelete?.email_address}? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setIntegrationToDelete(null);
-                }}
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDisconnect}
-                disabled={isDeleting}
-              >
-                {isDeleting ? "Disconnecting..." : "Disconnect"}
-              </Button>
-            </div>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+  >
+    <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+      <Dialog className="p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Disconnect Email
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          Are you sure you want to disconnect {integrationToDelete?.email_address}? This action cannot be undone.
+        </p>
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowDeleteModal(false);
+              setIntegrationToDelete(null);
+            }}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDisconnect}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Disconnecting..." : "Disconnect"}
+          </Button>
+        </div>
+      </Dialog>
+    </Modal>
+  </ModalOverlay>
     </div>
   );
 }

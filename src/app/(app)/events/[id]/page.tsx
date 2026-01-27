@@ -519,36 +519,31 @@ export default function EventDetailsPage() {
                 isOpen={showDeleteModal}
                 onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
             >
-                <Modal className="max-w-md bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-800 overflow-hidden">
-                    <Dialog className="p-8">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="w-16 h-16 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center mb-6">
-                                <Trash2 className="w-8 h-8 text-red-500" />
-                            </div>
-                            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Event?</h2>
-                            <p className="text-gray-500 font-medium mb-8">
-                                Are you sure you want to delete <span className="text-gray-900 dark:text-gray-100 font-semibold">"{event?.title}"</span>? This action is permanent.
-                            </p>
-                            <div className="flex flex-col w-full gap-3">
-                                <Button
-                                    variant="destructive"
-                                    size="lg"
-                                    onClick={handleDelete}
-                                    disabled={isDeleting}
-                                    className="w-full h-14 rounded-md font-semibold"
-                                >
-                                    {isDeleting ? "Deleting..." : "Yes, Delete Event"}
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="lg"
-                                    onClick={() => setShowDeleteModal(false)}
-                                    disabled={isDeleting}
-                                    className="w-full h-14 rounded-md font-semibold text-gray-500"
-                                >
-                                    Keep Event
-                                </Button>
-                            </div>
+                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+                    <Dialog className="p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                            Delete Event
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                            Are you sure you want to delete{" "}
+                            <span className="text-gray-900 dark:text-gray-100 font-semibold">"{event?.title}"</span>? This
+                            action is permanent.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? "Deleting..." : "Delete Event"}
+                            </Button>
                         </div>
                     </Dialog>
                 </Modal>
