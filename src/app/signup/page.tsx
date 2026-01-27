@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/utils/supabase";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
-export default function SignUpPage() {
+function SignUpPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirect = searchParams.get("redirect");
@@ -187,6 +187,27 @@ export default function SignUpPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function SignUpPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
+                <div className="w-full max-w-md space-y-6">
+                    <div className="flex flex-col items-center gap-4 mb-8">
+                        <div className="w-10 h-10 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
+                            <span className="text-white dark:text-gray-900 text-sm font-bold">OM</span>
+                        </div>
+                        <div className="text-center">
+                            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Create an account</h1>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }>
+            <SignUpPageContent />
+        </Suspense>
     );
 }
 

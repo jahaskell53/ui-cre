@@ -171,7 +171,6 @@ export function InviteGuestsModal({
       }
 
       const result = await response.json();
-      alert(result.message || "Invitations sent successfully!");
       onSuccess?.();
       onClose();
     } catch (error: any) {
