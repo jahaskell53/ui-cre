@@ -275,19 +275,19 @@ export default function EventDetailsPage() {
                             {isShared ? "Copied" : "Share"}
                         </Button>
                         {isOwner && (
-                            <Link href={`/events/${event.id}/edit`}>
-                                <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Edit
-                                </Button>
-                            </Link>
-                        )}
-                        {user && (
-                            <Link href={`/events/${event.id}/manage`}>
-                                <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
-                                    Manage
-                                </Button>
-                            </Link>
+                            <>
+                                <Link href={`/events/${event.id}/edit`}>
+                                    <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
+                                        <Edit className="w-4 h-4 mr-2" />
+                                        Edit
+                                    </Button>
+                                </Link>
+                                <Link href={`/events/${event.id}/manage`}>
+                                    <Button variant="outline" size="sm" className="rounded-md font-semibold border-gray-200 dark:border-gray-800 px-4">
+                                        Manage
+                                    </Button>
+                                </Link>
+                            </>
                         )}
                     </div>
                 </div>

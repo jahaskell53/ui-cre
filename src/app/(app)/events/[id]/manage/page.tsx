@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter as useNextRouter, useParams as useNextParams } from "next/navigation";
+import { useUser } from "@/hooks/use-user";
 import {
     MapPin,
     Edit,
@@ -77,10 +78,12 @@ export default function EventManageDashboard() {
     const router = useNextRouter();
     const params = useNextParams();
     const eventId = params.id as string;
+    const { user } = useUser();
 
     const [event, setEvent] = useState<Event | null>(null);
     const [host, setHost] = useState<Host | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isUnauthorized, setIsUnauthorized] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [isShared, setIsShared] = useState(false);
     const [activeTab, setActiveTab] = useState("Overview");
@@ -119,14 +122,30 @@ export default function EventManageDashboard() {
             const data = await response.json();
             setEvent(data);
 
-            // Reusing host fetch logic or just setting a mock for now if not in API
-            // In a real app, this might come from the event data or a separate join
-            setHost({
-                id: data.user_id,
-                name: "Jakobi Haskell", // Placeholder/Mock
-                email: "jakobi@example.com",
-                avatar_url: null
-            });
+            // Check if current user is the owner
+            if (user && data.user_id !== user.id) {
+                setIsUnauthorized(true);
+                setIsLoading(false);
+                return;
+            }
+
+            // Fetch host profile
+            if (data.user_id) {
+                try {
+                    const hostResponse = await fetch(`/api/users?id=${data.user_id}`);
+                    if (hostResponse.ok) {
+                        const hostData = await hostResponse.json();
+                        setHost({
+                            id: hostData.id,
+                            name: hostData.full_name || "Unknown",
+                            email: hostData.email || "",
+                            avatar_url: hostData.avatar_url
+                        });
+                    }
+                } catch (err) {
+                    console.error("Error fetching host:", err);
+                }
+            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -276,7 +295,36 @@ export default function EventManageDashboard() {
         </div>
     );
 
-    if (!event) return null;
+    if (isUnauthorized || !event) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center px-4">
+                <div className="max-w-md w-full text-center">
+                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        Access Denied
+                    </h1>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                        You don't have permission to manage this event. Only the event host can access this page.
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                        <Button
+                            variant="outline"
+                            onClick={() => router.push(`/events/${eventId}`)}
+                            className="rounded-md font-semibold"
+                        >
+                            View Event
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={() => router.push("/events")}
+                            className="rounded-md font-semibold"
+                        >
+                            Back to Calendar
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const tabs = ["Overview", "Guests", "Blasts"];
 
