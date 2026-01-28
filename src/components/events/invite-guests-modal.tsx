@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { X, Mail, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -50,6 +51,7 @@ export function InviteGuestsModal({
   const [emailInput, setEmailInput] = useState("");
   const [manualEmails, setManualEmails] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [invitationMessage, setInvitationMessage] = useState("We'd love to see you there!");
 
   // Fetch all people when modal opens
   useEffect(() => {
@@ -62,6 +64,7 @@ export function InviteGuestsModal({
       setEmailInput("");
       setSearchQuery("");
       setActiveTab("suggestions");
+      setInvitationMessage("We'd love to see you there!");
     }
   }, [isOpen]);
 
@@ -162,6 +165,7 @@ export function InviteGuestsModal({
         body: JSON.stringify({
           event_id: eventId,
           emails: allEmails,
+          message: invitationMessage,
         }),
       });
 
@@ -302,8 +306,9 @@ export function InviteGuestsModal({
                 )}
 
                 {/* People List */}
-                <ScrollArea className="flex-1">
-                  {isLoadingPeople ? (
+                <div className="flex-1 overflow-hidden">
+                  <ScrollArea className="h-full">
+                    {isLoadingPeople ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
                     </div>
@@ -365,7 +370,8 @@ export function InviteGuestsModal({
                       })}
                     </div>
                   )}
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </>
             ) : (
               <>
@@ -413,8 +419,9 @@ export function InviteGuestsModal({
                 )}
 
                 {/* Email List */}
-                <ScrollArea className="flex-1">
-                  {manualEmails.length > 0 ? (
+                <div className="flex-1 overflow-hidden">
+                  <ScrollArea className="h-full">
+                    {manualEmails.length > 0 ? (
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
                       {manualEmails.map((email) => (
                         <div
@@ -460,11 +467,27 @@ export function InviteGuestsModal({
                       </p>
                     </div>
                   )}
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
               </>
             )}
           </div>
         </div>
+
+        {/* Message Template Section */}
+        {totalSelected > 0 && (
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 shrink-0">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Invitation Message
+            </label>
+            <Textarea
+              value={invitationMessage}
+              onChange={(e) => setInvitationMessage(e.target.value)}
+              placeholder="Enter your invitation message..."
+              className="min-h-[100px] bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 resize-none"
+            />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 shrink-0">
