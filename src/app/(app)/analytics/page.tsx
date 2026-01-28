@@ -237,29 +237,43 @@ function SparklineChart({
 
     const uniqueId = gradientId || `gradient-${color.replace('#', '')}-${Math.random().toString(36).substr(2, 9)}`;
 
+    if (!data || data.length === 0) {
+        return <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">No data</div>;
+    }
+
+    // Calculate domain with padding for better visibility
+    const minValue = Math.min(...data);
+    const maxValue = Math.max(...data);
+    const dataRange = maxValue - minValue;
+    const padding = dataRange * 0.15 || 0.1; // 15% padding, or 0.1 if range is 0
+
     return (
-        <ResponsiveContainer width="100%" height={height}>
-            <AreaChart
-                data={chartData}
-                margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-            >
-                <defs>
-                    <linearGradient id={uniqueId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity={0.2} />
-                        <stop offset="100%" stopColor={color} stopOpacity={0} />
-                    </linearGradient>
-                </defs>
-                <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke={color}
-                    strokeWidth={2}
-                    fill={`url(#${uniqueId})`}
-                    dot={false}
-                    activeDot={false}
-                />
-            </AreaChart>
-        </ResponsiveContainer>
+        <div className="w-full" style={{ height: `${height}px` }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                    data={chartData}
+                    margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                >
+                    <defs>
+                        <linearGradient id={uniqueId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+                            <stop offset="100%" stopColor={color} stopOpacity={0} />
+                        </linearGradient>
+                    </defs>
+                    <YAxis hide domain={[minValue - padding, maxValue + padding]} />
+                    <Area
+                        type="monotone"
+                        dataKey="value"
+                        stroke={color}
+                        strokeWidth={2}
+                        fill={`url(#${uniqueId})`}
+                        dot={false}
+                        activeDot={false}
+                        isAnimationActive={true}
+                    />
+                </AreaChart>
+            </ResponsiveContainer>
+        </div>
     );
 }
 
@@ -308,7 +322,7 @@ function TrendChart({
                     </div>
                 </div>
             </div>
-            <div className="h-24 overflow-hidden">
+            <div className="h-24 w-full">
                 <SparklineChart data={data} color={color} height={96} gradientId={gradientId} />
             </div>
             <div className="flex justify-between mt-4 text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
