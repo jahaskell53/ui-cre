@@ -10,6 +10,7 @@ import { supabase } from "@/utils/supabase";
 import { formatDistanceToNow } from "date-fns";
 import { MentionDropdown, UserSuggestion } from "./mention-dropdown";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 
 interface Comment {
     id: string;
@@ -47,6 +48,7 @@ export const CommentSection = ({
     const [selectedMentionIndex, setSelectedMentionIndex] = useState(-1);
     const [showMentionDropdown, setShowMentionDropdown] = useState(false);
     const [cursorPosition, setCursorPosition] = useState(0);
+    const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
     const mentionInputRef = useRef<HTMLInputElement>(null);
     const mentionDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -270,8 +272,6 @@ export const CommentSection = ({
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        if (!confirm("Are you sure you want to delete this comment?")) return;
-
         const { error } = await supabase
             .from("comments")
             .delete()
@@ -324,7 +324,7 @@ export const CommentSection = ({
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-6 w-6"
-                                                    onClick={() => handleDeleteComment(comment.id)}
+                                                    onClick={() => setPendingDeleteCommentId(comment.id)}
                                                 >
                                                     <Trash2 className="size-3 text-tertiary hover:text-red-500" />
                                                 </Button>
@@ -374,6 +374,50 @@ export const CommentSection = ({
                     </div>
                 )}
             </div>
+
+            {/* Delete Comment Confirmation Modal */}
+            <ModalOverlay
+                isOpen={pendingDeleteCommentId !== null}
+                onOpenChange={(isOpen) => !isOpen && setPendingDeleteCommentId(null)}
+            >
+                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+                    <Dialog className="p-6">
+                        {({ close }) => (
+                            <div className="space-y-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete comment</h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Are you sure you want to delete this comment? This action cannot be undone.
+                                    </p>
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            setPendingDeleteCommentId(null);
+                                            close();
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => {
+                                            if (pendingDeleteCommentId) {
+                                                handleDeleteComment(pendingDeleteCommentId);
+                                            }
+                                            setPendingDeleteCommentId(null);
+                                            close();
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
         </div>
     );
 };
