@@ -15,6 +15,15 @@ function LoginPageContent() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // Redirect if already authenticated
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
+                window.location.href = "/network";
+            }
+        });
+    }, []);
+
+    useEffect(() => {
         // Check for error in query parameters (from callback route)
         const queryError = searchParams.get("error");
         if (queryError) {
