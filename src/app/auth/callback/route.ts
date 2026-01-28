@@ -21,9 +21,28 @@ export async function GET(request: Request) {
             } else {
                 return NextResponse.redirect(`${origin}${next}`)
             }
+        } else {
+            // Handle specific error types
+            let errorMessage = "Could not authenticate user";
+            if (error.message?.includes("expired") || error.message?.includes("invalid")) {
+                errorMessage = "Email link is invalid or has expired. Please request a new confirmation email.";
+            }
+            return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(errorMessage)}`)
         }
     }
 
+    // Check for error parameters in URL (from Supabase redirects)
+    const errorParam = searchParams.get('error')
+    const errorCode = searchParams.get('error_code')
+    const errorDescription = searchParams.get('error_description')
+    
+    if (errorCode === 'otp_expired' || errorParam) {
+        const errorMessage = errorDescription 
+            ? decodeURIComponent(errorDescription)
+            : "Email link is invalid or has expired. Please request a new confirmation email.";
+        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(errorMessage)}`)
+    }
+
     // return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/login?error=Could not authenticate user`)
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent("Could not authenticate user")}`)
 }
