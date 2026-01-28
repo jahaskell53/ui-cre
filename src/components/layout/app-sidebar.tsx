@@ -3,7 +3,7 @@
 import { forwardRef, useRef, useImperativeHandle } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Newspaper, X, HelpCircle } from "lucide-react";
+import { MessageSquare, Newspaper, X, HelpCircle, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/(app)/network/icons";
 import AccountCard from "@/app/(app)/network/account-card";
@@ -196,6 +196,23 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
             <span className={cn("text-sm", isActive("/messages") && "font-medium")}>Messages</span>
           )}
         </Link>
+        <Link
+          href="/analytics"
+          onClick={onMobileClose}
+          className={cn(
+            "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
+            isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
+            isActive("/analytics")
+              ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              : "text-gray-600 dark:text-gray-400"
+          )}
+          title={isCollapsed ? "Analytics" : undefined}
+        >
+          <BarChart3 className="w-4 h-4" />
+          {!isCollapsed && (
+            <span className={cn("text-sm", isActive("/analytics") && "font-medium")}>Analytics</span>
+          )}
+        </Link>
       </nav>
 
       {/* Tour Button and Account Card */}
@@ -350,6 +367,19 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           >
             <MessageSquare className="w-4 h-4" />
             <span className={cn("text-sm", isActive("/messages") && "font-medium")}>Messages</span>
+          </Link>
+          <Link
+            href="/analytics"
+            onClick={onMobileClose}
+            className={cn(
+              "flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer px-2 py-1.5",
+              isActive("/analytics")
+                ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                : "text-gray-600 dark:text-gray-400"
+            )}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className={cn("text-sm", isActive("/analytics") && "font-medium")}>Analytics</span>
           </Link>
         </nav>
 
