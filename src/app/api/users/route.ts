@@ -14,12 +14,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
-        // For public access (unauthenticated), use admin client to bypass RLS
-        // For authenticated users, use regular client
-        const client = user ? supabase : createAdminClient();
-
-        // Fetch profile for the specified user (public access)
-        const { data, error } = await client
+        // Use regular client - RLS policy allows everyone to view profiles
+        const { data, error } = await supabase
             .from("profiles")
             .select("id, full_name, avatar_url, website, roles")
             .eq("id", userId)

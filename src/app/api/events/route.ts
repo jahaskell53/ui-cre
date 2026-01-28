@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
 import { createMeetLink } from "@/lib/google-meet";
 
 export async function GET(request: NextRequest) {
@@ -13,19 +12,12 @@ export async function GET(request: NextRequest) {
         const startDate = searchParams.get("start");
         const endDate = searchParams.get("end");
 
-        // For public access (unauthenticated), use admin client to bypass RLS
-        // For authenticated users, use regular client
-        const client = user ? supabase : createAdminClient();
+        // Use regular client - RLS policy allows all authenticated users to view all events
+        const client = supabase;
 
         let query = client
             .from("events")
             .select("*");
-
-        // If authenticated and no eventId specified, filter by user's events
-        // Otherwise, return all events (public access)
-        if (user && !eventId) {
-            query = query.eq("user_id", user.id);
-        }
 
         if (eventId) {
             const { data, error } = await query.eq("id", eventId).single();
