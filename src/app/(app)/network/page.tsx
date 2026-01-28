@@ -202,7 +202,7 @@ export default function PeoplePage() {
   ];
 
   return (
-    <div className="relative flex-1 overflow-hidden">
+    <div className="relative flex-1 flex flex-col overflow-hidden">
       <PeopleList
         people={filteredPeople}
         selectedPerson={selectedPerson}
