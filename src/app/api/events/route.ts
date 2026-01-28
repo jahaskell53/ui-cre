@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
         const startDate = searchParams.get("start");
         const endDate = searchParams.get("end");
 
-        // Use regular client - RLS policy allows all authenticated users to view all events
+        // Use regular client - RLS policy allows everyone (authenticated and unauthenticated) to view all events
         const client = supabase;
 
         let query = client
