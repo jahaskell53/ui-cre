@@ -17,6 +17,7 @@ export interface EventInviteData {
   eventTime: string;
   eventUrl: string;
   eventImageUrl?: string | null;
+  message?: string;
 }
 
 export function generateMessageNotificationEmail(data: MessageNotificationData): { subject: string; html: string; text: string } {
@@ -242,7 +243,7 @@ export function generateEventInviteEmail(data: EventInviteData): { subject: stri
                 ${escapeHtml(data.eventTitle)}
               </h1>
               <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 24px; color: #4a4a4a;">
-                <strong>${escapeHtml(data.hostName)}</strong> has invited you to join them for an event. We'd love to see you there!
+                <strong>${escapeHtml(data.hostName)}</strong> has invited you to join them for an event. ${escapeHtml(data.message || "We'd love to see you there!")}
               </p>
               
               <div style="background-color: #f9f9f9; border-radius: 12px; padding: 24px; margin: 30px 0;">
@@ -289,7 +290,7 @@ export function generateEventInviteEmail(data: EventInviteData): { subject: stri
 You're Invited!
 ${data.eventTitle}
 
-${data.hostName} has invited you to an event.
+${data.hostName} has invited you to an event. ${data.message || "We'd love to see you there!"}
 
 When: ${data.eventDate} at ${data.eventTime}
 

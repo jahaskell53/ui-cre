@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { event_id, emails } = body;
+        const { event_id, emails, message } = body;
 
         if (!event_id || !emails || !Array.isArray(emails) || emails.length === 0) {
             return NextResponse.json({ error: "Invalid request. Event ID and emails are required." }, { status: 400 });
@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
             eventDate,
             eventTime,
             eventUrl,
-            eventImageUrl: event.image_url
+            eventImageUrl: event.image_url,
+            message: message || "We'd love to see you there!"
         });
 
         // Send single email with all recipients in BCC
