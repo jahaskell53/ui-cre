@@ -133,7 +133,7 @@ export const FeedItem = ({
                             )}
                         </div>
                         {!isLink && (
-                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed whitespace-pre-wrap">
                                 {post.content}
                             </p>
                         )}

@@ -298,7 +298,7 @@ export default function UserProfilePage() {
                                                 </div>
 
                                                 {!isLink && (
-                                                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
+                                                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 whitespace-pre-wrap">
                                                         {post.content}
                                                     </p>
                                                 )}
