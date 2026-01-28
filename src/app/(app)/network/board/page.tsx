@@ -32,6 +32,7 @@ export default function BoardPage() {
 
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
 
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
@@ -103,13 +104,18 @@ export default function BoardPage() {
         );
       } catch (error) {
         console.error("Error fetching board assignments:", error);
+      } finally {
+        setIsLoadingAssignments(false);
       }
     };
 
-    if (people.length > 0) {
+    if (people.length > 0 && !isLoadingColumns) {
       fetchBoardAssignments();
+    } else if (people.length === 0 && !isLoadingColumns) {
+      // No people to assign, mark as loaded
+      setIsLoadingAssignments(false);
     }
-  }, [people]);
+  }, [people, isLoadingColumns]);
 
   // Save kanban column titles to database
   const saveKanbanColumns = async (columns: KanbanColumn[]) => {
@@ -385,9 +391,11 @@ export default function BoardPage() {
     },
   ];
 
+  const isLoading = isLoadingColumns || isLoadingAssignments;
+
   return (
     <div className="relative flex-1 overflow-hidden">
-      {isLoadingColumns ? (
+      {isLoading ? (
         <div className="flex-1 overflow-x-auto overflow-y-hidden bg-white dark:bg-gray-900">
           <div className="flex gap-4 p-4 h-full">
             {[...Array(4)].map((_, i) => (
