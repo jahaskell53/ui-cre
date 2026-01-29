@@ -1,5 +1,6 @@
 import { assertNylasConfigured, getNylasClient, nylasConfig, NYLAS_SYNC_CONFIG, getProviderScopes } from './config';
 import type { Provider } from './config';
+import { isMockMode, getMockGrant, getMockMessages, getMockCalendarEvents, getMockCalendars } from './mock';
 
 /**
  * Exponential backoff configuration
@@ -156,6 +157,12 @@ export async function exchangeCodeForGrant(code: string) {
  * Get grant details
  */
 export async function getGrant(grantId: string): Promise<NylasGrant | null> {
+  // Return mock grant in mock mode
+  if (isMockMode()) {
+    console.log('[Nylas Mock] Returning mock grant');
+    return getMockGrant(grantId);
+  }
+
   assertNylasConfigured();
   const nylasClient = getNylasClient();
   try {
@@ -335,6 +342,14 @@ export async function getMessages(
   limit: number = NYLAS_SYNC_CONFIG.emailLimit,
   receivedAfter?: number
 ): Promise<NylasMessage[]> {
+  // Return mock messages in mock mode
+  if (isMockMode()) {
+    console.log('[Nylas Mock] Returning mock email messages');
+    console.log('[Nylas Mock] NOTE: For contacts to be created, the integration email_address must match MOCK_USER_EMAIL env var');
+    // Pass empty string - mock will use MOCK_USER_EMAIL as fallback
+    return getMockMessages('');
+  }
+
   assertNylasConfigured();
   const nylasClient = getNylasClient();
 
@@ -414,6 +429,13 @@ export async function getCalendarEvents(
   limit: number = NYLAS_SYNC_CONFIG.calendarLimit,
   startAfter?: number
 ): Promise<NylasCalendarEvent[]> {
+  // Return mock calendar events in mock mode
+  if (isMockMode()) {
+    console.log('[Nylas Mock] Returning mock calendar events');
+    // Pass empty string - mock will use MOCK_USER_EMAIL as fallback
+    return getMockCalendarEvents('');
+  }
+
   assertNylasConfigured();
   const nylasClient = getNylasClient();
 
@@ -510,6 +532,12 @@ export async function getCalendarEvents(
  * List all calendars for a grant
  */
 export async function getCalendars(grantId: string) {
+  // Return mock calendars in mock mode
+  if (isMockMode()) {
+    console.log('[Nylas Mock] Returning mock calendars');
+    return getMockCalendars();
+  }
+
   assertNylasConfigured();
   const nylasClient = getNylasClient();
   try {
