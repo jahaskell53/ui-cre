@@ -44,6 +44,7 @@ const mockProfile = {
   is_admin: null,
   theme_preference: null,
   updated_at: null,
+  tour_visited_pages: null,
 }
 
 describe('ProfilePage', () => {
