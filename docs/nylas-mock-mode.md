@@ -4,7 +4,7 @@ Mock mode allows you to test the email/calendar sync functionality without makin
 
 ## Enabling Mock Mode
 
-Set the following environment variable:
+Add to your **app's** `.env.local` file:
 
 ```bash
 MOCK_NYLAS_API=true
@@ -17,6 +17,21 @@ MOCK_USER_EMAIL=your-test-email@example.com
 ```
 
 If not set, `MOCK_USER_EMAIL` defaults to `mock-user@example.com`.
+
+## How It Works (App → Lambda)
+
+The mock mode flag flows from your app to the serverless Lambda:
+
+1. **App** checks `MOCK_NYLAS_API` env var when enqueueing a sync job
+2. **SQS message** includes `mockMode: true` if enabled
+3. **Lambda** reads the flag from the message and sets `process.env.MOCK_NYLAS_API` at runtime
+4. **Nylas client** functions return mock data instead of calling the real API
+
+This means:
+- The Lambda doesn't need any special configuration
+- You control mock mode from your app's `.env.local`
+- Each sync request can independently be live or mock
+- Retries preserve the mock mode setting
 
 ## Mock Data
 
@@ -61,23 +76,22 @@ For mock mode to work properly:
 
 ## Example Usage
 
-1. Create/update an integration in the database:
+1. Add to your `.env.local`:
+   ```bash
+   MOCK_NYLAS_API=true
+   MOCK_USER_EMAIL=mock-user@example.com
+   ```
+
+2. Create/update an integration in the database with matching email:
    ```sql
    UPDATE integrations
    SET email_address = 'mock-user@example.com'
    WHERE nylas_grant_id = 'your-grant-id';
    ```
 
-2. Set environment variables:
-   ```bash
-   export MOCK_NYLAS_API=true
-   export MOCK_USER_EMAIL=mock-user@example.com
-   ```
-
-3. Trigger a sync (via API or Lambda):
-   ```bash
-   # The sync will use mock data instead of calling Nylas
-   ```
+3. Trigger a sync from the app (OAuth callback or manual sync button)
+   - The app will enqueue a job with `mockMode: true`
+   - The Lambda will use mock data instead of calling Nylas
 
 4. Check the database for the new contact:
    ```sql
@@ -102,3 +116,5 @@ When mock mode is enabled, you'll see logs like:
 
 - `src/lib/nylas/mock.ts` - Mock data generators
 - `src/lib/nylas/client.ts` - API client with mock mode checks
+- `src/utils/sqs.ts` - Passes `mockMode` flag in SQS messages
+- `lambda/sync-email-contacts.ts` - Sets mock mode from message at runtime

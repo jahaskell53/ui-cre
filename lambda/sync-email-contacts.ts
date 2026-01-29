@@ -56,7 +56,7 @@ export const handler: SQSHandler = async (event: SQSEvent, context: Context): Pr
   for (const record of event.Records) {
     try {
       const body = JSON.parse(record.body);
-      const { grantId, userId, retryCount = 0 } = body;
+      const { grantId, userId, retryCount = 0, mockMode = false } = body;
 
       if (!grantId || !userId) {
         console.error('Missing grantId or userId in message:', body);
@@ -64,7 +64,15 @@ export const handler: SQSHandler = async (event: SQSEvent, context: Context): Pr
         continue;
       }
 
-      console.log(`Processing sync for grantId: ${grantId}, userId: ${userId}, retryCount: ${retryCount}`);
+      // Set mock mode based on message (allows app to control mock mode per-request)
+      if (mockMode) {
+        process.env.MOCK_NYLAS_API = 'true';
+        console.log('[Lambda] Mock mode ENABLED for this sync job');
+      } else {
+        delete process.env.MOCK_NYLAS_API;
+      }
+
+      console.log(`Processing sync for grantId: ${grantId}, userId: ${userId}, retryCount: ${retryCount}, mockMode: ${mockMode}`);
 
       // Process the sync
       const result: SyncResult = await syncAllContacts(grantId, userId);
@@ -75,7 +83,8 @@ export const handler: SQSHandler = async (event: SQSEvent, context: Context): Pr
           grantId,
           userId,
           retryCount + 1,
-          result.retryAfterMs || 60000
+          result.retryAfterMs || 60000,
+          mockMode
         );
 
         console.log(`Rate limited. Scheduled delayed retry in ${Math.round((result.retryAfterMs || 60000) / 1000)}s`, {
@@ -148,7 +157,8 @@ async function scheduleDelayedRetry(
   grantId: string,
   userId: string,
   retryCount: number,
-  delayMs: number
+  delayMs: number,
+  mockMode: boolean = false
 ): Promise<void> {
   const queueUrl = process.env.SYNC_QUEUE_URL;
 
@@ -174,11 +184,12 @@ async function scheduleDelayedRetry(
         grantId,
         userId,
         retryCount,
+        ...(mockMode && { mockMode: true }),
       }),
       DelaySeconds: delaySeconds,
     }));
 
-    console.log(`Scheduled retry ${retryCount}/${MAX_RETRIES} with ${delaySeconds}s delay`);
+    console.log(`Scheduled retry ${retryCount}/${MAX_RETRIES} with ${delaySeconds}s delay${mockMode ? ' (mock mode)' : ''}`);
   } catch (error) {
     console.error('Error scheduling delayed retry:', error);
   }
