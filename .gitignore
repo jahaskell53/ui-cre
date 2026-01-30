@@ -12,6 +12,7 @@
 *.mjs
 har/
 test-emails/
+screenshots/
 
 # testing
 /coverage

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter as useNextRouter, useParams as useNextParams } from "next/navigation";
-import { ArrowLeft, Send, Loader2, Users, Mail } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -316,7 +316,7 @@ export default function SendBlastPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <Send className="w-4 h-4" />
+                                        <Mail className="w-4 h-4" />
                                         Send Blast
                                     </>
                                 )}

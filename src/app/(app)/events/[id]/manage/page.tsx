@@ -14,12 +14,10 @@ import {
     Share2,
     ExternalLink,
     Mail,
-    Send,
     Eye,
     ChevronRight,
     Plus,
     BarChart3,
-    MessageSquare,
     MoreHorizontal,
     Video,
     Image as ImageIcon,
@@ -411,7 +409,7 @@ export default function EventManageDashboard() {
                     <Link href={`/events/${eventId}/send-blast`}>
                         <button className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm text-left w-full">
                             <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center text-purple-600">
-                                <MessageSquare className="w-6 h-6" />
+                                <Mail className="w-6 h-6" />
                             </div>
                             <div>
                                 <div className="font-semibold text-gray-900 dark:text-white">Send a Blast</div>
@@ -654,7 +652,7 @@ export default function EventManageDashboard() {
                                         variant="secondary"
                                         className="rounded-md font-semibold bg-gray-100"
                                     >
-                                        <Send className="w-4 h-4 mr-1.5" />
+                                        <Mail className="w-4 h-4 mr-1.5" />
                                         Send a Blast
                                     </Button>
                                 </Link>
@@ -667,7 +665,7 @@ export default function EventManageDashboard() {
                             ) : blasts.length === 0 ? (
                                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center">
                                     <div className="w-16 h-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md flex items-center justify-center mb-4">
-                                        <MessageSquare className="w-8 h-8 text-gray-200" />
+                                        <Mail className="w-8 h-8 text-gray-200" />
                                     </div>
                                     <div className="font-semibold text-gray-900 dark:text-white mb-1">No Blasts Sent Yet</div>
                                     <p className="text-sm font-semibold text-gray-400 mb-6">Send your first email blast to all registered attendees.</p>
@@ -676,7 +674,7 @@ export default function EventManageDashboard() {
                                             variant="secondary"
                                             className="rounded-md font-semibold"
                                         >
-                                            <Send className="w-4 h-4 mr-1.5" />
+                                            <Mail className="w-4 h-4 mr-1.5" />
                                             Send a Blast
                                         </Button>
                                     </Link>
