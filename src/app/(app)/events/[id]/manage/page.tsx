@@ -538,83 +538,6 @@ export default function EventManageDashboard() {
                             </div>
                         </div>
 
-                        {/* Invites Section */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Invites</h3>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    className="rounded-md font-semibold bg-gray-100"
-                                    onClick={() => setShowInviteModal(true)}
-                                >
-                                    <Plus className="w-4 h-4 mr-1.5" />
-                                    Invite Guests
-                                </Button>
-                            </div>
-                            {isLoadingInvites ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex items-center justify-center">
-                                    <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
-                                </div>
-                            ) : invites.length === 0 ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center">
-                                    <div className="w-16 h-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md flex items-center justify-center mb-4">
-                                        <Mail className="w-8 h-8 text-gray-200" />
-                                    </div>
-                                    <div className="font-semibold text-gray-900 dark:text-white mb-1">No Invites Sent</div>
-                                    <p className="text-sm font-semibold text-gray-400">You can invite subscribers, contacts and past guests via email or SMS.</p>
-                                </div>
-                            ) : (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden">
-                                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                                        {invites.map((invite) => {
-                                            const sentDate = new Date(invite.created_at);
-                                            const formattedDate = sentDate.toLocaleDateString("en-US", {
-                                                month: "short",
-                                                day: "numeric",
-                                                year: "numeric",
-                                            });
-                                            const formattedTime = sentDate.toLocaleTimeString("en-US", {
-                                                hour: "numeric",
-                                                minute: "2-digit",
-                                            });
-                                            const emails = invite.recipient_emails ?? [];
-                                            return (
-                                                <div
-                                                    key={invite.id}
-                                                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex flex-col"
-                                                >
-                                                    <div className="min-w-0 flex-1">
-                                                        {emails.length > 0 ? (
-                                                            <ul className="text-sm text-gray-900 dark:text-white space-y-0.5">
-                                                                {emails.map((email) => (
-                                                                    <li key={email} className="truncate">
-                                                                        {email}
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        ) : (
-                                                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                                {invite.recipient_count} recipient{invite.recipient_count === 1 ? "" : "s"}
-                                                            </div>
-                                                        )}
-                                                        {invite.message && (
-                                                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">
-                                                                {invite.message}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-sm font-semibold text-gray-400 mt-2 text-right">
-                                                        {formattedDate} at {formattedTime}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
                         {/* Hosts Section */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
@@ -650,7 +573,7 @@ export default function EventManageDashboard() {
                     )}
 
                     {activeTab === "Guests" && (
-                        <div className="space-y-6">
+                        <div className="space-y-8">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Guests</h2>
@@ -667,6 +590,60 @@ export default function EventManageDashboard() {
                                     Invite Guests
                                 </Button>
                             </div>
+
+                            {/* Invites sent - same card design as Overview */}
+                            {invites.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Invites sent</h3>
+                                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden">
+                                        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                            {invites.map((invite) => {
+                                                const sentDate = new Date(invite.created_at);
+                                                const formattedDate = sentDate.toLocaleDateString("en-US", {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    year: "numeric",
+                                                });
+                                                const formattedTime = sentDate.toLocaleTimeString("en-US", {
+                                                    hour: "numeric",
+                                                    minute: "2-digit",
+                                                });
+                                                const emails = invite.recipient_emails ?? [];
+                                                return (
+                                                    <div
+                                                        key={invite.id}
+                                                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex flex-col"
+                                                    >
+                                                        <div className="min-w-0 flex-1">
+                                                            {emails.length > 0 ? (
+                                                                <ul className="text-sm text-gray-900 dark:text-white space-y-0.5">
+                                                                    {emails.map((email) => (
+                                                                        <li key={email} className="truncate">
+                                                                            {email}
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            ) : (
+                                                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                                    {invite.recipient_count} recipient{invite.recipient_count === 1 ? "" : "s"}
+                                                                </div>
+                                                            )}
+                                                            {invite.message && (
+                                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">
+                                                                    {invite.message}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-sm font-semibold text-gray-400 mt-2 text-right">
+                                                            {formattedDate} at {formattedTime}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {isLoadingGuests ? (
                                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex items-center justify-center">
