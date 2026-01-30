@@ -80,6 +80,16 @@ export async function POST(request: NextRequest) {
             trimmedEmails
         );
 
+        if (success) {
+            await supabase.from("event_invites").insert({
+                event_id,
+                user_id: user.id,
+                message: message || null,
+                recipient_count: trimmedEmails.length,
+                recipient_emails: trimmedEmails,
+            });
+        }
+
         return NextResponse.json({
             success,
             message: success 
