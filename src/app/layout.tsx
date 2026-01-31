@@ -11,8 +11,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-    title: "OpenMidmarket App",
-    description: "Democratizing the midmarket",
+    title: "App | OpenMidmarket",
+    description: "OpenMidmarket is a platform for managing relationships, properties, and market intelligence in the commercial real estate midmarket space.",
+    icons: {
+        icon: "/favicon.ico",
+    },
+    openGraph: {
+        title: "App | OpenMidmarket",
+        description: "OpenMidmarket is a platform for managing relationships, properties, and market intelligence in the commercial real estate midmarket space.",
+        images: "/og-preview.jpeg",
+    },
 };
 
 export const viewport: Viewport = {
