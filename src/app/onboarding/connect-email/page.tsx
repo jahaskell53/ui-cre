@@ -14,13 +14,13 @@ const providers = [
     icon: '📧',
     color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
   },
-  // {
-  //   id: 'outlook',
-  //   name: 'Outlook',
-  //   description: 'Connect your Outlook account',
-  //   icon: '📨',
-  //   color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  // },
+  {
+    id: 'outlook',
+    name: 'Outlook',
+    description: 'Connect your Outlook account',
+    icon: '📨',
+    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
+  },
   // {
   //   id: 'yahoo',
   //   name: 'Yahoo',

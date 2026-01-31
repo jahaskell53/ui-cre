@@ -13,12 +13,12 @@ const providers = [
     logo: 'https://www.google.com/gmail/about/static/images/logo-gmail.png',
     color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
   },
-  // {
-  //   id: 'outlook',
-  //   name: 'Outlook',
-  //   logo: 'https://mailmeteor.com/logos/assets/PNG/Microsoft_Office_Outlook_Logo_512px.png',
-  //   color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  // },
+  {
+    id: 'outlook',
+    name: 'Outlook',
+    logo: 'https://mailmeteor.com/logos/assets/PNG/Microsoft_Office_Outlook_Logo_512px.png',
+    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
+  },
   // {
   //   id: 'yahoo',
   //   name: 'Yahoo',
