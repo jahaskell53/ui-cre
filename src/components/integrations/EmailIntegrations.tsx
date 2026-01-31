@@ -5,33 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { Modal, ModalOverlay, Dialog } from '@/components/application/modals/modal';
+import { EMAIL_PROVIDERS } from '@/lib/email-providers';
 
-const providers = [
-  {
-    id: 'gmail',
-    name: 'Gmail',
-    logo: 'https://www.google.com/gmail/about/static/images/logo-gmail.png',
-    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  },
-  {
-    id: 'outlook',
-    name: 'Outlook',
-    logo: 'https://mailmeteor.com/logos/assets/PNG/Microsoft_Office_Outlook_Logo_512px.png',
-    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  },
-  // {
-  //   id: 'yahoo',
-  //   name: 'Yahoo',
-  //   logo: 'https://upload.wikimedia.org/wikipedia/commons/3/3a/Yahoo%21_%282019%29.svg',
-  //   color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  // },
-  {
-    id: 'icloud',
-    name: 'iCloud',
-    logo: 'https://pluspng.com/logo-img/ic169icl2bd3-icloud-logo-icloud-logopedia-.png',
-    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  },
-];
+const providers = EMAIL_PROVIDERS;
 
 interface Integration {
   id: string;

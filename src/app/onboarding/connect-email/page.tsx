@@ -5,37 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Mail, Calendar, CheckCircle2, XCircle } from 'lucide-react';
+import { EMAIL_PROVIDERS } from '@/lib/email-providers';
 
-const providers = [
-  {
-    id: 'gmail',
-    name: 'Gmail',
-    description: 'Connect your Gmail account',
-    icon: '📧',
-    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  },
-  {
-    id: 'outlook',
-    name: 'Outlook',
-    description: 'Connect your Outlook account',
-    icon: '📨',
-    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  },
-  // {
-  //   id: 'yahoo',
-  //   name: 'Yahoo',
-  //   description: 'Connect your Yahoo account',
-  //   icon: '📮',
-  //   color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  // },
-  {
-    id: 'icloud',
-    name: 'iCloud',
-    description: 'Connect your iCloud account',
-    icon: '☁️',
-    color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
-  },
-];
+const providers = EMAIL_PROVIDERS;
 
 function ConnectEmailPageContent() {
   const router = useRouter();
