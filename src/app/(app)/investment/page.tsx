@@ -14,12 +14,17 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Save,
+    Layers,
+    DollarSign,
+    Home,
+    Activity,
+    ShoppingCart,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PropertyMap, type Property } from "@/components/application/map/property-map";
+import { PropertyMap, type Property, type ChoroplethMetric } from "@/components/application/map/property-map";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
@@ -256,6 +261,16 @@ function TrendsView() {
     );
 }
 
+// Choropleth layer options
+const choroplethOptions: { value: ChoroplethMetric; label: string; icon: React.ElementType }[] = [
+    { value: 'none', label: 'None', icon: Layers },
+    { value: 'capRate', label: 'Cap Rate', icon: TrendingUp },
+    { value: 'rent', label: 'Avg Rent', icon: Home },
+    { value: 'valuation', label: 'Valuation', icon: DollarSign },
+    { value: 'recentSales', label: 'Recent Sales', icon: ShoppingCart },
+    { value: 'trending', label: 'Trending', icon: Activity },
+];
+
 // ==================== MAP VIEW ====================
 function MapView({
     properties,
@@ -295,11 +310,13 @@ function MapView({
     clearFilters: () => void;
 }) {
     const [mapFilter, setMapFilter] = useState<"all" | "owned" | "shared">("all");
+    const [choroplethMetric, setChoroplethMetric] = useState<ChoroplethMetric>('none');
+    const [layersOpen, setLayersOpen] = useState(false);
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
             {/* Map Controls Bar */}
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-shrink-0">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-shrink-0 bg-white dark:bg-gray-900">
                 {/* Filter Tabs */}
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                     {(["all", "owned", "shared"] as const).map((filter) => (
@@ -313,7 +330,7 @@ function MapView({
                                     : "text-gray-600 dark:text-gray-400"
                             )}
                         >
-                            {filter === "all" ? "Filters" : filter}
+                            {filter === "all" ? "All" : filter}
                         </button>
                     ))}
                 </div>
@@ -399,11 +416,56 @@ function MapView({
                     </PopoverContent>
                 </Popover>
 
-                {/* Views Toggle */}
-                <div className="ml-auto flex items-center gap-1 text-xs text-gray-500">
-                    <span>Views</span>
-                    <ChevronRight className="size-3" />
-                </div>
+                {/* Choropleth Layers Popover */}
+                <Popover open={layersOpen} onOpenChange={setLayersOpen}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant={choroplethMetric !== 'none' ? 'default' : 'outline'}
+                            size="sm"
+                            className={cn(
+                                "h-8 gap-1.5",
+                                choroplethMetric !== 'none' && "bg-blue-600 hover:bg-blue-700"
+                            )}
+                        >
+                            <Layers className="size-3.5" />
+                            Heatmap
+                            {choroplethMetric !== 'none' && (
+                                <span className="text-[10px] opacity-80">
+                                    ({choroplethOptions.find(o => o.value === choroplethMetric)?.label})
+                                </span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-56 p-2">
+                        <div className="space-y-1">
+                            <p className="text-xs font-medium text-gray-500 px-2 py-1">Choropleth Layer</p>
+                            {choroplethOptions.map((option) => {
+                                const Icon = option.icon;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => {
+                                            setChoroplethMetric(option.value);
+                                            setLayersOpen(false);
+                                        }}
+                                        className={cn(
+                                            "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors",
+                                            choroplethMetric === option.value
+                                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        )}
+                                    >
+                                        <Icon className="size-4" />
+                                        <span>{option.label}</span>
+                                        {choroplethMetric === option.value && (
+                                            <span className="ml-auto text-blue-600 dark:text-blue-400">✓</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </PopoverContent>
+                </Popover>
             </div>
 
             {/* Map Content */}
@@ -477,7 +539,12 @@ function MapView({
 
                 {/* Map */}
                 <div className="flex-1 relative">
-                    <PropertyMap properties={properties} selectedId={selectedId} className="absolute inset-0" />
+                    <PropertyMap
+                        properties={properties}
+                        selectedId={selectedId}
+                        choroplethMetric={choroplethMetric}
+                        className="absolute inset-0"
+                    />
                 </div>
             </div>
         </div>
