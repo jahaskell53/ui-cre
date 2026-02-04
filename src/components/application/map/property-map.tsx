@@ -21,341 +21,246 @@ export interface Property {
     squareFootage?: string | null;
 }
 
-export type ChoroplethMetric = 'none' | 'capRate' | 'rent' | 'valuation' | 'recentSales' | 'trending';
+export type HeatmapMetric = 'none' | 'capRate' | 'rent' | 'valuation' | 'recentSales' | 'trending' | 'neighborhood';
 
 interface MapProps {
     className?: string;
     properties: Property[];
     selectedId?: string | number | null;
-    choroplethMetric?: ChoroplethMetric;
-    onMetricChange?: (metric: ChoroplethMetric) => void;
+    heatmapMetric?: HeatmapMetric;
+    onMetricChange?: (metric: HeatmapMetric) => void;
 }
 
-// Mock neighborhood data for Bay Area
-// In production, this would come from an API with real aggregated data
+// Mock neighborhood data for Bay Area (for neighborhood filter/choropleth)
 const mockNeighborhoodData: GeoJSON.FeatureCollection = {
     type: "FeatureCollection",
     features: [
         {
             type: "Feature",
-            properties: {
-                name: "Mission District",
-                capRate: 4.2,
-                rent: 3200,
-                valuation: 1850000,
-                recentSales: 12,
-                trending: 5.2 // positive = up
-            },
+            properties: { name: "Mission District", id: "mission" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.428, 37.758],
-                    [-122.405, 37.758],
+                    [-122.428, 37.765],
+                    [-122.405, 37.765],
                     [-122.405, 37.748],
                     [-122.428, 37.748],
-                    [-122.428, 37.758]
+                    [-122.428, 37.765]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "SOMA",
-                capRate: 3.8,
-                rent: 3800,
-                valuation: 2200000,
-                recentSales: 8,
-                trending: -2.1
-            },
+            properties: { name: "SOMA", id: "soma" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.415, 37.785],
-                    [-122.390, 37.785],
-                    [-122.390, 37.770],
+                    [-122.415, 37.790],
+                    [-122.385, 37.790],
+                    [-122.385, 37.770],
                     [-122.415, 37.770],
-                    [-122.415, 37.785]
+                    [-122.415, 37.790]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Nob Hill",
-                capRate: 3.2,
-                rent: 4200,
-                valuation: 2800000,
-                recentSales: 5,
-                trending: 3.8
-            },
+            properties: { name: "Nob Hill", id: "nob-hill" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.420, 37.795],
+                    [-122.425, 37.795],
                     [-122.405, 37.795],
                     [-122.405, 37.785],
-                    [-122.420, 37.785],
-                    [-122.420, 37.795]
+                    [-122.425, 37.785],
+                    [-122.425, 37.795]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Castro",
-                capRate: 4.5,
-                rent: 3000,
-                valuation: 1650000,
-                recentSales: 15,
-                trending: 1.5
-            },
+            properties: { name: "Castro", id: "castro" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.445, 37.765],
-                    [-122.428, 37.765],
+                    [-122.445, 37.768],
+                    [-122.428, 37.768],
                     [-122.428, 37.755],
                     [-122.445, 37.755],
-                    [-122.445, 37.765]
+                    [-122.445, 37.768]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Marina",
-                capRate: 3.0,
-                rent: 4500,
-                valuation: 3200000,
-                recentSales: 3,
-                trending: 6.2
-            },
+            properties: { name: "Marina", id: "marina" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.445, 37.808],
+                    [-122.450, 37.808],
                     [-122.425, 37.808],
                     [-122.425, 37.798],
-                    [-122.445, 37.798],
-                    [-122.445, 37.808]
+                    [-122.450, 37.798],
+                    [-122.450, 37.808]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Richmond",
-                capRate: 4.8,
-                rent: 2800,
-                valuation: 1400000,
-                recentSales: 18,
-                trending: -0.5
-            },
+            properties: { name: "Richmond", id: "richmond" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.510, 37.785],
-                    [-122.470, 37.785],
-                    [-122.470, 37.775],
+                    [-122.510, 37.788],
+                    [-122.450, 37.788],
+                    [-122.450, 37.775],
                     [-122.510, 37.775],
-                    [-122.510, 37.785]
+                    [-122.510, 37.788]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Sunset",
-                capRate: 5.1,
-                rent: 2600,
-                valuation: 1200000,
-                recentSales: 22,
-                trending: 2.3
-            },
+            properties: { name: "Sunset", id: "sunset" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.510, 37.765],
-                    [-122.470, 37.765],
-                    [-122.470, 37.750],
-                    [-122.510, 37.750],
-                    [-122.510, 37.765]
+                    [-122.510, 37.768],
+                    [-122.450, 37.768],
+                    [-122.450, 37.745],
+                    [-122.510, 37.745],
+                    [-122.510, 37.768]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Palo Alto",
-                capRate: 3.5,
-                rent: 4800,
-                valuation: 3500000,
-                recentSales: 7,
-                trending: 4.1
-            },
+            properties: { name: "Palo Alto", id: "palo-alto" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.170, 37.450],
-                    [-122.120, 37.450],
-                    [-122.120, 37.420],
-                    [-122.170, 37.420],
-                    [-122.170, 37.450]
-                ]]
-            }
-        },
-        {
-            type: "Feature",
-            properties: {
-                name: "Mountain View",
-                capRate: 3.8,
-                rent: 4200,
-                valuation: 2900000,
-                recentSales: 9,
-                trending: 3.2
-            },
-            geometry: {
-                type: "Polygon",
-                coordinates: [[
+                    [-122.180, 37.460],
+                    [-122.110, 37.460],
                     [-122.110, 37.410],
-                    [-122.060, 37.410],
-                    [-122.060, 37.380],
-                    [-122.110, 37.380],
-                    [-122.110, 37.410]
+                    [-122.180, 37.410],
+                    [-122.180, 37.460]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "San Jose Downtown",
-                capRate: 4.6,
-                rent: 3100,
-                valuation: 1700000,
-                recentSales: 14,
-                trending: -1.2
-            },
+            properties: { name: "Mountain View", id: "mountain-view" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-121.910, 37.350],
-                    [-121.870, 37.350],
-                    [-121.870, 37.320],
-                    [-121.910, 37.320],
-                    [-121.910, 37.350]
+                    [-122.120, 37.415],
+                    [-122.050, 37.415],
+                    [-122.050, 37.375],
+                    [-122.120, 37.375],
+                    [-122.120, 37.415]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Oakland Downtown",
-                capRate: 5.2,
-                rent: 2400,
-                valuation: 1100000,
-                recentSales: 25,
-                trending: 7.5
-            },
+            properties: { name: "San Jose Downtown", id: "san-jose" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.280, 37.810],
-                    [-122.250, 37.810],
-                    [-122.250, 37.795],
-                    [-122.280, 37.795],
-                    [-122.280, 37.810]
+                    [-121.920, 37.355],
+                    [-121.865, 37.355],
+                    [-121.865, 37.315],
+                    [-121.920, 37.315],
+                    [-121.920, 37.355]
                 ]]
             }
         },
         {
             type: "Feature",
-            properties: {
-                name: "Berkeley",
-                capRate: 4.0,
-                rent: 3400,
-                valuation: 2100000,
-                recentSales: 11,
-                trending: 2.8
-            },
+            properties: { name: "Oakland Downtown", id: "oakland" },
             geometry: {
                 type: "Polygon",
                 coordinates: [[
-                    [-122.290, 37.880],
-                    [-122.250, 37.880],
-                    [-122.250, 37.860],
-                    [-122.290, 37.860],
-                    [-122.290, 37.880]
+                    [-122.285, 37.815],
+                    [-122.245, 37.815],
+                    [-122.245, 37.790],
+                    [-122.285, 37.790],
+                    [-122.285, 37.815]
+                ]]
+            }
+        },
+        {
+            type: "Feature",
+            properties: { name: "Berkeley", id: "berkeley" },
+            geometry: {
+                type: "Polygon",
+                coordinates: [[
+                    [-122.295, 37.885],
+                    [-122.245, 37.885],
+                    [-122.245, 37.855],
+                    [-122.295, 37.855],
+                    [-122.295, 37.885]
                 ]]
             }
         }
     ]
 };
 
-// Color scales for different metrics
-const colorScales: Record<ChoroplethMetric, { property: string; stops: [number, string][] }> = {
-    none: { property: '', stops: [] },
-    capRate: {
-        property: 'capRate',
-        stops: [
-            [3.0, '#22c55e'],  // Low cap rate = green (expensive/prime)
-            [4.0, '#84cc16'],
-            [4.5, '#eab308'],
-            [5.0, '#f97316'],
-            [5.5, '#ef4444'],  // High cap rate = red (higher risk/reward)
-        ]
-    },
-    rent: {
-        property: 'rent',
-        stops: [
-            [2400, '#dbeafe'],  // Low rent = light blue
-            [3000, '#93c5fd'],
-            [3600, '#3b82f6'],
-            [4200, '#1d4ed8'],
-            [4800, '#1e3a8a'],  // High rent = dark blue
-        ]
-    },
-    valuation: {
-        property: 'valuation',
-        stops: [
-            [1000000, '#fef3c7'],  // Low valuation = light amber
-            [1500000, '#fcd34d'],
-            [2000000, '#f59e0b'],
-            [2500000, '#d97706'],
-            [3000000, '#92400e'],  // High valuation = dark amber
-        ]
-    },
-    recentSales: {
-        property: 'recentSales',
-        stops: [
-            [3, '#f0fdf4'],   // Few sales = light
-            [8, '#86efac'],
-            [14, '#22c55e'],
-            [20, '#15803d'],
-            [25, '#14532d'],  // Many sales = dark green
-        ]
-    },
-    trending: {
-        property: 'trending',
-        stops: [
-            [-3, '#ef4444'],  // Declining = red
-            [-1, '#fca5a5'],
-            [0, '#f5f5f4'],   // Neutral = gray
-            [3, '#86efac'],
-            [7, '#22c55e'],   // Rising = green
-        ]
+// Heatmap color ramps for different metrics
+const heatmapColors: Record<HeatmapMetric, string[]> = {
+    none: [],
+    neighborhood: [],
+    capRate: ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'], // green to red
+    rent: ['#dbeafe', '#93c5fd', '#3b82f6', '#1d4ed8', '#1e3a8a'], // light to dark blue
+    valuation: ['#fef3c7', '#fcd34d', '#f59e0b', '#d97706', '#92400e'], // light to dark amber
+    recentSales: ['#f0fdf4', '#86efac', '#22c55e', '#15803d', '#14532d'], // light to dark green
+    trending: ['#ef4444', '#fca5a5', '#f5f5f4', '#86efac', '#22c55e'], // red to green
+};
+
+const metricLabels: Record<HeatmapMetric, { label: string; description: string }> = {
+    none: { label: 'None', description: '' },
+    neighborhood: { label: 'Neighborhoods', description: 'Filter by area' },
+    capRate: { label: 'Cap Rate', description: 'Higher intensity = higher cap rate' },
+    rent: { label: 'Avg Rent', description: 'Higher intensity = higher rent' },
+    valuation: { label: 'Valuation', description: 'Higher intensity = higher value' },
+    recentSales: { label: 'Recent Sales', description: 'Higher intensity = more activity' },
+    trending: { label: 'Trending', description: 'Hot spots = appreciation' },
+};
+
+// Helper to parse numeric values from property strings
+const parseNumericValue = (value: string | null | undefined): number => {
+    if (!value) return 0;
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    return parseFloat(cleaned) || 0;
+};
+
+// Generate mock values for properties (in production, this would come from real data)
+const getMockPropertyValue = (property: Property, metric: HeatmapMetric): number => {
+    // Use property id as seed for consistent random values
+    const seed = typeof property.id === 'string' ? property.id.charCodeAt(0) : property.id;
+    const pseudoRandom = (seed * 9301 + 49297) % 233280;
+    const random = pseudoRandom / 233280;
+
+    switch (metric) {
+        case 'capRate':
+            // Try to parse from property, otherwise generate mock
+            const capRate = parseNumericValue(property.capRate);
+            return capRate > 0 ? capRate : 2.5 + random * 4; // 2.5% to 6.5%
+        case 'rent':
+            return 2000 + random * 4000; // $2000 to $6000
+        case 'valuation':
+            const price = parseNumericValue(property.price);
+            return price > 0 ? price / 1000000 : 0.5 + random * 4; // Normalize to millions
+        case 'recentSales':
+            return random * 10; // 0 to 10 weight
+        case 'trending':
+            return -5 + random * 15; // -5% to +10%
+        default:
+            return 1;
     }
 };
 
-const metricLabels: Record<ChoroplethMetric, { label: string; unit: string; format: (v: number) => string }> = {
-    none: { label: 'None', unit: '', format: () => '' },
-    capRate: { label: 'Cap Rate', unit: '%', format: (v) => `${v.toFixed(1)}%` },
-    rent: { label: 'Avg Rent', unit: '/mo', format: (v) => `$${v.toLocaleString()}` },
-    valuation: { label: 'Valuation', unit: '', format: (v) => `$${(v / 1000000).toFixed(1)}M` },
-    recentSales: { label: 'Recent Sales', unit: '', format: (v) => `${v} sales` },
-    trending: { label: 'Trending', unit: '%', format: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%` },
-};
-
-export const PropertyMap = ({ className, properties, selectedId, choroplethMetric = 'none', onMetricChange }: MapProps) => {
+export const PropertyMap = ({ className, properties, selectedId, heatmapMetric = 'none' }: MapProps) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
@@ -378,62 +283,106 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
         map.current.on('load', () => {
             map.current?.resize();
 
-            // Add the choropleth source
+            // Add neighborhood source for choropleth
             map.current?.addSource('neighborhoods', {
                 type: 'geojson',
                 data: mockNeighborhoodData
             });
 
-            // Add choropleth fill layer (initially hidden)
+            // Neighborhood fill layer (for choropleth mode)
             map.current?.addLayer({
                 id: 'neighborhoods-fill',
                 type: 'fill',
                 source: 'neighborhoods',
                 paint: {
-                    'fill-color': '#888888',
+                    'fill-color': '#3b82f6',
                     'fill-opacity': 0
                 }
             });
 
-            // Add outline layer
+            // Neighborhood outline layer
             map.current?.addLayer({
                 id: 'neighborhoods-outline',
                 type: 'line',
                 source: 'neighborhoods',
                 paint: {
-                    'line-color': '#374151',
-                    'line-width': 1,
+                    'line-color': '#1d4ed8',
+                    'line-width': 2,
                     'line-opacity': 0
                 }
             });
 
-            // Add hover highlight layer
+            // Neighborhood labels
             map.current?.addLayer({
-                id: 'neighborhoods-highlight',
-                type: 'line',
+                id: 'neighborhoods-labels',
+                type: 'symbol',
                 source: 'neighborhoods',
-                paint: {
-                    'line-color': '#000000',
-                    'line-width': 2,
-                    'line-opacity': 0
+                layout: {
+                    'text-field': ['get', 'name'],
+                    'text-size': 12,
+                    'text-anchor': 'center',
                 },
-                filter: ['==', 'name', '']
+                paint: {
+                    'text-color': '#1e3a8a',
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 1,
+                    'text-opacity': 0
+                }
             });
 
-            // Hover interactions
+            // Add empty heatmap source (will be populated with property data)
+            map.current?.addSource('properties-heatmap', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            });
+
+            // Heatmap layer
+            map.current?.addLayer({
+                id: 'properties-heatmap-layer',
+                type: 'heatmap',
+                source: 'properties-heatmap',
+                paint: {
+                    // Weight based on property value
+                    'heatmap-weight': ['get', 'weight'],
+                    // Increase intensity as zoom level increases
+                    'heatmap-intensity': [
+                        'interpolate', ['linear'], ['zoom'],
+                        0, 1,
+                        15, 3
+                    ],
+                    // Color ramp
+                    'heatmap-color': [
+                        'interpolate', ['linear'], ['heatmap-density'],
+                        0, 'rgba(0, 0, 255, 0)',
+                        0.1, '#3b82f6',
+                        0.3, '#22c55e',
+                        0.5, '#eab308',
+                        0.7, '#f97316',
+                        1, '#ef4444'
+                    ],
+                    // Radius increases with zoom
+                    'heatmap-radius': [
+                        'interpolate', ['linear'], ['zoom'],
+                        0, 2,
+                        9, 20,
+                        15, 40
+                    ],
+                    // Opacity
+                    'heatmap-opacity': 0
+                }
+            }, 'waterway-label');
+
+            // Hover interactions for neighborhoods
             map.current?.on('mousemove', 'neighborhoods-fill', (e) => {
                 if (e.features && e.features[0]) {
                     const name = e.features[0].properties?.name;
                     setHoveredNeighborhood(name);
-                    map.current?.setFilter('neighborhoods-highlight', ['==', 'name', name]);
-                    map.current?.setPaintProperty('neighborhoods-highlight', 'line-opacity', 1);
                     if (map.current) map.current.getCanvas().style.cursor = 'pointer';
                 }
             });
 
             map.current?.on('mouseleave', 'neighborhoods-fill', () => {
                 setHoveredNeighborhood(null);
-                map.current?.setPaintProperty('neighborhoods-highlight', 'line-opacity', 0);
                 if (map.current) map.current.getCanvas().style.cursor = '';
             });
 
@@ -448,36 +397,70 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
         };
     }, []);
 
-    // Update choropleth layer when metric changes
+    // Update heatmap data when properties or metric changes
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        const metric = choroplethMetric;
+        const isHeatmapMode = heatmapMetric !== 'none' && heatmapMetric !== 'neighborhood';
+        const isNeighborhoodMode = heatmapMetric === 'neighborhood';
 
-        if (metric === 'none') {
-            // Hide choropleth layers
+        // Update heatmap layer
+        if (isHeatmapMode && properties.length > 0) {
+            // Convert properties to GeoJSON with weights
+            const heatmapData: GeoJSON.FeatureCollection = {
+                type: 'FeatureCollection',
+                features: properties.map(property => ({
+                    type: 'Feature' as const,
+                    properties: {
+                        weight: getMockPropertyValue(property, heatmapMetric),
+                        name: property.name
+                    },
+                    geometry: {
+                        type: 'Point' as const,
+                        coordinates: property.coordinates
+                    }
+                }))
+            };
+
+            // Update source data
+            const source = map.current.getSource('properties-heatmap') as mapboxgl.GeoJSONSource;
+            if (source) {
+                source.setData(heatmapData);
+            }
+
+            // Update heatmap colors based on metric
+            const colors = heatmapColors[heatmapMetric];
+            if (colors.length >= 5) {
+                map.current.setPaintProperty('properties-heatmap-layer', 'heatmap-color', [
+                    'interpolate', ['linear'], ['heatmap-density'],
+                    0, 'rgba(0, 0, 0, 0)',
+                    0.2, colors[0],
+                    0.4, colors[1],
+                    0.6, colors[2],
+                    0.8, colors[3],
+                    1, colors[4]
+                ]);
+            }
+
+            // Show heatmap, hide neighborhoods
+            map.current.setPaintProperty('properties-heatmap-layer', 'heatmap-opacity', 0.8);
             map.current.setPaintProperty('neighborhoods-fill', 'fill-opacity', 0);
             map.current.setPaintProperty('neighborhoods-outline', 'line-opacity', 0);
-            return;
+            map.current.setPaintProperty('neighborhoods-labels', 'text-opacity', 0);
+        } else if (isNeighborhoodMode) {
+            // Show neighborhoods, hide heatmap
+            map.current.setPaintProperty('properties-heatmap-layer', 'heatmap-opacity', 0);
+            map.current.setPaintProperty('neighborhoods-fill', 'fill-opacity', 0.15);
+            map.current.setPaintProperty('neighborhoods-outline', 'line-opacity', 0.8);
+            map.current.setPaintProperty('neighborhoods-labels', 'text-opacity', 1);
+        } else {
+            // Hide both
+            map.current.setPaintProperty('properties-heatmap-layer', 'heatmap-opacity', 0);
+            map.current.setPaintProperty('neighborhoods-fill', 'fill-opacity', 0);
+            map.current.setPaintProperty('neighborhoods-outline', 'line-opacity', 0);
+            map.current.setPaintProperty('neighborhoods-labels', 'text-opacity', 0);
         }
-
-        const scale = colorScales[metric];
-        if (!scale || !scale.stops.length) return;
-
-        // Build the color expression
-        const colorExpression: mapboxgl.Expression = [
-            'interpolate',
-            ['linear'],
-            ['get', scale.property],
-            ...scale.stops.flatMap(([value, color]) => [value, color])
-        ];
-
-        // Update the fill layer
-        map.current.setPaintProperty('neighborhoods-fill', 'fill-color', colorExpression);
-        map.current.setPaintProperty('neighborhoods-fill', 'fill-opacity', 0.6);
-        map.current.setPaintProperty('neighborhoods-outline', 'line-opacity', 0.8);
-
-    }, [choroplethMetric, mapLoaded]);
+    }, [heatmapMetric, properties, mapLoaded]);
 
     // Update markers when properties change
     useEffect(() => {
@@ -491,7 +474,11 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
         const previousRoots = [...popupRoots.current];
         popupRoots.current = [];
 
-        properties.forEach((property) => {
+        // Only show markers when not in heatmap mode (or show fewer markers)
+        const showMarkers = heatmapMetric === 'none' || heatmapMetric === 'neighborhood';
+        const markersToShow = showMarkers ? properties : properties.slice(0, 50); // Limit markers in heatmap mode
+
+        markersToShow.forEach((property) => {
             const popupContainer = document.createElement('div');
             const root = createRoot(popupContainer);
             popupRoots.current.push(root);
@@ -513,7 +500,11 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
                 closeButton: false,
             }).setDOMContent(popupContainer);
 
-            const marker = new mapboxgl.Marker({ color: '#0ea5e9' })
+            // Use smaller markers in heatmap mode
+            const marker = new mapboxgl.Marker({
+                color: showMarkers ? '#0ea5e9' : '#ffffff',
+                scale: showMarkers ? 1 : 0.6
+            })
                 .setLngLat(property.coordinates)
                 .setPopup(popup)
                 .addTo(map.current!);
@@ -521,7 +512,6 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
             markers.current[property.id] = marker;
         });
 
-        // Cleanup roots asynchronously
         return () => {
             setTimeout(() => {
                 previousRoots.forEach(root => {
@@ -531,7 +521,7 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
                 });
             }, 0);
         };
-    }, [properties]);
+    }, [properties, heatmapMetric]);
 
     // Handle external selection
     useEffect(() => {
@@ -547,7 +537,6 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
                 essential: true
             });
 
-            // Open the popup
             const popup = marker.getPopup();
             if (popup && !popup.isOpen()) {
                 marker.togglePopup();
@@ -555,77 +544,52 @@ export const PropertyMap = ({ className, properties, selectedId, choroplethMetri
         }
     }, [selectedId, properties]);
 
-    // Get hovered neighborhood data
-    const hoveredData = hoveredNeighborhood
-        ? mockNeighborhoodData.features.find(f => f.properties?.name === hoveredNeighborhood)?.properties
-        : null;
+    const isHeatmapMode = heatmapMetric !== 'none' && heatmapMetric !== 'neighborhood';
 
     return (
         <div className={className} style={{ position: 'relative', width: '100%', height: '100%', minHeight: '400px' }}>
             <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-            {/* Choropleth Legend */}
-            {choroplethMetric !== 'none' && (
-                <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 min-w-[160px]">
-                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        {metricLabels[choroplethMetric].label}
+            {/* Heatmap Legend */}
+            {isHeatmapMode && (
+                <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 min-w-[180px]">
+                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                        {metricLabels[heatmapMetric].label}
                     </div>
-                    <div className="flex items-center gap-1">
-                        {colorScales[choroplethMetric].stops.map(([value, color], i) => (
-                            <div key={i} className="flex-1">
-                                <div
-                                    className="h-3 w-full"
-                                    style={{
-                                        backgroundColor: color,
-                                        borderRadius: i === 0 ? '2px 0 0 2px' : i === colorScales[choroplethMetric].stops.length - 1 ? '0 2px 2px 0' : '0'
-                                    }}
-                                />
-                            </div>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-2">
+                        {metricLabels[heatmapMetric].description}
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                        {heatmapColors[heatmapMetric].map((color, i) => (
+                            <div
+                                key={i}
+                                className="flex-1 h-3"
+                                style={{
+                                    backgroundColor: color,
+                                    borderRadius: i === 0 ? '2px 0 0 2px' : i === heatmapColors[heatmapMetric].length - 1 ? '0 2px 2px 0' : '0'
+                                }}
+                            />
                         ))}
                     </div>
-                    <div className="flex justify-between mt-1">
-                        <span className="text-[10px] text-gray-500">
-                            {metricLabels[choroplethMetric].format(colorScales[choroplethMetric].stops[0][0])}
-                        </span>
-                        <span className="text-[10px] text-gray-500">
-                            {metricLabels[choroplethMetric].format(colorScales[choroplethMetric].stops[colorScales[choroplethMetric].stops.length - 1][0])}
-                        </span>
+                    <div className="flex justify-between mt-1 text-[10px] text-gray-500">
+                        <span>Low</span>
+                        <span>High</span>
                     </div>
                 </div>
             )}
 
-            {/* Hovered Neighborhood Info */}
-            {hoveredData && choroplethMetric !== 'none' && (
-                <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 min-w-[180px]">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        {hoveredData.name}
+            {/* Neighborhood hover info */}
+            {heatmapMetric === 'neighborhood' && hoveredNeighborhood && (
+                <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg px-3 py-2">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {hoveredNeighborhood}
                     </div>
-                    <div className="space-y-1 text-xs">
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Cap Rate</span>
-                            <span className="font-medium text-gray-900 dark:text-gray-100">{hoveredData.capRate}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Avg Rent</span>
-                            <span className="font-medium text-gray-900 dark:text-gray-100">${hoveredData.rent?.toLocaleString()}/mo</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Valuation</span>
-                            <span className="font-medium text-gray-900 dark:text-gray-100">${(hoveredData.valuation / 1000000).toFixed(1)}M</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Recent Sales</span>
-                            <span className="font-medium text-gray-900 dark:text-gray-100">{hoveredData.recentSales}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-gray-500">Trending</span>
-                            <span className={`font-medium ${hoveredData.trending > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {hoveredData.trending > 0 ? '+' : ''}{hoveredData.trending}%
-                            </span>
-                        </div>
-                    </div>
+                    <div className="text-xs text-gray-500">Click to filter</div>
                 </div>
             )}
         </div>
     );
 };
+
+// Export the type with an alias for backwards compatibility
+export type ChoroplethMetric = HeatmapMetric;

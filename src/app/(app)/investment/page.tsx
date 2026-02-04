@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PropertyMap, type Property, type ChoroplethMetric } from "@/components/application/map/property-map";
+import { PropertyMap, type Property, type HeatmapMetric } from "@/components/application/map/property-map";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
@@ -261,14 +261,15 @@ function TrendsView() {
     );
 }
 
-// Choropleth layer options
-const choroplethOptions: { value: ChoroplethMetric; label: string; icon: React.ElementType }[] = [
-    { value: 'none', label: 'None', icon: Layers },
-    { value: 'capRate', label: 'Cap Rate', icon: TrendingUp },
-    { value: 'rent', label: 'Avg Rent', icon: Home },
-    { value: 'valuation', label: 'Valuation', icon: DollarSign },
-    { value: 'recentSales', label: 'Recent Sales', icon: ShoppingCart },
-    { value: 'trending', label: 'Trending', icon: Activity },
+// Heatmap layer options
+const heatmapOptions: { value: HeatmapMetric; label: string; icon: React.ElementType; description?: string }[] = [
+    { value: 'none', label: 'None', icon: Layers, description: 'Show markers only' },
+    { value: 'neighborhood', label: 'Neighborhoods', icon: Map, description: 'Filter by area' },
+    { value: 'capRate', label: 'Cap Rate', icon: TrendingUp, description: 'Heatmap by cap rate' },
+    { value: 'rent', label: 'Avg Rent', icon: Home, description: 'Heatmap by rent levels' },
+    { value: 'valuation', label: 'Valuation', icon: DollarSign, description: 'Heatmap by property value' },
+    { value: 'recentSales', label: 'Recent Sales', icon: ShoppingCart, description: 'Heatmap by sales activity' },
+    { value: 'trending', label: 'Trending', icon: Activity, description: 'Heatmap by appreciation' },
 ];
 
 // ==================== MAP VIEW ====================
@@ -310,7 +311,7 @@ function MapView({
     clearFilters: () => void;
 }) {
     const [mapFilter, setMapFilter] = useState<"all" | "owned" | "shared">("all");
-    const [choroplethMetric, setChoroplethMetric] = useState<ChoroplethMetric>('none');
+    const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('none');
     const [layersOpen, setLayersOpen] = useState(false);
 
     return (
@@ -416,49 +417,54 @@ function MapView({
                     </PopoverContent>
                 </Popover>
 
-                {/* Choropleth Layers Popover */}
+                {/* Heatmap Layers Popover */}
                 <Popover open={layersOpen} onOpenChange={setLayersOpen}>
                     <PopoverTrigger asChild>
                         <Button
-                            variant={choroplethMetric !== 'none' ? 'default' : 'outline'}
+                            variant={heatmapMetric !== 'none' ? 'default' : 'outline'}
                             size="sm"
                             className={cn(
                                 "h-8 gap-1.5",
-                                choroplethMetric !== 'none' && "bg-blue-600 hover:bg-blue-700"
+                                heatmapMetric !== 'none' && "bg-blue-600 hover:bg-blue-700"
                             )}
                         >
                             <Layers className="size-3.5" />
-                            Heatmap
-                            {choroplethMetric !== 'none' && (
+                            Layers
+                            {heatmapMetric !== 'none' && (
                                 <span className="text-[10px] opacity-80">
-                                    ({choroplethOptions.find(o => o.value === choroplethMetric)?.label})
+                                    ({heatmapOptions.find(o => o.value === heatmapMetric)?.label})
                                 </span>
                             )}
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent align="end" className="w-56 p-2">
+                    <PopoverContent align="end" className="w-64 p-2">
                         <div className="space-y-1">
-                            <p className="text-xs font-medium text-gray-500 px-2 py-1">Choropleth Layer</p>
-                            {choroplethOptions.map((option) => {
+                            <p className="text-xs font-medium text-gray-500 px-2 py-1">Map Layers</p>
+                            {heatmapOptions.map((option) => {
                                 const Icon = option.icon;
                                 return (
                                     <button
                                         key={option.value}
                                         onClick={() => {
-                                            setChoroplethMetric(option.value);
+                                            setHeatmapMetric(option.value);
                                             setLayersOpen(false);
                                         }}
                                         className={cn(
-                                            "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors",
-                                            choroplethMetric === option.value
+                                            "w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors text-left",
+                                            heatmapMetric === option.value
                                                 ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                                                 : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                                         )}
                                     >
-                                        <Icon className="size-4" />
-                                        <span>{option.label}</span>
-                                        {choroplethMetric === option.value && (
-                                            <span className="ml-auto text-blue-600 dark:text-blue-400">✓</span>
+                                        <Icon className="size-4 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium">{option.label}</div>
+                                            {option.description && (
+                                                <div className="text-[10px] text-gray-500 dark:text-gray-400">{option.description}</div>
+                                            )}
+                                        </div>
+                                        {heatmapMetric === option.value && (
+                                            <span className="text-blue-600 dark:text-blue-400 flex-shrink-0">✓</span>
                                         )}
                                     </button>
                                 );
@@ -542,7 +548,7 @@ function MapView({
                     <PropertyMap
                         properties={properties}
                         selectedId={selectedId}
-                        choroplethMetric={choroplethMetric}
+                        heatmapMetric={heatmapMetric}
                         className="absolute inset-0"
                     />
                 </div>
