@@ -55,7 +55,6 @@ export async function createMeetLink(params: CreateMeetLinkParams): Promise<stri
             conferenceSolutionKey: {
               type: 'hangoutsMeet',
             },
-            accessType: 'OPEN',
           },
         },
       },
