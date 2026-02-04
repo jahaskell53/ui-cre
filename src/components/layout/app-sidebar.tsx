@@ -3,9 +3,9 @@
 import { forwardRef, useRef, useImperativeHandle } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Newspaper, X, HelpCircle } from "lucide-react";
+import { MessageSquare, Newspaper, X, HelpCircle, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, LocationIcon, CalendarIcon } from "@/app/(app)/network/icons";
+import { HomeIcon, PeopleIcon, ChevronLeftIcon, ChevronRightIcon, CalendarIcon } from "@/app/(app)/network/icons";
 import AccountCard from "@/app/(app)/network/account-card";
 import { UserSearchBar, type UserSearchBarRef } from "@/components/user-search-bar";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
@@ -112,20 +112,20 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           )}
         </Link>
         <Link
-          href="/listings"
+          href="/investment"
           onClick={onMobileClose}
           className={cn(
             "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
             isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
-            isActive("/listings")
+            isActive("/investment")
               ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               : "text-gray-600 dark:text-gray-400"
           )}
-          title={isCollapsed ? "Listings" : undefined}
+          title={isCollapsed ? "Investment" : undefined}
         >
-          <LocationIcon className="w-4 h-4" />
+          <TrendingUp className="w-4 h-4" />
           {!isCollapsed && (
-            <span className={cn("text-sm", isActive("/listings") && "font-medium")}>Listings</span>
+            <span className={cn("text-sm", isActive("/investment") && "font-medium")}>Investment</span>
           )}
         </Link>
         <Link
@@ -287,17 +287,17 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
             <span className={cn("text-sm", isActive("/") && "font-medium")}>Home</span>
           </Link>
           <Link
-            href="/listings"
+            href="/investment"
             onClick={onMobileClose}
             className={cn(
               "flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer px-2 py-1.5",
-              isActive("/listings")
+              isActive("/investment")
                 ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 : "text-gray-600 dark:text-gray-400"
             )}
           >
-            <LocationIcon className="w-4 h-4" />
-            <span className={cn("text-sm", isActive("/listings") && "font-medium")}>Listings</span>
+            <TrendingUp className="w-4 h-4" />
+            <span className={cn("text-sm", isActive("/investment") && "font-medium")}>Investment</span>
           </Link>
           <Link
             href="/network"

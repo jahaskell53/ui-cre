@@ -1,4 +1,4 @@
-import { Calendar, Home, Map, Settings, User, Users, MessageSquare, Bell, Mail } from "lucide-react";
+import { Calendar, Home, TrendingUp, Settings, User, Users, MessageSquare, Bell, Mail } from "lucide-react";
 import type { NavItemType } from "@/components/application/app-navigation/config";
 import { Badge } from "@/components/ui/badge";
 
@@ -9,9 +9,9 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         href: "/",
     },
     {
-        label: "Listings",
-        icon: Map,
-        href: "/listings",
+        label: "Investment",
+        icon: TrendingUp,
+        href: "/investment",
     },
     {
         label: "Events",
