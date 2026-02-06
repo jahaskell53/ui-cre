@@ -29,6 +29,7 @@ import { PropertyMap, type Property, type HeatmapMetric } from "@/components/app
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
+import { IrrProjectionChart } from "@/components/application/irr-projection-chart";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 200;
@@ -242,20 +243,6 @@ function TrendsView() {
                         <span>Jun</span>
                         <span>Dec</span>
                     </div>
-                </div>
-            </div>
-
-            {/* Insight Banner */}
-            <div className="mt-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
-                <div className="size-8 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="size-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Your cap rate is below peers</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                        Properties in your portfolio have an average cap rate of 3.2%, which is 0.8% below market average.
-                        <button className="ml-1 underline">Find out why →</button>
-                    </p>
                 </div>
             </div>
         </div>
@@ -870,6 +857,11 @@ function ValuationView() {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* IRR projection */}
+                <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                    <IrrProjectionChart currentIrr={irr} years={5} height={180} />
                 </div>
             </div>
         </div>
