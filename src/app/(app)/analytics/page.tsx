@@ -950,7 +950,7 @@ function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
 }
 
 // ==================== MAIN PAGE ====================
-export default function InvestmentPage() {
+export default function AnalyticsPage() {
     const [activeView, setActiveView] = useState<ViewType>("map");
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
@@ -1063,7 +1063,7 @@ export default function InvestmentPage() {
         {
             id: "view-tabs",
             target: '[data-tour="view-tabs"]',
-            title: "Investment Views",
+            title: "Analytics Views",
             content: "Switch between different views: Trends for analytics, Map for property locations, Comps for comparisons, Valuation calculator, and Your Properties.",
             position: "bottom",
         },
@@ -1081,7 +1081,7 @@ export default function InvestmentPage() {
             {/* Header */}
             <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Investment</h1>
+                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Analytics</h1>
 
                     {/* View Tabs */}
                     <div data-tour="view-tabs" className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
@@ -1155,7 +1155,7 @@ export default function InvestmentPage() {
                 isOpen={isTourOpen}
                 onClose={() => setIsTourOpen(false)}
                 onComplete={() => {
-                    console.log("Investment tour completed!");
+                    console.log("Analytics tour completed!");
                 }}
             />
         </div>

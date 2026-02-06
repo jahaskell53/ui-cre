@@ -112,20 +112,20 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
           )}
         </Link>
         <Link
-          href="/investment"
+          href="/analytics"
           onClick={onMobileClose}
           className={cn(
             "flex items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer",
             isCollapsed ? "justify-center px-2 py-1.5" : "gap-2 px-2 py-1.5",
-            isActive("/investment")
+            isActive("/analytics")
               ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               : "text-gray-600 dark:text-gray-400"
           )}
-          title={isCollapsed ? "Investment" : undefined}
+          title={isCollapsed ? "Analytics" : undefined}
         >
           <TrendingUp className="w-4 h-4" />
           {!isCollapsed && (
-            <span className={cn("text-sm", isActive("/investment") && "font-medium")}>Investment</span>
+            <span className={cn("text-sm", isActive("/analytics") && "font-medium")}>Analytics</span>
           )}
         </Link>
         <Link
@@ -287,17 +287,17 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
             <span className={cn("text-sm", isActive("/") && "font-medium")}>Home</span>
           </Link>
           <Link
-            href="/investment"
+            href="/analytics"
             onClick={onMobileClose}
             className={cn(
               "flex items-center gap-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer px-2 py-1.5",
-              isActive("/investment")
+              isActive("/analytics")
                 ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 : "text-gray-600 dark:text-gray-400"
             )}
           >
             <TrendingUp className="w-4 h-4" />
-            <span className={cn("text-sm", isActive("/investment") && "font-medium")}>Investment</span>
+            <span className={cn("text-sm", isActive("/analytics") && "font-medium")}>Analytics</span>
           </Link>
           <Link
             href="/network"

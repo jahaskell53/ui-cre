@@ -9,9 +9,9 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         href: "/",
     },
     {
-        label: "Investment",
+        label: "Analytics",
         icon: TrendingUp,
-        href: "/investment",
+        href: "/analytics",
     },
     {
         label: "Events",
