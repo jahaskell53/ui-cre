@@ -559,7 +559,7 @@ function MapView({
 
 // ==================== COMPS VIEW ====================
 function CompsView() {
-    const [compMode, setCompMode] = useState<"avg" | "generic">("avg");
+    const [compMode, setCompMode] = useState<"rent" | "sales">("rent");
     const [selectedProperties, setSelectedProperties] = useState<number[]>([1]);
 
     const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
@@ -571,26 +571,26 @@ function CompsView() {
             <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                     <button
-                        onClick={() => setCompMode("avg")}
+                        onClick={() => setCompMode("rent")}
                         className={cn(
                             "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-                            compMode === "avg"
+                            compMode === "rent"
                                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
                                 : "text-gray-600 dark:text-gray-400"
                         )}
                     >
-                        Comps with Averages
+                        Rent
                     </button>
                     <button
-                        onClick={() => setCompMode("generic")}
+                        onClick={() => setCompMode("sales")}
                         className={cn(
                             "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-                            compMode === "generic"
+                            compMode === "sales"
                                 ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
                                 : "text-gray-600 dark:text-gray-400"
                         )}
                     >
-                        Generic Comps
+                        Sales
                     </button>
                 </div>
                 <p className="text-sm text-gray-500">Select multiple properties for comparison</p>
@@ -685,9 +685,8 @@ function CompsView() {
                                 </tr>
                             ))}
 
-                            {/* Averages rows (only in avg mode) */}
-                            {compMode === "avg" && (
-                                <>
+                            {/* Averages rows (always shown) */}
+                            <>
                                     <tr className="bg-gray-50 dark:bg-gray-700/30">
                                         <td className="p-4" colSpan={2}>
                                             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -739,7 +738,6 @@ function CompsView() {
                                         </td>
                                     </tr>
                                 </>
-                            )}
                         </tbody>
                     </table>
                 </div>
