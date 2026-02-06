@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,8 +11,11 @@ import {
     BarChart3,
     Home,
     Layers,
+    Calculator,
+    Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 // Same shape as analytics page mock; in production fetch by id
 const MOCK_USER_PROPERTIES: { id: number; address: string; capRate: number; image: string | null }[] = [
@@ -25,6 +29,15 @@ export default function PropertyDetailPage() {
     const router = useRouter();
     const id = params.id === undefined ? null : Number(params.id);
     const property = id === null ? null : MOCK_USER_PROPERTIES.find((p) => p.id === id);
+
+    const [capRate, setCapRate] = useState(property?.capRate ?? 4.5);
+    const [rent, setRent] = useState(3000);
+    const [vacancy, setVacancy] = useState(5);
+
+    const units = 11;
+    const annualRent = rent * 12 * units * (1 - vacancy / 100);
+    const estimatedValue = Math.round(annualRent / (capRate / 100));
+    const irr = 12.1;
 
     if (property === undefined || property === null) {
         return (
@@ -171,6 +184,83 @@ export default function PropertyDetailPage() {
                                 <dd className="font-medium text-gray-900 dark:text-gray-100">—</dd>
                             </div>
                         </dl>
+                    </section>
+
+                    {/* Evaluation */}
+                    <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
+                            <Calculator className="size-4" />
+                            Evaluation
+                        </h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-5 text-white">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm text-blue-100">Estimated Value</span>
+                                    <Button size="sm" variant="secondary" className="h-7 text-xs gap-1">
+                                        <Save className="size-3" />
+                                        Save
+                                    </Button>
+                                </div>
+                                <p className="text-3xl font-bold">${estimatedValue.toLocaleString()}</p>
+                                <div className="mt-4 flex items-center gap-4 text-sm">
+                                    <div>
+                                        <span className="text-blue-200">IRR</span>
+                                        <span className="ml-2 font-semibold">{irr}%</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-blue-200">NOI</span>
+                                        <span className="ml-2 font-semibold">${Math.round(annualRent).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-5">
+                                <div>
+                                    <div className="flex justify-between mb-1">
+                                        <Label className="text-sm">Cap Rate</Label>
+                                        <span className="text-sm font-semibold">{capRate}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="10"
+                                        step="0.1"
+                                        value={capRate}
+                                        onChange={(e) => setCapRate(parseFloat(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1">
+                                        <Label className="text-sm">Avg Monthly Rent</Label>
+                                        <span className="text-sm font-semibold">${rent.toLocaleString()}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="1000"
+                                        max="8000"
+                                        step="100"
+                                        value={rent}
+                                        onChange={(e) => setRent(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1">
+                                        <Label className="text-sm">Vacancy Rate</Label>
+                                        <span className="text-sm font-semibold">{vacancy}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="20"
+                                        step="1"
+                                        value={vacancy}
+                                        onChange={(e) => setVacancy(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </section>
                 </div>
             </div>
