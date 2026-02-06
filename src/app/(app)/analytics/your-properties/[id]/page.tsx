@@ -13,9 +13,11 @@ import {
     Layers,
     Calculator,
     Save,
+    TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { IrrProjectionChart } from "@/components/application/irr-projection-chart";
 
 // Same shape as analytics page mock; in production fetch by id
 const MOCK_USER_PROPERTIES: { id: number; address: string; capRate: number; image: string | null }[] = [
@@ -92,6 +94,22 @@ export default function PropertyDetailPage() {
             {/* Hero / Image area */}
             <div className="aspect-[3/1] min-h-[180px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                 <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
+            </div>
+
+            {/* Cap rate vs peers banner */}
+            <div className="px-6">
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+                    <div className="size-8 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
+                        <TrendingUp className="size-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Your cap rate is below peers</p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                            Properties in your portfolio have an average cap rate of 3.2%, which is 0.8% below market average.
+                            <button type="button" className="ml-1 underline">Find out why →</button>
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* Detail sections */}
@@ -260,6 +278,9 @@ export default function PropertyDetailPage() {
                                     />
                                 </div>
                             </div>
+                        </div>
+                        <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
+                            <IrrProjectionChart currentIrr={irr} years={5} height={180} />
                         </div>
                     </section>
                 </div>
