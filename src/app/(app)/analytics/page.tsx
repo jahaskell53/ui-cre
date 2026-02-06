@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { usePageTour } from "@/hooks/use-page-tour";
 import {
     Search,
@@ -889,9 +890,10 @@ function YourPropertiesView() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {mockUserProperties.map((property) => (
-                    <div
+                    <Link
                         key={property.id}
-                        className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                        href={`/analytics/your-properties/${property.id}`}
+                        className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group block"
                     >
                         <div className="aspect-[4/3] bg-gray-100 dark:bg-gray-700 relative">
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -910,7 +912,7 @@ function YourPropertiesView() {
                             </h3>
                             <p className="text-sm text-gray-500 mt-1">Cap Rate</p>
                         </div>
-                    </div>
+                    </Link>
                 ))}
 
                 {/* Add Property Card */}
