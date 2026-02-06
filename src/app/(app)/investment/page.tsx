@@ -310,7 +310,7 @@ function MapView({
     activeFilterCount: number;
     clearFilters: () => void;
 }) {
-    const [mapFilter, setMapFilter] = useState<"all" | "owned" | "shared">("all");
+    const [mapFilter, setMapFilter] = useState<"all" | "owned">("all");
     const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('none');
     const [layersOpen, setLayersOpen] = useState(false);
 
@@ -320,7 +320,7 @@ function MapView({
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-shrink-0 bg-white dark:bg-gray-900">
                 {/* Filter Tabs */}
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                    {(["all", "owned", "shared"] as const).map((filter) => (
+                    {(["all", "owned"] as const).map((filter) => (
                         <button
                             key={filter}
                             onClick={() => setMapFilter(filter)}
