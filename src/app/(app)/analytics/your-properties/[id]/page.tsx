@@ -204,6 +204,101 @@ export default function PropertyDetailPage() {
                         </dl>
                     </section>
 
+                    {/* Rent and Sales Comp */}
+                    <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
+                            <TrendingUp className="size-4" />
+                            Rent and Sales Comp
+                        </h3>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Analysis</h4>
+                        <ul className="space-y-4 text-sm">
+                            <li className="flex items-start gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">i.</span>
+                                <span><strong className="text-gray-900 dark:text-gray-100">Rent (current)</strong> — ${rent.toLocaleString()}/mo</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">ii.</span>
+                                <div className="flex-1">
+                                    <strong className="text-gray-900 dark:text-gray-100">Rent chart</strong>
+                                    <p className="text-gray-500 dark:text-gray-400 mt-0.5">Chart shows information over time.</p>
+                                    <div className="mt-2 h-24 flex items-end justify-between gap-1 px-1">
+                                        {[65, 70, 68, 75, 82, 78, 85, 88, 92, 90, 95, 98].map((h, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex-1 min-w-0 bg-indigo-500 dark:bg-indigo-400 rounded-t"
+                                                style={{ height: `${h}%` }}
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+                                        <span>Jan</span>
+                                        <span>Jun</span>
+                                        <span>Dec</span>
+                                    </div>
+                                </div>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">iii.</span>
+                                <span><strong className="text-gray-900 dark:text-gray-100">Rent velocity</strong> — Presentation TBD.</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">iv.</span>
+                                <div className="flex-1">
+                                    <strong className="text-gray-900 dark:text-gray-100">Sales comps</strong>
+                                    <p className="text-gray-500 dark:text-gray-400 mt-0.5">Cap rate, price/door, price/sq-ft.</p>
+                                    <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Cap rate</dt><dd className="font-medium text-gray-900 dark:text-gray-100">3.2%</dd></div>
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Price/door</dt><dd className="font-medium text-gray-900 dark:text-gray-100">$165k</dd></div>
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Price/sq-ft</dt><dd className="font-medium text-gray-900 dark:text-gray-100">$420</dd></div>
+                                    </dl>
+                                </div>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">v.</span>
+                                <div className="flex-1">
+                                    <strong className="text-gray-900 dark:text-gray-100">Sales comps chart</strong>
+                                    <p className="text-gray-500 dark:text-gray-400 mt-0.5">Chart shows information over time.</p>
+                                    <div className="mt-2 h-24 flex items-end justify-between gap-1 px-1">
+                                        {[72, 68, 75, 71, 78, 74, 80, 76, 82, 79, 85, 88].map((h, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex-1 min-w-0 bg-blue-500 dark:bg-blue-400 rounded-t"
+                                                style={{ height: `${h}%` }}
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+                                        <span>Jan</span>
+                                        <span>Jun</span>
+                                        <span>Dec</span>
+                                    </div>
+                                </div>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">vi.</span>
+                                <div className="flex-1">
+                                    <strong className="text-gray-900 dark:text-gray-100">Sales volume</strong>
+                                    <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Monthly</dt><dd className="font-medium text-gray-900 dark:text-gray-100">$2.4M</dd></div>
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Quarterly</dt><dd className="font-medium text-gray-900 dark:text-gray-100">$7.1M</dd></div>
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Yearly</dt><dd className="font-medium text-gray-900 dark:text-gray-100">$28.2M</dd></div>
+                                    </dl>
+                                </div>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-gray-500 dark:text-gray-400">vii.</span>
+                                <div className="flex-1">
+                                    <strong className="text-gray-900 dark:text-gray-100">Sales velocity</strong>
+                                    <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Monthly</dt><dd className="font-medium text-gray-900 dark:text-gray-100">14</dd></div>
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Quarterly</dt><dd className="font-medium text-gray-900 dark:text-gray-100">42</dd></div>
+                                        <div><dt className="text-gray-500 dark:text-gray-400">Yearly</dt><dd className="font-medium text-gray-900 dark:text-gray-100">168</dd></div>
+                                    </dl>
+                                </div>
+                            </li>
+                        </ul>
+                    </section>
+
                     {/* Evaluation */}
                     <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
