@@ -1,5 +1,6 @@
 To scale **OpenMidmarket** effectively, the architecture must transition from a "Listing-based" mindset to a "Legal Entity" mindset. By anchoring everything to the **Parcel ID (APN)** while allowing for a "Building" layer above it, you'll solve the fragmentation you saw in Redwood City.
 
+This is the next step after getting the property data From Realie and Zillow. This is the normalize step. 
 ---
 
 ## 🏗️ Pipeline Architecture Summary
