@@ -40,7 +40,7 @@ After Part 1 we have two main tables: **county-style records** (Realie) and **li
 Addresses are messy: "297 Oak St" vs "297-301 Oak Street" vs "301 Oak." We run every address through a standardizer (e.g. libpostal) so we can compare them. We also make sure every record has reliable latitude/longitude.
 
 **Step 5: Parcel linking**  
-We attach every record to an official **parcel ID (APN)** and, when possible, a **LightBox ID (LID)** for the building. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have and link them when both sources exist for the same property. 
+We attach every record to an official **parcel ID (APN)** and, when possible (optional), a **LightBox ID (LID)** for the building. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have and link them when both sources exist for the same property. 
 
 Optional: For records that still have no APN or need confirmation, we call the LightBox **Structures / SmartFabric** API by lat/lon or address. LightBox returns the building footprint, its LID, and all associated parcel IDs—so we can fill in missing APNs, record the LID, and group together different parcels under the same building UUID. 
 
