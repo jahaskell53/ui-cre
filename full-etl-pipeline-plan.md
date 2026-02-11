@@ -13,7 +13,7 @@ End-to-end pipeline for OpenMidmarket. Discovers properties via Realie, enriches
 | **Extract** | 3. Zillow Search Scraper | Scrape full listing per URL | `zillow_properties` |
 | **Transform** | 4. Address Normalization | Standardize all addresses (libpostal) + geocode | Standardized addresses on both tables |
 | **Transform** | 5. Parcel Linking | Map standardized address → APN; fallback: spatial join | `parcels` table populated |
-| **Transform** | 6. Entity Resolution | Group APNs into building entities by footprint/owner | `building_entities` + `address_aliases` |
+| **Transform** | 6. Entity Resolution | Group APNs into building entities by building footprint overlap | `building_entities` + `address_aliases` |
 
 **Inputs:** Center point (lat, lon), radius (≤ 2 mi), optional `residential` filter.
 
@@ -183,11 +183,11 @@ Output: every record in both tables has an APN. Populate the `parcels` table.
 
 ### Step 6 — Entity Resolution (Building UUID)
 
-Group multiple APNs that share a single building footprint or common owner into one **Building UUID**.
+Group multiple APNs that share a single building footprint into one **Building UUID**. Owner matching is a separate concern (entity-level, not building-level).
 
-1. **Spatial aggregation** — Use GIS data to find adjacent parcels with the same or overlapping building footprint.
-2. **Owner matching** — Link properties by owner mailing address (from Realie `homeOwnershipInformation`). If tax bills go to the same address, they likely belong to the same entity.
-3. **Assign Building UUID** — Each group of related APNs gets one UUID. All rent history, sales history, and listing data from different "aliases" roll up under this UUID.
+1. **Building footprint overlap (polygon-to-polygon)** — The only reliable signal for multi-parcel buildings. Overlay building footprint polygons (from county GIS) onto parcel polygons. If one building structure physically spans multiple parcels, those parcels get one Building UUID. Adjacent parcels alone do not count — the same owner could own two separate buildings next door to each other. Requires both parcel geometry and building footprint data from county GIS.
+2. **Owner matching (separate concern)** — This does not group parcels into buildings. It links buildings to a common **owner entity**. Use owner mailing address (from Realie `homeOwnershipInformation`) to detect when different LLCs or names are the same operator (e.g. tax bills to the same office). This is an owner-level linkage, not a building-level one.
+3. **Assign Building UUID** — Each group of parcels sharing a building footprint gets one UUID. All rent history, sales history, and listing data from different "aliases" roll up under this UUID.
 
 Output: `building_entities` and `address_aliases` tables populated. Any query for a building returns the aggregated data from all its parcels and address variants.
 
@@ -198,10 +198,10 @@ Output: `building_entities` and `address_aliases` tables populated. Any query fo
 | Edge Case | Symptom | Mitigation |
 |-----------|---------|------------|
 | **Address Aliases** | Zillow shows "301 Gaff," County shows "297 Gaff" | Use County Situs as primary label; store Zillow addresses as aliases linked to the same APN |
-| **Multi-Parcel Assets** | A 50-unit building spans 3 APNs | Spatial aggregation — find adjacent parcels with same owner, link all to one Building UUID |
+| **Multi-Parcel Assets** | A 50-unit building spans 3 APNs | Building footprint overlap — find parcels that share the same physical structure via GIS, assign one Building UUID |
 | **Address Ranges** | Listing is "299 Gaff," legal record is "297-301 Gaff" | Regex range matcher — if a number falls within a known Situs range, auto-match |
-| **The LLC Veil** | Properties owned by "Gaff Street LLC" and "Redwood Partners LLC" | Tax billing match — link by owner mailing address |
-| **Unpermitted Units** | City says 4 units, Zillow shows 6 | Delta flagging — create a `unit_count_discrepancy` flag |
+| **The LLC Veil** | Properties owned by "Gaff Street LLC" and "Redwood Partners LLC" | Tax billing match — link by owner mailing address (owner-level, not building-level) |
+| **Unpermitted Units** | County/assessor says 4 units, Zillow shows 6 | Delta flagging — create a `unit_count_discrepancy` flag. Note: Realie may only provide unit ranges (e.g. "5+ units") rather than exact counts. |
 
 ---
 
@@ -266,7 +266,7 @@ When you query a building, the system pulls sales history from one APN and rent 
 4. **Zillow Search Scraper:** Batch URLs (10–50); run Apify actor; insert/upsert into `zillow_properties` with FK.
 5. **Normalize:** Standardize addresses (libpostal) and verify geocoding on both tables.
 6. **Link:** Map standardized addresses → APNs; fallback to spatial join; populate `parcels`.
-7. **Resolve:** Group APNs by building footprint/owner into `building_entities`; store all address variants in `address_aliases`.
+7. **Resolve:** Group APNs by building footprint overlap into `building_entities`; store all address variants in `address_aliases`. Owner matching is separate (links buildings to owner entities, not parcels to buildings).
 
 ---
 
