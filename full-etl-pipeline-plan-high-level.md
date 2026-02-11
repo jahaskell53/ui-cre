@@ -40,7 +40,7 @@ After Part 1 we have two main tables: **county-style records** (Realie) and **li
 Addresses are messy: “297 Oak St” vs “297-301 Oak Street” vs “301 Oak.” We run every address through a standardizer (e.g. libpostal) so we can compare them. We also make sure every record has reliable latitude/longitude.
 
 **Step 5: Parcel linking**  
-We attach every record to an official **parcel ID (APN)**. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have, link them when both sources exist for the same property, and fill gaps by matching on standardized address. If we still don’t have an APN, we use the property’s coordinates to see which parcel boundary it falls inside (spatial join).
+We attach every record to an official **parcel ID (APN)**. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have and link them when both sources exist for the same property. For records that still have no APN (e.g. Zillow returned null), we look them up in our known address→APN list from Realie: we standardize the record’s address and see if it matches any address we already have a parcel for—same building, different source. If we still don’t get an APN, we use the property’s coordinates to see which parcel boundary it falls inside (spatial join).
 
 **Step 6: Entity resolution (building ID)**  
 A single building can show up as multiple parcels (e.g. one 50-unit building on three parcels) or multiple addresses (e.g. 297 and 301 Oak). We group those into one **Building UUID** by:
