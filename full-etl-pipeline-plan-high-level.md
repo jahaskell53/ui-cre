@@ -40,14 +40,15 @@ After Part 1 we have two main tables: **county-style records** (Realie) and **li
 Addresses are messy: "297 Oak St" vs "297-301 Oak Street" vs "301 Oak." We run every address through a standardizer (e.g. libpostal) so we can compare them. We also make sure every record has reliable latitude/longitude.
 
 **Step 5: Parcel linking**  
-We attach every record to an official **parcel ID (APN)**. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have and link them when both sources exist for the same property. For records that still have no APN (e.g. Zillow returned null), we look them up in our known address→APN list from Realie: we standardize the record's address and see if it matches any address we already have a parcel for—same building, different source. If we still don't get an APN, we use a **spatial join**: take the property's coordinates (lat/lon point) and see which parcel polygon boundary it falls inside (point-in-polygon query).
+We attach every record to an official **parcel ID (APN)** and, when possible, a **LightBox ID (LID)** for the building. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have and link them when both sources exist for the same property. For records that still have no APN or need confirmation, we call the LightBox **Structures / SmartFabric** API by lat/lon or address. LightBox returns the building footprint, its LID, and all associated parcel IDs—so we can fill in missing APNs and record the LID for Step 6.
 
-**Step 6: Entity resolution (building ID)**  
-A single building can show up as multiple parcels (e.g. one 50-unit building on three parcels) or multiple addresses (e.g. 297 and 301 Oak). We group parcels into one **Building UUID** based on:
+**Step 6: Entity resolution**  
+Instead of building our own multi-parcel logic, we treat the **LightBox ID (LID)** as the building's canonical ID. LightBox's property graph has already done the work of linking multiple parcels and addresses to the same physical structure. For our purposes:
 
-- **Building footprint overlap (GIS):** The only reliable signal for multi-parcel buildings. We overlay building footprint polygons (from county GIS via Lightbox) onto parcel polygons. If one building structure physically spans multiple parcels, those parcels are one building. Adjacent parcels alone don't count — the same owner could own two separate buildings next door to each other.
+- Every building in our system corresponds to one LightBox LID (when available), which we store as the `building_id`.
+- All parcels and address aliases that share that LID are, by definition, the same building.
 
-All parcels and address aliases that belong to the same building point to that one Building UUID. When you query a building, you get combined sales history, rent history, and listings from every source and address that resolved to it.
+When you query a building by its building ID, you get combined sales history, rent history, and listings from every source and address that we have linked to that building.
 
 ---
 

@@ -168,28 +168,28 @@ Output: a `standardized_address` value on each record (or in a lookup column) re
 
 ---
 
-### Step 5 — Parcel Linking
+### Step 5 — Parcel Linking (with LightBox)
 
-Map each standardized address to a **Parcel ID (APN)**.
+Map each standardized address to a **Parcel ID (APN)** and, when available, attach a **LightBox ID (LID)** for the building.
 
 1. **Use source parcel IDs** — Realie provides `parcelNumber`; Zillow provides `parcelId` (and sometimes `parcelNumber` in resoFacts). Use whichever is present.
 2. **Cross-match** — When both Realie and Zillow exist for the same property, match their parcel IDs and normalize to one APN.
-3. **Address match (fill gaps)** — For records missing a parcel ID, match on standardized address against known parcel data (e.g. from Realie).
-4. **Spatial join (fallback)** — If still no APN, use the record's lat/lon to find which parcel boundary the coordinates fall into (requires parcel geometry data, e.g. from county GIS).
+3. **LightBox lookup (preferred for gaps/validation)** — For records missing a parcel ID or needing confirmation, query the LightBox **Structures / SmartFabric** API by lat/lon or address. LightBox returns the building footprint, its **LightBox ID (LID)**, and all associated parcel IDs (APNs). Use the returned APNs to fill gaps and record the LID on the record for Step 6.
+4. **Address match (fallback)** — If LightBox cannot resolve a property, match on standardized address against known parcel data (e.g. from Realie) as a last resort.
 
-Output: every record in both tables has an APN. Populate the `parcels` table.
+Output: every record in both tables has an APN when possible, and many records will already be tagged with a LID from LightBox. Populate the `parcels` table accordingly.
 
 ---
 
-### Step 6 — Entity Resolution (Building UUID)
+### Step 6 — Entity Resolution (Building UUID via LightBox)
 
-Group multiple APNs that share a single building footprint into one **Building UUID**. Owner matching is a separate concern (entity-level, not building-level).
+Entity resolution for the physical building is delegated to LightBox. We treat the **LightBox ID (LID)** as the canonical building identifier whenever it's available.
 
-1. **Building footprint overlap (polygon-to-polygon)** — The only reliable signal for multi-parcel buildings. Overlay building footprint polygons (from county GIS) onto parcel polygons. If one building structure physically spans multiple parcels, those parcels get one Building UUID. Adjacent parcels alone do not count — the same owner could own two separate buildings next door to each other. Requires both parcel geometry and building footprint data from county GIS.
-2. **Owner matching (separate concern)** — This does not group parcels into buildings. It links buildings to a common **owner entity**. Use owner mailing address (from Realie `homeOwnershipInformation`) to detect when different LLCs or names are the same operator (e.g. tax bills to the same office). This is an owner-level linkage, not a building-level one.
-3. **Assign Building UUID** — Each group of parcels sharing a building footprint gets one UUID. All rent history, sales history, and listing data from different "aliases" roll up under this UUID.
+1. **Use LID as Building UUID** — Each LightBox LID corresponds to one physical structure that may span multiple parcels and addresses. In our `building_entities` table, `id` can be the LID (or a 1:1 mapping from LID to an internal UUID).
+2. **Link parcels and addresses via LID** — Any parcel or address that LightBox reports as associated with a given LID is part of the same building. We store these links in `parcels` (APN → building_id/LID) and `address_aliases` (standardized address → building_id/LID).
+3. **Assign Building UUID for non-LightBox cases** — Only when LightBox cannot resolve a building do we fall back to our own logic (e.g. heuristic grouping by footprint/owner, if we choose to support that later). For now, we can treat “no LID” as “no building entity” until we have a clear fallback strategy.
 
-Output: `building_entities` and `address_aliases` tables populated. Any query for a building returns the aggregated data from all its parcels and address variants.
+Output: `building_entities` is primarily a projection of LightBox's building graph into our schema, and `address_aliases` / `parcels` simply mirror the relationships LightBox exposes via the LID.
 
 ---
 
@@ -228,26 +228,26 @@ zillow_properties
 
 ```sql
 CREATE TABLE building_entities (
-    id UUID PRIMARY KEY,
+    id TEXT PRIMARY KEY,          -- LightBox LID when available
     master_situs_address TEXT,
     total_units_recorded INT,
-    geometry POLYGON              -- physical footprint
+    geometry POLYGON              -- building footprint from LightBox, if available
 );
 
 CREATE TABLE parcels (
     apn TEXT PRIMARY KEY,
-    building_id UUID REFERENCES building_entities(id),
+    building_id TEXT REFERENCES building_entities(id),  -- usually LightBox LID
     situs_address TEXT
 );
 
 CREATE TABLE address_aliases (
     standardized_address TEXT PRIMARY KEY,
-    building_id UUID REFERENCES building_entities(id),
+    building_id TEXT REFERENCES building_entities(id),  -- usually LightBox LID
     source_type TEXT               -- 'Zillow', 'County', 'MLS'
 );
 ```
 
-When you query a building, the system pulls sales history from one APN and rent history from another address alias because they all point to the same **Building UUID**.
+When you query a building, the system pulls sales history from one APN and rent history from another address alias because they all point to the same **Building UUID** (LightBox LID when present).
 
 ### Indexes
 
