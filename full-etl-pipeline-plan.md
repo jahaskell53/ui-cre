@@ -172,8 +172,10 @@ Output: a `standardized_address` value on each record (or in a lookup column) re
 
 Map each standardized address to a **Parcel ID (APN)**.
 
-1. **Direct match** — Realie already provides `parcelNumber`. For Zillow records, match on standardized address against the Realie parcel data.
-2. **Spatial join (fallback)** — If no APN is found by address, use the record's lat/lon to find which parcel boundary the coordinates fall into (requires parcel geometry data, e.g. from county GIS).
+1. **Use source parcel IDs** — Realie provides `parcelNumber`; Zillow provides `parcelId` (and sometimes `parcelNumber` in resoFacts). Use whichever is present.
+2. **Cross-match** — When both Realie and Zillow exist for the same property, match their parcel IDs and normalize to one APN.
+3. **Address match (fill gaps)** — For records missing a parcel ID, match on standardized address against known parcel data (e.g. from Realie).
+4. **Spatial join (fallback)** — If still no APN, use the record's lat/lon to find which parcel boundary the coordinates fall into (requires parcel geometry data, e.g. from county GIS).
 
 Output: every record in both tables has an APN. Populate the `parcels` table.
 
