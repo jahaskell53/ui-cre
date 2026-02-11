@@ -4,7 +4,7 @@ Pipeline that discovers properties via **Realie Location Search**, stores them i
 
 ---
 
-## 1. Overview
+## 1. Sourcing Overview
 
 | Step | Source | Action | Storage |
 |------|--------|--------|---------|

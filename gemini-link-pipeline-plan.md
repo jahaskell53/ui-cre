@@ -7,7 +7,7 @@ This is the next step after getting the property data From Realie and Zillow. Th
 
 The pipeline follows a **Normalize → Link → Resolve** flow to ensure that messy external data is reconciled into a single source of truth.
 
-1. **Ingestion Layer:** Pulls raw data from Zillow (listings), County Records (Situs/APN), and Ownership feeds.
+1. **Ingestion Layer:** Pulls raw data from Zillow (listings), County Records (Realie), and later, Ownership feeds.
 2. **Standardization Layer:** * **Address Normalization:** Uses a tool like `libpostal` to turn "297 Gaff St" and "297-301 Gaff Street" into a standardized format.
 * **Spatial Pointing:** Geocodes every record to a specific Latitude/Longitude.
 
