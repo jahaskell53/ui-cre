@@ -6,7 +6,7 @@ This document describes the OpenMidmarket property data pipeline in plain langua
 
 ## What the pipeline does
 
-You give it a **location** (latitude, longitude) and a **radius** (up to 2 miles). The pipeline:
+You give it a **location** (latitude, longitude) and a **radius** (up to 2 miles). For the bay area, we will generate a list of minimally overlapping circles that cover the region of interest. The pipeline:
 
 1. **Finds** all properties in that area using county-style data (Realie).
 2. **Enriches** each with listing data from Zillow (prices, beds/baths, photos, etc.).
