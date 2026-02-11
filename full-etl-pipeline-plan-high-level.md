@@ -40,15 +40,9 @@ After Part 1 we have two main tables: **county-style records** (Realie) and **li
 Addresses are messy: "297 Oak St" vs "297-301 Oak Street" vs "301 Oak." We run every address through a standardizer (e.g. libpostal) so we can compare them. We also make sure every record has reliable latitude/longitude.
 
 **Step 5: Parcel linking**  
-We attach every record to an official **parcel ID (APN)** and, when possible, a **LightBox ID (LID)** for the building. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have and link them when both sources exist for the same property. For records that still have no APN or need confirmation, we call the LightBox **Structures / SmartFabric** API by lat/lon or address. LightBox returns the building footprint, its LID, and all associated parcel IDs—so we can fill in missing APNs and record the LID for Step 6.
+We attach every record to an official **parcel ID (APN)** and, when possible, a **LightBox ID (LID)** for the building. Both Realie and Zillow can provide a parcel ID (Realie: parcel number; Zillow: parcelId). We use whichever we have and link them when both sources exist for the same property. 
 
-**Step 6: Entity resolution**  
-Instead of building our own multi-parcel logic, we treat the **LightBox ID (LID)** as the building's canonical ID. LightBox's property graph has already done the work of linking multiple parcels and addresses to the same physical structure. For our purposes:
-
-- Every building in our system corresponds to one LightBox LID (when available), which we store as the `building_id`.
-- All parcels and address aliases that share that LID are, by definition, the same building.
-
-When you query a building by its building ID, you get combined sales history, rent history, and listings from every source and address that we have linked to that building.
+Optional: For records that still have no APN or need confirmation, we call the LightBox **Structures / SmartFabric** API by lat/lon or address. LightBox returns the building footprint, its LID, and all associated parcel IDs—so we can fill in missing APNs, record the LID, and group together different parcels under the same building UUID. 
 
 ---
 
