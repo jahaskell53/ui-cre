@@ -27,7 +27,12 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 
 ## 3. Clean
 
-### 3a. Normalize important fields into schema
+### 3a. Normalize addresses using libpostal
+
+- Run every address from the raw data through **libpostal** to get a standardized form (e.g. consistent street suffix, no extra spaces, normalized abbreviations).
+- Use the normalized address as the canonical address in the schema so "297 Gaff St" and "297 Gaff Street" match and dedupe correctly.
+
+### 3b. Normalize important fields into schema
 
 - From raw JSON, normalize the most important fields into a defined schema.
 - Examples: **Price**, **Price history**, **# of units**, and other key attributes you need for analysis and comps.
@@ -63,6 +68,6 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 
 ```
 BA zip list → [For each zip: Apify Zillow search → Store raw JSON + timestamp]
-            → Clean: normalize key fields (Price, Price history, # units, …) into schema
+            → Clean: normalize addresses (libpostal) + key fields (Price, Price history, # units, …) into schema
             → Weekly: re-scrape with new timestamp → diff vs previous → keep history → trends; comps use newest data
 ```
