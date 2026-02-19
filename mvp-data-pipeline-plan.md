@@ -44,6 +44,14 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 - **Logic:** Use `ST_SetSRID(ST_Point(lng, lat), 4326)` so each record has a proper WGS84 point. (Note: PostGIS `ST_Point` takes longitude first, then latitude.)
 - **Goal:** You can't do neighborhood analysis with raw numbers. With a geometry column, SQL can answer "Which neighborhood is this in?" using spatial queries (e.g. `ST_Within`, `ST_Contains` with neighborhood polygons) instead of hardcoding zip code lists.
 
+### 3d. Field sanitization & casting
+
+Scraped data is notoriously "stringy"; normalize and cast before ingest.
+
+- **Numeric (e.g. price):** Strip symbols (`$`, `,`, `+`) and cast to **INTEGER**. Example: `"$2,450+"` → `2450`.
+- **Relative dates:** Convert values like `"2 days ago"` or `"Yesterday"` into an **ISO-8601** timestamp (using scrape/run timestamp as reference so the value is deterministic).
+- **Boolean flags:** Convert feature text (e.g. "Laundry in building") into searchable **TRUE/FALSE** columns so you can filter and aggregate by feature in SQL.
+
 ---
 
 ## 4. Scrape weekly with new timestamp
@@ -74,6 +82,6 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 
 ```
 BA zip list → [For each zip: Apify Zillow search → Store raw JSON + timestamp]
-            → Clean: normalize addresses (libpostal) + key fields (Price, Price history, # units, …) + lat/lng → PostGIS geometry (ST_SetSRID(ST_Point(lng,lat), 4326)); ingest to Supabase
+            → Clean: normalize addresses (libpostal) + sanitize & cast (price→INT, relative dates→ISO-8601, features→BOOL) + key fields + PostGIS geometry; ingest to Supabase
             → Weekly: re-scrape with new timestamp → diff vs previous → keep history → trends; comps use newest data
 ```
