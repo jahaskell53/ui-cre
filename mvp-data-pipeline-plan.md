@@ -28,24 +28,30 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 
 ## 3. Clean
 
-### 3a. Normalize addresses using libpostal
+### 3a. Unit / property filtering (SFR vs other)
+
+- **Rule:** Filter for **single-family residence (SFR)** so the MVP focuses on the right product type (e.g. houses for rent), and exclude other types (e.g. apartments, townhouses, multi-family).
+- **Implementation:** Use Zillow’s **`statusText`** (and/or equivalent fields) to classify listings. For example, keep only listings where `statusText` indicates a house (e.g. “House for rent”, “Single family for rent”) and drop listings that indicate apartments, condos, or other non-SFR types.
+- Apply this filter **before** normalizing and ingesting so only SFR units are cleaned and stored.
+
+### 3b. Normalize addresses using libpostal
 
 - Run every address from the raw data through **libpostal** to get a standardized form (e.g. consistent street suffix, no extra spaces, normalized abbreviations).
 - Use the normalized address as the canonical address in the schema so "297 Gaff St" and "297 Gaff Street" match and dedupe correctly.
 
-### 3b. Normalize important fields into schema
+### 3c. Normalize important fields into schema
 
 - From raw JSON, normalize the most important fields into a defined schema.
 - Examples: **Price**, **Price history**, **# of units**, and other key attributes you need for analysis and comps.
 - Output: cleaned, typed records (e.g. in a DB or warehouse) keyed in a stable way (e.g. by listing/property ID + zip + timestamp).
 
-### 3c. Spatial geometry conversion (PostGIS)
+### 3d. Spatial geometry conversion (PostGIS)
 
 - **Action:** Convert latitude and longitude into a PostGIS `GEOMETRY` object and store it in Supabase.
 - **Logic:** Use `ST_SetSRID(ST_Point(lng, lat), 4326)` so each record has a proper WGS84 point. (Note: PostGIS `ST_Point` takes longitude first, then latitude.)
 - **Goal:** You can't do neighborhood analysis with raw numbers. With a geometry column, SQL can answer "Which neighborhood is this in?" using spatial queries (e.g. `ST_Within`, `ST_Contains` with neighborhood polygons) instead of hardcoding zip code lists.
 
-### 3d. Field sanitization & casting
+### 3e. Field sanitization & casting
 
 Scraped data is notoriously "stringy"; normalize and cast before ingest.
 
@@ -83,6 +89,6 @@ Scraped data is notoriously "stringy"; normalize and cast before ingest.
 
 ```
 BA zip list → [For each zip: Apify Zillow search → Store raw JSON + timestamp]
-            → Clean: normalize addresses (libpostal) + sanitize & cast (price→INT, relative dates→ISO-8601, features→BOOL) + key fields + PostGIS geometry; ingest to Supabase
+            → Clean: filter for SFR (e.g. statusText “house for rent”) + normalize addresses (libpostal) + sanitize & cast (price→INT, relative dates→ISO-8601, features→BOOL) + key fields + PostGIS geometry; ingest to Supabase
             → Weekly: re-scrape with new timestamp → diff vs previous → keep history → trends; comps use newest data
 ```
