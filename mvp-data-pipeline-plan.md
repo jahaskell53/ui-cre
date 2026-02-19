@@ -8,6 +8,7 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 
 - Build or load the list of zip codes that define the Bay Area.
 - This list is the input for all zip-based Zillow searches.
+- Store in supabase DB so it's changeable/exandable. 
 
 ---
 
