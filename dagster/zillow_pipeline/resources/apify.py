@@ -11,8 +11,14 @@ class ApifyResource(ConfigurableResource):
         client = ApifyClient(self.api_token)
         run = client.actor(self.actor_id).call(
             run_input={
-                "search": zip_code,
-                "searchType": "zipCode",
+                "zipCodes": [zip_code],
+                "daysOnZillow": "",
+                "forRent": True,
+                "forSaleByAgent": False,
+                "forSaleByOwner": False,
+                "sold": False,
+                "priceMin": None,
+                "priceMax": None,
             }
         )
         return list(client.dataset(run["defaultDatasetId"]).iterate_items())
