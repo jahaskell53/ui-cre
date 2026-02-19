@@ -55,9 +55,14 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 
 Scraped data is notoriously "stringy"; normalize and cast before ingest.
 
-- **Numeric (e.g. price):** Strip symbols (`$`, `,`, `+`) and cast to **INTEGER**. Example: `"$2,450+"` → `2450`.
-- **Relative dates:** Convert values like `"2 days ago"` or `"Yesterday"` into an **ISO-8601** timestamp (using scrape/run timestamp as reference so the value is deterministic).
-- **Boolean flags:** Convert feature text (e.g. "Laundry in building") into searchable **TRUE/FALSE** columns so you can filter and aggregate by feature in SQL.
+- **Numeric (e.g. price):** Strip symbols (`$`, `,`, `+`) and cast to **INTEGER**. Example: `"$2,450+"` → `2450`. Apply to top-level `price` / `unformattedPrice` and to `units[].price` if present. Prefer **one canonical price** per row: use `unformattedPrice` or `hdpData.homeInfo.price` when present, else parsed `price` string.
+- **Relative dates:** Convert values like `"2 days ago"` or `"Yesterday"` (e.g. from `listCardRecommendation.flexFieldRecommendations[].displayString` when `contentType` is `timeOnInfo`) into an **ISO-8601** timestamp using scrape/run timestamp as reference.
+- **Boolean flags:** Convert feature text (e.g. "Laundry in building") into searchable **TRUE/FALSE** columns. From the schema, **factsAndFeatures** (hasFireplace, hasAirConditioning, hasSpa, hasPool) are already booleans—store as BOOL; half/full bathroom counts as INTEGER.
+- **beds / baths / area:** Schema allows **beds** as `integer | string`; normalize **beds** to INTEGER (e.g. `"1"` → `1`). **baths** and **area**: cast to numeric (decimal for baths, integer for area); treat empty/missing as NULL.
+- **Dates from API:** Parse **availabilityDate** (e.g. `"2026-08-01 00:00:00"`) to DATE or TIMESTAMP. Convert **hdpData.homeInfo.datePriceChanged** (Unix ms) to TIMESTAMP for “price changed at” and trend analysis.
+- **Stable ID:** **zpid** is string (numeric for single units after SFR filter). Store as a consistent type (e.g. string or bigint) for dedupe and joins.
+- **Canonical location:** Prefer one source for coordinates—e.g. top-level **latLong** for list payload, or **hdpData.homeInfo** when present—so geometry and address don’t diverge. Same for address: normalize one canonical field (e.g. **addressStreet** or **hdpData.homeInfo.streetAddress**) via libpostal.
+- **Null/empty:** Treat empty string and missing key as NULL in the DB so queries don’t mix `''` and NULL.
 
 ---
 
