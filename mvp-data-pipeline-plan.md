@@ -1,6 +1,6 @@
 # MVP Data Pipeline Plan
 
-High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow ingestion, cleaning, and weekly runs with diff/trend handling.
+High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow ingestion, cleaning, and weekly runs with diff/trend handling. Cleaned data is ingested into **Supabase Postgres** with the **PostGIS** extension enabled.
 
 ---
 
@@ -38,6 +38,12 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 - Examples: **Price**, **Price history**, **# of units**, and other key attributes you need for analysis and comps.
 - Output: cleaned, typed records (e.g. in a DB or warehouse) keyed in a stable way (e.g. by listing/property ID + zip + timestamp).
 
+### 3c. Spatial geometry conversion (PostGIS)
+
+- **Action:** Convert latitude and longitude into a PostGIS `GEOMETRY` object and store it in Supabase.
+- **Logic:** Use `ST_SetSRID(ST_Point(lng, lat), 4326)` so each record has a proper WGS84 point. (Note: PostGIS `ST_Point` takes longitude first, then latitude.)
+- **Goal:** You can't do neighborhood analysis with raw numbers. With a geometry column, SQL can answer "Which neighborhood is this in?" using spatial queries (e.g. `ST_Within`, `ST_Contains` with neighborhood polygons) instead of hardcoding zip code lists.
+
 ---
 
 ## 4. Scrape weekly with new timestamp
@@ -68,6 +74,6 @@ High-level plan for the Bay Area (BA) property data pipeline: zip-based Zillow i
 
 ```
 BA zip list → [For each zip: Apify Zillow search → Store raw JSON + timestamp]
-            → Clean: normalize addresses (libpostal) + key fields (Price, Price history, # units, …) into schema
+            → Clean: normalize addresses (libpostal) + key fields (Price, Price history, # units, …) + lat/lng → PostGIS geometry (ST_SetSRID(ST_Point(lng,lat), 4326)); ingest to Supabase
             → Weekly: re-scrape with new timestamp → diff vs previous → keep history → trends; comps use newest data
 ```
