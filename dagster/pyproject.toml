@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zillow-pipeline"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "dagster",
+    "dagster-webserver",
+    "supabase",
+    "apify-client",
+    "python-dotenv",
+]
+
+[tool.dagster]
+module_name = "zillow_pipeline"
