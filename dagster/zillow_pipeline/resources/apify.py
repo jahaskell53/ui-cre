@@ -4,7 +4,7 @@ from apify_client import ApifyClient
 
 class ApifyResource(ConfigurableResource):
     api_token: str
-    # Set APIFY_ACTOR_ID to the actor you want to use, e.g. "maxcopell/zillow-zip-code-search"
+    # Set APIFY_ACTOR_ID to the actor you want to use
     actor_id: str
 
     def run_zillow_search(self, zip_code: str) -> list[dict]:
@@ -17,7 +17,7 @@ class ApifyResource(ConfigurableResource):
                 "forSaleByAgent": False,
                 "forSaleByOwner": False,
                 "sold": False,
-                "priceMin": None,
+                "priceMin": 0,
                 "priceMax": None,
             }
         )
