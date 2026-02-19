@@ -72,20 +72,22 @@ Scraped data is notoriously "stringy"; normalize and cast before ingest.
 - Re-run the zip-based Zillow scrape on a **weekly** schedule.
 - Each run gets a **new timestamp** and is stored like step 2b.
 
-### 4a. Check for diffs
+### 5a. Check for diffs
 
 - Compare new data to the previous run (e.g. by listing/property ID and key fields).
 - Identify what changed: new listings, removed listings, price changes, etc.
 
-### 4b. Keep old info
+
+5. Notes for usage in application. 
+### 5b. Keep old info
 
 - Do **not** overwrite or delete prior runs. Keep historical raw and cleaned data so you have a full history.
 
-### 4c. Use diffs for trends
+### 5c. Use diffs for trends
 
 - Use the diffs (and the time series of cleaned data) to compute **trends** (e.g. price changes over time, new supply, delistings).
 
-### 4d. For comps, ref newest data
+### 5d. For comps, ref newest data
 
 - When running **comps** (comparable sales/listings), always use the **newest** cleaned data (latest timestamp) as the reference so comps reflect current market.
 
