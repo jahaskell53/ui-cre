@@ -9,6 +9,7 @@ requires-python = ">=3.10"
 dependencies = [
     "dagster",
     "dagster-webserver",
+    "dagster-cloud",
     "supabase",
     "apify-client",
     "python-dotenv",
