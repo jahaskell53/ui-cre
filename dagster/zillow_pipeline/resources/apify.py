@@ -17,8 +17,6 @@ class ApifyResource(ConfigurableResource):
                 "forSaleByAgent": False,
                 "forSaleByOwner": False,
                 "sold": False,
-                "priceMin": 0,
-                "priceMax": None,
             }
         )
         return list(client.dataset(run["defaultDatasetId"]).iterate_items())
