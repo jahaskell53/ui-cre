@@ -61,6 +61,7 @@ Scraped data is notoriously "stringy"; normalize and cast before ingest.
 
 ---
 
+
 ## 4. Scrape weekly with new timestamp
 
 - Re-run the zip-based Zillow scrape on a **weekly** schedule.
