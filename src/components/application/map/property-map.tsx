@@ -8,6 +8,8 @@ import { PropertyPopupContent } from './property-popup-content';
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
+export type ListingSource = 'loopnet' | 'zillow';
+
 export interface Property {
     id: string | number;
     name: string;
@@ -19,6 +21,7 @@ export interface Property {
     thumbnailUrl?: string | null;
     capRate?: string | null;
     squareFootage?: string | null;
+    listingSource?: ListingSource | null;
 }
 
 export type HeatmapMetric = 'none' | 'capRate' | 'rent' | 'valuation' | 'recentSales' | 'trending' | 'neighborhood';
@@ -500,9 +503,9 @@ export const PropertyMap = ({ className, properties, selectedId, heatmapMetric =
                 closeButton: false,
             }).setDOMContent(popupContainer);
 
-            // Use smaller markers in heatmap mode
+            const markerColor = property.listingSource === 'zillow' ? '#f97316' : property.listingSource === 'loopnet' ? '#0ea5e9' : (showMarkers ? '#0ea5e9' : '#ffffff');
             const marker = new mapboxgl.Marker({
-                color: showMarkers ? '#0ea5e9' : '#ffffff',
+                color: showMarkers ? markerColor : '#ffffff',
                 scale: showMarkers ? 1 : 0.6
             })
                 .setLngLat(property.coordinates)

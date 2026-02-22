@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 const PAGE_SIZE = 200;
 
 type ViewType = "trends" | "map" | "comps" | "valuation" | "properties";
+type MapListingSource = "all" | "loopnet" | "zillow";
 
 interface Filters {
     priceMin: string;
@@ -279,6 +280,8 @@ function MapView({
     setFiltersOpen,
     activeFilterCount,
     clearFilters,
+    mapListingSource,
+    setMapListingSource,
 }: {
     properties: Property[];
     selectedId: string | number | null;
@@ -297,6 +300,8 @@ function MapView({
     setFiltersOpen: (open: boolean) => void;
     activeFilterCount: number;
     clearFilters: () => void;
+    mapListingSource: MapListingSource;
+    setMapListingSource: (s: MapListingSource) => void;
 }) {
     const [mapFilter, setMapFilter] = useState<"all" | "owned">("all");
     const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('none');
@@ -305,7 +310,25 @@ function MapView({
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
             {/* Map Controls Bar */}
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-shrink-0 bg-white dark:bg-gray-900">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-shrink-0 bg-white dark:bg-gray-900 flex-wrap">
+                {/* Sales vs Rent toggle */}
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                    {(["loopnet", "zillow", "all"] as const).map((source) => (
+                        <button
+                            key={source}
+                            onClick={() => { setMapListingSource(source); setPage(0); }}
+                            className={cn(
+                                "px-3 py-1 text-xs font-medium rounded-md transition-colors capitalize",
+                                mapListingSource === source
+                                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                                    : "text-gray-600 dark:text-gray-400"
+                            )}
+                        >
+                            {source === "all" ? "All" : source === "loopnet" ? "Sales" : "Rent"}
+                        </button>
+                    ))}
+                </div>
+
                 {/* Filter Tabs */}
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                     {(["all", "owned"] as const).map((filter) => (
@@ -953,6 +976,7 @@ export default function AnalyticsPage() {
     const [filters, setFilters] = useState<Filters>(defaultFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [isTourOpen, setIsTourOpen] = useState(false);
+    const [mapListingSource, setMapListingSource] = useState<MapListingSource>("all");
 
     usePageTour(() => setIsTourOpen(true));
 
@@ -969,81 +993,222 @@ export default function AnalyticsPage() {
         setPage(0);
     };
 
-    const fetchProperties = useCallback(async (pageNum: number, search: string, currentFilters: Filters) => {
+    const fetchProperties = useCallback(async (pageNum: number, search: string, currentFilters: Filters, source: MapListingSource) => {
         setLoading(true);
 
-        const from = pageNum * PAGE_SIZE;
-        const to = from + PAGE_SIZE - 1;
+        type RowWithDate = Property & { _createdAt?: string };
+        const mapLoopnet = (item: Record<string, unknown>): RowWithDate => ({
+            id: item.id as string | number,
+            name: (item.headline || item.address || 'Building') as string,
+            address: (item.address || 'Address not listed') as string,
+            location: (item.location as string) ?? undefined,
+            units: item.square_footage ? (Math.floor(parseInt(String(item.square_footage).replace(/[^0-9]/g, '') || '0') / 500) || null) : null,
+            price: (item.price as string) || 'TBD',
+            coordinates: [item.longitude as number, item.latitude as number],
+            thumbnailUrl: (item.thumbnail_url as string | null) ?? undefined,
+            capRate: (item.cap_rate as string | null) ?? undefined,
+            squareFootage: (item.square_footage as string) ?? undefined,
+            listingSource: 'loopnet',
+            _createdAt: (item.created_at as string) ?? '',
+        });
 
-        let query = supabase
-            .from('loopnet_listings')
-            .select('*', { count: 'exact' })
-            .not('latitude', 'is', null)
-            .not('longitude', 'is', null)
-            .order('created_at', { ascending: false });
-
-        if (search) {
-            query = query.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
-        }
-
-        if (currentFilters.priceMin) {
-            const minPrice = parseFloat(currentFilters.priceMin);
-            if (!isNaN(minPrice)) query = query.gte('numeric_price', minPrice);
-        }
-        if (currentFilters.priceMax) {
-            const maxPrice = parseFloat(currentFilters.priceMax);
-            if (!isNaN(maxPrice)) query = query.lte('numeric_price', maxPrice);
-        }
-        if (currentFilters.capRateMin) {
-            const minCapRate = parseFloat(currentFilters.capRateMin);
-            if (!isNaN(minCapRate)) query = query.gte('numeric_cap_rate', minCapRate);
-        }
-        if (currentFilters.capRateMax) {
-            const maxCapRate = parseFloat(currentFilters.capRateMax);
-            if (!isNaN(maxCapRate)) query = query.lte('numeric_cap_rate', maxCapRate);
-        }
-        if (currentFilters.sqftMin) {
-            const minSqft = parseFloat(currentFilters.sqftMin);
-            if (!isNaN(minSqft)) query = query.gte('numeric_square_footage', minSqft);
-        }
-        if (currentFilters.sqftMax) {
-            const maxSqft = parseFloat(currentFilters.sqftMax);
-            if (!isNaN(maxSqft)) query = query.lte('numeric_square_footage', maxSqft);
-        }
-
-        const { data, error, count } = await query.range(from, to);
-
-        if (error) {
-            console.error('Error fetching listings:', error);
+        if (source === 'loopnet') {
+            let loopnetQuery = supabase
+                .from('loopnet_listings')
+                .select('*', { count: 'exact' })
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null)
+                .order('created_at', { ascending: false });
+            if (search) {
+                loopnetQuery = loopnetQuery.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
+            }
+            if (currentFilters.priceMin) {
+                const minPrice = parseFloat(currentFilters.priceMin);
+                if (!isNaN(minPrice)) loopnetQuery = loopnetQuery.gte('numeric_price', minPrice);
+            }
+            if (currentFilters.priceMax) {
+                const maxPrice = parseFloat(currentFilters.priceMax);
+                if (!isNaN(maxPrice)) loopnetQuery = loopnetQuery.lte('numeric_price', maxPrice);
+            }
+            if (currentFilters.capRateMin) {
+                const minCapRate = parseFloat(currentFilters.capRateMin);
+                if (!isNaN(minCapRate)) loopnetQuery = loopnetQuery.gte('numeric_cap_rate', minCapRate);
+            }
+            if (currentFilters.capRateMax) {
+                const maxCapRate = parseFloat(currentFilters.capRateMax);
+                if (!isNaN(maxCapRate)) loopnetQuery = loopnetQuery.lte('numeric_cap_rate', maxCapRate);
+            }
+            if (currentFilters.sqftMin) {
+                const minSqft = parseFloat(currentFilters.sqftMin);
+                if (!isNaN(minSqft)) loopnetQuery = loopnetQuery.gte('numeric_square_footage', minSqft);
+            }
+            if (currentFilters.sqftMax) {
+                const maxSqft = parseFloat(currentFilters.sqftMax);
+                if (!isNaN(maxSqft)) loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
+            }
+            const { data, error, count } = await loopnetQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+            if (error) console.error('Error fetching loopnet listings:', error);
+            const rows = (data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>));
+            setProperties(rows.map(({ _createdAt: _, ...p }) => p));
+            setTotalCount(count ?? 0);
             setLoading(false);
             return;
         }
 
-        const mappedProperties: Property[] = data.map((item) => ({
-            id: item.id,
-            name: item.headline || item.address || 'Building',
-            address: item.address || 'Address not listed',
-            location: item.location,
-            units: item.square_footage ? (Math.floor(parseInt(item.square_footage.replace(/[^0-9]/g, '') || '0') / 500) || null) : null,
-            price: item.price || 'TBD',
-            coordinates: [item.longitude, item.latitude],
-            thumbnailUrl: item.thumbnail_url,
-            capRate: item.cap_rate,
-            squareFootage: item.square_footage
-        }));
+        if (source === 'zillow') {
+            const zillowQuery = supabase
+                .from('raw_zillow_scrapes')
+                .select('id, raw_json, scraped_at')
+                .order('scraped_at', { ascending: false })
+                .limit(100);
+            const zillowRes = await zillowQuery;
+            if (zillowRes.error) console.error('Error fetching zillow scrapes:', zillowRes.error);
+            const zillowRows: RowWithDate[] = [];
+            for (const row of zillowRes.data ?? []) {
+                const r = row as Record<string, unknown>;
+                const raw = r.raw_json;
+                const list = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' && 'listings' in (raw as object) ? (raw as { listings: unknown[] }).listings : []);
+                const items = Array.isArray(list) ? list : [];
+                const scrapedAt = (r.scraped_at as string) ?? '';
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i] as Record<string, unknown>;
+                    const latLong = item?.latLong as { latitude?: number; longitude?: number } | undefined;
+                    if (!latLong?.latitude || !latLong?.longitude) continue;
+                    const addressStr = (item.address ?? [item.addressStreet, item.addressCity, item.addressState, item.addressZipcode].filter(Boolean).join(', ')) as string;
+                    const fullAddress = addressStr?.trim() || 'Address not listed';
+                    const searchLower = search.toLowerCase();
+                    if (search && !fullAddress.toLowerCase().includes(searchLower)) continue;
+                    const priceVal = item.price ?? item.listPrice ?? item.rent;
+                    const priceStr = typeof priceVal === 'number' ? `$${priceVal.toLocaleString()}` : (typeof priceVal === 'string' ? priceVal : 'TBD');
+                    zillowRows.push({
+                        id: `zillow-${r.id}-${item.zpid ?? i}`,
+                        name: (item.buildingName as string) || fullAddress || 'Rental',
+                        address: fullAddress,
+                        location: (item.addressCity as string) ?? undefined,
+                        units: (item.units as number) ?? null,
+                        price: priceStr,
+                        coordinates: [latLong.longitude, latLong.latitude],
+                        thumbnailUrl: (item.imgSrc as string) ?? undefined,
+                        capRate: undefined,
+                        squareFootage: undefined,
+                        listingSource: 'zillow',
+                        _createdAt: scrapedAt,
+                    });
+                }
+            }
+            const sorted = [...zillowRows].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
+            const pageStart = pageNum * PAGE_SIZE;
+            const paged = sorted.slice(pageStart, pageStart + PAGE_SIZE).map(({ _createdAt: _, ...p }) => p);
+            setProperties(paged);
+            setTotalCount(zillowRows.length);
+            setLoading(false);
+            return;
+        }
 
-        setProperties(mappedProperties);
-        if (count !== null) setTotalCount(count);
+        if (source === 'all') {
+            const limit = (pageNum + 1) * PAGE_SIZE;
+            let loopnetQuery = supabase
+                .from('loopnet_listings')
+                .select('*', { count: 'exact' })
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null)
+                .order('created_at', { ascending: false });
+            if (search) {
+                loopnetQuery = loopnetQuery.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
+            }
+            if (currentFilters.priceMin) {
+                const minPrice = parseFloat(currentFilters.priceMin);
+                if (!isNaN(minPrice)) loopnetQuery = loopnetQuery.gte('numeric_price', minPrice);
+            }
+            if (currentFilters.priceMax) {
+                const maxPrice = parseFloat(currentFilters.priceMax);
+                if (!isNaN(maxPrice)) loopnetQuery = loopnetQuery.lte('numeric_price', maxPrice);
+            }
+            if (currentFilters.capRateMin) {
+                const minCapRate = parseFloat(currentFilters.capRateMin);
+                if (!isNaN(minCapRate)) loopnetQuery = loopnetQuery.gte('numeric_cap_rate', minCapRate);
+            }
+            if (currentFilters.capRateMax) {
+                const maxCapRate = parseFloat(currentFilters.capRateMax);
+                if (!isNaN(maxCapRate)) loopnetQuery = loopnetQuery.lte('numeric_cap_rate', maxCapRate);
+            }
+            if (currentFilters.sqftMin) {
+                const minSqft = parseFloat(currentFilters.sqftMin);
+                if (!isNaN(minSqft)) loopnetQuery = loopnetQuery.gte('numeric_square_footage', minSqft);
+            }
+            if (currentFilters.sqftMax) {
+                const maxSqft = parseFloat(currentFilters.sqftMax);
+                if (!isNaN(maxSqft)) loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
+            }
+
+            const zillowQuery = supabase
+                .from('raw_zillow_scrapes')
+                .select('id, raw_json, scraped_at')
+                .order('scraped_at', { ascending: false })
+                .limit(100);
+
+            const [loopnetRes, zillowRes] = await Promise.all([
+                loopnetQuery.range(0, limit - 1),
+                zillowQuery,
+            ]);
+
+            if (loopnetRes.error) console.error('Error fetching loopnet listings:', loopnetRes.error);
+            if (zillowRes.error) console.error('Error fetching zillow scrapes:', zillowRes.error);
+
+            const zillowRows: RowWithDate[] = [];
+            for (const row of zillowRes.data ?? []) {
+                const r = row as Record<string, unknown>;
+                const raw = r.raw_json;
+                const list = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' && 'listings' in (raw as object) ? (raw as { listings: unknown[] }).listings : []);
+                const items = Array.isArray(list) ? list : [];
+                const scrapedAt = (r.scraped_at as string) ?? '';
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i] as Record<string, unknown>;
+                    const latLong = item?.latLong as { latitude?: number; longitude?: number } | undefined;
+                    if (!latLong?.latitude || !latLong?.longitude) continue;
+                    const addressStr = (item.address ?? [item.addressStreet, item.addressCity, item.addressState, item.addressZipcode].filter(Boolean).join(', ')) as string;
+                    const fullAddress = addressStr?.trim() || 'Address not listed';
+                    const searchLower = search.toLowerCase();
+                    if (search && !fullAddress.toLowerCase().includes(searchLower)) continue;
+                    const priceVal = item.price ?? item.listPrice ?? item.rent;
+                    const priceStr = typeof priceVal === 'number' ? `$${priceVal.toLocaleString()}` : (typeof priceVal === 'string' ? priceVal : 'TBD');
+                    zillowRows.push({
+                        id: `zillow-${r.id}-${item.zpid ?? i}`,
+                        name: (item.buildingName as string) || fullAddress || 'Rental',
+                        address: fullAddress,
+                        location: (item.addressCity as string) ?? undefined,
+                        units: (item.units as number) ?? null,
+                        price: priceStr,
+                        coordinates: [latLong.longitude, latLong.latitude],
+                        thumbnailUrl: (item.imgSrc as string) ?? undefined,
+                        capRate: undefined,
+                        squareFootage: undefined,
+                        listingSource: 'zillow',
+                        _createdAt: scrapedAt,
+                    });
+                }
+            }
+
+            const loopnetRows = (loopnetRes.data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>))
+                .sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
+            const zillowSorted = [...zillowRows].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
+            const merged = [...loopnetRows, ...zillowSorted].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
+            const pageStart = pageNum * PAGE_SIZE;
+            const paged = merged.slice(pageStart, pageStart + PAGE_SIZE).map(({ _createdAt: _, ...p }) => p);
+            setProperties(paged);
+            setTotalCount((loopnetRes.count ?? 0) + zillowRows.length);
+        }
+
         setLoading(false);
     }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchProperties(page, searchQuery, filters);
+            fetchProperties(page, searchQuery, filters, mapListingSource);
         }, searchQuery ? 500 : 0);
 
         return () => clearTimeout(timer);
-    }, [page, searchQuery, filters, fetchProperties]);
+    }, [page, searchQuery, filters, mapListingSource, fetchProperties]);
 
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
@@ -1134,6 +1299,8 @@ export default function AnalyticsPage() {
                         setFiltersOpen={setFiltersOpen}
                         activeFilterCount={activeFilterCount}
                         clearFilters={clearFilters}
+                        mapListingSource={mapListingSource}
+                        setMapListingSource={setMapListingSource}
                     />
                 )}
                 {activeView === "comps" && <CompsView />}
