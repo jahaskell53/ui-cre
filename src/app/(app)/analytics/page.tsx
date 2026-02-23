@@ -20,6 +20,7 @@ import {
     Home,
     Activity,
     ShoppingCart,
+    MapPin,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,47 +56,6 @@ const defaultFilters: Filters = {
     sqftMax: "",
 };
 
-// Mock data for comparisons
-const mockCompProperties = [
-    {
-        id: 1,
-        address: "1228 El Camino Real",
-        image: null,
-        estValue: 1650000,
-        capRate: 2.47,
-        bedrooms: 11,
-        bathrooms: 11,
-        units: 11,
-        avgRent: 3000,
-    },
-    {
-        id: 2,
-        address: "550 Blake Ave",
-        image: null,
-        estValue: 2100000,
-        capRate: 3.12,
-        bedrooms: 16,
-        bathrooms: 14,
-        units: 14,
-        avgRent: 3250,
-    },
-    {
-        id: 3,
-        address: "3541 Mission St",
-        image: null,
-        estValue: 980000,
-        capRate: 4.85,
-        bedrooms: 6,
-        bathrooms: 6,
-        units: 6,
-        avgRent: 2800,
-    },
-];
-
-const mockAverages = {
-    pa: { estValue: 1800000, capRate: 3.1, bedrooms: 12, bathrooms: 11, units: 11, avgRent: 3200 },
-    ca: { estValue: 2200000, capRate: 2.8, bedrooms: 14, bathrooms: 12, units: 12, avgRent: 3500 },
-};
 
 // Mock user properties
 const mockUserProperties = [
@@ -581,189 +541,232 @@ function MapView({
 }
 
 // ==================== COMPS VIEW ====================
-function CompsView() {
-    const [compMode, setCompMode] = useState<"rent" | "sales">("rent");
-    const [selectedProperties, setSelectedProperties] = useState<number[]>([1]);
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
-    const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
-    const formatPercent = (value: number) => `${value.toFixed(2)}%`;
+interface CompResult {
+    id: string;
+    address_raw: string | null;
+    address_street: string | null;
+    address_city: string | null;
+    address_state: string | null;
+    address_zip: string | null;
+    price: number | null;
+    beds: number | null;
+    baths: number | null;
+    area: number | null;
+    distance_m: number;
+    composite_score: number;
+}
+
+function CompsView() {
+    const [address, setAddress] = useState("");
+    const [subjectPrice, setSubjectPrice] = useState("");
+    const [subjectBeds, setSubjectBeds] = useState("");
+    const [subjectBaths, setSubjectBaths] = useState("");
+    const [subjectArea, setSubjectArea] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [comps, setComps] = useState<CompResult[] | null>(null);
+    const [subjectLabel, setSubjectLabel] = useState<string | null>(null);
+
+    const hasSubjectAttrs = subjectPrice || subjectBeds || subjectBaths || subjectArea;
+
+    const findComps = async () => {
+        if (!address.trim()) return;
+        setLoading(true);
+        setError(null);
+        setComps(null);
+        try {
+            const geoRes = await fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address.trim())}.json?access_token=${MAPBOX_TOKEN}&limit=1`
+            );
+            const geoData = await geoRes.json();
+            if (!geoData.features?.length) {
+                setError("Address not found. Please try a different address.");
+                setLoading(false);
+                return;
+            }
+            const [lng, lat] = geoData.features[0].center as [number, number];
+            setSubjectLabel(geoData.features[0].place_name as string);
+
+            const { data, error: rpcError } = await supabase.rpc('get_comps', {
+                subject_lng: lng,
+                subject_lat: lat,
+                radius_m: 3218,
+                subject_price: subjectPrice ? parseInt(subjectPrice) : null,
+                subject_beds: subjectBeds ? parseInt(subjectBeds) : null,
+                subject_baths: subjectBaths ? parseFloat(subjectBaths) : null,
+                subject_area: subjectArea ? parseInt(subjectArea) : null,
+                p_limit: 10,
+            });
+
+            if (rpcError) {
+                setError("Failed to find comps: " + rpcError.message);
+            } else {
+                setComps((data ?? []) as CompResult[]);
+            }
+        } catch {
+            setError("Something went wrong. Please try again.");
+        }
+        setLoading(false);
+    };
+
+    const metersToMiles = (m: number) => (m / 1609.34).toFixed(2);
+    const scoreColor = (s: number) =>
+        s >= 0.75 ? "text-green-600 dark:text-green-400" :
+        s >= 0.55 ? "text-yellow-600 dark:text-yellow-400" :
+        "text-red-500 dark:text-red-400";
 
     return (
         <div className="flex-1 p-6 overflow-auto">
-            {/* Mode Toggle */}
-            <div className="flex items-center gap-4 mb-6">
-                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                    <button
-                        onClick={() => setCompMode("rent")}
-                        className={cn(
-                            "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-                            compMode === "rent"
-                                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                                : "text-gray-600 dark:text-gray-400"
-                        )}
-                    >
-                        Rent
-                    </button>
-                    <button
-                        onClick={() => setCompMode("sales")}
-                        className={cn(
-                            "px-4 py-1.5 text-sm font-medium rounded-md transition-colors",
-                            compMode === "sales"
-                                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                                : "text-gray-600 dark:text-gray-400"
-                        )}
-                    >
-                        Sales
-                    </button>
-                </div>
-                <p className="text-sm text-gray-500">Select multiple properties for comparison</p>
-            </div>
+            <div className="max-w-4xl mx-auto space-y-4">
+                {/* Search form */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Find Comparable Rentals</h3>
+                    <div className="space-y-4">
+                        {/* Address */}
+                        <div>
+                            <Label className="text-xs mb-1.5 block">Subject Property Address</Label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                                    <Input
+                                        placeholder="e.g. 1228 El Camino Real, Palo Alto, CA"
+                                        value={address}
+                                        onChange={(e) => setAddress(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && findComps()}
+                                        className="pl-9"
+                                    />
+                                </div>
+                                <Button onClick={findComps} disabled={loading || !address.trim()}>
+                                    {loading ? 'Searching...' : 'Find Comps'}
+                                </Button>
+                            </div>
+                        </div>
 
-            {/* Comparison Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="border-b border-gray-200 dark:border-gray-700">
-                                <th className="text-left p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-48">
-                                    Property
-                                </th>
-                                <th className="text-left p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Image
-                                </th>
-                                <th className="text-right p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Est. Value
-                                </th>
-                                <th className="text-right p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Cap Rate
-                                </th>
-                                <th className="text-right p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Bedrooms
-                                </th>
-                                <th className="text-right p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Bathrooms
-                                </th>
-                                <th className="text-right p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Units
-                                </th>
-                                <th className="text-right p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Avg Rent
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {mockCompProperties.map((prop) => (
-                                <tr
-                                    key={prop.id}
-                                    onClick={() => {
-                                        setSelectedProperties((prev) =>
-                                            prev.includes(prop.id)
-                                                ? prev.filter((id) => id !== prop.id)
-                                                : [...prev, prop.id]
-                                        );
-                                    }}
-                                    className={cn(
-                                        "border-b border-gray-100 dark:border-gray-700/50 cursor-pointer transition-colors",
-                                        selectedProperties.includes(prop.id)
-                                            ? "bg-blue-50 dark:bg-blue-900/20"
-                                            : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                    )}
-                                >
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedProperties.includes(prop.id)}
-                                                onChange={() => {}}
-                                                className="rounded border-gray-300"
-                                            />
-                                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                {prop.address}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="w-16 h-12 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center">
-                                            <Building2 className="size-4 text-gray-400" />
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        {formatCurrency(prop.estValue)}
-                                    </td>
-                                    <td className="p-4 text-right text-sm text-gray-700 dark:text-gray-300">
-                                        {formatPercent(prop.capRate)}
-                                    </td>
-                                    <td className="p-4 text-right text-sm text-gray-700 dark:text-gray-300">
-                                        {prop.bedrooms}
-                                    </td>
-                                    <td className="p-4 text-right text-sm text-gray-700 dark:text-gray-300">
-                                        {prop.bathrooms}
-                                    </td>
-                                    <td className="p-4 text-right text-sm text-gray-700 dark:text-gray-300">
-                                        {prop.units}
-                                    </td>
-                                    <td className="p-4 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
-                                        {formatCurrency(prop.avgRent)}
-                                    </td>
-                                </tr>
-                            ))}
-
-                            {/* Averages rows (always shown) */}
-                            <>
-                                    <tr className="bg-gray-50 dark:bg-gray-700/30">
-                                        <td className="p-4" colSpan={2}>
-                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                                Avg in PA
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right text-sm font-medium text-blue-600 dark:text-blue-400">
-                                            {formatCurrency(mockAverages.pa.estValue)}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-blue-600 dark:text-blue-400">
-                                            {formatPercent(mockAverages.pa.capRate)}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-blue-600 dark:text-blue-400">
-                                            {mockAverages.pa.bedrooms}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-blue-600 dark:text-blue-400">
-                                            {mockAverages.pa.bathrooms}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-blue-600 dark:text-blue-400">
-                                            {mockAverages.pa.units}
-                                        </td>
-                                        <td className="p-4 text-right text-sm font-medium text-blue-600 dark:text-blue-400">
-                                            {formatCurrency(mockAverages.pa.avgRent)}
-                                        </td>
-                                    </tr>
-                                    <tr className="bg-gray-50 dark:bg-gray-700/30">
-                                        <td className="p-4" colSpan={2}>
-                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                                Avg in CA
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-right text-sm font-medium text-purple-600 dark:text-purple-400">
-                                            {formatCurrency(mockAverages.ca.estValue)}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-purple-600 dark:text-purple-400">
-                                            {formatPercent(mockAverages.ca.capRate)}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-purple-600 dark:text-purple-400">
-                                            {mockAverages.ca.bedrooms}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-purple-600 dark:text-purple-400">
-                                            {mockAverages.ca.bathrooms}
-                                        </td>
-                                        <td className="p-4 text-right text-sm text-purple-600 dark:text-purple-400">
-                                            {mockAverages.ca.units}
-                                        </td>
-                                        <td className="p-4 text-right text-sm font-medium text-purple-600 dark:text-purple-400">
-                                            {formatCurrency(mockAverages.ca.avgRent)}
-                                        </td>
-                                    </tr>
-                                </>
-                        </tbody>
-                    </table>
+                        {/* Optional subject attributes */}
+                        <div>
+                            <p className="text-xs text-gray-500 mb-2">
+                                Optional: add subject attributes to score by similarity, not just distance
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div>
+                                    <Label className="text-xs mb-1 block">Rent / mo</Label>
+                                    <Input type="number" placeholder="e.g. 3500" value={subjectPrice}
+                                        onChange={(e) => setSubjectPrice(e.target.value)} className="h-8 text-xs" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs mb-1 block">Beds</Label>
+                                    <Input type="number" placeholder="e.g. 3" value={subjectBeds}
+                                        onChange={(e) => setSubjectBeds(e.target.value)} className="h-8 text-xs" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs mb-1 block">Baths</Label>
+                                    <Input type="number" step="0.5" placeholder="e.g. 2" value={subjectBaths}
+                                        onChange={(e) => setSubjectBaths(e.target.value)} className="h-8 text-xs" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs mb-1 block">Sq Ft</Label>
+                                    <Input type="number" placeholder="e.g. 1200" value={subjectArea}
+                                        onChange={(e) => setSubjectArea(e.target.value)} className="h-8 text-xs" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                {/* Error */}
+                {error && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-600 dark:text-red-400">
+                        {error}
+                    </div>
+                )}
+
+                {/* Results */}
+                {comps !== null && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-start justify-between">
+                            <div>
+                                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                                    {comps.length} comp{comps.length !== 1 ? 's' : ''} found
+                                </h3>
+                                {subjectLabel && (
+                                    <p className="text-xs text-gray-500 mt-0.5 truncate max-w-md">{subjectLabel}</p>
+                                )}
+                            </div>
+                            <span className="text-xs text-gray-400 mt-1">
+                                Ranked by {hasSubjectAttrs ? 'composite score' : 'distance'}
+                            </span>
+                        </div>
+
+                        {comps.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500 text-sm">
+                                No comps found within 2 miles. Try a different address or expand the radius.
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Address</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rent/mo</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beds</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baths</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sq Ft</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Distance</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {comps.map((comp, i) => (
+                                            <tr key={comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                                <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
+                                                <td className="px-4 py-3">
+                                                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
+                                                        {comp.address_street || comp.address_raw || '—'}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                                                        {[comp.address_city, comp.address_state, comp.address_zip].filter(Boolean).join(', ')}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
+                                                    {comp.price ? `$${comp.price.toLocaleString()}` : '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                                                    {comp.beds ?? '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                                                    {comp.baths ? Number(comp.baths).toFixed(1) : '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                                                    {comp.area?.toLocaleString() ?? '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-500 text-xs">
+                                                    {metersToMiles(comp.distance_m)} mi
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <span className={cn("text-sm font-semibold tabular-nums", scoreColor(comp.composite_score))}>
+                                                        {Math.round(comp.composite_score * 100)}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Empty state */}
+                {comps === null && !loading && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+                        <Search className="size-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Enter an address to find comparable rentals</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Searches within 2 miles using the latest scraped data</p>
+                    </div>
+                )}
             </div>
         </div>
     );
