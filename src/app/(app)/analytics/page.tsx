@@ -1012,6 +1012,28 @@ export default function AnalyticsPage() {
             _createdAt: (item.created_at as string) ?? '',
         });
 
+        const mapCleanedListing = (item: Record<string, unknown>): RowWithDate => {
+            const city = (item.address_city as string) || '';
+            const fullAddress = (item.address_raw as string) ||
+                [item.address_street, city, item.address_state, item.address_zip].filter(Boolean).join(', ') ||
+                'Address not listed';
+            const priceVal = item.price as number | null;
+            return {
+                id: `zillow-${item.id as string}`,
+                name: fullAddress,
+                address: fullAddress,
+                location: city || undefined,
+                units: null,
+                price: priceVal ? `$${priceVal.toLocaleString()}` : 'TBD',
+                coordinates: [item.longitude as number, item.latitude as number],
+                thumbnailUrl: undefined,
+                capRate: undefined,
+                squareFootage: item.area ? String(item.area) : undefined,
+                listingSource: 'zillow',
+                _createdAt: (item.scraped_at as string) ?? '',
+            };
+        };
+
         if (source === 'loopnet') {
             let loopnetQuery = supabase
                 .from('loopnet_listings')
@@ -1056,57 +1078,41 @@ export default function AnalyticsPage() {
         }
 
         if (source === 'zillow') {
-            const zillowQuery = supabase
-                .from('raw_zillow_scrapes')
-                .select('id, raw_json, scraped_at')
-                .order('scraped_at', { ascending: false })
-                .limit(100);
-            const zillowRes = await zillowQuery;
-            if (zillowRes.error) console.error('Error fetching zillow scrapes:', zillowRes.error);
-            const zillowRows: RowWithDate[] = [];
-            for (const row of zillowRes.data ?? []) {
-                const r = row as Record<string, unknown>;
-                const raw = r.raw_json;
-                const list = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' && 'listings' in (raw as object) ? (raw as { listings: unknown[] }).listings : []);
-                const items = Array.isArray(list) ? list : [];
-                const scrapedAt = (r.scraped_at as string) ?? '';
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i] as Record<string, unknown>;
-                    const latLong = item?.latLong as { latitude?: number; longitude?: number } | undefined;
-                    if (!latLong?.latitude || !latLong?.longitude) continue;
-                    const addressStr = (item.address ?? [item.addressStreet, item.addressCity, item.addressState, item.addressZipcode].filter(Boolean).join(', ')) as string;
-                    const fullAddress = addressStr?.trim() || 'Address not listed';
-                    const searchLower = search.toLowerCase();
-                    if (search && !fullAddress.toLowerCase().includes(searchLower)) continue;
-                    const priceVal = item.price ?? item.listPrice ?? item.rent;
-                    const priceStr = typeof priceVal === 'number' ? `$${priceVal.toLocaleString()}` : (typeof priceVal === 'string' ? priceVal : 'TBD');
-                    zillowRows.push({
-                        id: `zillow-${r.id}-${item.zpid ?? i}`,
-                        name: (item.buildingName as string) || fullAddress || 'Rental',
-                        address: fullAddress,
-                        location: (item.addressCity as string) ?? undefined,
-                        units: (item.units as number) ?? null,
-                        price: priceStr,
-                        coordinates: [latLong.longitude, latLong.latitude],
-                        thumbnailUrl: (item.imgSrc as string) ?? undefined,
-                        capRate: undefined,
-                        squareFootage: undefined,
-                        listingSource: 'zillow',
-                        _createdAt: scrapedAt,
-                    });
-                }
+            let zillowQuery = supabase
+                .from('cleaned_listings')
+                .select('*', { count: 'exact' })
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null)
+                .order('scraped_at', { ascending: false });
+            if (search) {
+                zillowQuery = zillowQuery.or(`address_raw.ilike.%${search}%,address_street.ilike.%${search}%,address_city.ilike.%${search}%`);
             }
-            const sorted = [...zillowRows].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-            const pageStart = pageNum * PAGE_SIZE;
-            const paged = sorted.slice(pageStart, pageStart + PAGE_SIZE).map(({ _createdAt: _, ...p }) => p);
-            setProperties(paged);
-            setTotalCount(zillowRows.length);
+            if (currentFilters.priceMin) {
+                const minPrice = parseFloat(currentFilters.priceMin);
+                if (!isNaN(minPrice)) zillowQuery = zillowQuery.gte('price', minPrice);
+            }
+            if (currentFilters.priceMax) {
+                const maxPrice = parseFloat(currentFilters.priceMax);
+                if (!isNaN(maxPrice)) zillowQuery = zillowQuery.lte('price', maxPrice);
+            }
+            if (currentFilters.sqftMin) {
+                const minSqft = parseFloat(currentFilters.sqftMin);
+                if (!isNaN(minSqft)) zillowQuery = zillowQuery.gte('area', minSqft);
+            }
+            if (currentFilters.sqftMax) {
+                const maxSqft = parseFloat(currentFilters.sqftMax);
+                if (!isNaN(maxSqft)) zillowQuery = zillowQuery.lte('area', maxSqft);
+            }
+            const { data, error, count } = await zillowQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+            if (error) console.error('Error fetching cleaned listings:', error);
+            const rows = (data ?? []).map((item) => mapCleanedListing(item as Record<string, unknown>));
+            setProperties(rows.map(({ _createdAt: _, ...p }) => p));
+            setTotalCount(count ?? 0);
             setLoading(false);
             return;
         }
 
         if (source === 'all') {
-            const limit = (pageNum + 1) * PAGE_SIZE;
             let loopnetQuery = supabase
                 .from('loopnet_listings')
                 .select('*', { count: 'exact' })
@@ -1141,62 +1147,47 @@ export default function AnalyticsPage() {
                 if (!isNaN(maxSqft)) loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
             }
 
-            const zillowQuery = supabase
-                .from('raw_zillow_scrapes')
-                .select('id, raw_json, scraped_at')
-                .order('scraped_at', { ascending: false })
-                .limit(100);
+            let zillowQuery = supabase
+                .from('cleaned_listings')
+                .select('*', { count: 'exact' })
+                .not('latitude', 'is', null)
+                .not('longitude', 'is', null)
+                .order('scraped_at', { ascending: false });
+            if (search) {
+                zillowQuery = zillowQuery.or(`address_raw.ilike.%${search}%,address_street.ilike.%${search}%,address_city.ilike.%${search}%`);
+            }
+            if (currentFilters.priceMin) {
+                const minPrice = parseFloat(currentFilters.priceMin);
+                if (!isNaN(minPrice)) zillowQuery = zillowQuery.gte('price', minPrice);
+            }
+            if (currentFilters.priceMax) {
+                const maxPrice = parseFloat(currentFilters.priceMax);
+                if (!isNaN(maxPrice)) zillowQuery = zillowQuery.lte('price', maxPrice);
+            }
+            if (currentFilters.sqftMin) {
+                const minSqft = parseFloat(currentFilters.sqftMin);
+                if (!isNaN(minSqft)) zillowQuery = zillowQuery.gte('area', minSqft);
+            }
+            if (currentFilters.sqftMax) {
+                const maxSqft = parseFloat(currentFilters.sqftMax);
+                if (!isNaN(maxSqft)) zillowQuery = zillowQuery.lte('area', maxSqft);
+            }
 
             const [loopnetRes, zillowRes] = await Promise.all([
-                loopnetQuery.range(0, limit - 1),
-                zillowQuery,
+                loopnetQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1),
+                zillowQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1),
             ]);
 
             if (loopnetRes.error) console.error('Error fetching loopnet listings:', loopnetRes.error);
-            if (zillowRes.error) console.error('Error fetching zillow scrapes:', zillowRes.error);
-
-            const zillowRows: RowWithDate[] = [];
-            for (const row of zillowRes.data ?? []) {
-                const r = row as Record<string, unknown>;
-                const raw = r.raw_json;
-                const list = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' && 'listings' in (raw as object) ? (raw as { listings: unknown[] }).listings : []);
-                const items = Array.isArray(list) ? list : [];
-                const scrapedAt = (r.scraped_at as string) ?? '';
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i] as Record<string, unknown>;
-                    const latLong = item?.latLong as { latitude?: number; longitude?: number } | undefined;
-                    if (!latLong?.latitude || !latLong?.longitude) continue;
-                    const addressStr = (item.address ?? [item.addressStreet, item.addressCity, item.addressState, item.addressZipcode].filter(Boolean).join(', ')) as string;
-                    const fullAddress = addressStr?.trim() || 'Address not listed';
-                    const searchLower = search.toLowerCase();
-                    if (search && !fullAddress.toLowerCase().includes(searchLower)) continue;
-                    const priceVal = item.price ?? item.listPrice ?? item.rent;
-                    const priceStr = typeof priceVal === 'number' ? `$${priceVal.toLocaleString()}` : (typeof priceVal === 'string' ? priceVal : 'TBD');
-                    zillowRows.push({
-                        id: `zillow-${r.id}-${item.zpid ?? i}`,
-                        name: (item.buildingName as string) || fullAddress || 'Rental',
-                        address: fullAddress,
-                        location: (item.addressCity as string) ?? undefined,
-                        units: (item.units as number) ?? null,
-                        price: priceStr,
-                        coordinates: [latLong.longitude, latLong.latitude],
-                        thumbnailUrl: (item.imgSrc as string) ?? undefined,
-                        capRate: undefined,
-                        squareFootage: undefined,
-                        listingSource: 'zillow',
-                        _createdAt: scrapedAt,
-                    });
-                }
-            }
+            if (zillowRes.error) console.error('Error fetching cleaned listings:', zillowRes.error);
 
             const loopnetRows = (loopnetRes.data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>))
                 .sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-            const zillowSorted = [...zillowRows].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-            const merged = [...loopnetRows, ...zillowSorted].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-            const pageStart = pageNum * PAGE_SIZE;
-            const paged = merged.slice(pageStart, pageStart + PAGE_SIZE).map(({ _createdAt: _, ...p }) => p);
-            setProperties(paged);
-            setTotalCount((loopnetRes.count ?? 0) + zillowRows.length);
+            const zillowRows = (zillowRes.data ?? []).map((item) => mapCleanedListing(item as Record<string, unknown>))
+                .sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
+            const merged = [...loopnetRows, ...zillowRows].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
+            setProperties(merged.map(({ _createdAt: _, ...p }) => p));
+            setTotalCount((loopnetRes.count ?? 0) + (zillowRes.count ?? 0));
         }
 
         setLoading(false);
