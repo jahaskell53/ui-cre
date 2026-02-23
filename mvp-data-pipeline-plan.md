@@ -90,6 +90,7 @@ Scraped data is notoriously "stringy"; normalize and cast before ingest.
 ### 5d. For comps, ref newest data
 
 - When running **comps** (comparable sales/listings), always use the **newest** cleaned data (latest timestamp) as the reference so comps reflect current market.
+- Comps algorithm (resolve subject by address, build comp pool, score, return top N): see **[Comps plan](comps-plan.md)**.
 
 ---
 
