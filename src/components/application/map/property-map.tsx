@@ -26,12 +26,15 @@ export interface Property {
 
 export type HeatmapMetric = 'none' | 'capRate' | 'rent' | 'valuation' | 'recentSales' | 'trending' | 'neighborhood';
 
+export type MapBounds = { north: number; south: number; east: number; west: number };
+
 interface MapProps {
     className?: string;
     properties: Property[];
     selectedId?: string | number | null;
     heatmapMetric?: HeatmapMetric;
     onMetricChange?: (metric: HeatmapMetric) => void;
+    onBoundsChange?: (bounds: MapBounds) => void;
 }
 
 // Mock neighborhood data for Bay Area (for neighborhood filter/choropleth)
@@ -263,13 +266,16 @@ const getMockPropertyValue = (property: Property, metric: HeatmapMetric): number
     }
 };
 
-export const PropertyMap = ({ className, properties, selectedId, heatmapMetric = 'none' }: MapProps) => {
+export const PropertyMap = ({ className, properties, selectedId, heatmapMetric = 'none', onBoundsChange }: MapProps) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
     const popupRoots = useRef<ReturnType<typeof createRoot>[]>([]);
+    const onBoundsChangeRef = useRef(onBoundsChange);
     const [hoveredNeighborhood, setHoveredNeighborhood] = useState<string | null>(null);
     const [mapLoaded, setMapLoaded] = useState(false);
+
+    useEffect(() => { onBoundsChangeRef.current = onBoundsChange; });
 
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
@@ -283,8 +289,22 @@ export const PropertyMap = ({ className, properties, selectedId, heatmapMetric =
 
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+        const reportBounds = () => {
+            if (!map.current) return;
+            const b = map.current.getBounds()!;
+            onBoundsChangeRef.current?.({
+                north: b.getNorth(),
+                south: b.getSouth(),
+                east: b.getEast(),
+                west: b.getWest(),
+            });
+        };
+
+        map.current.on('moveend', reportBounds);
+
         map.current.on('load', () => {
             map.current?.resize();
+            reportBounds();
 
             // Add neighborhood source for choropleth
             map.current?.addSource('neighborhoods', {

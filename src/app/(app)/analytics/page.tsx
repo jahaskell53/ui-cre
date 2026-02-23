@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePageTour } from "@/hooks/use-page-tour";
 import {
@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PropertyMap, type Property, type HeatmapMetric } from "@/components/application/map/property-map";
+import { PropertyMap, type Property, type HeatmapMetric, type MapBounds } from "@/components/application/map/property-map";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
@@ -282,6 +282,7 @@ function MapView({
     clearFilters,
     mapListingSource,
     setMapListingSource,
+    setMapBounds,
 }: {
     properties: Property[];
     selectedId: string | number | null;
@@ -302,10 +303,20 @@ function MapView({
     clearFilters: () => void;
     mapListingSource: MapListingSource;
     setMapListingSource: (s: MapListingSource) => void;
+    setMapBounds: (bounds: MapBounds) => void;
 }) {
     const [mapFilter, setMapFilter] = useState<"all" | "owned">("all");
     const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('none');
     const [layersOpen, setLayersOpen] = useState(false);
+    const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleBoundsChange = useCallback((bounds: MapBounds) => {
+        if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
+        boundsTimerRef.current = setTimeout(() => {
+            setPage(0);
+            setMapBounds(bounds);
+        }, 300);
+    }, [setMapBounds, setPage]);
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -561,6 +572,7 @@ function MapView({
                         selectedId={selectedId}
                         heatmapMetric={heatmapMetric}
                         className="absolute inset-0"
+                        onBoundsChange={handleBoundsChange}
                     />
                 </div>
             </div>
@@ -993,7 +1005,7 @@ export default function AnalyticsPage() {
         setPage(0);
     };
 
-    const fetchProperties = useCallback(async (pageNum: number, search: string, currentFilters: Filters, source: MapListingSource) => {
+    const fetchProperties = useCallback(async (pageNum: number, search: string, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null) => {
         setLoading(true);
 
         type RowWithDate = Property & { _createdAt?: string };
@@ -1068,6 +1080,11 @@ export default function AnalyticsPage() {
                 const maxSqft = parseFloat(currentFilters.sqftMax);
                 if (!isNaN(maxSqft)) loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
             }
+            if (bounds) {
+                loopnetQuery = loopnetQuery
+                    .gte('latitude', bounds.south).lte('latitude', bounds.north)
+                    .gte('longitude', bounds.west).lte('longitude', bounds.east);
+            }
             const { data, error, count } = await loopnetQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
             if (error) console.error('Error fetching loopnet listings:', error);
             const rows = (data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>));
@@ -1102,6 +1119,11 @@ export default function AnalyticsPage() {
             if (currentFilters.sqftMax) {
                 const maxSqft = parseFloat(currentFilters.sqftMax);
                 if (!isNaN(maxSqft)) zillowQuery = zillowQuery.lte('area', maxSqft);
+            }
+            if (bounds) {
+                zillowQuery = zillowQuery
+                    .gte('latitude', bounds.south).lte('latitude', bounds.north)
+                    .gte('longitude', bounds.west).lte('longitude', bounds.east);
             }
             const { data, error, count } = await zillowQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
             if (error) console.error('Error fetching cleaned listings:', error);
@@ -1146,6 +1168,11 @@ export default function AnalyticsPage() {
                 const maxSqft = parseFloat(currentFilters.sqftMax);
                 if (!isNaN(maxSqft)) loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
             }
+            if (bounds) {
+                loopnetQuery = loopnetQuery
+                    .gte('latitude', bounds.south).lte('latitude', bounds.north)
+                    .gte('longitude', bounds.west).lte('longitude', bounds.east);
+            }
 
             let zillowQuery = supabase
                 .from('cleaned_listings')
@@ -1172,6 +1199,11 @@ export default function AnalyticsPage() {
                 const maxSqft = parseFloat(currentFilters.sqftMax);
                 if (!isNaN(maxSqft)) zillowQuery = zillowQuery.lte('area', maxSqft);
             }
+            if (bounds) {
+                zillowQuery = zillowQuery
+                    .gte('latitude', bounds.south).lte('latitude', bounds.north)
+                    .gte('longitude', bounds.west).lte('longitude', bounds.east);
+            }
 
             const [loopnetRes, zillowRes] = await Promise.all([
                 loopnetQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1),
@@ -1193,13 +1225,16 @@ export default function AnalyticsPage() {
         setLoading(false);
     }, []);
 
+    const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+
     useEffect(() => {
+        if (!mapBounds) return;
         const timer = setTimeout(() => {
-            fetchProperties(page, searchQuery, filters, mapListingSource);
+            fetchProperties(page, searchQuery, filters, mapListingSource, mapBounds);
         }, searchQuery ? 500 : 0);
 
         return () => clearTimeout(timer);
-    }, [page, searchQuery, filters, mapListingSource, fetchProperties]);
+    }, [page, searchQuery, filters, mapListingSource, mapBounds, fetchProperties]);
 
     const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
@@ -1292,6 +1327,7 @@ export default function AnalyticsPage() {
                         clearFilters={clearFilters}
                         mapListingSource={mapListingSource}
                         setMapListingSource={setMapListingSource}
+                        setMapBounds={setMapBounds}
                     />
                 )}
                 {activeView === "comps" && <CompsView />}
