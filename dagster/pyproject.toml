@@ -13,7 +13,6 @@ dependencies = [
     "supabase",
     "apify-client",
     "python-dotenv",
+    "postal",
 ]
 
-[tool.dagster]
-module_name = "zillow_pipeline"

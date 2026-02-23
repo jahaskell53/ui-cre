@@ -1,6 +1,6 @@
 locations:
   - location_name: zillow_pipeline
     code_from:
-      package_name: zillow_pipeline
+      python_module: zillow_pipeline
     build:
       directory: .

@@ -1,15 +1,15 @@
 from dagster import Definitions, EnvVar, load_assets_from_modules
 
-from zillow_pipeline.assets import zip_codes, zillow_scrape
+from zillow_pipeline.assets import cleaned_listings, zip_codes, zillow_scrape
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
-from zillow_pipeline.schedules import weekly_scrape_schedule, zillow_scrape_job
+from zillow_pipeline.schedules import weekly_scrape_schedule, zillow_cleaning_job, zillow_scrape_job
 
-all_assets = load_assets_from_modules([zip_codes, zillow_scrape])
+all_assets = load_assets_from_modules([zip_codes, zillow_scrape, cleaned_listings])
 
 defs = Definitions(
     assets=all_assets,
-    jobs=[zillow_scrape_job],
+    jobs=[zillow_scrape_job, zillow_cleaning_job],
     schedules=[weekly_scrape_schedule],
     resources={
         "supabase": SupabaseResource(
