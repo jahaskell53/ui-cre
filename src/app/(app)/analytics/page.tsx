@@ -483,7 +483,7 @@ function MapView({
                                         selectedId === property.id && "bg-gray-50 dark:bg-gray-800"
                                     )}
                                 >
-                                    <div className="flex gap-3">
+                                    <Link href={`/analytics/listing/${property.id}`} className="flex gap-3 group" onClick={(e) => e.stopPropagation()}>
                                         <div className="w-16 h-12 bg-gray-100 dark:bg-gray-800 rounded flex-shrink-0 overflow-hidden">
                                             {property.thumbnailUrl ? (
                                                 <img src={property.thumbnailUrl} alt="" className="w-full h-full object-cover" />
@@ -494,7 +494,7 @@ function MapView({
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                                            <h4 className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                                 {property.name}
                                             </h4>
                                             <p className="text-[10px] text-gray-500 truncate">{property.address}</p>
@@ -507,7 +507,7 @@ function MapView({
                                                 )}
                                             </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 </div>
                             ))
                         )}
@@ -723,12 +723,14 @@ function CompsView() {
                                             <tr key={comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                 <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
                                                 <td className="px-4 py-3">
-                                                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
-                                                        {comp.address_street || comp.address_raw || '—'}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                                                        {[comp.address_city, comp.address_state, comp.address_zip].filter(Boolean).join(', ')}
-                                                    </div>
+                                                    <Link href={`/analytics/listing/zillow-${comp.id}`} className="group">
+                                                        <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                            {comp.address_street || comp.address_raw || '—'}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                                                            {[comp.address_city, comp.address_state, comp.address_zip].filter(Boolean).join(', ')}
+                                                        </div>
+                                                    </Link>
                                                 </td>
                                                 <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
                                                     {comp.price ? `$${comp.price.toLocaleString()}` : '—'}
