@@ -780,7 +780,8 @@ function CompsView() {
                 {comps !== null && comps.length > 0 && (() => {
                     const topComp = comps[0];
                     const pricePerSqft = topComp.price && topComp.area ? topComp.price / topComp.area : null;
-                    const estRent = pricePerSqft && subjectArea ? Math.round(pricePerSqft * parseInt(subjectArea)) : null;
+                    const rawRent = pricePerSqft && subjectArea ? pricePerSqft * parseInt(subjectArea) : null;
+                    const estRent = rawRent ? (() => { const m = Math.pow(10, Math.floor(Math.log10(rawRent)) - 1); return Math.round(rawRent / m) * m; })() : null;
                     return pricePerSqft ? (
                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
                             <div>
