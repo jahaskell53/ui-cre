@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -50,28 +51,54 @@ interface MapboxFeature {
     center: [number, number];
 }
 
-export default function CompsPage() {
-    const [address, setAddress] = useState("");
-    const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(null);
+interface SearchParams {
+    addr: string;
+    coords: [number, number] | null;
+    radius: number;
+    price: string;
+    beds: string;
+    baths: string;
+    area: string;
+}
+
+function CompsContent() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    // Read initial values from URL
+    const initAddress = searchParams.get('address') ?? '';
+    const initLat = searchParams.get('lat');
+    const initLng = searchParams.get('lng');
+    const initCoords: [number, number] | null =
+        initLat && initLng ? [parseFloat(initLng), parseFloat(initLat)] : null;
+    const initRadius = parseFloat(searchParams.get('radius') ?? '2');
+    const initPrice = searchParams.get('price') ?? '';
+    const initBeds = searchParams.get('beds') ?? '';
+    const initBaths = searchParams.get('baths') ?? '';
+    const initArea = searchParams.get('area') ?? '';
+
+    const [address, setAddress] = useState(initAddress);
+    const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(initCoords);
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [radiusMiles, setRadiusMiles] = useState(2);
-    const [subjectPrice, setSubjectPrice] = useState("");
-    const [subjectBeds, setSubjectBeds] = useState("");
-    const [subjectBaths, setSubjectBaths] = useState("");
-    const [subjectArea, setSubjectArea] = useState("");
+    const [radiusMiles, setRadiusMiles] = useState(initRadius);
+    const [subjectPrice, setSubjectPrice] = useState(initPrice);
+    const [subjectBeds, setSubjectBeds] = useState(initBeds);
+    const [subjectBaths, setSubjectBaths] = useState(initBaths);
+    const [subjectArea, setSubjectArea] = useState(initArea);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
     const [compsPage, setCompsPage] = useState(1);
     const [sortCol, setSortCol] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-    const [subjectLabel, setSubjectLabel] = useState<string | null>(null);
+    const [subjectLabel, setSubjectLabel] = useState<string | null>(initAddress || null);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
     const miniMapContainerRef = useRef<HTMLDivElement>(null);
     const miniMapInstance = useRef<mapboxgl.Map | null>(null);
+    const didAutoSearch = useRef(false);
 
     useEffect(() => {
         navigator.geolocation?.getCurrentPosition(
@@ -79,6 +106,92 @@ export default function CompsPage() {
             () => {}
         );
     }, []);
+
+    // Persist search params to URL without adding a history entry
+    const pushToUrl = useCallback((p: SearchParams) => {
+        const url = new URLSearchParams();
+        if (p.addr) url.set('address', p.addr);
+        if (p.coords) {
+            url.set('lng', String(p.coords[0]));
+            url.set('lat', String(p.coords[1]));
+        }
+        url.set('radius', String(p.radius));
+        if (p.price) url.set('price', p.price);
+        if (p.beds) url.set('beds', p.beds);
+        if (p.baths) url.set('baths', p.baths);
+        if (p.area) url.set('area', p.area);
+        router.replace(`/analytics/comps?${url.toString()}`, { scroll: false });
+    }, [router]);
+
+    const runSearch = useCallback(async (p: SearchParams) => {
+        if (!p.addr.trim()) return;
+        setLoading(true);
+        setError(null);
+        setComps(null);
+        try {
+            let lng: number, lat: number;
+            if (p.coords) {
+                [lng, lat] = p.coords;
+            } else {
+                const geoRes = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(p.addr.trim())}.json?access_token=${MAPBOX_TOKEN}&limit=1`
+                );
+                const geoData = await geoRes.json();
+                if (!geoData.features?.length) {
+                    setError("Address not found. Please try a different address.");
+                    setLoading(false);
+                    return;
+                }
+                [lng, lat] = geoData.features[0].center as [number, number];
+                const label = geoData.features[0].place_name as string;
+                setSubjectLabel(label);
+                setSelectedCoords([lng, lat]);
+            }
+
+            const { data, error: rpcError } = await supabase.rpc('get_comps', {
+                subject_lng: lng,
+                subject_lat: lat,
+                radius_m: p.radius * 1609.34,
+                subject_price: p.price ? parseInt(p.price) : null,
+                subject_beds: p.beds ? parseInt(p.beds) : null,
+                subject_baths: p.baths ? parseFloat(p.baths) : null,
+                subject_area: p.area ? parseInt(p.area) : null,
+                p_limit: 500,
+            });
+
+            if (rpcError) {
+                setError("Failed to find comps: " + rpcError.message);
+            } else {
+                setComps((data ?? []) as CompResult[]);
+                setCompsPage(1);
+            }
+        } catch {
+            setError("Something went wrong. Please try again.");
+        }
+        setLoading(false);
+    }, []);
+
+    // Auto-run search on mount if URL has saved params
+    useEffect(() => {
+        if (didAutoSearch.current || !initAddress) return;
+        didAutoSearch.current = true;
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const findComps = () => {
+        const p: SearchParams = {
+            addr: address,
+            coords: selectedCoords,
+            radius: radiusMiles,
+            price: subjectPrice,
+            beds: subjectBeds,
+            baths: subjectBaths,
+            area: subjectArea,
+        };
+        pushToUrl(p);
+        runSearch(p);
+    };
 
     const hasSubjectAttrs = subjectPrice || subjectBeds || subjectBaths || subjectArea;
 
@@ -131,12 +244,12 @@ export default function CompsPage() {
         });
 
         map.on('load', () => {
-            new mapboxgl.Marker({ color: '#3b82f6' }).setLngLat(selectedCoords).addTo(map);
-            map.addSource('radius', { type: 'geojson', data: makeCircle(selectedCoords, radiusMiles * 1609.34) });
+            new mapboxgl.Marker({ color: '#3b82f6' }).setLngLat(selectedCoords!).addTo(map);
+            map.addSource('radius', { type: 'geojson', data: makeCircle(selectedCoords!, radiusMiles * 1609.34) });
             map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius', paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.12 } });
             map.addLayer({ id: 'radius-outline', type: 'line', source: 'radius', paint: { 'line-color': '#3b82f6', 'line-width': 1.5, 'line-opacity': 0.6 } });
             const r = radiusMiles * 1609.34 / 111320;
-            const lng = selectedCoords[0], lat = selectedCoords[1];
+            const lng = selectedCoords![0], lat = selectedCoords![1];
             map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24, duration: 0 });
         });
 
@@ -163,52 +276,6 @@ export default function CompsPage() {
         setSubjectLabel(feature.place_name);
         setSuggestions([]);
         setShowSuggestions(false);
-    };
-
-    const findComps = async () => {
-        if (!address.trim()) return;
-        setLoading(true);
-        setError(null);
-        setComps(null);
-        try {
-            let lng: number, lat: number;
-            if (selectedCoords) {
-                [lng, lat] = selectedCoords;
-            } else {
-                const geoRes = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address.trim())}.json?access_token=${MAPBOX_TOKEN}&limit=1`
-                );
-                const geoData = await geoRes.json();
-                if (!geoData.features?.length) {
-                    setError("Address not found. Please try a different address.");
-                    setLoading(false);
-                    return;
-                }
-                [lng, lat] = geoData.features[0].center as [number, number];
-                setSubjectLabel(geoData.features[0].place_name as string);
-            }
-
-            const { data, error: rpcError } = await supabase.rpc('get_comps', {
-                subject_lng: lng,
-                subject_lat: lat,
-                radius_m: radiusMiles * 1609.34,
-                subject_price: subjectPrice ? parseInt(subjectPrice) : null,
-                subject_beds: subjectBeds ? parseInt(subjectBeds) : null,
-                subject_baths: subjectBaths ? parseFloat(subjectBaths) : null,
-                subject_area: subjectArea ? parseInt(subjectArea) : null,
-                p_limit: 500,
-            });
-
-            if (rpcError) {
-                setError("Failed to find comps: " + rpcError.message);
-            } else {
-                setComps((data ?? []) as CompResult[]);
-                setCompsPage(1);
-            }
-        } catch {
-            setError("Something went wrong. Please try again.");
-        }
-        setLoading(false);
     };
 
     const rentEstimate = useMemo(() => {
@@ -387,8 +454,16 @@ export default function CompsPage() {
                     </div>
                 )}
 
+                {/* Loading state */}
+                {loading && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+                        <div className="size-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Searching for comps...</p>
+                    </div>
+                )}
+
                 {/* Rent estimate banner */}
-                {comps !== null && comps.length > 0 && (
+                {!loading && comps !== null && comps.length > 0 && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
                         <div>
                             <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">Estimated Rent</p>
@@ -413,7 +488,7 @@ export default function CompsPage() {
                 )}
 
                 {/* Results table */}
-                {comps !== null && (
+                {!loading && comps !== null && (
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-start justify-between">
                             <div>
@@ -431,7 +506,7 @@ export default function CompsPage() {
 
                         {comps.length === 0 ? (
                             <div className="p-8 text-center text-gray-500 text-sm">
-                                No comps found within 2 miles. Try a different address or expand the radius.
+                                No comps found within {radiusMiles} miles. Try a different address or expand the radius.
                             </div>
                         ) : (
                             <div className="overflow-x-auto" key={compsPage}>
@@ -536,7 +611,7 @@ export default function CompsPage() {
                 )}
 
                 {/* Empty state */}
-                {comps === null && !loading && (
+                {!loading && comps === null && (
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
                         <Search className="size-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Enter an address to find comparable rentals</p>
@@ -545,5 +620,13 @@ export default function CompsPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function CompsPage() {
+    return (
+        <Suspense>
+            <CompsContent />
+        </Suspense>
     );
 }
