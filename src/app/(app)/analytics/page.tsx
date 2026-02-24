@@ -558,8 +558,17 @@ interface CompResult {
     composite_score: number;
 }
 
+interface MapboxFeature {
+    id: string;
+    place_name: string;
+    center: [number, number];
+}
+
 function CompsView() {
     const [address, setAddress] = useState("");
+    const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(null);
+    const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const [subjectPrice, setSubjectPrice] = useState("");
     const [subjectBeds, setSubjectBeds] = useState("");
     const [subjectBaths, setSubjectBaths] = useState("");
@@ -568,8 +577,50 @@ function CompsView() {
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
     const [subjectLabel, setSubjectLabel] = useState<string | null>(null);
+    const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputWrapperRef = useRef<HTMLDivElement>(null);
 
     const hasSubjectAttrs = subjectPrice || subjectBeds || subjectBaths || subjectArea;
+
+    // Fetch suggestions as the user types (debounced 250ms, min 3 chars)
+    useEffect(() => {
+        if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+        if (address.length < 3 || selectedCoords) {
+            setSuggestions([]);
+            return;
+        }
+        suggestTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=address,place`
+                );
+                const data = await res.json();
+                setSuggestions((data.features ?? []) as MapboxFeature[]);
+                setShowSuggestions(true);
+            } catch {
+                setSuggestions([]);
+            }
+        }, 250);
+    }, [address, selectedCoords]);
+
+    // Close suggestions when clicking outside
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (inputWrapperRef.current && !inputWrapperRef.current.contains(e.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    const selectSuggestion = (feature: MapboxFeature) => {
+        setAddress(feature.place_name);
+        setSelectedCoords(feature.center);
+        setSubjectLabel(feature.place_name);
+        setSuggestions([]);
+        setShowSuggestions(false);
+    };
 
     const findComps = async () => {
         if (!address.trim()) return;
@@ -577,17 +628,22 @@ function CompsView() {
         setError(null);
         setComps(null);
         try {
-            const geoRes = await fetch(
-                `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address.trim())}.json?access_token=${MAPBOX_TOKEN}&limit=1`
-            );
-            const geoData = await geoRes.json();
-            if (!geoData.features?.length) {
-                setError("Address not found. Please try a different address.");
-                setLoading(false);
-                return;
+            let lng: number, lat: number;
+            if (selectedCoords) {
+                [lng, lat] = selectedCoords;
+            } else {
+                const geoRes = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address.trim())}.json?access_token=${MAPBOX_TOKEN}&limit=1`
+                );
+                const geoData = await geoRes.json();
+                if (!geoData.features?.length) {
+                    setError("Address not found. Please try a different address.");
+                    setLoading(false);
+                    return;
+                }
+                [lng, lat] = geoData.features[0].center as [number, number];
+                setSubjectLabel(geoData.features[0].place_name as string);
             }
-            const [lng, lat] = geoData.features[0].center as [number, number];
-            setSubjectLabel(geoData.features[0].place_name as string);
 
             const { data, error: rpcError } = await supabase.rpc('get_comps', {
                 subject_lng: lng,
@@ -628,15 +684,40 @@ function CompsView() {
                         <div>
                             <Label className="text-xs mb-1.5 block">Subject Property Address</Label>
                             <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                                <div className="relative flex-1" ref={inputWrapperRef}>
+                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
                                     <Input
                                         placeholder="e.g. 1228 El Camino Real, Palo Alto, CA"
                                         value={address}
-                                        onChange={(e) => setAddress(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && findComps()}
+                                        onChange={(e) => {
+                                            setAddress(e.target.value);
+                                            setSelectedCoords(null); // reset coords when user edits
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') { setShowSuggestions(false); findComps(); }
+                                            if (e.key === 'Escape') setShowSuggestions(false);
+                                        }}
+                                        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                                         className="pl-9"
+                                        autoComplete="off"
                                     />
+                                    {/* Suggestions dropdown */}
+                                    {showSuggestions && suggestions.length > 0 && (
+                                        <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+                                            {suggestions.map((feature) => (
+                                                <li key={feature.id}>
+                                                    <button
+                                                        type="button"
+                                                        onMouseDown={(e) => { e.preventDefault(); selectSuggestion(feature); }}
+                                                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start gap-2 transition-colors"
+                                                    >
+                                                        <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                        <span className="text-gray-800 dark:text-gray-200 leading-snug">{feature.place_name}</span>
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
                                 </div>
                                 <Button onClick={findComps} disabled={loading || !address.trim()}>
                                     {loading ? 'Searching...' : 'Find Comps'}
