@@ -548,10 +548,7 @@ function titleCaseAddress(s: string | null | undefined): string {
     return s
         .trim()
         .split(/\s+/)
-        .map((word) => {
-            if (word.length === 2 && /^[A-Za-z]+$/.test(word)) return word.toUpperCase();
-            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-        })
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join(' ');
 }
 
