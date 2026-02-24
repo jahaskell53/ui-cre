@@ -544,11 +544,7 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW1
 
 function titleCaseAddress(s: string | null | undefined): string {
     if (s == null || s === '') return '';
-    return s
-        .trim()
-        .split(/\s+/)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
+    return s.trim().toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 interface CompResult {
