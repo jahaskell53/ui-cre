@@ -278,6 +278,31 @@ function CompsContent() {
         setShowSuggestions(false);
     };
 
+    const marketStats = useMemo(() => {
+        if (!comps || comps.length === 0) return null;
+        const prices = comps.filter(c => c.price != null).map(c => c.price!).sort((a, b) => a - b);
+        if (prices.length === 0) return null;
+        const n = prices.length;
+        const pct = (p: number) => {
+            const idx = (p / 100) * (n - 1);
+            const lo = Math.floor(idx), hi = Math.ceil(idx);
+            return lo === hi ? prices[lo] : prices[lo] + (prices[hi] - prices[lo]) * (idx - lo);
+        };
+        const min = prices[0];
+        const max = prices[n - 1];
+        const p25 = pct(25);
+        const median = pct(50);
+        const p75 = pct(75);
+        let subjectPercentile: number | null = null;
+        if (subjectPrice) {
+            const sp = parseInt(subjectPrice);
+            if (!isNaN(sp)) {
+                subjectPercentile = Math.round((prices.filter(p => p < sp).length / n) * 100);
+            }
+        }
+        return { min, max, p25, median, p75, n, subjectPercentile };
+    }, [comps, subjectPrice]);
+
     const rentEstimate = useMemo(() => {
         if (!comps || !subjectArea) return null;
         const area = parseInt(subjectArea);
@@ -482,6 +507,88 @@ function CompsContent() {
                                 <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                                     ${rentEstimate.rate.toFixed(2)}<span className="text-xs font-normal ml-0.5">median $/sqft</span>
                                 </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Market distribution summary */}
+                {!loading && marketStats && (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Market Rent Distribution</h3>
+                            <span className="text-xs text-gray-400">{marketStats.n} listing{marketStats.n !== 1 ? 's' : ''}</span>
+                        </div>
+
+                        {/* Stat row */}
+                        <div className="grid grid-cols-5 gap-2 text-center">
+                            {([
+                                { label: 'Min',    value: marketStats.min },
+                                { label: '25th %ile', value: marketStats.p25 },
+                                { label: 'Median', value: marketStats.median, highlight: true },
+                                { label: '75th %ile', value: marketStats.p75 },
+                                { label: 'Max',    value: marketStats.max },
+                            ] as const).map(({ label, value, highlight }) => (
+                                <div key={label} className={cn("rounded-lg py-2 px-1", highlight ? "bg-blue-50 dark:bg-blue-900/20" : "bg-gray-50 dark:bg-gray-700/40")}>
+                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">{label}</p>
+                                    <p className={cn("text-sm font-semibold tabular-nums", highlight ? "text-blue-700 dark:text-blue-300" : "text-gray-800 dark:text-gray-200")}>
+                                        ${Math.round(value).toLocaleString()}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Range bar */}
+                        {(() => {
+                            const range = marketStats.max - marketStats.min || 1;
+                            const pos = (v: number) => `${Math.max(0, Math.min(100, ((v - marketStats.min) / range) * 100))}%`;
+                            const subjectPx = subjectPrice ? parseInt(subjectPrice) : null;
+                            return (
+                                <div className="relative h-6 flex items-center">
+                                    {/* Track */}
+                                    <div className="absolute inset-x-0 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                                    {/* IQR band */}
+                                    <div
+                                        className="absolute h-1.5 bg-blue-300 dark:bg-blue-600 rounded-full"
+                                        style={{ left: pos(marketStats.p25), right: `${100 - parseFloat(pos(marketStats.p75))}%` }}
+                                    />
+                                    {/* Median marker */}
+                                    <div
+                                        className="absolute w-0.5 h-4 bg-blue-600 dark:bg-blue-400 rounded-full -translate-x-1/2"
+                                        style={{ left: pos(marketStats.median) }}
+                                    />
+                                    {/* Subject price marker */}
+                                    {subjectPx != null && (
+                                        <div
+                                            className="absolute w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 shadow -translate-x-1/2"
+                                            style={{ left: pos(subjectPx) }}
+                                            title={`Your rent: $${subjectPx.toLocaleString()}`}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Legend */}
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-300 dark:bg-blue-600 rounded-full inline-block" />Middle 50%</span>
+                            <span className="flex items-center gap-1.5"><span className="w-0.5 h-3 bg-blue-600 dark:bg-blue-400 rounded-full inline-block" />Median</span>
+                            {subjectPrice && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 inline-block" />Your rent</span>}
+                        </div>
+
+                        {/* Percentile callout */}
+                        {marketStats.subjectPercentile !== null && (
+                            <div className={cn(
+                                "rounded-lg px-4 py-3 text-sm font-medium",
+                                marketStats.subjectPercentile >= 50
+                                    ? "bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200"
+                                    : "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200"
+                            )}>
+                                Your rent of <span className="font-bold">${parseInt(subjectPrice).toLocaleString()}/mo</span> is higher than{' '}
+                                <span className="font-bold">{marketStats.subjectPercentile}%</span> of similar listings
+                                {marketStats.subjectPercentile >= 75 && ' — above the 75th percentile'}
+                                {marketStats.subjectPercentile <= 25 && ' — below the 25th percentile'}
+                                .
                             </div>
                         )}
                     </div>
