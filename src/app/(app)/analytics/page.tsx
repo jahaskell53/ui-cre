@@ -594,6 +594,8 @@ function CompsView() {
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
     const [compsPage, setCompsPage] = useState(1);
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [subjectLabel, setSubjectLabel] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -759,6 +761,43 @@ function CompsView() {
         const m = Math.pow(10, Math.floor(Math.log10(rawRent)) - 1);
         return { rent: Math.round(rawRent / m) * m, rate: median, n: pts.length };
     }, [comps, subjectArea]);
+
+    const handleSort = (col: string) => {
+        if (sortCol === col) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortCol(col);
+            setSortDir('asc');
+        }
+        setCompsPage(1);
+    };
+
+    const sortedComps = useMemo(() => {
+        if (!comps) return [];
+        if (!sortCol) return comps;
+        const subPrice = subjectPrice ? parseInt(subjectPrice) : null;
+        const subBeds = subjectBeds ? parseInt(subjectBeds) : null;
+        const subBaths = subjectBaths ? parseFloat(subjectBaths) : null;
+        const subAreaVal = subjectArea ? parseInt(subjectArea) : null;
+        const subPpsf = subPrice && subAreaVal ? subPrice / subAreaVal : null;
+        const getValue = (comp: CompResult): number => {
+            switch (sortCol) {
+                case 'price':    return subPrice    != null && comp.price != null ? Math.abs(comp.price - subPrice) : (comp.price ?? Infinity);
+                case 'beds':     return subBeds     != null && comp.beds  != null ? Math.abs(comp.beds - subBeds)   : (comp.beds  ?? Infinity);
+                case 'baths':    return subBaths    != null && comp.baths != null ? Math.abs(Number(comp.baths) - subBaths) : (Number(comp.baths) || Infinity);
+                case 'area':     return subAreaVal  != null && comp.area  != null ? Math.abs(comp.area - subAreaVal)  : (comp.area  ?? Infinity);
+                case 'ppsf': {
+                    const compPpsf = comp.price && comp.area ? comp.price / comp.area : null;
+                    return subPpsf != null && compPpsf != null ? Math.abs(compPpsf - subPpsf) : (compPpsf ?? Infinity);
+                }
+                case 'distance': return comp.distance_m;
+                case 'score':    return comp.composite_score;
+                default: return 0;
+            }
+        };
+        const multiplier = sortDir === 'asc' ? 1 : -1;
+        return [...comps].sort((a, b) => multiplier * (getValue(a) - getValue(b)));
+    }, [comps, sortCol, sortDir, subjectPrice, subjectBeds, subjectBaths, subjectArea]);
 
     const metersToMiles = (m: number) => (m / 1609.34).toFixed(2);
     const scoreColor = (s: number) =>
@@ -938,13 +977,20 @@ function CompsView() {
                                         <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
                                             <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
                                             <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Address</th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rent/mo</th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beds</th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baths</th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sq Ft</th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">$/Sq Ft</th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Distance</th>
-                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
+                                            {(['price','beds','baths','area','ppsf','distance','score'] as const).map((col, idx) => {
+                                                const labels: Record<string, string> = { price: 'Rent/mo', beds: 'Beds', baths: 'Baths', area: 'Sq Ft', ppsf: '$/Sq Ft', distance: 'Distance', score: 'Score' };
+                                                const active = sortCol === col;
+                                                return (
+                                                    <th key={col} onClick={() => handleSort(col)}
+                                                        className={cn("px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none transition-colors whitespace-nowrap", idx < 4 ? "text-right" : "text-right", active ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300")}
+                                                    >
+                                                        <span className="inline-flex items-center justify-end gap-1">
+                                                            {labels[col]}
+                                                            <span className="text-[10px]">{active ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+                                                        </span>
+                                                    </th>
+                                                );
+                                            })}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -977,7 +1023,7 @@ function CompsView() {
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">0 mi</td>
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">—</td>
                                         </tr>
-                                        {comps.slice((compsPage - 1) * 25, compsPage * 25).map((comp, i) => (
+                                        {sortedComps.slice((compsPage - 1) * 25, compsPage * 25).map((comp, i) => (
                                             <tr key={comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                 <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
                                                 <td className="px-4 py-3">
@@ -1019,10 +1065,10 @@ function CompsView() {
                                 </table>
                             </div>
                         )}
-                        {comps.length > 25 && (
+                        {sortedComps.length > 25 && (
                             <PaginationButtonGroup
                                 page={compsPage}
-                                total={Math.ceil(comps.length / 25)}
+                                total={Math.ceil(sortedComps.length / 25)}
                                 onPageChange={setCompsPage}
                                 align="center"
                             />
