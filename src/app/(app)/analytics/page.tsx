@@ -680,6 +680,50 @@ function CompsView() {
         setLoading(false);
     };
 
+    // Log-linear rent estimate: fit ln(price) = a + b*ln(area) across all comps,
+    // then predict for subject area. Falls back to power law (b=0.6) if <3 data points.
+    const rentEstimate = useMemo(() => {
+        if (!comps || !subjectArea) return null;
+        const area = parseInt(subjectArea);
+        if (isNaN(area) || area <= 0) return null;
+        const pts = comps.filter(c => c.price && c.area && c.price > 0 && c.area > 0);
+        if (pts.length === 0) return null;
+
+        let rawRent: number;
+        let elasticity: number;
+        let method: 'regression' | 'power-law';
+
+        if (pts.length >= 3) {
+            const n = pts.length;
+            const xs = pts.map(c => Math.log(c.area!));
+            const ys = pts.map(c => Math.log(c.price!));
+            const sumX = xs.reduce((a, b) => a + b, 0);
+            const sumY = ys.reduce((a, b) => a + b, 0);
+            const sumXY = xs.reduce((acc, x, i) => acc + x * ys[i], 0);
+            const sumX2 = xs.reduce((acc, x) => acc + x * x, 0);
+            const denom = n * sumX2 - sumX * sumX;
+            if (denom !== 0) {
+                const b = (n * sumXY - sumX * sumY) / denom;
+                const a = (sumY - b * sumX) / n;
+                rawRent = Math.exp(a + b * Math.log(area));
+                elasticity = b;
+                method = 'regression';
+            } else {
+                elasticity = 0.6;
+                rawRent = pts[0].price! * Math.pow(area / pts[0].area!, elasticity);
+                method = 'power-law';
+            }
+        } else {
+            elasticity = 0.6;
+            rawRent = pts[0].price! * Math.pow(area / pts[0].area!, elasticity);
+            method = 'power-law';
+        }
+
+        // Round to 2 significant figures
+        const m = Math.pow(10, Math.floor(Math.log10(rawRent)) - 1);
+        return { rent: Math.round(rawRent / m) * m, elasticity, method, n: pts.length };
+    }, [comps, subjectArea]);
+
     const metersToMiles = (m: number) => (m / 1609.34).toFixed(2);
     const scoreColor = (s: number) =>
         s >= 0.75 ? "text-green-600 dark:text-green-400" :
@@ -777,29 +821,29 @@ function CompsView() {
                 )}
 
                 {/* Results */}
-                {comps !== null && comps.length > 0 && (() => {
-                    const topComp = comps[0];
-                    const pricePerSqft = topComp.price && topComp.area ? topComp.price / topComp.area : null;
-                    const rawRent = pricePerSqft && subjectArea ? pricePerSqft * parseInt(subjectArea) : null;
-                    const estRent = rawRent ? (() => { const m = Math.pow(10, Math.floor(Math.log10(rawRent)) - 1); return Math.round(rawRent / m) * m; })() : null;
-                    return pricePerSqft ? (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
-                            <div>
-                                <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">Estimated Rent</p>
-                                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-0.5">
-                                    {estRent ? `$${estRent.toLocaleString()}/mo` : '—'}
-                                </p>
-                                {!estRent && (
-                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Enter sq ft above to estimate rent</p>
-                                )}
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                                <p className="text-xs text-blue-600 dark:text-blue-400">Based on top comp</p>
-                                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">${pricePerSqft.toFixed(2)}<span className="text-xs font-normal ml-0.5">/sqft</span></p>
-                            </div>
+                {comps !== null && comps.length > 0 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">Estimated Rent</p>
+                            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-0.5">
+                                {rentEstimate ? `$${rentEstimate.rent.toLocaleString()}/mo` : '—'}
+                            </p>
+                            {!rentEstimate && (
+                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Enter sq ft above to estimate</p>
+                            )}
                         </div>
-                    ) : null;
-                })()}
+                        {rentEstimate && (
+                            <div className="text-right flex-shrink-0 space-y-0.5">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">
+                                    {rentEstimate.method === 'regression' ? `Log-linear model · ${rentEstimate.n} comps` : 'Power law fallback'}
+                                </p>
+                                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                                    elasticity <span className="tabular-nums">{rentEstimate.elasticity.toFixed(2)}</span>
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {comps !== null && (
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">

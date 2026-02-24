@@ -1,6 +1,6 @@
 # Comps Algorithm
 
-The comps feature finds comparable rental listings near a subject property, ranked by similarity. It runs as a PostgreSQL function (`get_comps`) using PostGIS for spatial filtering.
+The comps feature finds comparable rental listings near a subject property, ranked by similarity. It has two parts: a PostgreSQL function (`get_comps`) for spatial filtering and scoring, and a client-side rent estimator that runs on the returned results.
 
 ---
 
@@ -27,6 +27,7 @@ The function first identifies the latest scrape run (by `scraped_at`) and filter
 - Are single-family rentals (`is_sfr = true`)
 - Have a valid geometry and a non-null price
 - Fall within `radius_m` of the subject, using PostGIS `ST_DWithin` on geography (great-circle distance)
+- Are more than 10m from the subject coordinates (excludes exact location matches)
 
 This spatial filter uses a PostGIS spatial index and is the main performance optimization — only a small local subset of the ~12k listings is evaluated.
 
@@ -110,11 +111,45 @@ composite_score = Σ(w_i × score_i) / Σ(w_i)   [for active components only]
 **Example — address only (no subject attributes):** Falls back to pure distance ranking (`composite_score = dist_score`).
 
 **Example — price + beds provided, baths/area omitted:**
-Active weights are distance (10%), price (50%), beds (20%) → sum = 80%.
-Each weight is divided by 0.80, so effective weights are 12.5% / 62.5% / 25%.
+Active weights are distance (5%), price (55%), beds (20%) → sum = 80%.
+Each weight is divided by 0.80, so effective weights are ~6% / 69% / 25%.
+
+---
+
+## Step 4 — Rent Estimate (client-side)
+
+After comps are returned, the UI estimates rent for the subject property using its square footage. This step accounts for the fact that $/sqft is not linear — larger units command less per sqft than smaller ones.
+
+### Method: log-linear regression
+
+When **3 or more** comps have both price and area, a log-linear model is fit across all of them:
+
+```
+ln(price) = a + b × ln(area)
+```
+
+Coefficients `a` and `b` are solved via OLS. The exponent `b` is the **size elasticity** — typically between 0.4 and 0.8 for residential rentals (less than 1 = diminishing returns per sqft). The estimated rent is then:
+
+```
+est_rent = exp(a + b × ln(subject_area))
+```
+
+The fitted elasticity is shown in the UI so you can see how strongly size is driving rent in the local market.
+
+### Fallback: power law
+
+When fewer than 3 comps have usable data, the model falls back to scaling from the top comp using a fixed elasticity of 0.6:
+
+```
+est_rent = top_comp_price × (subject_area / top_comp_area) ^ 0.6
+```
+
+### Rounding
+
+The final estimate is rounded to 2 significant figures (e.g. $3,247 → $3,200) to avoid false precision.
 
 ---
 
 ## Output
 
-Results are returned sorted by `composite_score` descending, limited to `p_limit` rows. The `distance_m` column is always included so the UI can display distance regardless of how it factored into scoring.
+Results are returned sorted by `composite_score` descending, limited to `p_limit` rows. The UI additionally shows `$/sqft` per comp and a rent estimate banner above the table when square footage is provided.
