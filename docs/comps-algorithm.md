@@ -86,8 +86,8 @@ Nominal weights (all attributes provided):
 
 | Component | Weight |
 |---|---|
-| Distance | 10% |
-| Price | 50% |
+| Distance | 5% |
+| Price | 55% |
 | Beds | 20% |
 | Baths | 15% |
 | Area | 5% |
@@ -96,10 +96,10 @@ Effective weights when **price is omitted** (common case — address + beds/bath
 
 | Component | Weight |
 |---|---|
-| Distance | 20% |
-| Beds | 40% |
-| Baths | 30% |
-| Area | 10% |
+| Distance | 11% |
+| Beds | 44% |
+| Baths | 33% |
+| Area | 11% |
 
 Weights are **normalized by the sum of active weights** — only components where the subject attribute was provided (and the candidate has a value) are included. This means unused weights are redistributed rather than wasted.
 

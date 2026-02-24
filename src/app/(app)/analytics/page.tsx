@@ -808,6 +808,7 @@ function CompsView() {
                                             <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beds</th>
                                             <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baths</th>
                                             <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sq Ft</th>
+                                            <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">$/Sq Ft</th>
                                             <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Distance</th>
                                             <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
                                         </tr>
@@ -837,6 +838,9 @@ function CompsView() {
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
                                                     {comp.area?.toLocaleString() ?? '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                                                    {comp.price && comp.area ? `$${(comp.price / comp.area).toFixed(2)}` : '—'}
                                                 </td>
                                                 <td className="px-4 py-3 text-right text-gray-500 text-xs">
                                                     {metersToMiles(comp.distance_m)} mi
