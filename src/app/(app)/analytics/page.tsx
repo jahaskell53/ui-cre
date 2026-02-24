@@ -11,7 +11,6 @@ import {
     BarChart3,
     Calculator,
     Building2,
-    ChevronRight,
     ArrowUpRight,
     ArrowDownRight,
     Save,
@@ -601,7 +600,7 @@ function CompsView() {
         suggestTimerRef.current = setTimeout(async () => {
             try {
                 const res = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=address,place`
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=address,place&country=US`
                 );
                 const data = await res.json();
                 setSuggestions((data.features ?? []) as MapboxFeature[]);
