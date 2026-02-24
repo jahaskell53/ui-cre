@@ -585,8 +585,17 @@ function CompsView() {
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
     const [subjectLabel, setSubjectLabel] = useState<string | null>(null);
+    const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Request geolocation once on mount to bias autocomplete results
+    useEffect(() => {
+        navigator.geolocation?.getCurrentPosition(
+            ({ coords }) => setUserLocation([coords.longitude, coords.latitude]),
+            () => {} // silently ignore denial
+        );
+    }, []);
 
     const hasSubjectAttrs = subjectPrice || subjectBeds || subjectBaths || subjectArea;
 
@@ -600,7 +609,7 @@ function CompsView() {
         suggestTimerRef.current = setTimeout(async () => {
             try {
                 const res = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=address,place&country=US`
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=address,place&country=US${userLocation ? `&proximity=${userLocation[0]},${userLocation[1]}` : ''}`
                 );
                 const data = await res.json();
                 setSuggestions((data.features ?? []) as MapboxFeature[]);
@@ -609,7 +618,7 @@ function CompsView() {
                 setSuggestions([]);
             }
         }, 250);
-    }, [address, selectedCoords]);
+    }, [address, selectedCoords, userLocation]);
 
     // Close suggestions when clicking outside
     useEffect(() => {
