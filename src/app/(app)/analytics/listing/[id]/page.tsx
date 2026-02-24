@@ -9,7 +9,6 @@ import {
     DollarSign,
     MapPin,
     Calculator,
-    Save,
     Home,
     Layers,
     ExternalLink,
@@ -21,6 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { IrrProjectionChart } from "@/components/application/irr-projection-chart";
+import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
+import { ValuationCard } from "@/components/application/valuation-card";
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
 
@@ -184,55 +185,44 @@ export default function ListingDetailPage() {
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
             : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300";
 
-    return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
-            {/* Header */}
-            <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
-                <Link
-                    href="/analytics"
-                    className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4"
-                >
-                    <ChevronLeft className="size-4" />
-                    Back to Analytics
-                </Link>
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{displayAddress}</h1>
-                        <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
-                            <MapPin className="size-3.5" />
-                            {listing.source === "zillow"
-                                ? [listing.address_city, listing.address_state].filter(Boolean).join(", ")
-                                : listing.location || ""}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", sourceBadgeClass)}>
-                            {sourceLabel}
-                        </span>
-                        {listing.source === "loopnet" && listing.cap_rate && (
-                            <div className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
-                                <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{listing.cap_rate}</span>
-                                <span className="text-xs text-gray-500 ml-1">Cap Rate</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
+    const hero =
+        listing.source === "loopnet" && listing.thumbnail_url ? (
+            <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
+                <img src={listing.thumbnail_url} alt="" className="w-full h-full object-cover" />
             </div>
+        ) : (
+            <div className="aspect-[3/1] min-h-[160px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
+            </div>
+        );
 
-            {/* Hero */}
-            {listing.source === "loopnet" && listing.thumbnail_url ? (
-                <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
-                    <img src={listing.thumbnail_url} alt="" className="w-full h-full object-cover" />
+    return (
+        <PropertyDetailLayout
+            backHref="/analytics"
+            title={displayAddress}
+            subtitle={
+                <>
+                    <MapPin className="size-3.5" />
+                    {listing.source === "zillow"
+                        ? [listing.address_city, listing.address_state].filter(Boolean).join(", ")
+                        : listing.location || ""}
+                </>
+            }
+            headerBadge={
+                <div className="flex items-center gap-2">
+                    <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", sourceBadgeClass)}>
+                        {sourceLabel}
+                    </span>
+                    {listing.source === "loopnet" && listing.cap_rate && (
+                        <div className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{listing.cap_rate}</span>
+                            <span className="text-xs text-gray-500 ml-1">Cap Rate</span>
+                        </div>
+                    )}
                 </div>
-            ) : (
-                <div className="aspect-[3/1] min-h-[160px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                    <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
-                </div>
-            )}
-
-            {/* Detail sections */}
-            <div className="flex-1 p-6 max-w-4xl">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            }
+            hero={hero}
+        >
                     {/* Overview */}
                     <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
@@ -371,26 +361,13 @@ export default function ListingDetailPage() {
                             Evaluation
                         </h3>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-5 text-white">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm text-blue-100">Estimated Value</span>
-                                    <Button size="sm" variant="secondary" className="h-7 text-xs gap-1">
-                                        <Save className="size-3" />
-                                        Save
-                                    </Button>
-                                </div>
-                                <p className="text-3xl font-bold">${estimatedValue.toLocaleString()}</p>
-                                <div className="mt-4 flex items-center gap-4 text-sm">
-                                    <div>
-                                        <span className="text-blue-200">IRR</span>
-                                        <span className="ml-2 font-semibold">{irr}%</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-blue-200">NOI</span>
-                                        <span className="ml-2 font-semibold">${Math.round(annualRent).toLocaleString()}</span>
-                                    </div>
-                                </div>
-                            </div>
+                            <ValuationCard
+                                title="Estimated Value"
+                                value={estimatedValue}
+                                irr={irr}
+                                noi={Math.round(annualRent)}
+                                compact
+                            />
                             <div className="space-y-5">
                                 <div>
                                     <div className="flex justify-between mb-1">
@@ -443,8 +420,6 @@ export default function ListingDetailPage() {
                             <IrrProjectionChart currentIrr={irr} years={5} height={180} />
                         </div>
                     </section>
-                </div>
-            </div>
-        </div>
+        </PropertyDetailLayout>
     );
 }

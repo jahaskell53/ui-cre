@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { IrrProjectionChart } from "@/components/application/irr-projection-chart";
+import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
 import { ValuationCard } from "@/components/application/valuation-card";
 
 // Same shape as analytics page mock; in production fetch by id
@@ -65,56 +66,44 @@ export default function PropertyDetailPage() {
         );
     }
 
+    const banner = (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+            <div className="size-8 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="size-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Your cap rate is below peers</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    Properties in your portfolio have an average cap rate of 3.2%, which is 0.8% below market average.
+                    <button type="button" className="ml-1 underline">Find out why →</button>
+                </p>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
-            {/* Header */}
-            <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
-                <Link
-                    href="/analytics"
-                    className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-4"
-                >
-                    <ChevronLeft className="size-4" />
-                    Back to Analytics
-                </Link>
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{property.address}</h1>
-                        <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
-                            <MapPin className="size-3.5" />
-                            Your property
-                        </p>
-                    </div>
-                    <div className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
-                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{property.capRate}%</span>
-                        <span className="text-xs text-gray-500 ml-1">Cap Rate</span>
-                    </div>
+        <PropertyDetailLayout
+            backHref="/analytics"
+            title={property.address}
+            subtitle={
+                <>
+                    <MapPin className="size-3.5" />
+                    Your property
+                </>
+            }
+            headerBadge={
+                <div className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{property.capRate}%</span>
+                    <span className="text-xs text-gray-500 ml-1">Cap Rate</span>
                 </div>
-            </div>
-
-            {/* Hero / Image area */}
-            <div className="aspect-[3/1] min-h-[180px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
-            </div>
-
-            {/* Cap rate vs peers banner */}
-            <div className="px-6 max-w-4xl mx-auto">
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
-                    <div className="size-8 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
-                        <TrendingUp className="size-4 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Your cap rate is below peers</p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                            Properties in your portfolio have an average cap rate of 3.2%, which is 0.8% below market average.
-                            <button type="button" className="ml-1 underline">Find out why →</button>
-                        </p>
-                    </div>
+            }
+            hero={
+                <div className="aspect-[3/1] min-h-[180px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                    <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
                 </div>
-            </div>
-
-            {/* Detail sections */}
-            <div className="flex-1 p-6 max-w-4xl mx-auto w-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            }
+            banner={banner}
+        >
                     {/* Overview */}
                     <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
@@ -365,8 +354,6 @@ export default function PropertyDetailPage() {
                             <IrrProjectionChart currentIrr={irr} years={5} height={180} />
                         </div>
                     </section>
-                </div>
-            </div>
-        </div>
+        </PropertyDetailLayout>
     );
 }
