@@ -903,9 +903,9 @@ function ValuationView() {
                     </div>
 
                     {/* Valuation Result */}
-                    <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-6 text-white">
+                    <div className="bg-black rounded-xl p-6 text-white">
                         <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-blue-100">Estimated Valuation</h3>
+                            <h3 className="font-medium text-white">Estimated Valuation</h3>
                             <Button size="sm" variant="secondary" className="h-7 text-xs gap-1">
                                 <Save className="size-3" />
                                 Save
@@ -914,11 +914,11 @@ function ValuationView() {
                         <p className="text-4xl font-bold">${estimatedValue.toLocaleString()}</p>
                         <div className="mt-4 flex items-center gap-4 text-sm">
                             <div>
-                                <span className="text-blue-200">IRR</span>
+                                <span className="text-white">IRR</span>
                                 <span className="ml-2 font-semibold">{irr}%</span>
                             </div>
                             <div>
-                                <span className="text-blue-200">NOI</span>
+                                <span className="text-white">NOI</span>
                                 <span className="ml-2 font-semibold">${Math.round(annualRent).toLocaleString()}</span>
                             </div>
                         </div>
