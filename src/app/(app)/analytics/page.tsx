@@ -946,6 +946,35 @@ function CompsView() {
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        {/* Subject property row */}
+                                        <tr className="border-b-2 border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20">
+                                            <td className="px-4 py-3 text-xs font-semibold text-blue-600 dark:text-blue-400">You</td>
+                                            <td className="px-4 py-3">
+                                                <div className="font-medium text-blue-900 dark:text-blue-100 truncate max-w-[200px]">
+                                                    {titleCaseAddress(subjectLabel?.split(',')[0]) || address || '—'}
+                                                </div>
+                                                <div className="text-xs text-blue-600/70 dark:text-blue-400/70 truncate max-w-[200px]">
+                                                    {subjectLabel?.split(',').slice(1).join(',').trim() || ''}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-medium text-blue-900 dark:text-blue-100">
+                                                {subjectPrice ? `$${parseInt(subjectPrice).toLocaleString()}` : '—'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-blue-800 dark:text-blue-200">
+                                                {subjectBeds || '—'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-blue-800 dark:text-blue-200">
+                                                {subjectBaths ? Number(subjectBaths).toFixed(1) : '—'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-blue-800 dark:text-blue-200">
+                                                {subjectArea ? parseInt(subjectArea).toLocaleString() : '—'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-blue-800 dark:text-blue-200">
+                                                {subjectPrice && subjectArea ? `$${(parseInt(subjectPrice) / parseInt(subjectArea)).toFixed(2)}` : '—'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">0 mi</td>
+                                            <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">—</td>
+                                        </tr>
                                         {comps.map((comp, i) => (
                                             <tr key={comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                 <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
