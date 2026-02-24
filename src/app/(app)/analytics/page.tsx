@@ -13,7 +13,6 @@ import {
     Building2,
     ArrowUpRight,
     ArrowDownRight,
-    Save,
     Layers,
     DollarSign,
     Home,
@@ -30,6 +29,7 @@ import { PaginationButtonGroup } from "@/components/application/pagination/pagin
 import { supabase } from "@/utils/supabase";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 import { IrrProjectionChart } from "@/components/application/irr-projection-chart";
+import { ValuationCard } from "@/components/application/valuation-card";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 200;
@@ -903,26 +903,12 @@ function ValuationView() {
                     </div>
 
                     {/* Valuation Result */}
-                    <div className="bg-black rounded-xl p-6 text-white">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-white">Estimated Valuation</h3>
-                            <Button size="sm" variant="secondary" className="h-7 text-xs gap-1">
-                                <Save className="size-3" />
-                                Save
-                            </Button>
-                        </div>
-                        <p className="text-4xl font-bold">${estimatedValue.toLocaleString()}</p>
-                        <div className="mt-4 flex items-center gap-4 text-sm">
-                            <div>
-                                <span className="text-white">IRR</span>
-                                <span className="ml-2 font-semibold">{irr}%</span>
-                            </div>
-                            <div>
-                                <span className="text-white">NOI</span>
-                                <span className="ml-2 font-semibold">${Math.round(annualRent).toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
+                    <ValuationCard
+                        title="Estimated Valuation"
+                        value={estimatedValue}
+                        irr={irr}
+                        noi={Math.round(annualRent)}
+                    />
                 </div>
 
                 {/* Sliders */}
