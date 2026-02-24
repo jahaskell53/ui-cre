@@ -573,6 +573,7 @@ function CompsView() {
     const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(null);
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [radiusMiles, setRadiusMiles] = useState(2);
     const [subjectPrice, setSubjectPrice] = useState("");
     const [subjectBeds, setSubjectBeds] = useState("");
     const [subjectBaths, setSubjectBaths] = useState("");
@@ -661,7 +662,7 @@ function CompsView() {
             const { data, error: rpcError } = await supabase.rpc('get_comps', {
                 subject_lng: lng,
                 subject_lat: lat,
-                radius_m: 3218,
+                radius_m: radiusMiles * 1609.34,
                 subject_price: subjectPrice ? parseInt(subjectPrice) : null,
                 subject_beds: subjectBeds ? parseInt(subjectBeds) : null,
                 subject_baths: subjectBaths ? parseFloat(subjectBaths) : null,
@@ -751,6 +752,27 @@ function CompsView() {
                                 <Button onClick={findComps} disabled={loading || !address.trim()}>
                                     {loading ? 'Searching...' : 'Find Comps'}
                                 </Button>
+                            </div>
+                        </div>
+
+                        {/* Radius slider */}
+                        <div>
+                            <div className="flex justify-between mb-1.5">
+                                <Label className="text-xs">Search Radius</Label>
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{radiusMiles} mi</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0.5"
+                                max="10"
+                                step="0.5"
+                                value={radiusMiles}
+                                onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            />
+                            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                                <span>0.5 mi</span>
+                                <span>10 mi</span>
                             </div>
                         </div>
 

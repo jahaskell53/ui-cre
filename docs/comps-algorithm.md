@@ -30,7 +30,7 @@ The function first identifies the latest scrape run (by `scraped_at`) and filter
 - Have a valid geometry and a non-null price
 - Fall within `radius_m` of the subject, using PostGIS `ST_DWithin` on geography (great-circle distance)
 - Are more than 10m from the subject coordinates (excludes exact location matches)
-- Have area within ±30% of `subject_area` (only applied when `subject_area` is provided)
+  - Have area within ±30% of `subject_area` (only applied when `subject_area` is provided)
 
 This spatial filter uses a PostGIS spatial index and is the main performance optimization — only a small local subset of the ~12k listings is evaluated.
 
