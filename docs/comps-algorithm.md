@@ -82,7 +82,7 @@ Relative difference normalized by the subject area, so a 200 sqft difference mat
 
 ## Step 3 — Composite Score
 
-Nominal weights:
+Nominal weights (all attributes provided):
 
 | Component | Weight |
 |---|---|
@@ -91,6 +91,15 @@ Nominal weights:
 | Beds | 20% |
 | Baths | 15% |
 | Area | 5% |
+
+Effective weights when **price is omitted** (common case — address + beds/baths/area only):
+
+| Component | Weight |
+|---|---|
+| Distance | 20% |
+| Beds | 40% |
+| Baths | 30% |
+| Area | 10% |
 
 Weights are **normalized by the sum of active weights** — only components where the subject attribute was provided (and the candidate has a value) are included. This means unused weights are redistributed rather than wasted.
 
