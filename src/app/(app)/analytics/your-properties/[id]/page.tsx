@@ -113,7 +113,7 @@ export default function PropertyDetailPage() {
             </div>
 
             {/* Detail sections */}
-            <div className="flex-1 p-6 max-w-4xl">
+            <div className="flex-1 p-6 max-w-4xl mx-auto w-full">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Overview */}
                     <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
