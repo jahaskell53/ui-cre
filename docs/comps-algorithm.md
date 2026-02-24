@@ -6,16 +6,18 @@ The comps feature finds comparable rental listings near a subject property, rank
 
 ## Inputs
 
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `subject_lng` | float | required | Subject property longitude |
-| `subject_lat` | float | required | Subject property latitude |
-| `radius_m` | float | 3218m (~2 mi) | Search radius in meters |
-| `subject_price` | int | null | Monthly rent of subject property |
-| `subject_beds` | int | null | Bedroom count |
-| `subject_baths` | numeric | null | Bathroom count |
-| `subject_area` | int | null | Square footage |
-| `p_limit` | int | 10 | Max results to return |
+
+| Parameter       | Type    | Default       | Description                      |
+| --------------- | ------- | ------------- | -------------------------------- |
+| `subject_lng`   | float   | required      | Subject property longitude       |
+| `subject_lat`   | float   | required      | Subject property latitude        |
+| `radius_m`      | float   | 3218m (~2 mi) | Search radius in meters          |
+| `subject_price` | int     | null          | Monthly rent of subject property |
+| `subject_beds`  | int     | null          | Bedroom count                    |
+| `subject_baths` | numeric | null          | Bathroom count                   |
+| `subject_area`  | int     | null          | Square footage                   |
+| `p_limit`       | int     | 10            | Max results to return            |
+
 
 ---
 
@@ -28,6 +30,7 @@ The function first identifies the latest scrape run (by `scraped_at`) and filter
 - Have a valid geometry and a non-null price
 - Fall within `radius_m` of the subject, using PostGIS `ST_DWithin` on geography (great-circle distance)
 - Are more than 10m from the subject coordinates (excludes exact location matches)
+- Have area within ±30% of `subject_area` (only applied when `subject_area` is provided)
 
 This spatial filter uses a PostGIS spatial index and is the main performance optimization — only a small local subset of the ~12k listings is evaluated.
 
@@ -85,22 +88,26 @@ Relative difference normalized by the subject area, so a 200 sqft difference mat
 
 Nominal weights (all attributes provided):
 
+
 | Component | Weight |
-|---|---|
-| Distance | 5% |
-| Price | 55% |
-| Beds | 20% |
-| Baths | 15% |
-| Area | 5% |
+| --------- | ------ |
+| Distance  | 5%     |
+| Price     | 55%    |
+| Beds      | 20%    |
+| Baths     | 15%    |
+| Area      | 5%     |
+
 
 Effective weights when **price is omitted** (common case — address + beds/baths/area only):
 
+
 | Component | Weight |
-|---|---|
-| Distance | 11% |
-| Beds | 44% |
-| Baths | 33% |
-| Area | 11% |
+| --------- | ------ |
+| Distance  | 11%    |
+| Beds      | 44%    |
+| Baths     | 33%    |
+| Area      | 11%    |
+
 
 Weights are **normalized by the sum of active weights** — only components where the subject attribute was provided (and the candidate has a value) are included. This means unused weights are redistributed rather than wasted.
 
@@ -118,33 +125,11 @@ Each weight is divided by 0.80, so effective weights are ~6% / 69% / 25%.
 
 ## Step 4 — Rent Estimate (client-side)
 
-After comps are returned, the UI estimates rent for the subject property using its square footage. This step accounts for the fact that $/sqft is not linear — larger units command less per sqft than smaller ones.
-
-### Method: log-linear regression
-
-When **3 or more** comps have both price and area, a log-linear model is fit across all of them:
+After comps are returned, the UI estimates rent for the subject property using its square footage. Because the DB already filters candidates to ±30% of `subject_area`, all returned comps are size-comparable and a flat $/sqft median is appropriate.
 
 ```
-ln(price) = a + b × ln(area)
+est_rent = median(price / area across all comps) × subject_area
 ```
-
-Coefficients `a` and `b` are solved via OLS. The exponent `b` is the **size elasticity** — typically between 0.4 and 0.8 for residential rentals (less than 1 = diminishing returns per sqft). The estimated rent is then:
-
-```
-est_rent = exp(a + b × ln(subject_area))
-```
-
-The fitted elasticity is shown in the UI so you can see how strongly size is driving rent in the local market.
-
-### Fallback: power law
-
-When fewer than 3 comps have usable data, the model falls back to scaling from the top comp using a fixed elasticity of 0.6:
-
-```
-est_rent = top_comp_price × (subject_area / top_comp_area) ^ 0.6
-```
-
-### Rounding
 
 The final estimate is rounded to 2 significant figures (e.g. $3,247 → $3,200) to avoid false precision.
 

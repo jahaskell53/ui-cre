@@ -680,48 +680,20 @@ function CompsView() {
         setLoading(false);
     };
 
-    // Log-linear rent estimate: fit ln(price) = a + b*ln(area) across all comps,
-    // then predict for subject area. Falls back to power law (b=0.6) if <3 data points.
+    // Rent estimate: median $/sqft of returned comps × subject area.
+    // The DB already filters to ±30% size match when subject_area is provided.
     const rentEstimate = useMemo(() => {
         if (!comps || !subjectArea) return null;
         const area = parseInt(subjectArea);
         if (isNaN(area) || area <= 0) return null;
-        const pts = comps.filter(c => c.price && c.area && c.price > 0 && c.area > 0);
+        const pts = comps.filter(c => c.price && c.area);
         if (pts.length === 0) return null;
-
-        let rawRent: number;
-        let elasticity: number;
-        let method: 'regression' | 'power-law';
-
-        if (pts.length >= 3) {
-            const n = pts.length;
-            const xs = pts.map(c => Math.log(c.area!));
-            const ys = pts.map(c => Math.log(c.price!));
-            const sumX = xs.reduce((a, b) => a + b, 0);
-            const sumY = ys.reduce((a, b) => a + b, 0);
-            const sumXY = xs.reduce((acc, x, i) => acc + x * ys[i], 0);
-            const sumX2 = xs.reduce((acc, x) => acc + x * x, 0);
-            const denom = n * sumX2 - sumX * sumX;
-            if (denom !== 0) {
-                const b = (n * sumXY - sumX * sumY) / denom;
-                const a = (sumY - b * sumX) / n;
-                rawRent = Math.exp(a + b * Math.log(area));
-                elasticity = b;
-                method = 'regression';
-            } else {
-                elasticity = 0.6;
-                rawRent = pts[0].price! * Math.pow(area / pts[0].area!, elasticity);
-                method = 'power-law';
-            }
-        } else {
-            elasticity = 0.6;
-            rawRent = pts[0].price! * Math.pow(area / pts[0].area!, elasticity);
-            method = 'power-law';
-        }
-
-        // Round to 2 significant figures
+        const rates = pts.map(c => c.price! / c.area!).sort((a, b) => a - b);
+        const mid = Math.floor(rates.length / 2);
+        const median = rates.length % 2 !== 0 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2;
+        const rawRent = median * area;
         const m = Math.pow(10, Math.floor(Math.log10(rawRent)) - 1);
-        return { rent: Math.round(rawRent / m) * m, elasticity, method, n: pts.length };
+        return { rent: Math.round(rawRent / m) * m, rate: median, n: pts.length };
     }, [comps, subjectArea]);
 
     const metersToMiles = (m: number) => (m / 1609.34).toFixed(2);
@@ -835,10 +807,10 @@ function CompsView() {
                         {rentEstimate && (
                             <div className="text-right flex-shrink-0 space-y-0.5">
                                 <p className="text-xs text-blue-600 dark:text-blue-400">
-                                    {rentEstimate.method === 'regression' ? `Log-linear model · ${rentEstimate.n} comps` : 'Power law fallback'}
+                                    ±30% size match · {rentEstimate.n} comp{rentEstimate.n !== 1 ? 's' : ''}
                                 </p>
                                 <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                                    elasticity <span className="tabular-nums">{rentEstimate.elasticity.toFixed(2)}</span>
+                                    ${rentEstimate.rate.toFixed(2)}<span className="text-xs font-normal ml-0.5">median $/sqft</span>
                                 </p>
                             </div>
                         )}
