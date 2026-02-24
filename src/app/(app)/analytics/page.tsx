@@ -777,6 +777,29 @@ function CompsView() {
                 )}
 
                 {/* Results */}
+                {comps !== null && comps.length > 0 && (() => {
+                    const topComp = comps[0];
+                    const pricePerSqft = topComp.price && topComp.area ? topComp.price / topComp.area : null;
+                    const estRent = pricePerSqft && subjectArea ? Math.round(pricePerSqft * parseInt(subjectArea)) : null;
+                    return pricePerSqft ? (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">Estimated Rent</p>
+                                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-0.5">
+                                    {estRent ? `$${estRent.toLocaleString()}/mo` : '—'}
+                                </p>
+                                {!estRent && (
+                                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Enter sq ft above to estimate rent</p>
+                                )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Based on top comp</p>
+                                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">${pricePerSqft.toFixed(2)}<span className="text-xs font-normal ml-0.5">/sqft</span></p>
+                            </div>
+                        </div>
+                    ) : null;
+                })()}
+
                 {comps !== null && (
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-start justify-between">
