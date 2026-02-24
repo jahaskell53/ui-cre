@@ -543,6 +543,18 @@ function MapView({
 // ==================== COMPS VIEW ====================
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
+function titleCaseAddress(s: string | null | undefined): string {
+    if (s == null || s === '') return '';
+    return s
+        .trim()
+        .split(/\s+/)
+        .map((word) => {
+            if (word.length === 2 && /^[A-Za-z]+$/.test(word)) return word.toUpperCase();
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(' ');
+}
+
 interface CompResult {
     id: string;
     address_raw: string | null;
@@ -806,10 +818,10 @@ function CompsView() {
                                                 <td className="px-4 py-3">
                                                     <Link href={`/analytics/listing/zillow-${comp.id}`} className="group">
                                                         <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                            {comp.address_street || comp.address_raw || '—'}
+                                                            {titleCaseAddress(comp.address_street || comp.address_raw) || '—'}
                                                         </div>
                                                         <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                                                            {[comp.address_city, comp.address_state, comp.address_zip].filter(Boolean).join(', ')}
+                                                            {[titleCaseAddress(comp.address_city), comp.address_state?.toUpperCase(), comp.address_zip].filter(Boolean).join(', ')}
                                                         </div>
                                                     </Link>
                                                 </td>
