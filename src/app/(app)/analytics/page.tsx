@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import mapboxgl from 'mapbox-gl';
 import { PropertyMap, type Property, type HeatmapMetric, type MapBounds } from "@/components/application/map/property-map";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
@@ -542,6 +543,17 @@ function MapView({
 // ==================== COMPS VIEW ====================
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
+function makeCircle(center: [number, number], radiusM: number): GeoJSON.Feature<GeoJSON.Polygon> {
+    const [lng, lat] = center;
+    const dLat = radiusM / 111320;
+    const dLng = dLat / Math.cos(lat * Math.PI / 180);
+    const coords: [number, number][] = Array.from({ length: 65 }, (_, i) => {
+        const a = (i / 64) * 2 * Math.PI;
+        return [lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)];
+    });
+    return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
+}
+
 function titleCaseAddress(s: string | null | undefined): string {
     if (s == null || s === '') return '';
     return s.trim().toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -585,6 +597,8 @@ function CompsView() {
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
+    const miniMapContainerRef = useRef<HTMLDivElement>(null);
+    const miniMapInstance = useRef<mapboxgl.Map | null>(null);
 
     // Request geolocation once on mount to bias autocomplete results
     useEffect(() => {
@@ -627,6 +641,53 @@ function CompsView() {
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
     }, []);
+
+    // Init mini map when subject coords are set; destroy when cleared
+    useEffect(() => {
+        if (!selectedCoords) {
+            miniMapInstance.current?.remove();
+            miniMapInstance.current = null;
+            return;
+        }
+        if (!miniMapContainerRef.current || miniMapInstance.current) return;
+
+        const map = new mapboxgl.Map({
+            container: miniMapContainerRef.current,
+            style: 'mapbox://styles/mapbox/light-v11',
+            center: selectedCoords,
+            zoom: 11,
+            accessToken: MAPBOX_TOKEN,
+            interactive: false,
+            attributionControl: false,
+        });
+
+        map.on('load', () => {
+            new mapboxgl.Marker({ color: '#3b82f6' }).setLngLat(selectedCoords).addTo(map);
+            map.addSource('radius', { type: 'geojson', data: makeCircle(selectedCoords, radiusMiles * 1609.34) });
+            map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius', paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.12 } });
+            map.addLayer({ id: 'radius-outline', type: 'line', source: 'radius', paint: { 'line-color': '#3b82f6', 'line-width': 1.5, 'line-opacity': 0.6 } });
+            const r = radiusMiles * 1609.34 / 111320;
+            const lng = selectedCoords[0], lat = selectedCoords[1];
+            map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24, duration: 0 });
+        });
+
+        miniMapInstance.current = map;
+        return () => { miniMapInstance.current?.remove(); miniMapInstance.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedCoords]);
+
+    // Update circle when radius changes
+    useEffect(() => {
+        const map = miniMapInstance.current;
+        if (!map || !selectedCoords) return;
+        const update = () => {
+            (map.getSource('radius') as mapboxgl.GeoJSONSource | undefined)?.setData(makeCircle(selectedCoords, radiusMiles * 1609.34));
+            const r = radiusMiles * 1609.34 / 111320;
+            const lng = selectedCoords[0], lat = selectedCoords[1];
+            map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24 });
+        };
+        map.isStyleLoaded() ? update() : map.once('load', update);
+    }, [radiusMiles, selectedCoords]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress(feature.place_name);
@@ -775,6 +836,15 @@ function CompsView() {
                                 <span>10 mi</span>
                             </div>
                         </div>
+
+                        {/* Radius preview map */}
+                        <div
+                            ref={miniMapContainerRef}
+                            className={cn(
+                                "rounded-lg overflow-hidden transition-all duration-300",
+                                selectedCoords ? "h-44" : "h-0"
+                            )}
+                        />
 
                         {/* Optional subject attributes */}
                         <div>
