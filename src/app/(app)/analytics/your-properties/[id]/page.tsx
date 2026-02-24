@@ -97,7 +97,7 @@ export default function PropertyDetailPage() {
             </div>
 
             {/* Cap rate vs peers banner */}
-            <div className="px-6">
+            <div className="px-6 max-w-4xl mx-auto">
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
                     <div className="size-8 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
                         <TrendingUp className="size-4 text-amber-600 dark:text-amber-400" />
