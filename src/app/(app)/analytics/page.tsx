@@ -593,6 +593,7 @@ function CompsView() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
+    const [compsPage, setCompsPage] = useState(1);
     const [subjectLabel, setSubjectLabel] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -728,13 +729,14 @@ function CompsView() {
                 subject_beds: subjectBeds ? parseInt(subjectBeds) : null,
                 subject_baths: subjectBaths ? parseFloat(subjectBaths) : null,
                 subject_area: subjectArea ? parseInt(subjectArea) : null,
-                p_limit: 10,
+                p_limit: 500,
             });
 
             if (rpcError) {
                 setError("Failed to find comps: " + rpcError.message);
             } else {
                 setComps((data ?? []) as CompResult[]);
+                setCompsPage(1);
             }
         } catch {
             setError("Something went wrong. Please try again.");
@@ -930,7 +932,7 @@ function CompsView() {
                                 No comps found within 2 miles. Try a different address or expand the radius.
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto" key={compsPage}>
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
@@ -975,9 +977,9 @@ function CompsView() {
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">0 mi</td>
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">—</td>
                                         </tr>
-                                        {comps.map((comp, i) => (
+                                        {comps.slice((compsPage - 1) * 25, compsPage * 25).map((comp, i) => (
                                             <tr key={comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                                <td className="px-4 py-3 text-xs text-gray-400">{i + 1}</td>
+                                                <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
                                                 <td className="px-4 py-3">
                                                     <Link href={`/analytics/listing/zillow-${comp.id}`} className="group">
                                                         <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -1016,6 +1018,14 @@ function CompsView() {
                                     </tbody>
                                 </table>
                             </div>
+                        )}
+                        {comps.length > 25 && (
+                            <PaginationButtonGroup
+                                page={compsPage}
+                                total={Math.ceil(comps.length / 25)}
+                                onPageChange={setCompsPage}
+                                align="center"
+                            />
                         )}
                     </div>
                 )}
