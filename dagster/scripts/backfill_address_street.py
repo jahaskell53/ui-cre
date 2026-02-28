@@ -20,7 +20,7 @@ def normalize_street(raw: str) -> str | None:
     if not raw:
         return None
     parts = {label: value for value, label in parse_address(raw)}
-    return " ".join(filter(None, [parts.get("house_number"), parts.get("road")])) or None
+    return (" ".join(filter(None, [parts.get("house_number"), parts.get("road")])) or "").title() or None
 
 
 def main():

@@ -141,7 +141,7 @@ def cleaned_listings(
                         "p_zip_code": zip_code,
                         "p_zpid": zpid,
                         "p_address_raw": address_raw,
-                        "p_address_street": " ".join(filter(None, [parsed_addr.get("house_number"), parsed_addr.get("road")])) or None,
+                        "p_address_street": (" ".join(filter(None, [parsed_addr.get("house_number"), parsed_addr.get("road")])) or "").title() or None,
                         "p_address_city": listing.get("addressCity") or parsed_addr.get("city"),
                         "p_address_state": listing.get("addressState") or parsed_addr.get("state"),
                         "p_address_zip": listing.get("addressZipcode") or parsed_addr.get("postcode"),
