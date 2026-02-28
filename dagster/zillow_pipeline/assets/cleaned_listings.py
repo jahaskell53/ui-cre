@@ -158,6 +158,8 @@ def cleaned_listings(
                         "p_lng": float(lng) if lng is not None else None,
                         "p_is_sfr": is_sfr(listing),
                         "p_raw_scrape_id": raw_scrape_id,
+                        "p_img_src": listing.get("imgSrc"),
+                        "p_detail_url": listing.get("detailUrl"),
                     },
                 ).execute()
                 inserted += 1
