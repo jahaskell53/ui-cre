@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 interface ZillowListing {
     source: "zillow";
     id: string;
+    zpid: string | null;
     address_raw: string | null;
     address_street: string | null;
     address_city: string | null;
@@ -131,7 +132,7 @@ export default function ListingDetailPage() {
                 const uuid = rawId.slice("zillow-".length);
                 const { data, error } = await supabase
                     .from("cleaned_listings")
-                    .select("id, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at")
+                    .select("id, zpid, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at")
                     .eq("id", uuid)
                     .single();
                 if (error || !data) {
@@ -319,6 +320,19 @@ export default function ListingDetailPage() {
                                     </div>
                                 ))}
                             </div>
+                            {listing.zpid && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                                    <a
+                                        href={`https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                    >
+                                        View on Zillow
+                                        <ExternalLink className="size-3.5" />
+                                    </a>
+                                </div>
+                            )}
                         </section>
                     ) : (
                         <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
