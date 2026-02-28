@@ -137,7 +137,7 @@ export default function MapPage() {
                 units: null,
                 price: priceVal ? `$${priceVal.toLocaleString()}` : 'TBD',
                 coordinates: [item.longitude as number, item.latitude as number],
-                thumbnailUrl: undefined,
+                thumbnailUrl: (item.img_src as string | null) ?? undefined,
                 capRate: undefined,
                 squareFootage: item.area ? String(item.area) : undefined,
                 listingSource: 'zillow',

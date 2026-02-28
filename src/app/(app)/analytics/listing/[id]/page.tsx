@@ -29,6 +29,8 @@ interface ZillowListing {
     source: "zillow";
     id: string;
     zpid: string | null;
+    img_src: string | null;
+    detail_url: string | null;
     address_raw: string | null;
     address_street: string | null;
     address_city: string | null;
@@ -132,7 +134,7 @@ export default function ListingDetailPage() {
                 const uuid = rawId.slice("zillow-".length);
                 const { data, error } = await supabase
                     .from("cleaned_listings")
-                    .select("id, zpid, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at")
+                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at")
                     .eq("id", uuid)
                     .single();
                 if (error || !data) {
@@ -186,16 +188,19 @@ export default function ListingDetailPage() {
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
             : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300";
 
-    const hero =
-        listing.source === "loopnet" && listing.thumbnail_url ? (
-            <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
-                <img src={listing.thumbnail_url} alt="" className="w-full h-full object-cover" />
-            </div>
-        ) : (
-            <div className="aspect-[3/1] min-h-[160px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
-            </div>
-        );
+    const heroImageUrl =
+        listing.source === "loopnet" ? listing.thumbnail_url :
+        listing.source === "zillow" ? listing.img_src : null;
+
+    const hero = heroImageUrl ? (
+        <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
+            <img src={heroImageUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+    ) : (
+        <div className="aspect-[3/1] min-h-[160px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
+        </div>
+    );
 
     return (
         <PropertyDetailLayout
@@ -320,10 +325,10 @@ export default function ListingDetailPage() {
                                     </div>
                                 ))}
                             </div>
-                            {listing.zpid && (
+                            {(listing.detail_url || listing.zpid) && (
                                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                     <a
-                                        href={`https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}
+                                        href={listing.detail_url ?? `https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"

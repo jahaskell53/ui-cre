@@ -528,7 +528,7 @@ function CompsContent() {
                                 { label: 'Median', value: marketStats.median, highlight: true },
                                 { label: '75th %ile', value: marketStats.p75 },
                                 { label: 'Max',    value: marketStats.max },
-                            ] as const).map(({ label, value, highlight }) => (
+                            ]).map(({ label, value, highlight }) => (
                                 <div key={label} className={cn("rounded-lg py-2 px-1", highlight ? "bg-blue-50 dark:bg-blue-900/20" : "bg-gray-50 dark:bg-gray-700/40")}>
                                     <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">{label}</p>
                                     <p className={cn("text-sm font-semibold tabular-nums", highlight ? "text-blue-700 dark:text-blue-300" : "text-gray-800 dark:text-gray-200")}>
