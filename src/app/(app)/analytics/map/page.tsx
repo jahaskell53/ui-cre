@@ -199,6 +199,7 @@ export default function MapPage() {
                 .select('*', { count: 'exact' })
                 .not('latitude', 'is', null)
                 .not('longitude', 'is', null)
+                .not('is_sfr', 'is', true)
                 .order('scraped_at', { ascending: false });
             if (search) {
                 zillowQuery = zillowQuery.or(`address_raw.ilike.%${search}%,address_city.ilike.%${search}%,address_state.ilike.%${search}%`);
@@ -245,6 +246,7 @@ export default function MapPage() {
             .select('*', { count: 'exact' })
             .not('latitude', 'is', null)
             .not('longitude', 'is', null)
+            .not('is_sfr', 'is', true)
             .order('scraped_at', { ascending: false });
 
         if (search) {
