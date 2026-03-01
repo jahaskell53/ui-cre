@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -24,6 +24,10 @@ import { PropertyDetailLayout } from "@/components/application/property-detail-l
 import { ValuationCard } from "@/components/application/valuation-card";
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
 interface ZillowListing {
     source: "zillow";
@@ -46,6 +50,8 @@ interface ZillowListing {
     has_spa: boolean | null;
     has_pool: boolean | null;
     scraped_at: string | null;
+    latitude: number | null;
+    longitude: number | null;
 }
 
 interface LoopnetListing {
@@ -125,6 +131,8 @@ export default function ListingDetailPage() {
     const [capRate, setCapRate] = useState(4.5);
     const [rent, setRent] = useState(3000);
     const [vacancy, setVacancy] = useState(5);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapInstance = useRef<mapboxgl.Map | null>(null);
 
     useEffect(() => {
         if (!rawId) return;
@@ -134,7 +142,7 @@ export default function ListingDetailPage() {
                 const uuid = rawId.slice("zillow-".length);
                 const { data, error } = await supabase
                     .from("cleaned_listings")
-                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at")
+                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at, latitude, longitude")
                     .eq("id", uuid)
                     .single();
                 if (error || !data) {
@@ -167,6 +175,29 @@ export default function ListingDetailPage() {
 
         load();
     }, [rawId]);
+
+    useEffect(() => {
+        if (!listing || listing.source !== "zillow") return;
+        const { latitude: lat, longitude: lng } = listing;
+        if (!lat || !lng || !mapContainerRef.current || mapInstance.current) return;
+
+        const map = new mapboxgl.Map({
+            container: mapContainerRef.current,
+            style: 'mapbox://styles/mapbox/light-v11',
+            center: [lng, lat],
+            zoom: 14,
+            accessToken: MAPBOX_TOKEN,
+            interactive: false,
+            attributionControl: false,
+        });
+
+        map.on('load', () => {
+            new mapboxgl.Marker({ color: '#3b82f6' }).setLngLat([lng, lat]).addTo(map);
+        });
+
+        mapInstance.current = map;
+        return () => { mapInstance.current?.remove(); mapInstance.current = null; };
+    }, [listing]);
 
     const annualRent = rent * 12 * (1 - vacancy / 100);
     const estimatedValue = Math.round(annualRent / (capRate / 100));
@@ -368,6 +399,17 @@ export default function ListingDetailPage() {
                                     </div>
                                 )}
                             </dl>
+                        </section>
+                    )}
+
+                    {/* Map */}
+                    {listing.source === "zillow" && listing.latitude && listing.longitude && (
+                        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden md:col-span-2">
+                            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                                <MapPin className="size-4 text-gray-500" />
+                                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Location</h3>
+                            </div>
+                            <div ref={mapContainerRef} className="h-64 w-full" />
                         </section>
                     )}
 

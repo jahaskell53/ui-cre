@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { supabase } from "@/utils/supabase";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { cn } from "@/lib/utils";
