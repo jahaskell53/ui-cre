@@ -44,7 +44,9 @@ export function PropertyDetailLayout({
             </div>
 
             {/* Hero */}
-            {hero}
+            <div className="px-6 max-w-4xl mx-auto w-full">
+                {hero}
+            </div>
 
             {/* Optional banner */}
             {banner != null ? (
