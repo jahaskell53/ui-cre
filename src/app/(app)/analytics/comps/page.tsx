@@ -170,7 +170,11 @@ function CompsContent() {
                     .select('id, img_src')
                     .in('id', ids);
                 const imgMap = Object.fromEntries((imgData ?? []).map(r => [r.id, r.img_src as string | null]));
-                setComps(rows.map(r => ({ ...r, img_src: imgMap[r.id] ?? null })));
+                const subjectStreet = p.addr.split(',')[0].trim().toLowerCase();
+                const merged = rows
+                    .map(r => ({ ...r, img_src: imgMap[r.id] ?? null }))
+                    .filter(r => (r.address_street || r.address_raw || '').split(',')[0].trim().toLowerCase() !== subjectStreet);
+                setComps(merged);
                 setCompsPage(1);
             }
         } catch {
