@@ -215,10 +215,21 @@ export default function ListingDetailPage() {
                 </>
             }
             headerBadge={
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", sourceBadgeClass)}>
                         {sourceLabel}
                     </span>
+                    {listing.source === "zillow" && (listing.detail_url || listing.zpid) && (
+                        <a
+                            href={listing.detail_url ?? `https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                            View on Zillow
+                            <ExternalLink className="size-3.5" />
+                        </a>
+                    )}
                     {listing.source === "loopnet" && listing.cap_rate && (
                         <div className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
                             <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{listing.cap_rate}</span>
@@ -325,19 +336,6 @@ export default function ListingDetailPage() {
                                     </div>
                                 ))}
                             </div>
-                            {(listing.detail_url || listing.zpid) && (
-                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                                    <a
-                                        href={listing.detail_url ?? `https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                                    >
-                                        View on Zillow
-                                        <ExternalLink className="size-3.5" />
-                                    </a>
-                                </div>
-                            )}
                         </section>
                     ) : (
                         <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
