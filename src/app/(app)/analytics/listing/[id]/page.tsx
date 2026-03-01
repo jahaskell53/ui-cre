@@ -52,6 +52,8 @@ interface ZillowListing {
     scraped_at: string | null;
     latitude: number | null;
     longitude: number | null;
+    is_building: boolean | null;
+    building_zpid: string | null;
 }
 
 interface LoopnetListing {
@@ -142,7 +144,7 @@ export default function ListingDetailPage() {
                 const uuid = rawId.slice("zillow-".length);
                 const { data, error } = await supabase
                     .from("cleaned_listings")
-                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at, latitude, longitude")
+                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at, latitude, longitude, is_building, building_zpid")
                     .eq("id", uuid)
                     .single();
                 if (error || !data) {
@@ -311,6 +313,14 @@ export default function ListingDetailPage() {
                                                     day: "numeric",
                                                     year: "numeric",
                                                 })}
+                                            </dd>
+                                        </div>
+                                    )}
+                                    {(listing.is_building !== null || listing.building_zpid) && (
+                                        <div className="flex justify-between">
+                                            <dt className="text-gray-500 dark:text-gray-400">Property Type</dt>
+                                            <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                                {listing.is_building ? "Whole Building" : listing.building_zpid ? "Unit in Building" : "Single Unit"}
                                             </dd>
                                         </div>
                                     )}
