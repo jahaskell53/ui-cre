@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 interface PropertyDetailLayoutProps {
@@ -23,19 +23,17 @@ export function PropertyDetailLayout({
     banner,
     children,
 }: PropertyDetailLayoutProps) {
-    const router = useRouter();
-
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
             {/* Header */}
             <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
-                <button
-                    onClick={() => router.back()}
+                <Link
+                    href={backHref}
                     className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer mb-4"
                 >
                     <ChevronLeft className="size-4" />
                     Back
-                </button>
+                </Link>
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
                         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h1>
