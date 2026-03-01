@@ -12,6 +12,8 @@ RUN apt-get update -y && \
     ldconfig && \
     rm -rf /tmp/libpostal
 
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
 WORKDIR /app
 
 COPY pyproject.toml .
