@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 interface PropertyDetailLayoutProps {
@@ -23,12 +24,26 @@ export function PropertyDetailLayout({
     banner,
     children,
 }: PropertyDetailLayoutProps) {
+    const router = useRouter();
+
+    const handleBackClick = (e: React.MouseEvent) => {
+        if (e.defaultPrevented) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        if (typeof window !== "undefined" && window.history.length > 1) {
+            router.back();
+        } else {
+            router.push(backHref);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
             {/* Header */}
             <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
                 <Link
                     href={backHref}
+                    onClick={handleBackClick}
                     className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer mb-4"
                 >
                     <ChevronLeft className="size-4" />
