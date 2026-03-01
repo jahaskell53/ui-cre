@@ -332,7 +332,7 @@ function CompsContent() {
         const medianRate = pct(50);
         const p75Rate = pct(75);
         const round2sig = (v: number) => { const m = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v / m) * m; };
-        return { low: round2sig(p25Rate * area), rent: round2sig(medianRate * area), high: round2sig(p75Rate * area), rate: medianRate, n };
+        return { low: round2sig(p25Rate * area), rent: round2sig(medianRate * area), high: round2sig(p75Rate * area), minRent: round2sig(rates[0] * area), maxRent: round2sig(rates[n - 1] * area), rate: medianRate, n };
     }, [comps, subjectArea]);
 
     const handleSort = (col: string) => {
@@ -509,13 +509,31 @@ function CompsContent() {
                 {!loading && comps !== null && comps.length > 0 && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
                         <div>
-                            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">Estimated Rent Range</p>
-                            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-0.5">
-                                {rentEstimate ? `$${rentEstimate.low.toLocaleString()} – $${rentEstimate.high.toLocaleString()}/mo` : '—'}
+                            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                                {rentEstimate && rentEstimate.n >= 8 ? 'Estimated Rent Range' : 'Estimated Rent'}
                             </p>
-                            {rentEstimate && (
+                            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-0.5">
+                                {rentEstimate
+                                    ? rentEstimate.n >= 8
+                                        ? `$${rentEstimate.low.toLocaleString()} – $${rentEstimate.high.toLocaleString()}/mo`
+                                        : rentEstimate.n >= 2
+                                        ? `$${rentEstimate.minRent.toLocaleString()} – $${rentEstimate.maxRent.toLocaleString()}/mo`
+                                        : `~$${rentEstimate.rent.toLocaleString()}/mo`
+                                    : '—'}
+                            </p>
+                            {rentEstimate && rentEstimate.n >= 8 && (
                                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
                                     25th–75th percentile · median ${rentEstimate.rent.toLocaleString()}/mo
+                                </p>
+                            )}
+                            {rentEstimate && rentEstimate.n >= 3 && rentEstimate.n < 8 && (
+                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                    min–max · median ${rentEstimate.rent.toLocaleString()}/mo
+                                </p>
+                            )}
+                            {rentEstimate && rentEstimate.n < 3 && (
+                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                    {rentEstimate.n === 1 ? '1 comp — single data point' : 'min–max of 2 comps'}
                                 </p>
                             )}
                             {!rentEstimate && (
@@ -543,44 +561,74 @@ function CompsContent() {
                             <span className="text-xs text-gray-400">{marketStats.n} listing{marketStats.n !== 1 ? 's' : ''}</span>
                         </div>
 
-                        {/* Stat row */}
-                        <div className="grid grid-cols-5 gap-2 text-center">
-                            {([
-                                { label: 'Min',    value: marketStats.min },
-                                { label: '25th %ile', value: marketStats.p25 },
-                                { label: 'Median', value: marketStats.median, highlight: true },
-                                { label: '75th %ile', value: marketStats.p75 },
-                                { label: 'Max',    value: marketStats.max },
-                            ]).map(({ label, value, highlight }) => (
-                                <div key={label} className={cn("rounded-lg py-2 px-1", highlight ? "bg-blue-50 dark:bg-blue-900/20" : "bg-gray-50 dark:bg-gray-700/40")}>
-                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">{label}</p>
-                                    <p className={cn("text-sm font-semibold tabular-nums", highlight ? "text-blue-700 dark:text-blue-300" : "text-gray-800 dark:text-gray-200")}>
-                                        ${Math.round(value).toLocaleString()}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
+                        {/* Small-n warning */}
+                        {marketStats.n < 8 && (
+                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                                Only {marketStats.n} comp{marketStats.n !== 1 ? 's' : ''} found — treat this range as approximate.
+                            </div>
+                        )}
 
-                        {/* Range bar */}
-                        {(() => {
+                        {/* Stat row — gated by n */}
+                        {marketStats.n < 3 ? (
+                            <div className="grid grid-cols-2 gap-2 text-center">
+                                {([
+                                    { label: 'Min', value: marketStats.min },
+                                    { label: 'Max', value: marketStats.max },
+                                ]).map(({ label, value }) => (
+                                    <div key={label} className="rounded-lg py-2 px-1 bg-gray-50 dark:bg-gray-700/40">
+                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">{label}</p>
+                                        <p className="text-sm font-semibold tabular-nums text-gray-800 dark:text-gray-200">${Math.round(value).toLocaleString()}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : marketStats.n < 8 ? (
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                                {([
+                                    { label: 'Min',    value: marketStats.min },
+                                    { label: 'Median', value: marketStats.median, highlight: true },
+                                    { label: 'Max',    value: marketStats.max },
+                                ]).map(({ label, value, highlight }) => (
+                                    <div key={label} className={cn("rounded-lg py-2 px-1", highlight ? "bg-blue-50 dark:bg-blue-900/20" : "bg-gray-50 dark:bg-gray-700/40")}>
+                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">{label}</p>
+                                        <p className={cn("text-sm font-semibold tabular-nums", highlight ? "text-blue-700 dark:text-blue-300" : "text-gray-800 dark:text-gray-200")}>${Math.round(value).toLocaleString()}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-5 gap-2 text-center">
+                                {([
+                                    { label: 'Min',       value: marketStats.min },
+                                    { label: '25th %ile', value: marketStats.p25 },
+                                    { label: 'Median',    value: marketStats.median, highlight: true },
+                                    { label: '75th %ile', value: marketStats.p75 },
+                                    { label: 'Max',       value: marketStats.max },
+                                ]).map(({ label, value, highlight }) => (
+                                    <div key={label} className={cn("rounded-lg py-2 px-1", highlight ? "bg-blue-50 dark:bg-blue-900/20" : "bg-gray-50 dark:bg-gray-700/40")}>
+                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">{label}</p>
+                                        <p className={cn("text-sm font-semibold tabular-nums", highlight ? "text-blue-700 dark:text-blue-300" : "text-gray-800 dark:text-gray-200")}>${Math.round(value).toLocaleString()}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Range bar — only when n >= 3 */}
+                        {marketStats.n >= 3 && (() => {
                             const range = marketStats.max - marketStats.min || 1;
                             const pos = (v: number) => `${Math.max(0, Math.min(100, ((v - marketStats.min) / range) * 100))}%`;
                             const subjectPx = subjectPrice ? parseInt(subjectPrice) : null;
                             return (
                                 <div className="relative h-6 flex items-center">
-                                    {/* Track */}
                                     <div className="absolute inset-x-0 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                                    {/* IQR band */}
-                                    <div
-                                        className="absolute h-1.5 bg-blue-300 dark:bg-blue-600 rounded-full"
-                                        style={{ left: pos(marketStats.p25), right: `${100 - parseFloat(pos(marketStats.p75))}%` }}
-                                    />
-                                    {/* Median marker */}
+                                    {marketStats.n >= 8 && (
+                                        <div
+                                            className="absolute h-1.5 bg-blue-300 dark:bg-blue-600 rounded-full"
+                                            style={{ left: pos(marketStats.p25), right: `${100 - parseFloat(pos(marketStats.p75))}%` }}
+                                        />
+                                    )}
                                     <div
                                         className="absolute w-0.5 h-4 bg-blue-600 dark:bg-blue-400 rounded-full -translate-x-1/2"
                                         style={{ left: pos(marketStats.median) }}
                                     />
-                                    {/* Subject price marker */}
                                     {subjectPx != null && (
                                         <div
                                             className="absolute w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 shadow -translate-x-1/2"
@@ -592,15 +640,17 @@ function CompsContent() {
                             );
                         })()}
 
-                        {/* Legend */}
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-300 dark:bg-blue-600 rounded-full inline-block" />Middle 50%</span>
-                            <span className="flex items-center gap-1.5"><span className="w-0.5 h-3 bg-blue-600 dark:bg-blue-400 rounded-full inline-block" />Median</span>
-                            {subjectPrice && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 inline-block" />Your rent</span>}
-                        </div>
+                        {/* Legend — only when n >= 8 */}
+                        {marketStats.n >= 8 && (
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                                <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-300 dark:bg-blue-600 rounded-full inline-block" />Middle 50%</span>
+                                <span className="flex items-center gap-1.5"><span className="w-0.5 h-3 bg-blue-600 dark:bg-blue-400 rounded-full inline-block" />Median</span>
+                                {subjectPrice && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 inline-block" />Your rent</span>}
+                            </div>
+                        )}
 
-                        {/* Percentile callout */}
-                        {marketStats.subjectPercentile !== null && (
+                        {/* Percentile callout — only when n >= 8 */}
+                        {marketStats.n >= 8 && marketStats.subjectPercentile !== null && (
                             <div className={cn(
                                 "rounded-lg px-4 py-3 text-sm font-medium",
                                 marketStats.subjectPercentile >= 50
