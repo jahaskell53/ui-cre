@@ -99,7 +99,7 @@ function NotFound() {
             <div className="p-6">
                 <Link
                     href="/analytics"
-                    className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
                 >
                     <ChevronLeft className="size-4" />
                     Back to Analytics
