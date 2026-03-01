@@ -87,6 +87,7 @@ function CompsContent() {
     const [subjectBeds, setSubjectBeds] = useState(initBeds);
     const [subjectBaths, setSubjectBaths] = useState(initBaths);
     const [subjectArea, setSubjectArea] = useState(initArea);
+    const [areaTolerance, setAreaTolerance] = useState(0.15);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
@@ -157,6 +158,7 @@ function CompsContent() {
                 subject_beds: p.beds ? parseInt(p.beds) : null,
                 subject_baths: p.baths ? parseFloat(p.baths) : null,
                 subject_area: p.area ? parseInt(p.area) : null,
+                area_tolerance: areaTolerance,
                 p_limit: 500,
             });
 
@@ -181,7 +183,14 @@ function CompsContent() {
             setError("Something went wrong. Please try again.");
         }
         setLoading(false);
-    }, []);
+    }, [areaTolerance]);
+
+    // Re-run search when area tolerance changes (if a search has already been run)
+    useEffect(() => {
+        if (!comps) return;
+        findComps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [areaTolerance]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
@@ -484,6 +493,21 @@ function CompsContent() {
                                     <Label className="text-xs mb-1 block">Sq Ft</Label>
                                     <Input type="number" placeholder="e.g. 1200" value={subjectArea}
                                         onChange={(e) => setSubjectArea(e.target.value)} className="h-8 text-xs" />
+                                    {subjectArea && (
+                                        <div className="mt-1.5 flex items-center gap-1.5">
+                                            <span className="text-[10px] text-gray-400">±</span>
+                                            <select
+                                                value={areaTolerance}
+                                                onChange={(e) => setAreaTolerance(parseFloat(e.target.value))}
+                                                className="text-[10px] text-gray-500 dark:text-gray-400 bg-transparent border-none outline-none cursor-pointer"
+                                            >
+                                                {[0.05, 0.10, 0.15, 0.20, 0.25, 0.30].map(v => (
+                                                    <option key={v} value={v}>{Math.round(v * 100)}%</option>
+                                                ))}
+                                            </select>
+                                            <span className="text-[10px] text-gray-400">size match</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -543,7 +567,7 @@ function CompsContent() {
                         {rentEstimate && (
                             <div className="text-right flex-shrink-0 space-y-0.5">
                                 <p className="text-xs text-blue-600 dark:text-blue-400">
-                                    ±30% size match · {rentEstimate.n} comp{rentEstimate.n !== 1 ? 's' : ''}
+                                    ±{Math.round(areaTolerance * 100)}% size match · {rentEstimate.n} comp{rentEstimate.n !== 1 ? 's' : ''}
                                 </p>
                                 <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                                     ${rentEstimate.rate.toFixed(2)}<span className="text-xs font-normal ml-0.5">median $/sqft</span>
