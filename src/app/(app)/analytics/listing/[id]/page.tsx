@@ -133,6 +133,7 @@ export default function ListingDetailPage() {
     const [capRate, setCapRate] = useState(4.5);
     const [rent, setRent] = useState(3000);
     const [vacancy, setVacancy] = useState(5);
+    const [units, setUnits] = useState(1);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<mapboxgl.Map | null>(null);
 
@@ -201,7 +202,7 @@ export default function ListingDetailPage() {
         return () => { mapInstance.current?.remove(); mapInstance.current = null; };
     }, [listing]);
 
-    const annualRent = rent * 12 * (1 - vacancy / 100);
+    const annualRent = rent * units * 12 * (1 - vacancy / 100);
     const estimatedValue = Math.round(annualRent / (capRate / 100));
     const irr = 12.1;
 
@@ -480,6 +481,21 @@ export default function ListingDetailPage() {
                                         step="1"
                                         value={vacancy}
                                         onChange={(e) => setVacancy(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between mb-1">
+                                        <Label className="text-sm">Units</Label>
+                                        <span className="text-sm font-semibold">{units}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="50"
+                                        step="1"
+                                        value={units}
+                                        onChange={(e) => setUnits(parseInt(e.target.value))}
                                         className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
                                     />
                                 </div>
