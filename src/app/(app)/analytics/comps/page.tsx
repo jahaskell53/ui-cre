@@ -310,11 +310,17 @@ function CompsContent() {
         const pts = comps.filter(c => c.price && c.area);
         if (pts.length === 0) return null;
         const rates = pts.map(c => c.price! / c.area!).sort((a, b) => a - b);
-        const mid = Math.floor(rates.length / 2);
-        const median = rates.length % 2 !== 0 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2;
-        const rawRent = median * area;
-        const m = Math.pow(10, Math.floor(Math.log10(rawRent)) - 1);
-        return { rent: Math.round(rawRent / m) * m, rate: median, n: pts.length };
+        const n = rates.length;
+        const pct = (p: number) => {
+            const idx = (p / 100) * (n - 1);
+            const lo = Math.floor(idx), hi = Math.ceil(idx);
+            return lo === hi ? rates[lo] : rates[lo] + (rates[hi] - rates[lo]) * (idx - lo);
+        };
+        const p25Rate = pct(25);
+        const medianRate = pct(50);
+        const p75Rate = pct(75);
+        const round2sig = (v: number) => { const m = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v / m) * m; };
+        return { low: round2sig(p25Rate * area), rent: round2sig(medianRate * area), high: round2sig(p75Rate * area), rate: medianRate, n };
     }, [comps, subjectArea]);
 
     const handleSort = (col: string) => {
@@ -491,10 +497,15 @@ function CompsContent() {
                 {!loading && comps !== null && comps.length > 0 && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
                         <div>
-                            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">Estimated Rent</p>
+                            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">Estimated Rent Range</p>
                             <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-0.5">
-                                {rentEstimate ? `$${rentEstimate.rent.toLocaleString()}/mo` : '—'}
+                                {rentEstimate ? `$${rentEstimate.low.toLocaleString()} – $${rentEstimate.high.toLocaleString()}/mo` : '—'}
                             </p>
+                            {rentEstimate && (
+                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                    25th–75th percentile · median ${rentEstimate.rent.toLocaleString()}/mo
+                                </p>
+                            )}
                             {!rentEstimate && (
                                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Enter sq ft above to estimate</p>
                             )}
