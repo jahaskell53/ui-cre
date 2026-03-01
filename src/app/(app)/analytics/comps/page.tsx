@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, MapPin } from "lucide-react";
+import { Search, MapPin, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,7 @@ interface CompResult {
     area: number | null;
     distance_m: number;
     composite_score: number;
+    img_src: string | null;
 }
 
 interface MapboxFeature {
@@ -162,7 +163,14 @@ function CompsContent() {
             if (rpcError) {
                 setError("Failed to find comps: " + rpcError.message);
             } else {
-                setComps((data ?? []) as CompResult[]);
+                const rows = (data ?? []) as Omit<CompResult, 'img_src'>[];
+                const ids = rows.map(r => r.id);
+                const { data: imgData } = await supabase
+                    .from('cleaned_listings')
+                    .select('id, img_src')
+                    .in('id', ids);
+                const imgMap = Object.fromEntries((imgData ?? []).map(r => [r.id, r.img_src as string | null]));
+                setComps(rows.map(r => ({ ...r, img_src: imgMap[r.id] ?? null })));
                 setCompsPage(1);
             }
         } catch {
@@ -681,12 +689,23 @@ function CompsContent() {
                                             <tr key={comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                 <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
                                                 <td className="px-4 py-3">
-                                                    <Link href={`/analytics/listing/zillow-${comp.id}`} className="group">
-                                                        <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[200px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                            {titleCaseAddress(comp.address_street || comp.address_raw) || '—'}
+                                                    <Link href={`/analytics/listing/zillow-${comp.id}`} className="group flex items-center gap-3">
+                                                        <div className="w-16 h-12 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0 overflow-hidden">
+                                                            {comp.img_src ? (
+                                                                <img src={comp.img_src} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center">
+                                                                    <Building2 className="size-4 text-gray-400" />
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                                                            {[titleCaseAddress(comp.address_city), comp.address_state?.toUpperCase(), comp.address_zip].filter(Boolean).join(', ')}
+                                                        <div>
+                                                            <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[160px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                                {titleCaseAddress(comp.address_street || comp.address_raw) || '—'}
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 truncate max-w-[160px]">
+                                                                {[titleCaseAddress(comp.address_city), comp.address_state?.toUpperCase(), comp.address_zip].filter(Boolean).join(', ')}
+                                                            </div>
                                                         </div>
                                                     </Link>
                                                 </td>
