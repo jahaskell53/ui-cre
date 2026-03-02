@@ -10,12 +10,7 @@ import {
     MapPin,
     Calculator,
     Home,
-    Layers,
     ExternalLink,
-    Flame,
-    Wind,
-    Waves,
-    Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,7 +18,6 @@ import { IrrProjectionChart } from "@/components/application/irr-projection-char
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
 import { ValuationCard } from "@/components/application/valuation-card";
 import { supabase } from "@/utils/supabase";
-import { cn } from "@/lib/utils";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -45,10 +39,6 @@ interface ZillowListing {
     baths: number | null;
     area: number | null;
     availability_date: string | null;
-    has_fireplace: boolean | null;
-    has_ac: boolean | null;
-    has_spa: boolean | null;
-    has_pool: boolean | null;
     scraped_at: string | null;
     latitude: number | null;
     longitude: number | null;
@@ -144,7 +134,7 @@ export default function ListingDetailPage() {
                 const uuid = rawId.slice("zillow-".length);
                 const { data, error } = await supabase
                     .from("cleaned_listings")
-                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, has_fireplace, has_ac, has_spa, has_pool, scraped_at, latitude, longitude, is_building, building_zpid")
+                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid")
                     .eq("id", uuid)
                     .single();
                 if (error || !data) {
@@ -348,37 +338,8 @@ export default function ListingDetailPage() {
                         </dl>
                     </section>
 
-                    {/* Amenities (zillow only) or Actions (loopnet) */}
-                    {listing.source === "zillow" ? (
-                        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                            <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
-                                <Layers className="size-4" />
-                                Amenities
-                            </h3>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { key: "has_fireplace", label: "Fireplace", icon: Flame, value: listing.has_fireplace },
-                                    { key: "has_ac", label: "A/C", icon: Wind, value: listing.has_ac },
-                                    { key: "has_pool", label: "Pool", icon: Waves, value: listing.has_pool },
-                                    { key: "has_spa", label: "Spa", icon: Sparkles, value: listing.has_spa },
-                                ].map(({ key, label, icon: Icon, value }) => (
-                                    <div
-                                        key={key}
-                                        className={cn(
-                                            "flex items-center gap-2 p-2.5 rounded-lg text-sm",
-                                            value
-                                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                                                : "bg-gray-50 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500"
-                                        )}
-                                    >
-                                        <Icon className="size-4 flex-shrink-0" />
-                                        <span className={value ? "font-medium" : ""}>{label}</span>
-                                        {!value && <span className="ml-auto text-xs">—</span>}
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    ) : (
+                    {/* Listing Details (loopnet only) */}
+                    {listing.source === "loopnet" && (
                         <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                             <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
                                 <DollarSign className="size-4" />
