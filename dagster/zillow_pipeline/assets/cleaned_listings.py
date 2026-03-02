@@ -2,7 +2,6 @@ import re
 from typing import Optional
 
 from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy, asset
-from postal.parser import parse_address
 
 from zillow_pipeline.resources.supabase import SupabaseResource
 
@@ -55,6 +54,7 @@ def parse_float(value) -> Optional[float]:
 
 
 def normalize_address(raw: str) -> dict:
+    from postal.parser import parse_address
     parts = parse_address(raw)
     return {label: value for value, label in parts}
 
