@@ -46,6 +46,7 @@ class CleanedBuildingUnitsConfig(Config):
 )
 def cleaned_building_units(
     context: AssetExecutionContext,
+    raw_building_scrapes: int,
     config: CleanedBuildingUnitsConfig,
     supabase: SupabaseResource,
 ) -> Output[int]:
