@@ -18,6 +18,7 @@ import { IrrProjectionChart } from "@/components/application/irr-projection-char
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
 import { ValuationCard } from "@/components/application/valuation-card";
 import { supabase } from "@/utils/supabase";
+import { cn } from "@/lib/utils";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
