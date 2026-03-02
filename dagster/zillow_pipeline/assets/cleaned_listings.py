@@ -130,7 +130,6 @@ def cleaned_listings(
                 lat = lat_long.get("latitude") or home_info.get("latitude")
                 lng = lat_long.get("longitude") or home_info.get("longitude")
 
-                facts = listing.get("factsAndFeatures") or {}
                 avail_raw = listing.get("availabilityDate")
 
                 client.rpc(
@@ -150,10 +149,6 @@ def cleaned_listings(
                         "p_baths": parse_float(listing.get("baths") or home_info.get("bathrooms")),
                         "p_area": parse_int(listing.get("area") or home_info.get("livingArea")),
                         "p_availability_date": avail_raw[:10] if avail_raw else None,
-                        "p_has_fireplace": facts.get("hasFireplace"),
-                        "p_has_ac": facts.get("hasAirConditioning"),
-                        "p_has_spa": facts.get("hasSpa"),
-                        "p_has_pool": facts.get("hasPool"),
                         "p_lat": float(lat) if lat is not None else None,
                         "p_lng": float(lng) if lng is not None else None,
                         "p_is_sfr": is_sfr(listing),
