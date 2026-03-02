@@ -17,6 +17,7 @@ The comps feature finds comparable rental listings near a subject property, rank
 | `subject_baths` | numeric | null          | Bathroom count                   |
 | `subject_area`  | int     | null          | Square footage                   |
 | `p_limit`       | int     | 10            | Max results to return            |
+| `area_tolerance` | numeric | 0.15         | Area filter tolerance (±15%)     |
 
 
 ---
@@ -26,11 +27,11 @@ The comps feature finds comparable rental listings near a subject property, rank
 The function first identifies the latest scrape run (by `scraped_at`) and filters `cleaned_listings` to candidates that:
 
 - Belong to that run
-- Are single-family rentals (`is_sfr = true`)
+- Are **not** flagged as SFR (`is_sfr IS NOT TRUE`) — excludes owner-occupied single-family residences
 - Have a valid geometry and a non-null price
 - Fall within `radius_m` of the subject, using PostGIS `ST_DWithin` on geography (great-circle distance)
-- Are more than 10m from the subject coordinates (excludes exact location matches)
-  - Have area within ±30% of `subject_area` (only applied when `subject_area` is provided)
+- Are within `area_tolerance` (±15% by default) of `subject_area` (only applied when `subject_area` is provided)
+- Subject exclusion is handled client-side by matching the first token of the subject address against each comp's `address_street` / `address_raw`
 
 This spatial filter uses a PostGIS spatial index and is the main performance optimization — only a small local subset of the ~12k listings is evaluated.
 
@@ -125,11 +126,17 @@ Each weight is divided by 0.80, so effective weights are ~6% / 69% / 25%.
 
 ## Step 4 — Rent Estimate (client-side)
 
-After comps are returned, the UI estimates rent for the subject property using its square footage. Because the DB already filters candidates to ±30% of `subject_area`, all returned comps are size-comparable and a flat $/sqft median is appropriate.
+After comps are returned, the UI estimates rent for the subject property using its square footage. Because the DB already filters candidates to within `area_tolerance` of `subject_area`, all returned comps are size-comparable and a flat $/sqft median is appropriate.
 
 ```
 est_rent = median(price / area across all comps) × subject_area
 ```
+
+The UI shows a **range** (25th–75th percentile of $/sqft rates × subject_area) rather than a single point estimate. Display is gated on sample size:
+
+- `n < 3`: min/max only, with a warning
+- `3 ≤ n < 8`: min/median/max with a warning
+- `n ≥ 8`: full p25–p75 range with IQR band and percentile callout
 
 The final estimate is rounded to 2 significant figures (e.g. $3,247 → $3,200) to avoid false precision.
 
