@@ -103,12 +103,20 @@ def cleaned_building_units(
         scraped_at = result.data[0]["scraped_at"] if result.data else building_rows[0]["scraped_at"] if building_rows else None
 
     # Also need zip_code from raw_zillow_scrapes to look up each building's zip
-    zip_rows = (
-        client.table("raw_zillow_scrapes")
-        .select("zip_code, raw_json")
-        .eq("run_id", run_id)
-        .execute()
-    ).data
+    zip_rows = []
+    offset = 0
+    while True:
+        page = (
+            client.table("raw_zillow_scrapes")
+            .select("zip_code, raw_json")
+            .eq("run_id", run_id)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        ).data
+        zip_rows.extend(page)
+        if len(page) < page_size:
+            break
+        offset += page_size
 
     # Build a lookup: building_zpid -> (zip_code, listing dict from raw_zillow_scrapes)
     building_meta: dict[str, dict] = {}
