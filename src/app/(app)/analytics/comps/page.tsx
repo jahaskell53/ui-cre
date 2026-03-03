@@ -49,29 +49,9 @@ interface CompResult {
     distance_m: number;
     composite_score: number;
     building_zpid: string | null;
-    img_src: string | null;
-}
-
-interface AggregatedComp {
-    isAggregated: true;
-    building_zpid: string;
-    first_unit_id: string;
-    address_raw: string | null;
-    address_street: string | null;
-    address_city: string | null;
-    address_state: string | null;
-    address_zip: string | null;
-    beds: number | null;
-    baths: number | null;
-    avg_price: number;
-    avg_area: number | null;
     unit_count: number;
-    distance_m: number;
-    avg_score: number;
     img_src: string | null;
 }
-
-type DisplayComp = (CompResult & { isAggregated?: false }) | AggregatedComp;
 
 interface MapboxFeature {
     id: string;
@@ -522,61 +502,10 @@ function CompsContent() {
         return [...comps].sort((a, b) => multiplier * (getValue(a) - getValue(b)));
     }, [comps, sortCol, sortDir, subjectPrice, subjectBeds, subjectBaths, subjectArea]);
 
-    const displayComps = useMemo((): DisplayComp[] => {
-        if (!sortedComps.length) return [];
-        if (!includeReits) return sortedComps as DisplayComp[];
-        const nonReit = sortedComps.filter(c => c.building_zpid == null) as DisplayComp[];
-        const reitUnits = sortedComps.filter(c => c.building_zpid != null);
-        if (reitUnits.length === 0) return nonReit;
-
-        const groups = new Map<string, CompResult[]>();
-        for (const unit of reitUnits) {
-            const key = `${unit.building_zpid}|${unit.beds ?? 'null'}|${unit.baths ?? 'null'}`;
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key)!.push(unit);
-        }
-
-        const aggregated: AggregatedComp[] = [];
-        for (const [, units] of groups) {
-            const first = units[0];
-            const prices = units.filter(u => u.price != null).map(u => u.price!);
-            const areas = units.filter(u => u.area != null).map(u => u.area!);
-            const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
-            const avgArea = areas.length > 0 ? areas.reduce((a, b) => a + b, 0) / areas.length : null;
-            const avgScore = units.reduce((a, b) => a + b.composite_score, 0) / units.length;
-            aggregated.push({
-                isAggregated: true,
-                building_zpid: first.building_zpid!,
-                first_unit_id: first.id,
-                address_raw: first.address_raw,
-                address_street: first.address_street,
-                address_city: first.address_city,
-                address_state: first.address_state,
-                address_zip: first.address_zip,
-                beds: first.beds,
-                baths: first.baths,
-                avg_price: avgPrice,
-                avg_area: avgArea,
-                unit_count: units.length,
-                distance_m: first.distance_m,
-                avg_score: avgScore,
-                img_src: first.img_src,
-            });
-        }
-
-        const merged: DisplayComp[] = [...nonReit, ...aggregated];
-        merged.sort((a, b) => {
-            const scoreA = a.isAggregated ? a.avg_score : a.composite_score;
-            const scoreB = b.isAggregated ? b.avg_score : b.composite_score;
-            return scoreB - scoreA;
-        });
-        return merged;
-    }, [sortedComps, includeReits]);
-
     const marketStats = useMemo(() => {
-        if (!displayComps.length) return null;
-        const prices = displayComps
-            .map(c => c.isAggregated ? c.avg_price : c.price)
+        if (!sortedComps.length) return null;
+        const prices = sortedComps
+            .map(c => c.price)
             .filter((p): p is number => p != null)
             .sort((a, b) => a - b);
         if (prices.length === 0) return null;
@@ -599,7 +528,7 @@ function CompsContent() {
             }
         }
         return { min, max, p25, median, p75, n, subjectPercentile };
-    }, [displayComps, subjectPrice]);
+    }, [sortedComps, subjectPrice]);
 
     const metersToMiles = (m: number) => (m / 1609.34).toFixed(2);
     const scoreColor = (s: number) =>
@@ -957,7 +886,7 @@ function CompsContent() {
                         <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-start justify-between">
                             <div>
                                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                                    {displayComps.length} comp{displayComps.length !== 1 ? 's' : ''} found
+                                    {sortedComps.length} comp{sortedComps.length !== 1 ? 's' : ''} found
                                 </h3>
                                 {subjectLabel && (
                                     <p className="text-xs text-gray-500 mt-0.5 truncate max-w-md">{subjectLabel}</p>
@@ -1023,60 +952,13 @@ function CompsContent() {
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">0 mi</td>
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">—</td>
                                         </tr>
-                                        {displayComps.slice((compsPage - 1) * 25, compsPage * 25).map((comp, i) => {
-                                            if (comp.isAggregated) {
-                                                const unitTypeLabel = `${comp.beds ?? '?'} bed · ${comp.baths != null ? Number(comp.baths).toFixed(1) : '?'} ba · ${comp.unit_count} unit${comp.unit_count !== 1 ? 's' : ''}`;
-                                                return (
-                                                    <tr key={`agg-${comp.building_zpid}-${comp.beds}-${comp.baths}`} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                                        <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
-                                                        <td className="px-4 py-3">
-                                                            <Link href={`/analytics/listing/zillow-${comp.first_unit_id}`} className="group flex items-center gap-3">
-                                                                <div className="w-16 h-12 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0 overflow-hidden">
-                                                                    {comp.img_src ? (
-                                                                        <img src={comp.img_src} alt="" className="w-full h-full object-cover" />
-                                                                    ) : (
-                                                                        <div className="w-full h-full flex items-center justify-center">
-                                                                            <Building2 className="size-4 text-gray-400" />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[160px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                                                                        {titleCaseAddress(comp.address_street || comp.address_raw) || '—'}
-                                                                        <span className="flex-shrink-0 text-[10px] font-semibold px-1 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">REIT</span>
-                                                                    </div>
-                                                                    <div className="text-xs text-gray-500 truncate max-w-[160px]">
-                                                                        {unitTypeLabel}
-                                                                    </div>
-                                                                </div>
-                                                            </Link>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
-                                                            ${Math.round(comp.avg_price).toLocaleString()} avg
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{comp.beds ?? '—'}</td>
-                                                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                                                            {comp.baths != null ? Number(comp.baths).toFixed(1) : '—'}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                                                            {comp.avg_area ? Math.round(comp.avg_area).toLocaleString() : '—'}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                                                            {comp.avg_area ? `$${(comp.avg_price / comp.avg_area).toFixed(2)}` : '—'}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right text-gray-500 text-xs">
-                                                            {metersToMiles(comp.distance_m)} mi
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right">
-                                                            <span className={cn("text-sm font-semibold tabular-nums", scoreColor(comp.avg_score))}>
-                                                                {Math.round(comp.avg_score * 100)}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            }
+                                        {sortedComps.slice((compsPage - 1) * 25, compsPage * 25).map((comp, i) => {
+                                            const isAggregated = comp.unit_count > 1;
+                                            const subLabel = isAggregated
+                                                ? `${comp.beds ?? '?'} bed · ${comp.baths != null ? Number(comp.baths).toFixed(1) : '?'} ba · ${comp.unit_count} units`
+                                                : [titleCaseAddress(comp.address_city), comp.address_state?.toUpperCase(), comp.address_zip].filter(Boolean).join(', ');
                                             return (
-                                                <tr key={comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                                <tr key={isAggregated ? `agg-${comp.building_zpid}-${comp.beds}-${comp.baths}` : comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                     <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
                                                     <td className="px-4 py-3">
                                                         <Link href={`/analytics/listing/zillow-${comp.id}`} className="group flex items-center gap-3">
@@ -1096,14 +978,12 @@ function CompsContent() {
                                                                         <span className="flex-shrink-0 text-[10px] font-semibold px-1 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">REIT</span>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-xs text-gray-500 truncate max-w-[160px]">
-                                                                    {[titleCaseAddress(comp.address_city), comp.address_state?.toUpperCase(), comp.address_zip].filter(Boolean).join(', ')}
-                                                                </div>
+                                                                <div className="text-xs text-gray-500 truncate max-w-[160px]">{subLabel}</div>
                                                             </div>
                                                         </Link>
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
-                                                        {comp.price ? `$${comp.price.toLocaleString()}` : '—'}
+                                                        {comp.price ? `$${comp.price.toLocaleString()}${isAggregated ? ' avg' : ''}` : '—'}
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{comp.beds ?? '—'}</td>
                                                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
@@ -1130,10 +1010,10 @@ function CompsContent() {
                                 </table>
                             </div>
                         )}
-                        {displayComps.length > 25 && (
+                        {sortedComps.length > 25 && (
                             <PaginationButtonGroup
                                 page={compsPage}
-                                total={Math.ceil(displayComps.length / 25)}
+                                total={Math.ceil(sortedComps.length / 25)}
                                 onPageChange={setCompsPage}
                                 align="center"
                             />
