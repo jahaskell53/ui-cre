@@ -133,6 +133,8 @@ export default function ListingDetailPage() {
     const [listing, setListing] = useState<Listing | null | undefined>(undefined); // undefined = loading
     const [units, setUnits] = useState<UnitRow[] | null>(null);
     const [unitsPage, setUnitsPage] = useState(1);
+    const [heroImages, setHeroImages] = useState<string[] | null>(null);
+    const [heroIndex, setHeroIndex] = useState(0);
     const [capRate, setCapRate] = useState(4.5);
     const [rent, setRent] = useState(3000);
     const [vacancy, setVacancy] = useState(5);
@@ -192,6 +194,51 @@ export default function ListingDetailPage() {
 
         load();
     }, [rawId]);
+
+    useEffect(() => {
+        async function loadHeroImages() {
+            if (!listing || listing.source !== "zillow") return;
+            if (!listing.zpid && !listing.building_zpid) return;
+            if (!listing.address_zip) return;
+
+            const { data, error } = await supabase
+                .from("raw_zillow_scrapes")
+                .select("raw_json")
+                .eq("zip_code", listing.address_zip)
+                .order("scraped_at", { ascending: false })
+                .limit(1);
+
+            if (error || !data || data.length === 0) return;
+
+            const raw = (data[0] as any).raw_json;
+            if (!raw) return;
+
+            const arr: any[] = Array.isArray(raw) ? raw : [raw];
+            const targetZpid = listing.zpid ?? listing.building_zpid;
+            const match = arr.find((item) => String(item?.zpid ?? "") === String(targetZpid ?? ""));
+            if (!match) return;
+
+            const urls: string[] = [];
+            const carousel = match.carouselPhotosComposable;
+            if (carousel && typeof carousel.baseUrl === "string" && Array.isArray(carousel.photoData)) {
+                const base: string = carousel.baseUrl;
+                for (const p of carousel.photoData) {
+                    if (p && typeof p.photoKey === "string") {
+                        urls.push(base.replace("{photoKey}", p.photoKey));
+                    }
+                }
+            }
+            if (urls.length === 0 && typeof match.imgSrc === "string") {
+                urls.push(match.imgSrc);
+            }
+            if (urls.length > 0) {
+                setHeroImages(urls);
+                setHeroIndex(0);
+            }
+        }
+
+        loadHeroImages();
+    }, [listing]);
 
     useEffect(() => {
         if (!listing || listing.source !== "zillow") return;
@@ -259,19 +306,65 @@ export default function ListingDetailPage() {
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
             : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300";
 
-    const heroImageUrl =
-        listing.source === "loopnet" ? listing.thumbnail_url :
-        listing.source === "zillow" ? listing.img_src : null;
-
-    const hero = heroImageUrl ? (
-        <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
-            <img src={heroImageUrl} alt="" className="w-full h-full object-cover" />
-        </div>
-    ) : (
+    const baseHeroFallback = (
         <div className="aspect-[3/1] min-h-[160px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
             <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
         </div>
     );
+
+    const hero =
+        listing.source === "loopnet"
+            ? (listing.thumbnail_url ? (
+                  <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
+                      <img src={listing.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                  </div>
+              ) : (
+                  baseHeroFallback
+              ))
+            : listing.source === "zillow" && heroImages && heroImages.length > 0 ? (
+                  <div className="relative aspect-[3/1] min-h-[180px] overflow-hidden bg-black">
+                      <img
+                          src={heroImages[heroIndex]}
+                          alt=""
+                          className="w-full h-full object-cover"
+                      />
+                      {heroImages.length > 1 && (
+                          <>
+                              <button
+                                  type="button"
+                                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs"
+                                  onClick={() =>
+                                      setHeroIndex((prev) =>
+                                          prev === 0 ? heroImages.length - 1 : prev - 1
+                                      )
+                                  }
+                              >
+                                  ‹
+                              </button>
+                              <button
+                                  type="button"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs"
+                                  onClick={() =>
+                                      setHeroIndex((prev) =>
+                                          prev === heroImages.length - 1 ? 0 : prev + 1
+                                      )
+                                  }
+                              >
+                                  ›
+                              </button>
+                              <div className="absolute bottom-3 right-4 rounded-full bg-black/40 text-white text-xs px-2 py-1">
+                                  {heroIndex + 1} / {heroImages.length}
+                              </div>
+                          </>
+                      )}
+                  </div>
+              ) : listing.source === "zillow" && listing.img_src ? (
+                  <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
+                      <img src={listing.img_src} alt="" className="w-full h-full object-cover" />
+                  </div>
+              ) : (
+                  baseHeroFallback
+              );
 
     return (
         <PropertyDetailLayout
