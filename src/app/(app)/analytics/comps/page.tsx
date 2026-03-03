@@ -451,7 +451,7 @@ function CompsContent() {
 
     return (
         <div className="flex-1 p-6 overflow-auto">
-            <div className="max-w-4xl mx-auto space-y-4">
+            <div className="max-w-6xl mx-auto space-y-4">
                 {/* Search form */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Find Comparable Rentals</h3>
