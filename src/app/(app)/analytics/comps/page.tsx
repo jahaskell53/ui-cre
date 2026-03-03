@@ -325,7 +325,7 @@ function CompsContent() {
             center: selectedCoords,
             zoom: 11,
             accessToken: MAPBOX_TOKEN,
-            interactive: false,
+            interactive: true,
             attributionControl: false,
         });
 
@@ -398,6 +398,9 @@ function CompsContent() {
         for (const comp of comps) {
             if (comp.latitude == null || comp.longitude == null) continue;
 
+            const lng = comp.longitude;
+            const lat = comp.latitude;
+
             const addr =
                 comp.address_raw ||
                 [comp.address_street, comp.address_city, comp.address_state, comp.address_zip].filter(Boolean).join(", ") ||
@@ -430,9 +433,17 @@ function CompsContent() {
             }).setDOMContent(popupContainer);
 
             const marker = new mapboxgl.Marker({ color: "#f97316" })
-                .setLngLat([comp.longitude, comp.latitude])
+                .setLngLat([lng, lat])
                 .setPopup(popup)
                 .addTo(map);
+
+            marker.getElement().addEventListener("click", () => {
+                map.flyTo({
+                    center: [lng, lat],
+                    zoom: Math.max(map.getZoom(), 12),
+                    essential: true,
+                });
+            });
 
             markers.push(marker);
         }
