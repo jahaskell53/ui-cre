@@ -133,6 +133,7 @@ function CompsContent() {
     const miniMapCompMarkersRef = useRef<mapboxgl.Marker[]>([]);
     const miniMapPopupRootsRef = useRef<ReturnType<typeof createRoot>[]>([]);
     const didAutoSearch = useRef(false);
+    const [miniMapActiveIndex, setMiniMapActiveIndex] = useState<number | null>(null);
 
     useEffect(() => {
         navigator.geolocation?.getCurrentPosition(
@@ -395,11 +396,11 @@ function CompsContent() {
         if (!comps || comps.length === 0) return;
 
         const markers: mapboxgl.Marker[] = [];
-        for (const comp of comps) {
-            if (comp.latitude == null || comp.longitude == null) continue;
+        const compsWithCoords = comps.filter(c => c.latitude != null && c.longitude != null);
+        compsWithCoords.forEach((comp, idx) => {
 
-            const lng = comp.longitude;
-            const lat = comp.latitude;
+            const lng = comp.longitude as number;
+            const lat = comp.latitude as number;
 
             const addr =
                 comp.address_raw ||
@@ -443,12 +444,34 @@ function CompsContent() {
                     zoom: Math.max(map.getZoom(), 12),
                     essential: true,
                 });
+
+                miniMapCompMarkersRef.current.forEach((m, idx) => {
+                    const p = m.getPopup();
+                    if (!p) return;
+                    if (m === marker) {
+                        if (!p.isOpen()) {
+                            m.togglePopup();
+                        }
+                        setMiniMapActiveIndex(idx);
+                    } else if (p.isOpen()) {
+                        p.remove();
+                    }
+                });
             });
 
             markers.push(marker);
-        }
+        });
 
         miniMapCompMarkersRef.current = markers;
+
+        if (markers.length > 0) {
+            setMiniMapActiveIndex((prev) => {
+                if (prev == null || prev >= markers.length) return 0;
+                return prev;
+            });
+        } else {
+            setMiniMapActiveIndex(null);
+        }
     }, [comps]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
@@ -663,6 +686,78 @@ function CompsContent() {
                                 selectedCoords ? "h-80" : "h-0"
                             )}
                         />
+                        {!loading && miniMapCompMarkersRef.current.length > 0 && (
+                            <div className="mt-2 flex justify-center gap-3">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const total = miniMapCompMarkersRef.current.length;
+                                        if (!total) return;
+                                        const current = miniMapActiveIndex ?? 0;
+                                        const next = (current - 1 + total) % total;
+                                        setMiniMapActiveIndex(next);
+                                        const map = miniMapInstance.current;
+                                        const marker = miniMapCompMarkersRef.current[next];
+                                        if (!map || !marker) return;
+                                        const lngLat = marker.getLngLat();
+                                        map.flyTo({
+                                            center: [lngLat.lng, lngLat.lat],
+                                            zoom: Math.max(map.getZoom(), 12),
+                                            essential: true,
+                                        });
+                                        miniMapCompMarkersRef.current.forEach((m, idx) => {
+                                            const p = m.getPopup();
+                                            if (!p) return;
+                                            if (idx === next) {
+                                                if (!p.isOpen()) {
+                                                    m.togglePopup();
+                                                }
+                                            } else if (p.isOpen()) {
+                                                p.remove();
+                                            }
+                                        });
+                                    }}
+                                >
+                                    Prev
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const total = miniMapCompMarkersRef.current.length;
+                                        if (!total) return;
+                                        const current = miniMapActiveIndex ?? -1;
+                                        const next = (current + 1 + total) % total;
+                                        setMiniMapActiveIndex(next);
+                                        const map = miniMapInstance.current;
+                                        const marker = miniMapCompMarkersRef.current[next];
+                                        if (!map || !marker) return;
+                                        const lngLat = marker.getLngLat();
+                                        map.flyTo({
+                                            center: [lngLat.lng, lngLat.lat],
+                                            zoom: Math.max(map.getZoom(), 12),
+                                            essential: true,
+                                        });
+                                        miniMapCompMarkersRef.current.forEach((m, idx) => {
+                                            const p = m.getPopup();
+                                            if (!p) return;
+                                            if (idx === next) {
+                                                if (!p.isOpen()) {
+                                                    m.togglePopup();
+                                                }
+                                            } else if (p.isOpen()) {
+                                                p.remove();
+                                            }
+                                        });
+                                    }}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        )}
 
                         {/* Optional subject attributes */}
                         <div>
