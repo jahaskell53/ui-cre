@@ -660,7 +660,7 @@ function CompsContent() {
                             ref={miniMapContainerRef}
                             className={cn(
                                 "rounded-lg overflow-hidden transition-all duration-300",
-                                selectedCoords ? "h-64" : "h-0"
+                                selectedCoords ? "h-80" : "h-0"
                             )}
                         />
 
