@@ -442,6 +442,7 @@ function CompsContent() {
                 map.flyTo({
                     center: [lng, lat],
                     zoom: Math.max(map.getZoom(), 12),
+                    offset: [0, -120],
                     essential: true,
                 });
 
@@ -705,6 +706,7 @@ function CompsContent() {
                                         map.flyTo({
                                             center: [lngLat.lng, lngLat.lat],
                                             zoom: Math.max(map.getZoom(), 12),
+                                            offset: [0, -120],
                                             essential: true,
                                         });
                                         miniMapCompMarkersRef.current.forEach((m, idx) => {
@@ -739,6 +741,7 @@ function CompsContent() {
                                         map.flyTo({
                                             center: [lngLat.lng, lngLat.lat],
                                             zoom: Math.max(map.getZoom(), 12),
+                                            offset: [0, -120],
                                             essential: true,
                                         });
                                         miniMapCompMarkersRef.current.forEach((m, idx) => {
