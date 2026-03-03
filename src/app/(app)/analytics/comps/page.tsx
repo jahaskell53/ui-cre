@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from "react";
+import { createRoot } from "react-dom/client";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, MapPin, Building2 } from "lucide-react";
@@ -11,6 +12,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { supabase } from "@/utils/supabase";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
+import { PropertyPopupContent } from "@/components/application/map/property-popup-content";
 import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
@@ -42,6 +44,8 @@ interface CompResult {
     beds: number | null;
     baths: number | null;
     area: number | null;
+    latitude: number | null;
+    longitude: number | null;
     distance_m: number;
     composite_score: number;
     building_zpid: string | null;
@@ -126,6 +130,8 @@ function CompsContent() {
     const inputWrapperRef = useRef<HTMLDivElement>(null);
     const miniMapContainerRef = useRef<HTMLDivElement>(null);
     const miniMapInstance = useRef<mapboxgl.Map | null>(null);
+    const miniMapCompMarkersRef = useRef<mapboxgl.Marker[]>([]);
+    const miniMapPopupRootsRef = useRef<ReturnType<typeof createRoot>[]>([]);
     const didAutoSearch = useRef(false);
 
     useEffect(() => {
@@ -193,16 +199,33 @@ function CompsContent() {
             if (rpcError) {
                 setError("Failed to find comps: " + rpcError.message);
             } else {
-                const rows = (data ?? []) as Omit<CompResult, 'img_src'>[];
+                const rows = (data ?? []) as Omit<CompResult, 'img_src' | 'latitude' | 'longitude'>[];
                 const ids = rows.map(r => r.id);
-                const { data: imgData } = await supabase
+                const { data: metaData } = await supabase
                     .from('cleaned_listings')
-                    .select('id, img_src')
+                    .select('id, img_src, latitude, longitude')
                     .in('id', ids);
-                const imgMap = Object.fromEntries((imgData ?? []).map(r => [r.id, r.img_src as string | null]));
+                const metaMap = Object.fromEntries(
+                    (metaData ?? []).map((r: any) => [
+                        r.id,
+                        {
+                            img_src: r.img_src as string | null,
+                            latitude: r.latitude as number | null,
+                            longitude: r.longitude as number | null,
+                        },
+                    ]),
+                );
                 const subjectStreet = p.addr.split(',')[0].trim().toLowerCase();
-                const merged = rows
-                    .map(r => ({ ...r, img_src: imgMap[r.id] ?? null }))
+                const merged: CompResult[] = rows
+                    .map((r) => {
+                        const meta = metaMap[r.id] ?? {};
+                        return {
+                            ...r,
+                            img_src: meta.img_src ?? null,
+                            latitude: meta.latitude ?? null,
+                            longitude: meta.longitude ?? null,
+                        };
+                    })
                     .filter(r => (r.address_street || r.address_raw || '').split(',')[0].trim().toLowerCase() !== subjectStreet);
                 setComps(merged);
                 setCompsPage(1);
@@ -279,6 +302,19 @@ function CompsContent() {
         if (!selectedCoords) {
             miniMapInstance.current?.remove();
             miniMapInstance.current = null;
+            miniMapCompMarkersRef.current.forEach(m => m.remove());
+            miniMapCompMarkersRef.current = [];
+            const previousRoots = [...miniMapPopupRootsRef.current];
+            miniMapPopupRootsRef.current = [];
+            setTimeout(() => {
+                previousRoots.forEach(root => {
+                    try {
+                        root.unmount();
+                    } catch {
+                        // ignore
+                    }
+                });
+            }, 0);
             return;
         }
         if (!miniMapContainerRef.current || miniMapInstance.current) return;
@@ -304,7 +340,23 @@ function CompsContent() {
         });
 
         miniMapInstance.current = map;
-        return () => { miniMapInstance.current?.remove(); miniMapInstance.current = null; };
+        return () => {
+            miniMapCompMarkersRef.current.forEach(m => m.remove());
+            miniMapCompMarkersRef.current = [];
+            const previousRoots = [...miniMapPopupRootsRef.current];
+            miniMapPopupRootsRef.current = [];
+            setTimeout(() => {
+                previousRoots.forEach(root => {
+                    try {
+                        root.unmount();
+                    } catch {
+                        // ignore
+                    }
+                });
+            }, 0);
+            miniMapInstance.current?.remove();
+            miniMapInstance.current = null;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedCoords]);
 
@@ -319,6 +371,74 @@ function CompsContent() {
         };
         map.isStyleLoaded() ? update() : map.once('load', update);
     }, [radiusMiles, selectedCoords]);
+
+    // Plot comps on the radius preview map
+    useEffect(() => {
+        const map = miniMapInstance.current;
+        if (!map) return;
+
+        // Clear previous comp markers
+        miniMapCompMarkersRef.current.forEach(m => m.remove());
+        miniMapCompMarkersRef.current = [];
+        const previousRoots = [...miniMapPopupRootsRef.current];
+        miniMapPopupRootsRef.current = [];
+        setTimeout(() => {
+            previousRoots.forEach(root => {
+                try {
+                    root.unmount();
+                } catch {
+                    // ignore
+                }
+            });
+        }, 0);
+
+        if (!comps || comps.length === 0) return;
+
+        const markers: mapboxgl.Marker[] = [];
+        for (const comp of comps) {
+            if (comp.latitude == null || comp.longitude == null) continue;
+
+            const addr =
+                comp.address_raw ||
+                [comp.address_street, comp.address_city, comp.address_state, comp.address_zip].filter(Boolean).join(", ") ||
+                "Address not listed";
+
+            const price = comp.price ? `$${comp.price.toLocaleString()}/mo` : "TBD";
+            const beds = comp.beds ?? null;
+            const baths = comp.baths != null ? Number(comp.baths).toFixed(1) : null;
+            const sqft = comp.area != null ? `${comp.area.toLocaleString()} sqft` : null;
+
+            const popupContainer = document.createElement("div");
+            const root = createRoot(popupContainer);
+            miniMapPopupRootsRef.current.push(root);
+            root.render(
+                <PropertyPopupContent
+                    name={addr}
+                    address={addr}
+                    price={price}
+                    units={null}
+                    capRate={beds != null || baths != null ? `${beds ?? "?"} bd · ${baths ?? "?"} ba` : null}
+                    squareFootage={sqft}
+                    thumbnailUrl={comp.img_src}
+                />
+            );
+
+            const popup = new mapboxgl.Popup({
+                offset: 16,
+                closeButton: false,
+                className: "property-popup",
+            }).setDOMContent(popupContainer);
+
+            const marker = new mapboxgl.Marker({ color: "#f97316" })
+                .setLngLat([comp.longitude, comp.latitude])
+                .setPopup(popup)
+                .addTo(map);
+
+            markers.push(marker);
+        }
+
+        miniMapCompMarkersRef.current = markers;
+    }, [comps]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress(feature.place_name);
@@ -526,7 +646,7 @@ function CompsContent() {
                             ref={miniMapContainerRef}
                             className={cn(
                                 "rounded-lg overflow-hidden transition-all duration-300",
-                                selectedCoords ? "h-44" : "h-0"
+                                selectedCoords ? "h-64" : "h-0"
                             )}
                         />
 
