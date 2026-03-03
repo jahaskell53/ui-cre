@@ -353,25 +353,7 @@ function CompsContent() {
         return { min, max, p25, median, p75, n, subjectPercentile };
     }, [comps, subjectPrice]);
 
-    const rentEstimate = useMemo(() => {
-        if (!comps || !subjectArea) return null;
-        const area = parseInt(subjectArea);
-        if (isNaN(area) || area <= 0) return null;
-        const pts = comps.filter(c => c.price && c.area);
-        if (pts.length === 0) return null;
-        const rates = pts.map(c => c.price! / c.area!).sort((a, b) => a - b);
-        const n = rates.length;
-        const pct = (p: number) => {
-            const idx = (p / 100) * (n - 1);
-            const lo = Math.floor(idx), hi = Math.ceil(idx);
-            return lo === hi ? rates[lo] : rates[lo] + (rates[hi] - rates[lo]) * (idx - lo);
-        };
-        const p25Rate = pct(25);
-        const medianRate = pct(50);
-        const p75Rate = pct(75);
-        const round2sig = (v: number) => { const m = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v / m) * m; };
-        return { low: round2sig(p25Rate * area), rent: round2sig(medianRate * area), high: round2sig(p75Rate * area), minRent: round2sig(rates[0] * area), maxRent: round2sig(rates[n - 1] * area), rate: medianRate, n };
-    }, [comps, subjectArea]);
+    // Rent estimate banner removed
 
     const handleSort = (col: string) => {
         if (sortCol === col) {
@@ -621,53 +603,7 @@ function CompsContent() {
                     </div>
                 )}
 
-                {/* Rent estimate banner */}
-                {!loading && comps !== null && comps.length > 0 && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between gap-4">
-                        <div>
-                            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-                                {rentEstimate && rentEstimate.n >= 8 ? 'Estimated Rent Range' : 'Estimated Rent'}
-                            </p>
-                            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-0.5">
-                                {rentEstimate
-                                    ? rentEstimate.n >= 8
-                                        ? `$${rentEstimate.low.toLocaleString()} – $${rentEstimate.high.toLocaleString()}/mo`
-                                        : rentEstimate.n >= 2
-                                        ? `$${rentEstimate.minRent.toLocaleString()} – $${rentEstimate.maxRent.toLocaleString()}/mo`
-                                        : `~$${rentEstimate.rent.toLocaleString()}/mo`
-                                    : '—'}
-                            </p>
-                            {rentEstimate && rentEstimate.n >= 8 && (
-                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                                    25th–75th percentile · median ${rentEstimate.rent.toLocaleString()}/mo
-                                </p>
-                            )}
-                            {rentEstimate && rentEstimate.n >= 3 && rentEstimate.n < 8 && (
-                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                                    min–max · median ${rentEstimate.rent.toLocaleString()}/mo
-                                </p>
-                            )}
-                            {rentEstimate && rentEstimate.n < 3 && (
-                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                                    {rentEstimate.n === 1 ? '1 comp — single data point' : 'min–max of 2 comps'}
-                                </p>
-                            )}
-                            {!rentEstimate && (
-                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Enter sq ft above to estimate</p>
-                            )}
-                        </div>
-                        {rentEstimate && (
-                            <div className="text-right flex-shrink-0 space-y-0.5">
-                                <p className="text-xs text-blue-600 dark:text-blue-400">
-                                    ±{Math.round(areaTolerance * 100)}% size match · {rentEstimate.n} comp{rentEstimate.n !== 1 ? 's' : ''}
-                                </p>
-                                <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-                                    ${rentEstimate.rate.toFixed(2)}<span className="text-xs font-normal ml-0.5">median $/sqft</span>
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
+                {/* Rent estimate banner removed */}
 
                 {/* Market distribution summary */}
                 {!loading && marketStats && (
