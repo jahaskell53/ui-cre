@@ -44,6 +44,7 @@ interface CompResult {
     area: number | null;
     distance_m: number;
     composite_score: number;
+    building_zpid: string | null;
     img_src: string | null;
 }
 
@@ -61,6 +62,7 @@ interface SearchParams {
     beds: string;
     baths: string;
     area: string;
+    reits: boolean;
 }
 
 function CompsContent() {
@@ -78,6 +80,7 @@ function CompsContent() {
     const initBeds = searchParams.get('beds') ?? '';
     const initBaths = searchParams.get('baths') ?? '';
     const initArea = searchParams.get('area') ?? '';
+    const initReits = searchParams.get('reits') === '1';
 
     const [address, setAddress] = useState(initAddress);
     const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(initCoords);
@@ -89,6 +92,7 @@ function CompsContent() {
     const [subjectBaths, setSubjectBaths] = useState(initBaths);
     const [subjectArea, setSubjectArea] = useState(initArea);
     const [areaTolerance, setAreaTolerance] = useState(0.15);
+    const [includeReits, setIncludeReits] = useState(initReits);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
@@ -123,6 +127,7 @@ function CompsContent() {
         if (p.beds) url.set('beds', p.beds);
         if (p.baths) url.set('baths', p.baths);
         if (p.area) url.set('area', p.area);
+        if (p.reits) url.set('reits', '1');
         router.replace(`/analytics/comps?${url.toString()}`, { scroll: false });
     }, [router]);
 
@@ -160,6 +165,7 @@ function CompsContent() {
                 subject_baths: p.baths ? parseFloat(p.baths) : null,
                 subject_area: p.area ? parseInt(p.area) : null,
                 area_tolerance: areaTolerance,
+                include_reits: includeReits,
                 p_limit: 500,
             });
 
@@ -184,20 +190,20 @@ function CompsContent() {
             setError("Something went wrong. Please try again.");
         }
         setLoading(false);
-    }, [areaTolerance]);
+    }, [areaTolerance, includeReits]);
 
     // Re-run search when area tolerance changes (if a search has already been run)
     useEffect(() => {
         if (!comps) return;
         findComps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [areaTolerance]);
+    }, [areaTolerance, includeReits]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
         if (didAutoSearch.current || !initAddress) return;
         didAutoSearch.current = true;
-        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea });
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -210,6 +216,7 @@ function CompsContent() {
             beds: subjectBeds,
             baths: subjectBaths,
             area: subjectArea,
+            reits: includeReits,
         };
         pushToUrl(p);
         runSearch(p);
@@ -512,6 +519,18 @@ function CompsContent() {
                                 </div>
                             </div>
                         </div>
+                        <div className="flex items-center gap-2 mt-2">
+                            <input
+                                type="checkbox"
+                                id="include-reits"
+                                checked={includeReits}
+                                onChange={(e) => setIncludeReits(e.target.checked)}
+                                className="h-3.5 w-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
+                            />
+                            <label htmlFor="include-reits" className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                                Include REIT units
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -779,8 +798,11 @@ function CompsContent() {
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[160px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                            <div className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[160px] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
                                                                 {titleCaseAddress(comp.address_street || comp.address_raw) || '—'}
+                                                                {comp.building_zpid && (
+                                                                    <span className="flex-shrink-0 text-[10px] font-semibold px-1 py-0.5 rounded bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">REIT</span>
+                                                                )}
                                                             </div>
                                                             <div className="text-xs text-gray-500 truncate max-w-[160px]">
                                                                 {[titleCaseAddress(comp.address_city), comp.address_state?.toUpperCase(), comp.address_zip].filter(Boolean).join(', ')}
