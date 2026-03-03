@@ -448,31 +448,6 @@ function CompsContent() {
         setShowSuggestions(false);
     };
 
-    const marketStats = useMemo(() => {
-        if (!comps || comps.length === 0) return null;
-        const prices = comps.filter(c => c.price != null).map(c => c.price!).sort((a, b) => a - b);
-        if (prices.length === 0) return null;
-        const n = prices.length;
-        const pct = (p: number) => {
-            const idx = (p / 100) * (n - 1);
-            const lo = Math.floor(idx), hi = Math.ceil(idx);
-            return lo === hi ? prices[lo] : prices[lo] + (prices[hi] - prices[lo]) * (idx - lo);
-        };
-        const min = prices[0];
-        const max = prices[n - 1];
-        const p25 = pct(25);
-        const median = pct(50);
-        const p75 = pct(75);
-        let subjectPercentile: number | null = null;
-        if (subjectPrice) {
-            const sp = parseInt(subjectPrice);
-            if (!isNaN(sp)) {
-                subjectPercentile = Math.round((prices.filter(p => p < sp).length / n) * 100);
-            }
-        }
-        return { min, max, p25, median, p75, n, subjectPercentile };
-    }, [comps, subjectPrice]);
-
     // Rent estimate banner removed
 
     const handleSort = (col: string) => {
@@ -562,6 +537,34 @@ function CompsContent() {
         });
         return merged;
     }, [sortedComps, includeReits]);
+
+    const marketStats = useMemo(() => {
+        if (!displayComps.length) return null;
+        const prices = displayComps
+            .map(c => c.isAggregated ? c.avg_price : c.price)
+            .filter((p): p is number => p != null)
+            .sort((a, b) => a - b);
+        if (prices.length === 0) return null;
+        const n = prices.length;
+        const pct = (p: number) => {
+            const idx = (p / 100) * (n - 1);
+            const lo = Math.floor(idx), hi = Math.ceil(idx);
+            return lo === hi ? prices[lo] : prices[lo] + (prices[hi] - prices[lo]) * (idx - lo);
+        };
+        const min = prices[0];
+        const max = prices[n - 1];
+        const p25 = pct(25);
+        const median = pct(50);
+        const p75 = pct(75);
+        let subjectPercentile: number | null = null;
+        if (subjectPrice) {
+            const sp = parseInt(subjectPrice);
+            if (!isNaN(sp)) {
+                subjectPercentile = Math.round((prices.filter(p => p < sp).length / n) * 100);
+            }
+        }
+        return { min, max, p25, median, p75, n, subjectPercentile };
+    }, [displayComps, subjectPrice]);
 
     const metersToMiles = (m: number) => (m / 1609.34).toFixed(2);
     const scoreColor = (s: number) =>
