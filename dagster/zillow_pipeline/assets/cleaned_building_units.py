@@ -71,12 +71,21 @@ def cleaned_building_units(
 
     context.log.info(f"Cleaning building units for run_id: {run_id}")
 
-    building_rows = (
-        client.table("raw_building_details")
-        .select("*")
-        .eq("run_id", run_id)
-        .execute()
-    ).data
+    building_rows = []
+    page_size = 100
+    offset = 0
+    while True:
+        page = (
+            client.table("raw_building_details")
+            .select("*")
+            .eq("run_id", run_id)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        ).data
+        building_rows.extend(page)
+        if len(page) < page_size:
+            break
+        offset += page_size
 
     context.log.info(f"Found {len(building_rows)} building detail rows")
 
