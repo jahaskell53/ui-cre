@@ -616,7 +616,7 @@ function CompsContent() {
                                 selectedCoords ? "h-80" : "h-0"
                             )}
                         />
-                        {!loading && miniMapCompMarkersRef.current.length > 0 && (
+                        {!loading && comps && comps.length > 0 && (
                             <div className="mt-2 flex justify-center gap-3">
                                 <Button
                                     type="button"
