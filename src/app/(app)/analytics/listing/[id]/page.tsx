@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,6 +13,7 @@ import {
     ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { Label } from "@/components/ui/label";
 import { IrrProjectionChart } from "@/components/application/irr-projection-chart";
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
@@ -63,6 +64,15 @@ interface LoopnetListing {
 }
 
 type Listing = ZillowListing | LoopnetListing;
+
+interface UnitRow {
+    id: string;
+    zpid: string | null;
+    price: number | null;
+    beds: number | null;
+    baths: number | null;
+    area: number | null;
+}
 
 function LoadingSkeleton() {
     return (
@@ -121,6 +131,8 @@ export default function ListingDetailPage() {
     const rawId = params.id as string;
 
     const [listing, setListing] = useState<Listing | null | undefined>(undefined); // undefined = loading
+    const [units, setUnits] = useState<UnitRow[] | null>(null);
+    const [unitsPage, setUnitsPage] = useState(1);
     const [capRate, setCapRate] = useState(4.5);
     const [rent, setRent] = useState(3000);
     const [vacancy, setVacancy] = useState(5);
@@ -146,6 +158,18 @@ export default function ListingDetailPage() {
                 setListing({ source: "zillow", ...row } as ZillowListing);
                 if (row.price) {
                     setRent(row.price as number);
+                }
+                // Fetch sibling units for REIT buildings
+                const buildingZpid = row.is_building ? row.zpid as string | null : row.building_zpid as string | null;
+                if (buildingZpid) {
+                    const { data: unitData } = await supabase
+                        .from('cleaned_listings')
+                        .select('id, zpid, price, beds, baths, area')
+                        .eq('building_zpid', buildingZpid)
+                        .order('beds', { ascending: true })
+                        .order('baths', { ascending: true })
+                        .order('price', { ascending: true });
+                    setUnits(unitData ?? null);
                 }
             } else {
                 const { data, error } = await supabase
@@ -191,6 +215,29 @@ export default function ListingDetailPage() {
         mapInstance.current = map;
         return () => { mapInstance.current?.remove(); mapInstance.current = null; };
     }, [listing]);
+
+    const unitTypeSummary = useMemo(() => {
+        if (!units || units.length === 0) return [];
+        const groups = new Map<string, UnitRow[]>();
+        for (const unit of units) {
+            const key = `${unit.beds ?? 'null'}|${unit.baths ?? 'null'}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(unit);
+        }
+        return Array.from(groups.values()).map(rows => {
+            const prices = rows.filter(r => r.price != null).map(r => r.price!);
+            const areas = rows.filter(r => r.area != null).map(r => r.area!);
+            return {
+                beds: rows[0].beds,
+                baths: rows[0].baths,
+                count: rows.length,
+                avgPrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null,
+                avgArea: areas.length > 0 ? areas.reduce((a, b) => a + b, 0) / areas.length : null,
+                minPrice: prices.length > 0 ? Math.min(...prices) : null,
+                maxPrice: prices.length > 0 ? Math.max(...prices) : null,
+            };
+        }).sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0));
+    }, [units]);
 
     const annualRent = rent * 12 * (1 - vacancy / 100);
     const estimatedValue = Math.round(annualRent / (capRate / 100));
@@ -273,12 +320,21 @@ export default function ListingDetailPage() {
                         <dl className="space-y-3 text-sm">
                             {listing.source === "zillow" ? (
                                 <>
-                                    <div className="flex justify-between">
-                                        <dt className="text-gray-500 dark:text-gray-400">Monthly Rent</dt>
-                                        <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                            {listing.price ? `$${listing.price.toLocaleString()}/mo` : "—"}
-                                        </dd>
-                                    </div>
+                                    {listing.is_building && units && units.length > 0 ? (
+                                        <div className="flex justify-between">
+                                            <dt className="text-gray-500 dark:text-gray-400">Units</dt>
+                                            <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                                {unitTypeSummary.length} type{unitTypeSummary.length !== 1 ? 's' : ''} · {units.length} total
+                                            </dd>
+                                        </div>
+                                    ) : (
+                                        <div className="flex justify-between">
+                                            <dt className="text-gray-500 dark:text-gray-400">Monthly Rent</dt>
+                                            <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                                {listing.price ? `$${listing.price.toLocaleString()}/mo` : "—"}
+                                            </dd>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between">
                                         <dt className="text-gray-500 dark:text-gray-400">Beds</dt>
                                         <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.beds ?? "—"}</dd>
@@ -338,6 +394,98 @@ export default function ListingDetailPage() {
                             )}
                         </dl>
                     </section>
+
+                    {/* Unit Mix — shown for REIT unit rows and building parent rows */}
+                    {listing.source === "zillow" && units && units.length > 0 && (
+                        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
+                                <Building2 className="size-4" />
+                                Unit Mix
+                                <span className="text-sm font-normal text-gray-500">({units.length} unit{units.length !== 1 ? 's' : ''})</span>
+                            </h3>
+
+                            {/* Unit type summary table */}
+                            <div className="overflow-x-auto mb-6">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                                            <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Units</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg Rent</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Range</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg Sq Ft</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg $/sqft</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {unitTypeSummary.map((row) => (
+                                            <tr key={`${row.beds}-${row.baths}`} className="border-b border-gray-50 dark:border-gray-700/50">
+                                                <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
+                                                    {row.beds ?? '?'} bd · {row.baths != null ? Number(row.baths).toFixed(1) : '?'} ba
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.count}</td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.avgPrice ? `$${Math.round(row.avgPrice).toLocaleString()}` : '—'}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.minPrice != null && row.maxPrice != null
+                                                        ? `$${Math.round(row.minPrice).toLocaleString()} – $${Math.round(row.maxPrice).toLocaleString()}`
+                                                        : '—'}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.avgArea ? Math.round(row.avgArea).toLocaleString() : '—'}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.avgPrice && row.avgArea ? `$${(row.avgPrice / row.avgArea).toFixed(2)}` : '—'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Individual units list */}
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">All Units</h4>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rent/mo</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beds</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baths</th>
+                                            <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sq Ft</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {units.slice((unitsPage - 1) * 25, unitsPage * 25).map(unit => (
+                                            <tr key={unit.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                                <td className="px-3 py-2 text-right font-medium">
+                                                    <Link href={`/analytics/listing/zillow-${unit.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+                                                        {unit.price ? `$${unit.price.toLocaleString()}` : '—'}
+                                                    </Link>
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.beds ?? '—'}</td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {unit.baths != null ? Number(unit.baths).toFixed(1) : '—'}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {unit.area?.toLocaleString() ?? '—'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {units.length > 25 && (
+                                <PaginationButtonGroup
+                                    page={unitsPage}
+                                    total={Math.ceil(units.length / 25)}
+                                    onPageChange={setUnitsPage}
+                                    align="center"
+                                />
+                            )}
+                        </section>
+                    )}
 
                     {/* Listing Details (loopnet only) */}
                     {listing.source === "loopnet" && (
