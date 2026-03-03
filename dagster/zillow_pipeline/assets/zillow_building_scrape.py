@@ -105,6 +105,9 @@ def raw_building_scrapes(
             context.log.error(f"Failed building zpid={building_zpid}: {e}")
             failed += 1
 
+    if failed > 0:
+        raise Exception(f"{failed} buildings failed to scrape. Check logs for details.")
+
     return Output(
         value=inserted,
         metadata={
