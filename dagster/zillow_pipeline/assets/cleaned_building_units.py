@@ -5,6 +5,8 @@ from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy,
 
 from zillow_pipeline.resources.supabase import SupabaseResource
 
+BATCH_SIZE = 500
+
 
 def _parse_unit_price(value) -> Optional[int]:
     if value is None:
@@ -31,6 +33,14 @@ def _normalize_address(raw: str) -> dict:
     from postal.parser import parse_address
     parts = parse_address(raw)
     return {label: value for value, label in parts}
+
+
+def _flush_batch(client, batch: list) -> tuple[int, int]:
+    try:
+        client.rpc("insert_cleaned_listings_bulk", {"rows": batch}).execute()
+        return len(batch), 0
+    except Exception as e:
+        return 0, len(batch)
 
 
 class CleanedBuildingUnitsConfig(Config):
@@ -135,6 +145,46 @@ def cleaned_building_units(
     context.log.info(f"Built metadata for {len(building_meta)} buildings. Starting inserts...")
 
     inserted = failed = 0
+    batch: list[dict] = []
+
+    def _make_row(zpid, scraped_at, zip_code, address_raw, address_street, address_city,
+                  address_state, address_zip, price, beds, baths, area, lat, lng,
+                  img_src, detail_url, is_building, building_zpid) -> dict:
+        return {
+            "run_id": run_id,
+            "scraped_at": scraped_at,
+            "zip_code": zip_code,
+            "zpid": zpid,
+            "address_raw": address_raw,
+            "address_street": address_street,
+            "address_city": address_city,
+            "address_state": address_state,
+            "address_zip": address_zip,
+            "price": price,
+            "beds": beds,
+            "baths": baths,
+            "area": area,
+            "availability_date": None,
+            "lat": float(lat) if lat is not None else None,
+            "lng": float(lng) if lng is not None else None,
+            "is_sfr": False,
+            "raw_scrape_id": None,
+            "img_src": img_src,
+            "detail_url": detail_url,
+            "is_building": is_building,
+            "building_zpid": building_zpid,
+        }
+
+    def flush():
+        nonlocal inserted, failed, batch
+        if not batch:
+            return
+        ins, fail = _flush_batch(client, batch)
+        inserted += ins
+        failed += fail
+        if fail:
+            context.log.error(f"Batch of {len(batch)} failed to insert")
+        batch = []
 
     for building_row in building_rows:
         building_zpid = building_row["building_zpid"]
@@ -146,12 +196,14 @@ def cleaned_building_units(
         zip_code = meta.get("zip_code", "")
         parent_listing = meta.get("listing", {})
 
-        # Parse address from parent listing
         address_raw = parent_listing.get("address") or parent_listing.get("addressStreet") or ""
         parsed_addr = _normalize_address(address_raw) if address_raw else {}
         address_street = (
             " ".join(filter(None, [parsed_addr.get("house_number"), parsed_addr.get("road")])) or ""
         ).title() or None
+        address_city = parent_listing.get("addressCity") or parsed_addr.get("city")
+        address_state = parent_listing.get("addressState") or parsed_addr.get("state")
+        address_zip = parent_listing.get("addressZipcode") or parsed_addr.get("postcode")
 
         lat_long = parent_listing.get("latLong") or {}
         home_info = (parent_listing.get("hdpData") or {}).get("homeInfo", {})
@@ -159,81 +211,33 @@ def cleaned_building_units(
         lng = lat_long.get("longitude") or home_info.get("longitude")
         img_src = parent_listing.get("imgSrc")
 
-        # Insert parent building row (is_building=true)
-        try:
-            client.rpc(
-                "insert_cleaned_listing",
-                {
-                    "p_run_id": run_id,
-                    "p_scraped_at": row_scraped_at,
-                    "p_zip_code": zip_code,
-                    "p_zpid": building_zpid,
-                    "p_address_raw": address_raw,
-                    "p_address_street": address_street,
-                    "p_address_city": parent_listing.get("addressCity") or parsed_addr.get("city"),
-                    "p_address_state": parent_listing.get("addressState") or parsed_addr.get("state"),
-                    "p_address_zip": parent_listing.get("addressZipcode") or parsed_addr.get("postcode"),
-                    "p_price": None,
-                    "p_beds": None,
-                    "p_baths": None,
-                    "p_area": None,
-                    "p_availability_date": None,
-                    "p_lat": float(lat) if lat is not None else None,
-                    "p_lng": float(lng) if lng is not None else None,
-                    "p_is_sfr": False,
-                    "p_raw_scrape_id": None,
-                    "p_img_src": img_src,
-                    "p_detail_url": detail_url,
-                    "p_is_building": True,
-                    "p_building_zpid": None,
-                },
-            ).execute()
-            inserted += 1
-        except Exception as e:
-            context.log.error(f"Failed parent building zpid={building_zpid}: {e}")
-            failed += 1
+        # Parent building row
+        batch.append(_make_row(
+            zpid=building_zpid, scraped_at=row_scraped_at, zip_code=zip_code,
+            address_raw=address_raw, address_street=address_street,
+            address_city=address_city, address_state=address_state, address_zip=address_zip,
+            price=None, beds=None, baths=None, area=None,
+            lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
+            is_building=True, building_zpid=None,
+        ))
 
-        # Insert individual unit rows
-        # The detail scraper returns a list of results; each result may have floorPlans or units
+        # Unit rows
         for result_item in raw_json:
             floor_plans = result_item.get("floorPlans") or []
             if not floor_plans:
-                # Fallback: treat the item itself as a unit if it has price data
-                units_data = result_item.get("units") or []
-                for idx, unit in enumerate(units_data):
+                for idx, unit in enumerate(result_item.get("units") or []):
                     unit_zpid = str(unit.get("zpid") or "") or f"{building_zpid}_u{idx}"
-                    try:
-                        client.rpc(
-                            "insert_cleaned_listing",
-                            {
-                                "p_run_id": run_id,
-                                "p_scraped_at": row_scraped_at,
-                                "p_zip_code": zip_code,
-                                "p_zpid": unit_zpid,
-                                "p_address_raw": address_raw,
-                                "p_address_street": address_street,
-                                "p_address_city": parent_listing.get("addressCity") or parsed_addr.get("city"),
-                                "p_address_state": parent_listing.get("addressState") or parsed_addr.get("state"),
-                                "p_address_zip": parent_listing.get("addressZipcode") or parsed_addr.get("postcode"),
-                                "p_price": _parse_unit_price(unit.get("price") or unit.get("unformattedPrice")),
-                                "p_beds": _parse_int(unit.get("beds") or unit.get("bedrooms")),
-                                "p_baths": _parse_float(unit.get("baths") or unit.get("bathrooms")),
-                                "p_area": _parse_int(unit.get("area") or unit.get("livingArea")),
-                                "p_availability_date": None,
-                                "p_lat": float(lat) if lat is not None else None,
-                                "p_lng": float(lng) if lng is not None else None,
-                                "p_is_sfr": False,
-                                "p_raw_scrape_id": None,
-                                "p_img_src": img_src,
-                                "p_detail_url": detail_url,
-                                "p_is_building": False,
-                                "p_building_zpid": building_zpid,
-                            },
-                        ).execute()
-                        inserted += 1
-                    except Exception as e:
-                        context.log.error(f"Failed unit {unit_zpid} for building {building_zpid}: {e}")
-                        failed += 1
+                    batch.append(_make_row(
+                        zpid=unit_zpid, scraped_at=row_scraped_at, zip_code=zip_code,
+                        address_raw=address_raw, address_street=address_street,
+                        address_city=address_city, address_state=address_state, address_zip=address_zip,
+                        price=_parse_unit_price(unit.get("price") or unit.get("unformattedPrice")),
+                        beds=_parse_int(unit.get("beds") or unit.get("bedrooms")),
+                        baths=_parse_float(unit.get("baths") or unit.get("bathrooms")),
+                        area=_parse_int(unit.get("area") or unit.get("livingArea")),
+                        lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
+                        is_building=False, building_zpid=building_zpid,
+                    ))
                 continue
 
             for fp_idx, floor_plan in enumerate(floor_plans):
@@ -248,76 +252,35 @@ def cleaned_building_units(
                         price = _parse_unit_price(
                             unit.get("price") or unit.get("unformattedPrice") or floor_plan.get("price")
                         )
-                        try:
-                            client.rpc(
-                                "insert_cleaned_listing",
-                                {
-                                    "p_run_id": run_id,
-                                    "p_scraped_at": row_scraped_at,
-                                    "p_zip_code": zip_code,
-                                    "p_zpid": unit_zpid,
-                                    "p_address_raw": address_raw,
-                                    "p_address_street": address_street,
-                                    "p_address_city": parent_listing.get("addressCity") or parsed_addr.get("city"),
-                                    "p_address_state": parent_listing.get("addressState") or parsed_addr.get("state"),
-                                    "p_address_zip": parent_listing.get("addressZipcode") or parsed_addr.get("postcode"),
-                                    "p_price": price,
-                                    "p_beds": beds,
-                                    "p_baths": baths,
-                                    "p_area": area,
-                                    "p_availability_date": None,
-                                    "p_lat": float(lat) if lat is not None else None,
-                                    "p_lng": float(lng) if lng is not None else None,
-                                    "p_is_sfr": False,
-                                    "p_raw_scrape_id": None,
-                                    "p_img_src": img_src,
-                                    "p_detail_url": detail_url,
-                                    "p_is_building": False,
-                                    "p_building_zpid": building_zpid,
-                                },
-                            ).execute()
-                            inserted += 1
-                        except Exception as e:
-                            context.log.error(f"Failed unit {unit_zpid} for building {building_zpid}: {e}")
-                            failed += 1
+                        batch.append(_make_row(
+                            zpid=unit_zpid, scraped_at=row_scraped_at, zip_code=zip_code,
+                            address_raw=address_raw, address_street=address_street,
+                            address_city=address_city, address_state=address_state, address_zip=address_zip,
+                            price=price, beds=beds, baths=baths, area=area,
+                            lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
+                            is_building=False, building_zpid=building_zpid,
+                        ))
                 else:
-                    # No individual units listed, insert one row per floor plan
                     unit_zpid = f"{building_zpid}_fp{fp_idx}"
                     price = _parse_unit_price(floor_plan.get("price") or floor_plan.get("minPrice"))
-                    try:
-                        client.rpc(
-                            "insert_cleaned_listing",
-                            {
-                                "p_run_id": run_id,
-                                "p_scraped_at": row_scraped_at,
-                                "p_zip_code": zip_code,
-                                "p_zpid": unit_zpid,
-                                "p_address_raw": address_raw,
-                                "p_address_street": address_street,
-                                "p_address_city": parent_listing.get("addressCity") or parsed_addr.get("city"),
-                                "p_address_state": parent_listing.get("addressState") or parsed_addr.get("state"),
-                                "p_address_zip": parent_listing.get("addressZipcode") or parsed_addr.get("postcode"),
-                                "p_price": price,
-                                "p_beds": beds,
-                                "p_baths": baths,
-                                "p_area": area,
-                                "p_availability_date": None,
-                                "p_lat": float(lat) if lat is not None else None,
-                                "p_lng": float(lng) if lng is not None else None,
-                                "p_is_sfr": False,
-                                "p_raw_scrape_id": None,
-                                "p_img_src": img_src,
-                                "p_detail_url": detail_url,
-                                "p_is_building": False,
-                                "p_building_zpid": building_zpid,
-                            },
-                        ).execute()
-                        inserted += 1
-                    except Exception as e:
-                        context.log.error(f"Failed floor plan {unit_zpid} for building {building_zpid}: {e}")
-                        failed += 1
+                    batch.append(_make_row(
+                        zpid=unit_zpid, scraped_at=row_scraped_at, zip_code=zip_code,
+                        address_raw=address_raw, address_street=address_street,
+                        address_city=address_city, address_state=address_state, address_zip=address_zip,
+                        price=price, beds=beds, baths=baths, area=area,
+                        lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
+                        is_building=False, building_zpid=building_zpid,
+                    ))
+
+        if len(batch) >= BATCH_SIZE:
+            flush()
+
+    flush()  # flush remaining
 
     context.log.info(f"Done. inserted={inserted}, failed={failed}")
+
+    if failed > 0:
+        raise Exception(f"{failed} rows failed to insert. Check logs for details.")
 
     return Output(
         value=inserted,
