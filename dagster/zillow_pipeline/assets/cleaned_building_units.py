@@ -87,7 +87,7 @@ def cleaned_building_units(
             break
         offset += page_size
 
-    context.log.info(f"Found {len(building_rows)} building detail rows")
+    context.log.info(f"Fetched {len(building_rows)} building detail rows")
 
     # Also need scraped_at from raw_zillow_scrapes for this run if not already set
     if not config.run_id:
@@ -118,6 +118,8 @@ def cleaned_building_units(
             break
         offset += page_size
 
+    context.log.info(f"Fetched {len(zip_rows)} zip rows")
+
     # Build a lookup: building_zpid -> (zip_code, listing dict from raw_zillow_scrapes)
     building_meta: dict[str, dict] = {}
     for zrow in zip_rows:
@@ -129,6 +131,8 @@ def cleaned_building_units(
                         "zip_code": zrow["zip_code"],
                         "listing": listing,
                     }
+
+    context.log.info(f"Built metadata for {len(building_meta)} buildings. Starting inserts...")
 
     inserted = failed = 0
 
