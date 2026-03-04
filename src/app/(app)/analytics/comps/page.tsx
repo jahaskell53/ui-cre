@@ -105,7 +105,12 @@ function CompsContent() {
     const [sortCol, setSortCol] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [subjectLabel, setSubjectLabel] = useState<string | null>(initAddress || null);
-    const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+    const [userLocation, setUserLocation] = useState<[number, number] | null>(() => {
+        try {
+            const cached = localStorage.getItem('userLocation');
+            return cached ? JSON.parse(cached) : null;
+        } catch { return null; }
+    });
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
     const miniMapContainerRef = useRef<HTMLDivElement>(null);
@@ -117,7 +122,11 @@ function CompsContent() {
 
     useEffect(() => {
         navigator.geolocation?.getCurrentPosition(
-            ({ coords }) => setUserLocation([coords.longitude, coords.latitude]),
+            ({ coords }) => {
+                const loc: [number, number] = [coords.longitude, coords.latitude];
+                setUserLocation(loc);
+                try { localStorage.setItem('userLocation', JSON.stringify(loc)); } catch {}
+            },
             () => {}
         );
     }, []);
