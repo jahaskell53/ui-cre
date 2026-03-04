@@ -65,6 +65,7 @@ class CleaningConfig(Config):
 
 
 @asset(
+    deps=["raw_zillow_scrapes"],
     retry_policy=RetryPolicy(
         max_retries=3,
         delay=30,
