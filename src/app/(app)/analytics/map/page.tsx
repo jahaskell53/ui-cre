@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PropertyMap, type Property, type HeatmapMetric, type MapBounds } from "@/components/application/map/property-map";
+import { PropertyMap, type Property, type UnitMixRow, type HeatmapMetric, type MapBounds } from "@/components/application/map/property-map";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
@@ -145,6 +145,67 @@ export default function MapPage() {
             };
         };
 
+        const groupReitRows = (reitRows: Record<string, unknown>[]): RowWithDate[] => {
+            const byBuilding: Record<string, Record<string, unknown>[]> = {};
+            for (const row of reitRows) {
+                const bz = row.building_zpid as string;
+                if (!byBuilding[bz]) byBuilding[bz] = [];
+                byBuilding[bz].push(row);
+            }
+            return Object.entries(byBuilding).map(([, units]) => {
+                const first = units[0];
+                const city = (first.address_city as string) || '';
+                const fullAddress = (first.address_raw as string) ||
+                    [first.address_street, city, first.address_state, first.address_zip].filter(Boolean).join(', ') ||
+                    'Address not listed';
+                // Build unit mix grouped by (beds, baths)
+                const mixMap: Record<string, { beds: number | null; baths: number | null; count: number; totalPrice: number; validPriceCount: number }> = {};
+                for (const unit of units) {
+                    const key = `${unit.beds ?? 'null'}-${unit.baths ?? 'null'}`;
+                    if (!mixMap[key]) {
+                        mixMap[key] = { beds: unit.beds as number | null, baths: unit.baths as number | null, count: 0, totalPrice: 0, validPriceCount: 0 };
+                    }
+                    mixMap[key].count++;
+                    if (unit.price) {
+                        mixMap[key].totalPrice += unit.price as number;
+                        mixMap[key].validPriceCount++;
+                    }
+                }
+                const unitMix: UnitMixRow[] = Object.values(mixMap)
+                    .sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0))
+                    .map(({ beds, baths, count, totalPrice, validPriceCount }) => ({
+                        beds,
+                        baths,
+                        count,
+                        avgPrice: validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : null,
+                    }));
+                const prices = units.map(u => u.price as number | null).filter((p): p is number => p != null);
+                const avgPrice = prices.length > 0 ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : null;
+                return {
+                    id: `zillow-${first.id as string}`,
+                    name: fullAddress,
+                    address: fullAddress,
+                    location: city || undefined,
+                    units: units.length,
+                    price: avgPrice ? `$${avgPrice.toLocaleString()} avg` : 'TBD',
+                    coordinates: [first.longitude as number, first.latitude as number],
+                    thumbnailUrl: (first.img_src as string | null) ?? undefined,
+                    capRate: undefined,
+                    squareFootage: undefined,
+                    listingSource: 'zillow' as const,
+                    isReit: true,
+                    unitMix,
+                    _createdAt: (first.scraped_at as string) ?? '',
+                };
+            });
+        };
+
+        const processZillowData = (data: Record<string, unknown>[]): RowWithDate[] => {
+            const nonReit = data.filter(r => !r.building_zpid && !r.is_building);
+            const reitUnits = data.filter(r => r.building_zpid != null);
+            return [...nonReit.map(mapCleanedListing), ...groupReitRows(reitUnits)];
+        };
+
         if (source === 'loopnet') {
             let loopnetQuery = supabase
                 .from('loopnet_listings')
@@ -227,7 +288,7 @@ export default function MapPage() {
             }
             const { data, error, count } = await zillowQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
             if (error) console.error('Error fetching cleaned listings:', error);
-            const rows = (data ?? []).map((item) => mapCleanedListing(item as Record<string, unknown>));
+            const rows = processZillowData((data ?? []) as Record<string, unknown>[]);
             setProperties(rows.map(({ _createdAt: _, ...p }) => p));
             setTotalCount(count ?? 0);
             setLoading(false);
@@ -308,7 +369,7 @@ export default function MapPage() {
 
         const loopnetRows = (loopnetRes.data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>))
             .sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-        const zillowRows = (zillowRes.data ?? []).map((item) => mapCleanedListing(item as Record<string, unknown>))
+        const zillowRows = processZillowData((zillowRes.data ?? []) as Record<string, unknown>[])
             .sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
         const merged = [...loopnetRows, ...zillowRows].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
         setProperties(merged.map(({ _createdAt: _, ...p }) => p));
@@ -556,14 +617,22 @@ export default function MapPage() {
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                {property.name}
-                                            </h4>
+                                            <div className="flex items-center gap-1">
+                                                <h4 className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-1">
+                                                    {property.name}
+                                                </h4>
+                                                {property.isReit && (
+                                                    <span className="text-[8px] font-bold px-1 py-0.5 bg-violet-100 text-violet-700 rounded flex-shrink-0">REIT</span>
+                                                )}
+                                            </div>
                                             <p className="text-[10px] text-gray-500 truncate">{property.address}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
                                                     {property.price}
                                                 </span>
+                                                {property.isReit && property.units && (
+                                                    <span className="text-[10px] text-gray-500">{property.units} units</span>
+                                                )}
                                                 {property.capRate && (
                                                     <span className="text-[10px] text-gray-500">{property.capRate}</span>
                                                 )}

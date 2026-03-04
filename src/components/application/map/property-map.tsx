@@ -10,6 +10,13 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAya
 
 export type ListingSource = 'loopnet' | 'zillow';
 
+export interface UnitMixRow {
+    beds: number | null;
+    baths: number | null;
+    count: number;
+    avgPrice: number | null;
+}
+
 export interface Property {
     id: string | number;
     name: string;
@@ -22,6 +29,8 @@ export interface Property {
     capRate?: string | null;
     squareFootage?: string | null;
     listingSource?: ListingSource | null;
+    isReit?: boolean;
+    unitMix?: UnitMixRow[];
 }
 
 export type HeatmapMetric = 'none' | 'capRate' | 'rent' | 'valuation' | 'recentSales' | 'trending' | 'neighborhood';
@@ -514,6 +523,8 @@ export const PropertyMap = ({ className, properties, selectedId, heatmapMetric =
                     capRate={property.capRate}
                     squareFootage={property.squareFootage}
                     thumbnailUrl={property.thumbnailUrl}
+                    isReit={property.isReit}
+                    unitMix={property.unitMix}
                 />
             );
 
