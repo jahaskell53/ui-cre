@@ -13,6 +13,7 @@ interface PropertyPopupContentProps {
   thumbnailUrl?: string | null;
   isReit?: boolean;
   unitMix?: UnitMixRow[];
+  href?: string;
 }
 
 export function PropertyPopupContent({
@@ -25,9 +26,21 @@ export function PropertyPopupContent({
   thumbnailUrl,
   isReit,
   unitMix,
+  href,
 }: PropertyPopupContentProps) {
+  const Wrapper = href
+    ? ({ children }: { children: React.ReactNode }) => (
+        <a href={href} className="block p-0 w-[240px] bg-white dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 shadow-lg hover:border-blue-400 transition-colors cursor-pointer">
+          {children}
+        </a>
+      )
+    : ({ children }: { children: React.ReactNode }) => (
+        <div className="p-0 w-[240px] bg-white dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 shadow-lg">
+          {children}
+        </div>
+      );
   return (
-    <div className="p-0 w-[240px] bg-white dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 shadow-lg">
+    <Wrapper>
       {thumbnailUrl && (
         <div className="w-full h-24 bg-gray-100 dark:bg-gray-800 overflow-hidden border-b border-gray-100 dark:border-gray-800">
           <img src={thumbnailUrl} className="w-full h-full object-cover" alt={name} />
@@ -101,6 +114,6 @@ export function PropertyPopupContent({
           </div>
         )}
       </div>
-    </div>
+    </Wrapper>
   );
 }

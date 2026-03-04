@@ -525,6 +525,7 @@ export const PropertyMap = ({ className, properties, selectedId, heatmapMetric =
                     thumbnailUrl={property.thumbnailUrl}
                     isReit={property.isReit}
                     unitMix={property.unitMix}
+                    href={`/analytics/listing/${property.id}`}
                 />
             );
 
