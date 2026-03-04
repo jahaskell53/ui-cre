@@ -470,6 +470,17 @@ export default function ListingDetailPage() {
                         </dl>
                     </section>
 
+                    {/* Map — beside Overview */}
+                    {listing.source === "zillow" && listing.latitude && listing.longitude && (
+                        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                                <MapPin className="size-4 text-gray-500" />
+                                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Location</h3>
+                            </div>
+                            <div ref={mapContainerRef} className="h-full min-h-48 w-full" />
+                        </section>
+                    )}
+
                     {/* Unit Mix — shown for REIT unit rows and building parent rows */}
                     {listing.source === "zillow" && units && units.length > 0 && (
                         <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
@@ -594,17 +605,6 @@ export default function ListingDetailPage() {
                                     </div>
                                 )}
                             </dl>
-                        </section>
-                    )}
-
-                    {/* Map */}
-                    {listing.source === "zillow" && listing.latitude && listing.longitude && (
-                        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
-                                <MapPin className="size-4 text-gray-500" />
-                                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Location</h3>
-                            </div>
-                            <div ref={mapContainerRef} className="h-full min-h-48 w-full" />
                         </section>
                     )}
 
