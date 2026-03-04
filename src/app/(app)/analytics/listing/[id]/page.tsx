@@ -8,16 +8,12 @@ import {
     ChevronLeft,
     DollarSign,
     MapPin,
-    Calculator,
     Home,
     ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
-import { Label } from "@/components/ui/label";
-import { IrrProjectionChart } from "@/components/application/irr-projection-chart";
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
-import { ValuationCard } from "@/components/application/valuation-card";
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
 import mapboxgl from "mapbox-gl";
@@ -135,9 +131,6 @@ export default function ListingDetailPage() {
     const [unitsPage, setUnitsPage] = useState(1);
     const [heroImages, setHeroImages] = useState<string[] | null>(null);
     const [heroIndex, setHeroIndex] = useState(0);
-    const [capRate, setCapRate] = useState(4.5);
-    const [rent, setRent] = useState(3000);
-    const [vacancy, setVacancy] = useState(5);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<mapboxgl.Map | null>(null);
 
@@ -158,9 +151,6 @@ export default function ListingDetailPage() {
                 }
                 const row = data as Record<string, unknown>;
                 setListing({ source: "zillow", ...row } as ZillowListing);
-                if (row.price) {
-                    setRent(row.price as number);
-                }
                 // Fetch sibling units for REIT buildings
                 const buildingZpid = row.is_building ? row.zpid as string | null : row.building_zpid as string | null;
                 if (buildingZpid) {
@@ -185,10 +175,6 @@ export default function ListingDetailPage() {
                 }
                 const row = data as Record<string, unknown>;
                 setListing({ source: "loopnet", ...row } as LoopnetListing);
-                if (row.cap_rate) {
-                    const parsed = parseFloat(String(row.cap_rate).replace(/[^0-9.]/g, ""));
-                    if (!isNaN(parsed)) setCapRate(parsed);
-                }
             }
         }
 
@@ -285,10 +271,6 @@ export default function ListingDetailPage() {
             };
         }).sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0));
     }, [units]);
-
-    const annualRent = rent * 12 * (1 - vacancy / 100);
-    const estimatedValue = Math.round(annualRent / (capRate / 100));
-    const irr = 12.1;
 
     if (listing === undefined) return <LoadingSkeleton />;
     if (listing === null) return <NotFound />;
@@ -617,81 +599,15 @@ export default function ListingDetailPage() {
 
                     {/* Map */}
                     {listing.source === "zillow" && listing.latitude && listing.longitude && (
-                        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden md:col-span-2">
+                        <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                             <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
                                 <MapPin className="size-4 text-gray-500" />
                                 <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Location</h3>
                             </div>
-                            <div ref={mapContainerRef} className="h-64 w-full" />
+                            <div ref={mapContainerRef} className="h-full min-h-48 w-full" />
                         </section>
                     )}
 
-                    {/* Evaluation */}
-                    <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
-                            <Calculator className="size-4" />
-                            Evaluation
-                        </h3>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <ValuationCard
-                                title="Estimated Value"
-                                value={estimatedValue}
-                                irr={irr}
-                                noi={Math.round(annualRent)}
-                                compact
-                            />
-                            <div className="space-y-5">
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <Label className="text-sm">Cap Rate</Label>
-                                        <span className="text-sm font-semibold">{capRate}%</span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="10"
-                                        step="0.1"
-                                        value={capRate}
-                                        onChange={(e) => setCapRate(parseFloat(e.target.value))}
-                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <Label className="text-sm">Monthly Rent</Label>
-                                        <span className="text-sm font-semibold">${rent.toLocaleString()}</span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="500"
-                                        max="15000"
-                                        step="100"
-                                        value={rent}
-                                        onChange={(e) => setRent(parseInt(e.target.value))}
-                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <Label className="text-sm">Vacancy Rate</Label>
-                                        <span className="text-sm font-semibold">{vacancy}%</span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="20"
-                                        step="1"
-                                        value={vacancy}
-                                        onChange={(e) => setVacancy(parseInt(e.target.value))}
-                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
-                            <IrrProjectionChart currentIrr={irr} years={5} height={180} />
-                        </div>
-                    </section>
         </PropertyDetailLayout>
     );
 }
