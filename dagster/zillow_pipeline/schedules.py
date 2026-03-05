@@ -30,6 +30,15 @@ zillow_building_job = define_asset_job(
 
 @run_status_sensor(
     run_status=DagsterRunStatus.SUCCESS,
+    monitored_jobs=[zillow_scrape_job],
+    request_job=zillow_cleaning_job,
+)
+def trigger_cleaning_job_after_scrape(context: RunStatusSensorContext):
+    return RunRequest()
+
+
+@run_status_sensor(
+    run_status=DagsterRunStatus.SUCCESS,
     monitored_jobs=[zillow_cleaning_job],
     request_job=zillow_building_job,
 )
