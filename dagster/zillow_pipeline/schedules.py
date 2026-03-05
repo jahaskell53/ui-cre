@@ -1,4 +1,4 @@
-from dagster import AssetSelection, ScheduleDefinition, define_asset_job
+from dagster import AssetSelection, DagsterRunStatus, RunRequest, ScheduleDefinition, RunStatusSensorContext, define_asset_job, run_status_sensor
 
 from zillow_pipeline.assets.cleaned_listings import cleaned_listings
 from zillow_pipeline.assets.zip_codes import ba_zip_codes
@@ -26,3 +26,12 @@ zillow_building_job = define_asset_job(
     name="zillow_building_job",
     selection=AssetSelection.assets(raw_building_scrapes, cleaned_building_units),
 )
+
+
+@run_status_sensor(
+    run_status=DagsterRunStatus.SUCCESS,
+    monitored_jobs=[zillow_cleaning_job],
+    request_job=zillow_building_job,
+)
+def trigger_building_job_after_cleaning(context: RunStatusSensorContext):
+    return RunRequest()
