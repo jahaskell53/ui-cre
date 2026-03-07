@@ -28,6 +28,20 @@ function makeCircle(center: [number, number], radiusM: number): GeoJSON.Feature<
     return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
 }
 
+function getGeomBounds(geojson: { type: string; coordinates: unknown }): [[number, number], [number, number]] {
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    const walk = (c: unknown): void => {
+        if (!Array.isArray(c)) return;
+        if (typeof c[0] === 'number') {
+            const [lng, lat] = c as [number, number];
+            if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+        } else { c.forEach(walk); }
+    };
+    walk(geojson.coordinates);
+    return [[minLng, minLat], [maxLng, maxLat]];
+}
+
 function titleCaseAddress(s: string | null | undefined): string {
     if (s == null || s === '') return '';
     return s.trim().toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -68,6 +82,7 @@ interface SearchParams {
     baths: string;
     area: string;
     reits: boolean;
+    filterMode: 'radius' | 'neighborhood';
 }
 
 function CompsContent() {
@@ -86,6 +101,7 @@ function CompsContent() {
     const initBaths = searchParams.get('baths') ?? '';
     const initArea = searchParams.get('area') ?? '';
     const initReits = searchParams.get('reits') === '1';
+    const initFilterMode = (searchParams.get('filterMode') ?? 'radius') as 'radius' | 'neighborhood';
 
     const [address, setAddress] = useState(initAddress);
     const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(initCoords);
@@ -98,6 +114,10 @@ function CompsContent() {
     const [subjectArea, setSubjectArea] = useState(initArea);
     const [areaTolerance, setAreaTolerance] = useState(0.15);
     const [includeReits, setIncludeReits] = useState(initReits);
+    const [filterMode, setFilterMode] = useState<'radius' | 'neighborhood'>(initFilterMode);
+    const [neighborhoodId, setNeighborhoodId] = useState<number | null>(null);
+    const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
+    const [neighborhoodGeoJSON, setNeighborhoodGeoJSON] = useState<object | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
@@ -145,6 +165,7 @@ function CompsContent() {
         if (p.baths) url.set('baths', p.baths);
         if (p.area) url.set('area', p.area);
         if (p.reits) url.set('reits', '1');
+        if (p.filterMode !== 'radius') url.set('filterMode', p.filterMode);
         router.replace(`/analytics/comps?${url.toString()}`, { scroll: false });
     }, [router]);
 
@@ -173,6 +194,22 @@ function CompsContent() {
                 setSelectedCoords([lng, lat]);
             }
 
+            // Neighborhood lookup when in neighborhood mode
+            let nhId: number | null = null;
+            if (p.filterMode === 'neighborhood') {
+                const { data: nhData } = await supabase.rpc('find_neighborhood', { p_lng: lng, p_lat: lat });
+                if (nhData && nhData.length > 0) {
+                    nhId = nhData[0].id as number;
+                    setNeighborhoodId(nhId);
+                    setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
+                    setNeighborhoodGeoJSON(JSON.parse(nhData[0].geojson as string));
+                } else {
+                    setNeighborhoodId(null);
+                    setNeighborhoodName(null);
+                    setNeighborhoodGeoJSON(null);
+                }
+            }
+
             const { data, error: rpcError } = await supabase.rpc('get_comps', {
                 subject_lng: lng,
                 subject_lat: lat,
@@ -184,6 +221,7 @@ function CompsContent() {
                 area_tolerance: areaTolerance,
                 include_reits: includeReits,
                 p_limit: 500,
+                p_neighborhood_id: p.filterMode === 'neighborhood' ? nhId : null,
             });
 
             if (rpcError) {
@@ -237,7 +275,7 @@ function CompsContent() {
     useEffect(() => {
         if (didAutoSearch.current || !initAddress) return;
         didAutoSearch.current = true;
-        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits });
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -247,6 +285,7 @@ function CompsContent() {
             coords: selectedCoords,
             radius: radiusMiles,
             price: subjectPrice,
+            filterMode,
             beds: subjectBeds,
             baths: subjectBaths,
             area: subjectArea,
@@ -321,9 +360,14 @@ function CompsContent() {
 
         map.on('load', () => {
             new mapboxgl.Marker({ color: '#3b82f6' }).setLngLat(selectedCoords!).addTo(map);
+            // Radius circle layers
             map.addSource('radius', { type: 'geojson', data: makeCircle(selectedCoords!, radiusMiles * 1609.34) });
             map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius', paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.12 } });
             map.addLayer({ id: 'radius-outline', type: 'line', source: 'radius', paint: { 'line-color': '#3b82f6', 'line-width': 1.5, 'line-opacity': 0.6 } });
+            // Neighborhood polygon layers (hidden initially)
+            map.addSource('neighborhood-boundary', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addLayer({ id: 'neighborhood-fill', type: 'fill', source: 'neighborhood-boundary', paint: { 'fill-color': '#8b5cf6', 'fill-opacity': 0.1 }, layout: { visibility: 'none' } });
+            map.addLayer({ id: 'neighborhood-outline', type: 'line', source: 'neighborhood-boundary', paint: { 'line-color': '#8b5cf6', 'line-width': 2, 'line-opacity': 0.8 }, layout: { visibility: 'none' } });
             const r = radiusMiles * 1609.34 / 111320;
             const lng = selectedCoords![0], lat = selectedCoords![1];
             map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24, duration: 0 });
@@ -354,13 +398,29 @@ function CompsContent() {
         const map = miniMapInstance.current;
         if (!map || !selectedCoords) return;
         const update = () => {
-            (map.getSource('radius') as mapboxgl.GeoJSONSource | undefined)?.setData(makeCircle(selectedCoords, radiusMiles * 1609.34));
-            const r = radiusMiles * 1609.34 / 111320;
-            const lng = selectedCoords[0], lat = selectedCoords[1];
-            map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24 });
+            if (filterMode === 'neighborhood' && neighborhoodGeoJSON) {
+                (map.getSource('neighborhood-boundary') as mapboxgl.GeoJSONSource | undefined)?.setData({
+                    type: 'Feature', geometry: neighborhoodGeoJSON as GeoJSON.Geometry, properties: {}
+                });
+                map.setLayoutProperty('neighborhood-fill', 'visibility', 'visible');
+                map.setLayoutProperty('neighborhood-outline', 'visibility', 'visible');
+                map.setLayoutProperty('radius-fill', 'visibility', 'none');
+                map.setLayoutProperty('radius-outline', 'visibility', 'none');
+                map.fitBounds(getGeomBounds(neighborhoodGeoJSON as { type: string; coordinates: unknown }), { padding: 32 });
+            } else {
+                (map.getSource('radius') as mapboxgl.GeoJSONSource | undefined)?.setData(makeCircle(selectedCoords, radiusMiles * 1609.34));
+                map.setLayoutProperty('radius-fill', 'visibility', 'visible');
+                map.setLayoutProperty('radius-outline', 'visibility', 'visible');
+                map.setLayoutProperty('neighborhood-fill', 'visibility', 'none');
+                map.setLayoutProperty('neighborhood-outline', 'visibility', 'none');
+                const r = radiusMiles * 1609.34 / 111320;
+                const lng = selectedCoords[0], lat = selectedCoords[1];
+                map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24 });
+            }
         };
         map.isStyleLoaded() ? update() : map.once('load', update);
-    }, [radiusMiles, selectedCoords]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [radiusMiles, selectedCoords, filterMode, neighborhoodGeoJSON]);
 
     // Plot comps on the radius preview map
     useEffect(() => {
@@ -596,25 +656,67 @@ function CompsContent() {
                             </div>
                         </div>
 
-                        {/* Radius slider */}
+                        {/* Filter mode toggle + radius/neighborhood control */}
                         <div>
-                            <div className="flex justify-between mb-1.5">
-                                <Label className="text-xs">Search Radius</Label>
-                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{radiusMiles} mi</span>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Label className="text-xs">Search by</Label>
+                                <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                                    {(['radius', 'neighborhood'] as const).map((mode) => (
+                                        <button
+                                            key={mode}
+                                            type="button"
+                                            onClick={() => {
+                                                setFilterMode(mode);
+                                                if (mode === 'radius') {
+                                                    setNeighborhoodId(null);
+                                                    setNeighborhoodName(null);
+                                                    setNeighborhoodGeoJSON(null);
+                                                }
+                                            }}
+                                            className={cn(
+                                                "px-3 py-1 text-xs font-medium rounded-md transition-colors capitalize",
+                                                filterMode === mode
+                                                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
+                                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                                            )}
+                                        >
+                                            {mode}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <input
-                                type="range"
-                                min="0.5"
-                                max="10"
-                                step="0.5"
-                                value={radiusMiles}
-                                onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                            />
-                            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                                <span>0.5 mi</span>
-                                <span>10 mi</span>
-                            </div>
+
+                            {filterMode === 'radius' ? (
+                                <>
+                                    <div className="flex justify-between mb-1.5">
+                                        <Label className="text-xs">Search Radius</Label>
+                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{radiusMiles} mi</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="10"
+                                        step="0.5"
+                                        value={radiusMiles}
+                                        onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
+                                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                                        <span>0.5 mi</span>
+                                        <span>10 mi</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg px-3 py-2">
+                                    {neighborhoodName ? (
+                                        <span>Searching in <span className="font-semibold text-violet-700 dark:text-violet-300">{neighborhoodName}</span></span>
+                                    ) : selectedCoords ? (
+                                        <span className="text-gray-400">Neighborhood will be detected when you search</span>
+                                    ) : (
+                                        <span className="text-gray-400">Enter an address to detect its neighborhood</span>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Radius preview map */}
@@ -908,7 +1010,9 @@ function CompsContent() {
 
                         {comps.length === 0 ? (
                             <div className="p-8 text-center text-gray-500 text-sm">
-                                No comps found within {radiusMiles} miles. Try a different address or expand the radius.
+                                {filterMode === 'neighborhood' && neighborhoodName
+                                    ? `No comps found in ${neighborhoodName}. Try switching to radius search or adjusting filters.`
+                                    : `No comps found within ${radiusMiles} miles. Try a different address or expand the radius.`}
                             </div>
                         ) : (
                             <div className="overflow-x-auto" key={compsPage}>
