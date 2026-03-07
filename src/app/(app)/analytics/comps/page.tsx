@@ -71,6 +71,7 @@ interface MapboxFeature {
     id: string;
     place_name: string;
     center: [number, number];
+    context?: Array<{ id: string; text: string }>;
 }
 
 interface SearchParams {
@@ -83,6 +84,7 @@ interface SearchParams {
     area: string;
     reits: boolean;
     filterMode: 'radius' | 'neighborhood';
+    zip?: string | null;
 }
 
 function CompsContent() {
@@ -102,6 +104,7 @@ function CompsContent() {
     const initArea = searchParams.get('area') ?? '';
     const initReits = searchParams.get('reits') === '1';
     const initFilterMode = (searchParams.get('filterMode') ?? 'radius') as 'radius' | 'neighborhood';
+    const initZip = searchParams.get('zip') ?? null;
 
     const [address, setAddress] = useState(initAddress);
     const [selectedCoords, setSelectedCoords] = useState<[number, number] | null>(initCoords);
@@ -118,6 +121,7 @@ function CompsContent() {
     const [neighborhoodId, setNeighborhoodId] = useState<number | null>(null);
     const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
     const [neighborhoodGeoJSON, setNeighborhoodGeoJSON] = useState<object | null>(null);
+    const [cachedZip, setCachedZip] = useState<string | null>(initZip);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
@@ -166,6 +170,7 @@ function CompsContent() {
         if (p.area) url.set('area', p.area);
         if (p.reits) url.set('reits', '1');
         if (p.filterMode !== 'radius') url.set('filterMode', p.filterMode);
+        if (p.zip) url.set('zip', p.zip);
         router.replace(`/analytics/comps?${url.toString()}`, { scroll: false });
     }, [router]);
 
@@ -176,8 +181,10 @@ function CompsContent() {
         setComps(null);
         try {
             let lng: number, lat: number;
+            let geocodedZip: string | null = p.zip ?? null;
             if (p.coords) {
                 [lng, lat] = p.coords;
+                if (geocodedZip) setCachedZip(geocodedZip);
             } else {
                 const geoRes = await fetch(
                     `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(p.addr.trim())}.json?access_token=${MAPBOX_TOKEN}&limit=1`
@@ -192,10 +199,15 @@ function CompsContent() {
                 const label = geoData.features[0].place_name as string;
                 setSubjectLabel(label);
                 setSelectedCoords([lng, lat]);
+                const postcodeCtx = (geoData.features[0].context as Array<{ id: string; text: string }> | undefined)
+                    ?.find(c => c.id.startsWith('postcode.'));
+                geocodedZip = postcodeCtx?.text ?? null;
+                if (geocodedZip) setCachedZip(geocodedZip);
             }
 
             // Neighborhood lookup when in neighborhood mode
             let nhId: number | null = null;
+            let subjectZip: string | null = null;
             if (p.filterMode === 'neighborhood') {
                 const { data: nhData } = await supabase.rpc('find_neighborhood', { p_lng: lng, p_lat: lat });
                 if (nhData && nhData.length > 0) {
@@ -204,9 +216,15 @@ function CompsContent() {
                     setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
                     setNeighborhoodGeoJSON(JSON.parse(nhData[0].geojson as string));
                 } else {
+                    // No neighborhood found — fall back to ZIP code
                     setNeighborhoodId(null);
-                    setNeighborhoodName(null);
                     setNeighborhoodGeoJSON(null);
+                    subjectZip = geocodedZip ?? cachedZip;
+                    if (subjectZip) {
+                        setNeighborhoodName(`ZIP ${subjectZip} (no neighborhood boundary)`);
+                    } else {
+                        setNeighborhoodName(null);
+                    }
                 }
             }
 
@@ -222,6 +240,7 @@ function CompsContent() {
                 include_reits: includeReits,
                 p_limit: 500,
                 p_neighborhood_id: p.filterMode === 'neighborhood' ? nhId : null,
+                p_subject_zip: p.filterMode === 'neighborhood' && nhId === null ? subjectZip : null,
             });
 
             if (rpcError) {
@@ -262,7 +281,7 @@ function CompsContent() {
             setError("Something went wrong. Please try again.");
         }
         setLoading(false);
-    }, [areaTolerance, includeReits]);
+    }, [areaTolerance, includeReits, cachedZip]);
 
     // Re-run search when area tolerance changes (if a search has already been run)
     useEffect(() => {
@@ -275,7 +294,7 @@ function CompsContent() {
     useEffect(() => {
         if (didAutoSearch.current || !initAddress) return;
         didAutoSearch.current = true;
-        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode });
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode, zip: initZip });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -290,6 +309,7 @@ function CompsContent() {
             baths: subjectBaths,
             area: subjectArea,
             reits: includeReits,
+            zip: cachedZip,
         };
         pushToUrl(p);
         runSearch(p);
@@ -528,6 +548,8 @@ function CompsContent() {
         setAddress(feature.place_name);
         setSelectedCoords(feature.center);
         setSubjectLabel(feature.place_name);
+        const zip = feature.context?.find(c => c.id.startsWith('postcode.'))?.text ?? null;
+        if (zip) setCachedZip(zip);
         setSuggestions([]);
         setShowSuggestions(false);
     };
