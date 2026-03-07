@@ -427,6 +427,12 @@ function CompsContent() {
                 map.setLayoutProperty('radius-fill', 'visibility', 'none');
                 map.setLayoutProperty('radius-outline', 'visibility', 'none');
                 map.fitBounds(getGeomBounds(neighborhoodGeoJSON as { type: string; coordinates: unknown }), { padding: 32 });
+            } else if (filterMode === 'neighborhood') {
+                // ZIP fallback — no polygon, no circle
+                map.setLayoutProperty('radius-fill', 'visibility', 'none');
+                map.setLayoutProperty('radius-outline', 'visibility', 'none');
+                map.setLayoutProperty('neighborhood-fill', 'visibility', 'none');
+                map.setLayoutProperty('neighborhood-outline', 'visibility', 'none');
             } else {
                 (map.getSource('radius') as mapboxgl.GeoJSONSource | undefined)?.setData(makeCircle(selectedCoords, radiusMiles * 1609.34));
                 map.setLayoutProperty('radius-fill', 'visibility', 'visible');
