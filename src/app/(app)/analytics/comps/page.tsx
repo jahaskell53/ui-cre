@@ -662,44 +662,39 @@ function CompsContent() {
                         {/* Address */}
                         <div>
                             <Label className="text-xs mb-1.5 block">Subject Property Address</Label>
-                            <div className="flex gap-2">
-                                <div className="relative flex-1" ref={inputWrapperRef}>
-                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
-                                    <Input
-                                        placeholder="e.g. 1228 El Camino Real, Palo Alto, CA"
-                                        value={address}
-                                        onChange={(e) => {
-                                            setAddress(e.target.value);
-                                            setSelectedCoords(null);
-                                        }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') { setShowSuggestions(false); findComps(); }
-                                            if (e.key === 'Escape') setShowSuggestions(false);
-                                        }}
-                                        onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                                        className="pl-9"
-                                        autoComplete="off"
-                                    />
-                                    {showSuggestions && suggestions.length > 0 && (
-                                        <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-                                            {suggestions.map((feature) => (
-                                                <li key={feature.id}>
-                                                    <button
-                                                        type="button"
-                                                        onMouseDown={(e) => { e.preventDefault(); selectSuggestion(feature); }}
-                                                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start gap-2 transition-colors"
-                                                    >
-                                                        <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                                                        <span className="text-gray-800 dark:text-gray-200 leading-snug">{feature.place_name}</span>
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                                <Button onClick={findComps} disabled={loading || !address.trim()}>
-                                    {loading ? 'Searching...' : 'Find Comps'}
-                                </Button>
+                            <div className="relative" ref={inputWrapperRef}>
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
+                                <Input
+                                    placeholder="e.g. 1228 El Camino Real, Palo Alto, CA"
+                                    value={address}
+                                    onChange={(e) => {
+                                        setAddress(e.target.value);
+                                        setSelectedCoords(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') { setShowSuggestions(false); findComps(); }
+                                        if (e.key === 'Escape') setShowSuggestions(false);
+                                    }}
+                                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                                    className="pl-9"
+                                    autoComplete="off"
+                                />
+                                {showSuggestions && suggestions.length > 0 && (
+                                    <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+                                        {suggestions.map((feature) => (
+                                            <li key={feature.id}>
+                                                <button
+                                                    type="button"
+                                                    onMouseDown={(e) => { e.preventDefault(); selectSuggestion(feature); }}
+                                                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start gap-2 transition-colors"
+                                                >
+                                                    <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                    <span className="text-gray-800 dark:text-gray-200 leading-snug">{feature.place_name}</span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
                             </div>
                         </div>
 
@@ -917,6 +912,9 @@ function CompsContent() {
                                 Include REIT units
                             </label>
                         </div>
+                        <Button onClick={findComps} disabled={loading || !address.trim()} className="w-full mt-2">
+                            {loading ? 'Searching...' : 'Find Comps'}
+                        </Button>
                     </div>
                 </div>
 
