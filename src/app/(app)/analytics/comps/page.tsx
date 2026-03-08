@@ -759,17 +759,15 @@ function CompsContent() {
                                             <span className="text-gray-400">Enter an address to detect its neighborhood</span>
                                         )}
                                     </div>
-                                    {neighborhoodId !== null && (
-                                        <label className="flex items-center gap-2 cursor-pointer mt-1">
-                                            <input
-                                                type="checkbox"
-                                                checked={expandAdjacent}
-                                                onChange={e => setExpandAdjacent(e.target.checked)}
-                                                className="rounded border-gray-300 accent-violet-600"
-                                            />
-                                            <span className="text-xs text-gray-600 dark:text-gray-400">Include adjacent neighborhoods</span>
-                                        </label>
-                                    )}
+                                    <label className="flex items-center gap-2 cursor-pointer mt-1">
+                                        <input
+                                            type="checkbox"
+                                            checked={expandAdjacent}
+                                            onChange={e => setExpandAdjacent(e.target.checked)}
+                                            className="rounded border-gray-300 accent-violet-600"
+                                        />
+                                        <span className="text-xs text-gray-600 dark:text-gray-400">Include adjacent neighborhoods</span>
+                                    </label>
                                 </>
                             )}
                         </div>
