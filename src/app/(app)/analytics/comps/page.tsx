@@ -121,6 +121,7 @@ function CompsContent() {
     const [neighborhoodId, setNeighborhoodId] = useState<number | null>(null);
     const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
     const [neighborhoodGeoJSON, setNeighborhoodGeoJSON] = useState<object | null>(null);
+    const [expandAdjacent, setExpandAdjacent] = useState(false);
     const [cachedZip, setCachedZip] = useState<string | null>(initZip);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -213,8 +214,21 @@ function CompsContent() {
                 if (nhData && nhData.length > 0) {
                     nhId = nhData[0].id as number;
                     setNeighborhoodId(nhId);
-                    setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
-                    setNeighborhoodGeoJSON(JSON.parse(nhData[0].geojson as string));
+                    const baseName = `${nhData[0].name}, ${nhData[0].city}`;
+                    if (expandAdjacent) {
+                        const { data: expData } = await supabase.rpc('get_expanded_neighborhood_geojson', { p_id: nhId });
+                        if (expData?.[0]) {
+                            setNeighborhoodGeoJSON(JSON.parse(expData[0].geojson as string));
+                            const n = expData[0].neighbor_count as number;
+                            setNeighborhoodName(n > 0 ? `${baseName} + ${n} adjacent` : baseName);
+                        } else {
+                            setNeighborhoodGeoJSON(JSON.parse(nhData[0].geojson as string));
+                            setNeighborhoodName(baseName);
+                        }
+                    } else {
+                        setNeighborhoodGeoJSON(JSON.parse(nhData[0].geojson as string));
+                        setNeighborhoodName(baseName);
+                    }
                 } else {
                     // No neighborhood found — fall back to ZIP code
                     setNeighborhoodId(null);
@@ -241,6 +255,7 @@ function CompsContent() {
                 p_limit: 500,
                 p_neighborhood_id: p.filterMode === 'neighborhood' ? nhId : null,
                 p_subject_zip: p.filterMode === 'neighborhood' && nhId === null ? subjectZip : null,
+                p_expand_adjacent: p.filterMode === 'neighborhood' && nhId !== null ? expandAdjacent : false,
             });
 
             if (rpcError) {
@@ -281,14 +296,14 @@ function CompsContent() {
             setError("Something went wrong. Please try again.");
         }
         setLoading(false);
-    }, [areaTolerance, includeReits, cachedZip]);
+    }, [areaTolerance, includeReits, cachedZip, expandAdjacent]);
 
-    // Re-run search when area tolerance changes (if a search has already been run)
+    // Re-run search when filters change (if a search has already been run)
     useEffect(() => {
         if (!comps) return;
         findComps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [areaTolerance, includeReits]);
+    }, [areaTolerance, includeReits, expandAdjacent]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
@@ -735,15 +750,28 @@ function CompsContent() {
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg px-3 py-2">
-                                    {neighborhoodName ? (
-                                        <span>Searching in <span className="font-semibold text-violet-700 dark:text-violet-300">{neighborhoodName}</span></span>
-                                    ) : selectedCoords ? (
-                                        <span className="text-gray-400">Neighborhood will be detected when you search</span>
-                                    ) : (
-                                        <span className="text-gray-400">Enter an address to detect its neighborhood</span>
+                                <>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg px-3 py-2">
+                                        {neighborhoodName ? (
+                                            <span>Searching in <span className="font-semibold text-violet-700 dark:text-violet-300">{neighborhoodName}</span></span>
+                                        ) : selectedCoords ? (
+                                            <span className="text-gray-400">Neighborhood will be detected when you search</span>
+                                        ) : (
+                                            <span className="text-gray-400">Enter an address to detect its neighborhood</span>
+                                        )}
+                                    </div>
+                                    {neighborhoodId !== null && (
+                                        <label className="flex items-center gap-2 cursor-pointer mt-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={expandAdjacent}
+                                                onChange={e => setExpandAdjacent(e.target.checked)}
+                                                className="rounded border-gray-300 accent-violet-600"
+                                            />
+                                            <span className="text-xs text-gray-600 dark:text-gray-400">Include adjacent neighborhoods</span>
+                                        </label>
                                     )}
-                                </div>
+                                </>
                             )}
                         </div>
 
