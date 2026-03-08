@@ -85,6 +85,7 @@ interface SearchParams {
     reits: boolean;
     filterMode: 'radius' | 'neighborhood';
     zip?: string | null;
+    expandAdjacent: boolean;
 }
 
 function CompsContent() {
@@ -104,6 +105,7 @@ function CompsContent() {
     const initArea = searchParams.get('area') ?? '';
     const initReits = searchParams.get('reits') === '1';
     const initFilterMode = (searchParams.get('filterMode') ?? 'radius') as 'radius' | 'neighborhood';
+    const initExpandAdjacent = searchParams.get('expandAdjacent') === '1';
     const initZip = searchParams.get('zip') ?? null;
 
     const [address, setAddress] = useState(initAddress);
@@ -121,7 +123,7 @@ function CompsContent() {
     const [neighborhoodId, setNeighborhoodId] = useState<number | null>(null);
     const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
     const [neighborhoodGeoJSON, setNeighborhoodGeoJSON] = useState<object | null>(null);
-    const [expandAdjacent, setExpandAdjacent] = useState(false);
+    const [expandAdjacent, setExpandAdjacent] = useState(initExpandAdjacent);
     const [cachedZip, setCachedZip] = useState<string | null>(initZip);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -172,6 +174,7 @@ function CompsContent() {
         if (p.reits) url.set('reits', '1');
         if (p.filterMode !== 'radius') url.set('filterMode', p.filterMode);
         if (p.zip) url.set('zip', p.zip);
+        if (p.expandAdjacent) url.set('expandAdjacent', '1');
         router.replace(`/analytics/comps?${url.toString()}`, { scroll: false });
     }, [router]);
 
@@ -309,7 +312,7 @@ function CompsContent() {
     useEffect(() => {
         if (didAutoSearch.current || !initAddress) return;
         didAutoSearch.current = true;
-        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode, zip: initZip });
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode, zip: initZip, expandAdjacent: initExpandAdjacent });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -325,6 +328,7 @@ function CompsContent() {
             area: subjectArea,
             reits: includeReits,
             zip: cachedZip,
+            expandAdjacent,
         };
         pushToUrl(p);
         runSearch(p);
