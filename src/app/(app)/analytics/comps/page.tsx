@@ -28,17 +28,22 @@ function makeCircle(center: [number, number], radiusM: number): GeoJSON.Feature<
     return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} };
 }
 
-function getGeomBounds(geojson: { type: string; coordinates: unknown }): [[number, number], [number, number]] {
+function getGeomBounds(geojson: object): [[number, number], [number, number]] {
     let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-    const walk = (c: unknown): void => {
+    const walkCoords = (c: unknown): void => {
         if (!Array.isArray(c)) return;
         if (typeof c[0] === 'number') {
             const [lng, lat] = c as [number, number];
             if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
             if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
-        } else { c.forEach(walk); }
+        } else { c.forEach(walkCoords); }
     };
-    walk(geojson.coordinates);
+    const g = geojson as { type: string; coordinates?: unknown; features?: Array<{ geometry: { coordinates: unknown } }> };
+    if (g.type === 'FeatureCollection' && g.features) {
+        g.features.forEach(f => walkCoords(f.geometry.coordinates));
+    } else if (g.coordinates) {
+        walkCoords(g.coordinates);
+    }
     return [[minLng, minLat], [maxLng, maxLat]];
 }
 
@@ -122,7 +127,7 @@ function CompsContent() {
     const [filterMode, setFilterMode] = useState<'radius' | 'neighborhood'>(initFilterMode);
     const [neighborhoodId, setNeighborhoodId] = useState<number | null>(null);
     const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
-    const [neighborhoodGeoJSON, setNeighborhoodGeoJSON] = useState<object | null>(null);
+    const [neighborhoodGeoJSON, setNeighborhoodGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
     const [expandAdjacent, setExpandAdjacent] = useState(initExpandAdjacent);
     const [cachedZip, setCachedZip] = useState<string | null>(initZip);
     const [loading, setLoading] = useState(false);
@@ -218,18 +223,26 @@ function CompsContent() {
                     nhId = nhData[0].id as number;
                     setNeighborhoodId(nhId);
                     const baseName = `${nhData[0].name}, ${nhData[0].city}`;
+                    const buildFC = (rows: Array<{ name: string; city: string; geojson: string }>): GeoJSON.FeatureCollection => ({
+                        type: 'FeatureCollection',
+                        features: rows.map(r => ({
+                            type: 'Feature' as const,
+                            geometry: JSON.parse(r.geojson) as GeoJSON.Geometry,
+                            properties: { name: r.name },
+                        })),
+                    });
                     if (expandAdjacent) {
-                        const { data: expData } = await supabase.rpc('get_expanded_neighborhood_geojson', { p_id: nhId });
-                        if (expData?.[0]) {
-                            setNeighborhoodGeoJSON(JSON.parse(expData[0].geojson as string));
-                            const n = expData[0].neighbor_count as number;
+                        const { data: adjData } = await supabase.rpc('get_adjacent_neighborhoods', { p_id: nhId });
+                        if (adjData && adjData.length > 0) {
+                            setNeighborhoodGeoJSON(buildFC(adjData as Array<{ name: string; city: string; geojson: string }>));
+                            const n = adjData.length - 1;
                             setNeighborhoodName(n > 0 ? `${baseName} + ${n} adjacent` : baseName);
                         } else {
-                            setNeighborhoodGeoJSON(JSON.parse(nhData[0].geojson as string));
+                            setNeighborhoodGeoJSON(buildFC([nhData[0] as { name: string; city: string; geojson: string }]));
                             setNeighborhoodName(baseName);
                         }
                     } else {
-                        setNeighborhoodGeoJSON(JSON.parse(nhData[0].geojson as string));
+                        setNeighborhoodGeoJSON(buildFC([nhData[0] as { name: string; city: string; geojson: string }]));
                         setNeighborhoodName(baseName);
                     }
                 } else {
@@ -407,6 +420,7 @@ function CompsContent() {
             map.addSource('neighborhood-boundary', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addLayer({ id: 'neighborhood-fill', type: 'fill', source: 'neighborhood-boundary', paint: { 'fill-color': '#8b5cf6', 'fill-opacity': 0.1 }, layout: { visibility: 'none' } });
             map.addLayer({ id: 'neighborhood-outline', type: 'line', source: 'neighborhood-boundary', paint: { 'line-color': '#8b5cf6', 'line-width': 2, 'line-opacity': 0.8 }, layout: { visibility: 'none' } });
+            map.addLayer({ id: 'neighborhood-labels', type: 'symbol', source: 'neighborhood-boundary', layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'], 'text-anchor': 'center', 'symbol-placement': 'point', visibility: 'none' }, paint: { 'text-color': '#6d28d9', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
             const r = radiusMiles * 1609.34 / 111320;
             const lng = selectedCoords![0], lat = selectedCoords![1];
             map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24, duration: 0 });
@@ -438,26 +452,27 @@ function CompsContent() {
         if (!map || !selectedCoords) return;
         const update = () => {
             if (filterMode === 'neighborhood' && neighborhoodGeoJSON) {
-                (map.getSource('neighborhood-boundary') as mapboxgl.GeoJSONSource | undefined)?.setData({
-                    type: 'Feature', geometry: neighborhoodGeoJSON as GeoJSON.Geometry, properties: {}
-                });
+                (map.getSource('neighborhood-boundary') as mapboxgl.GeoJSONSource | undefined)?.setData(neighborhoodGeoJSON);
                 map.setLayoutProperty('neighborhood-fill', 'visibility', 'visible');
                 map.setLayoutProperty('neighborhood-outline', 'visibility', 'visible');
+                map.setLayoutProperty('neighborhood-labels', 'visibility', 'visible');
                 map.setLayoutProperty('radius-fill', 'visibility', 'none');
                 map.setLayoutProperty('radius-outline', 'visibility', 'none');
-                map.fitBounds(getGeomBounds(neighborhoodGeoJSON as { type: string; coordinates: unknown }), { padding: 32 });
+                map.fitBounds(getGeomBounds(neighborhoodGeoJSON), { padding: 32 });
             } else if (filterMode === 'neighborhood') {
                 // ZIP fallback — no polygon, no circle
                 map.setLayoutProperty('radius-fill', 'visibility', 'none');
                 map.setLayoutProperty('radius-outline', 'visibility', 'none');
                 map.setLayoutProperty('neighborhood-fill', 'visibility', 'none');
                 map.setLayoutProperty('neighborhood-outline', 'visibility', 'none');
+                map.setLayoutProperty('neighborhood-labels', 'visibility', 'none');
             } else {
                 (map.getSource('radius') as mapboxgl.GeoJSONSource | undefined)?.setData(makeCircle(selectedCoords, radiusMiles * 1609.34));
                 map.setLayoutProperty('radius-fill', 'visibility', 'visible');
                 map.setLayoutProperty('radius-outline', 'visibility', 'visible');
                 map.setLayoutProperty('neighborhood-fill', 'visibility', 'none');
                 map.setLayoutProperty('neighborhood-outline', 'visibility', 'none');
+                map.setLayoutProperty('neighborhood-labels', 'visibility', 'none');
                 const r = radiusMiles * 1609.34 / 111320;
                 const lng = selectedCoords[0], lat = selectedCoords[1];
                 map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24 });
