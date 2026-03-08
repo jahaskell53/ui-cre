@@ -1028,7 +1028,7 @@ function CompsContent() {
                                         <div
                                             className="absolute w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 shadow -translate-x-1/2"
                                             style={{ left: pos(subjectPx) }}
-                                            title={`Your rent: $${subjectPx.toLocaleString()}`}
+                                            title={`Subject rent: $${subjectPx.toLocaleString()}`}
                                         />
                                     )}
                                 </div>
@@ -1040,7 +1040,7 @@ function CompsContent() {
                             <div className="flex items-center gap-4 text-xs text-gray-500">
                                 <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 bg-blue-300 dark:bg-blue-600 rounded-full inline-block" />Middle 50%</span>
                                 <span className="flex items-center gap-1.5"><span className="w-0.5 h-3 bg-blue-600 dark:bg-blue-400 rounded-full inline-block" />Median</span>
-                                {subjectPrice && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 inline-block" />Your rent</span>}
+                                {subjectPrice && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white dark:border-gray-800 inline-block" />Subject rent</span>}
                             </div>
                         )}
 
@@ -1052,7 +1052,7 @@ function CompsContent() {
                                     ? "bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200"
                                     : "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200"
                             )}>
-                                Your rent of <span className="font-bold">${parseInt(subjectPrice).toLocaleString()}/mo</span> is higher than{' '}
+                                Subject rent of <span className="font-bold">${parseInt(subjectPrice).toLocaleString()}/mo</span> is higher than{' '}
                                 <span className="font-bold">{marketStats.subjectPercentile}%</span> of similar listings
                                 {marketStats.subjectPercentile >= 75 && ' — above the 75th percentile'}
                                 {marketStats.subjectPercentile <= 25 && ' — below the 25th percentile'}
@@ -1111,7 +1111,7 @@ function CompsContent() {
                                     <tbody>
                                         {/* Subject property row */}
                                         <tr className="border-b-2 border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20">
-                                            <td className="px-4 py-3 text-xs font-semibold text-blue-600 dark:text-blue-400">You</td>
+                                            <td className="px-4 py-3 text-xs font-semibold text-blue-600 dark:text-blue-400">Subject</td>
                                             <td className="px-4 py-3">
                                                 <div className="font-medium text-blue-900 dark:text-blue-100 truncate max-w-[200px]">
                                                     {titleCaseAddress(subjectLabel?.split(',')[0]) || address || '—'}
