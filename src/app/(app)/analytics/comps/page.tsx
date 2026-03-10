@@ -132,6 +132,7 @@ function CompsContent() {
     const [selectedNhIds, setSelectedNhIds] = useState<number[]>([]);
     const [candidateNhIds, setCandidateNhIds] = useState<number[]>([]);
     const [nhDataCache, setNhDataCache] = useState<Record<number, NhData>>({});
+    const [zipGeoJSON, setZipGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
     const [cachedZip, setCachedZip] = useState<string | null>(initZip);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -272,6 +273,7 @@ function CompsContent() {
                         setSelectedNhIds([nhId]);
                         selectedNhIdsRef.current = [nhId];
                         setCandidateNhIds([]);
+                        setZipGeoJSON(null);
                         setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
                         refreshCandidates([nhId]);
                     } else {
@@ -282,7 +284,16 @@ function CompsContent() {
                         selectedNhIdsRef.current = [];
                         lastNhDetectedRef.current = null;
                         subjectZip = geocodedZip ?? cachedZip;
-                        setNeighborhoodName(subjectZip ? `ZIP ${subjectZip} (no neighborhood boundary)` : null);
+                        setNeighborhoodName(subjectZip ? `ZIP ${subjectZip}` : null);
+                        setZipGeoJSON(null);
+                        if (subjectZip) {
+                            supabase.rpc('get_zip_boundary', { p_zip: subjectZip }).then(({ data }) => {
+                                if (data) setZipGeoJSON({
+                                    type: 'FeatureCollection',
+                                    features: [{ type: 'Feature', geometry: JSON.parse(data), properties: { zip: subjectZip } }],
+                                });
+                            });
+                        }
                     }
                 }
             }
@@ -472,6 +483,10 @@ function CompsContent() {
             map.addLayer({ id: 'neighborhoods-candidate-fill', type: 'fill', source: 'neighborhoods-candidate', paint: { 'fill-color': '#16a34a', 'fill-opacity': 0.12 }, layout: { visibility: 'none' } });
             map.addLayer({ id: 'neighborhoods-candidate-outline', type: 'line', source: 'neighborhoods-candidate', paint: { 'line-color': '#15803d', 'line-width': 1.5 }, layout: { visibility: 'none' } });
             map.addLayer({ id: 'neighborhoods-candidate-labels', type: 'symbol', source: 'neighborhoods-candidate', layout: { 'text-field': ['get', 'name'], 'text-size': 10, 'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'], 'text-anchor': 'center', 'symbol-placement': 'point', visibility: 'none' }, paint: { 'text-color': '#15803d', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+            // ZIP boundary (amber dashed)
+            map.addSource('zip-boundary', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addLayer({ id: 'zip-boundary-fill', type: 'fill', source: 'zip-boundary', paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.08 }, layout: { visibility: 'none' } });
+            map.addLayer({ id: 'zip-boundary-outline', type: 'line', source: 'zip-boundary', paint: { 'line-color': '#d97706', 'line-width': 2, 'line-dasharray': [5, 3] }, layout: { visibility: 'none' } });
             // Click: candidate → add to selected; selected → remove from selected
             map.on('click', 'neighborhoods-candidate-fill', (e) => {
                 const id = e.features?.[0]?.properties?.id as number | undefined;
@@ -518,7 +533,7 @@ function CompsContent() {
             'neighborhoods-selected-fill', 'neighborhoods-selected-outline', 'neighborhoods-selected-labels',
             'neighborhoods-candidate-fill', 'neighborhoods-candidate-outline', 'neighborhoods-candidate-labels',
         ];
-        const vis = (ids: string[], v: 'visible' | 'none') => ids.forEach(l => map.setLayoutProperty(l, 'visibility', v));
+        const vis = (ids: string[], v: 'visible' | 'none') => ids.forEach(l => { if (map.getLayer(l)) map.setLayoutProperty(l, 'visibility', v); });
         const update = () => {
             const showNh = filterMode === 'neighborhood';
             if (showNh && (selectedNhFC.features.length > 0 || candidateNhFC.features.length > 0)) {
@@ -528,7 +543,7 @@ function CompsContent() {
                     selectedNhFC.features.length > 0 ? 'visible' : 'none');
                 vis(['neighborhoods-candidate-fill', 'neighborhoods-candidate-outline', 'neighborhoods-candidate-labels'],
                     candidateNhFC.features.length > 0 ? 'visible' : 'none');
-                vis(['radius-fill', 'radius-outline'], 'none');
+                vis(['radius-fill', 'radius-outline', 'zip-boundary-fill', 'zip-boundary-outline'], 'none');
                 if (!nhFittedRef.current && selectedNhFC.features.length > 0) {
                     const allFC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [...selectedNhFC.features, ...candidateNhFC.features] };
                     map.fitBounds(getGeomBounds(allFC), { padding: 40 });
@@ -537,13 +552,21 @@ function CompsContent() {
                     if (candidateNhFC.features.length > 0) nhFittedRef.current = true;
                 }
             } else if (showNh) {
-                // ZIP fallback — no polygon, no circle
-                vis([...nhLayers, 'radius-fill', 'radius-outline'], 'none');
+                // ZIP fallback — show zip boundary if available
+                vis(nhLayers, 'none');
+                vis(['radius-fill', 'radius-outline'], 'none');
+                if (zipGeoJSON) {
+                    (map.getSource('zip-boundary') as mapboxgl.GeoJSONSource | undefined)?.setData(zipGeoJSON);
+                    vis(['zip-boundary-fill', 'zip-boundary-outline'], 'visible');
+                    map.fitBounds(getGeomBounds(zipGeoJSON), { padding: 40 });
+                } else {
+                    vis(['zip-boundary-fill', 'zip-boundary-outline'], 'none');
+                }
             } else {
                 // Radius mode
                 (map.getSource('radius') as mapboxgl.GeoJSONSource | undefined)?.setData(makeCircle(selectedCoords, radiusMiles * 1609.34));
                 vis(['radius-fill', 'radius-outline'], 'visible');
-                vis(nhLayers, 'none');
+                vis([...nhLayers, 'zip-boundary-fill', 'zip-boundary-outline'], 'none');
                 nhFittedRef.current = false;
                 const r = radiusMiles * 1609.34 / 111320;
                 const [lng, lat] = selectedCoords;
@@ -552,7 +575,7 @@ function CompsContent() {
         };
         map.isStyleLoaded() ? update() : map.once('load', update);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedNhFC, candidateNhFC, filterMode, radiusMiles, selectedCoords]);
+    }, [selectedNhFC, candidateNhFC, zipGeoJSON, filterMode, radiusMiles, selectedCoords]);
 
     // Plot comps on the radius preview map
     useEffect(() => {
