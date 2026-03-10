@@ -79,6 +79,8 @@ interface MapboxFeature {
     context?: Array<{ id: string; text: string }>;
 }
 
+type NhData = { id: number; name: string; city: string; geojson: string };
+
 interface SearchParams {
     addr: string;
     coords: [number, number] | null;
@@ -90,7 +92,6 @@ interface SearchParams {
     reits: boolean;
     filterMode: 'radius' | 'neighborhood';
     zip?: string | null;
-    expandAdjacent: boolean;
 }
 
 function CompsContent() {
@@ -110,7 +111,6 @@ function CompsContent() {
     const initArea = searchParams.get('area') ?? '';
     const initReits = searchParams.get('reits') === '1';
     const initFilterMode = (searchParams.get('filterMode') ?? 'radius') as 'radius' | 'neighborhood';
-    const initExpandAdjacent = searchParams.get('expandAdjacent') === '1';
     const initZip = searchParams.get('zip') ?? null;
 
     const [address, setAddress] = useState(initAddress);
@@ -125,10 +125,10 @@ function CompsContent() {
     const [areaTolerance, setAreaTolerance] = useState(0.15);
     const [includeReits, setIncludeReits] = useState(initReits);
     const [filterMode, setFilterMode] = useState<'radius' | 'neighborhood'>(initFilterMode);
-    const [neighborhoodId, setNeighborhoodId] = useState<number | null>(null);
     const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
-    const [neighborhoodGeoJSON, setNeighborhoodGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
-    const [expandAdjacent, setExpandAdjacent] = useState(initExpandAdjacent);
+    const [selectedNhIds, setSelectedNhIds] = useState<number[]>([]);
+    const [candidateNhIds, setCandidateNhIds] = useState<number[]>([]);
+    const [nhDataCache, setNhDataCache] = useState<Record<number, NhData>>({});
     const [cachedZip, setCachedZip] = useState<string | null>(initZip);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -151,6 +151,11 @@ function CompsContent() {
     const miniMapPopupRootsRef = useRef<ReturnType<typeof createRoot>[]>([]);
     const didAutoSearch = useRef(false);
     const [miniMapActiveIndex, setMiniMapActiveIndex] = useState<number | null>(null);
+    const selectedNhIdsRef = useRef<number[]>([]);
+    const nhDataCacheRef = useRef<Record<number, NhData>>({});
+    const toggleNhRef = useRef<((id: number, action: 'add' | 'remove') => void) | null>(null);
+    const lastNhDetectedRef = useRef<{ lng: number; lat: number } | null>(null);
+    const nhFittedRef = useRef(false);
 
     useEffect(() => {
         navigator.geolocation?.getCurrentPosition(
@@ -161,6 +166,33 @@ function CompsContent() {
             },
             () => {}
         );
+    }, []);
+
+    // Sync refs to avoid stale closures in map event handlers
+    useEffect(() => { selectedNhIdsRef.current = selectedNhIds; }, [selectedNhIds]);
+    useEffect(() => { nhDataCacheRef.current = nhDataCache; }, [nhDataCache]);
+
+    const makeFC = (ids: number[], cache: Record<number, NhData>): GeoJSON.FeatureCollection => ({
+        type: 'FeatureCollection',
+        features: ids.filter(id => cache[id]).map(id => ({
+            type: 'Feature' as const,
+            geometry: JSON.parse(cache[id].geojson) as GeoJSON.Geometry,
+            properties: { id, name: cache[id].name },
+        })),
+    });
+    const selectedNhFC = useMemo(() => makeFC(selectedNhIds, nhDataCache), [selectedNhIds, nhDataCache]);
+    const candidateNhFC = useMemo(() => makeFC(candidateNhIds, nhDataCache), [candidateNhIds, nhDataCache]);
+
+    const refreshCandidates = useCallback(async (ids: number[]) => {
+        if (!ids.length) return;
+        const { data } = await supabase.rpc('get_adjacent_neighborhoods_batch', { p_ids: ids });
+        if (!data) return;
+        setNhDataCache(prev => {
+            const next = { ...prev };
+            (data as NhData[]).forEach(r => { next[r.id] = r; });
+            return next;
+        });
+        setCandidateNhIds((data as NhData[]).map(r => r.id));
     }, []);
 
     // Persist search params to URL without adding a history entry
@@ -179,7 +211,6 @@ function CompsContent() {
         if (p.reits) url.set('reits', '1');
         if (p.filterMode !== 'radius') url.set('filterMode', p.filterMode);
         if (p.zip) url.set('zip', p.zip);
-        if (p.expandAdjacent) url.set('expandAdjacent', '1');
         router.replace(`/analytics/comps?${url.toString()}`, { scroll: false });
     }, [router]);
 
@@ -215,45 +246,39 @@ function CompsContent() {
             }
 
             // Neighborhood lookup when in neighborhood mode
-            let nhId: number | null = null;
+            let nhIdsForSearch: number[] | null = null;
             let subjectZip: string | null = null;
             if (p.filterMode === 'neighborhood') {
-                const { data: nhData } = await supabase.rpc('find_neighborhood', { p_lng: lng, p_lat: lat });
-                if (nhData && nhData.length > 0) {
-                    nhId = nhData[0].id as number;
-                    setNeighborhoodId(nhId);
-                    const baseName = `${nhData[0].name}, ${nhData[0].city}`;
-                    const buildFC = (rows: Array<{ name: string; city: string; geojson: string }>): GeoJSON.FeatureCollection => ({
-                        type: 'FeatureCollection',
-                        features: rows.map(r => ({
-                            type: 'Feature' as const,
-                            geometry: JSON.parse(r.geojson) as GeoJSON.Geometry,
-                            properties: { name: r.name },
-                        })),
-                    });
-                    if (expandAdjacent) {
-                        const { data: adjData } = await supabase.rpc('get_adjacent_neighborhoods', { p_id: nhId });
-                        if (adjData && adjData.length > 0) {
-                            setNeighborhoodGeoJSON(buildFC(adjData as Array<{ name: string; city: string; geojson: string }>));
-                            const n = adjData.length - 1;
-                            setNeighborhoodName(n > 0 ? `${baseName} + ${n} adjacent` : baseName);
-                        } else {
-                            setNeighborhoodGeoJSON(buildFC([nhData[0] as { name: string; city: string; geojson: string }]));
-                            setNeighborhoodName(baseName);
-                        }
-                    } else {
-                        setNeighborhoodGeoJSON(buildFC([nhData[0] as { name: string; city: string; geojson: string }]));
-                        setNeighborhoodName(baseName);
-                    }
+                const same = lastNhDetectedRef.current?.lng === lng && lastNhDetectedRef.current?.lat === lat;
+                if (same && selectedNhIdsRef.current.length > 0) {
+                    nhIdsForSearch = selectedNhIdsRef.current;
+                    refreshCandidates(nhIdsForSearch);
                 } else {
-                    // No neighborhood found — fall back to ZIP code
-                    setNeighborhoodId(null);
-                    setNeighborhoodGeoJSON(null);
-                    subjectZip = geocodedZip ?? cachedZip;
-                    if (subjectZip) {
-                        setNeighborhoodName(`ZIP ${subjectZip} (no neighborhood boundary)`);
+                    const { data: nhData } = await supabase.rpc('find_neighborhood', { p_lng: lng, p_lat: lat });
+                    if (nhData && nhData.length > 0) {
+                        const nhId = nhData[0].id as number;
+                        nhIdsForSearch = [nhId];
+                        lastNhDetectedRef.current = { lng, lat };
+                        nhFittedRef.current = false;
+                        const newCache: Record<number, NhData> = {
+                            [nhId]: { id: nhId, name: nhData[0].name, city: nhData[0].city, geojson: nhData[0].geojson },
+                        };
+                        setNhDataCache(newCache);
+                        nhDataCacheRef.current = newCache;
+                        setSelectedNhIds([nhId]);
+                        selectedNhIdsRef.current = [nhId];
+                        setCandidateNhIds([]);
+                        setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
+                        refreshCandidates([nhId]);
                     } else {
-                        setNeighborhoodName(null);
+                        // No neighborhood found — fall back to ZIP code
+                        setSelectedNhIds([]);
+                        setCandidateNhIds([]);
+                        setNhDataCache({});
+                        selectedNhIdsRef.current = [];
+                        lastNhDetectedRef.current = null;
+                        subjectZip = geocodedZip ?? cachedZip;
+                        setNeighborhoodName(subjectZip ? `ZIP ${subjectZip} (no neighborhood boundary)` : null);
                     }
                 }
             }
@@ -269,9 +294,9 @@ function CompsContent() {
                 area_tolerance: areaTolerance,
                 include_reits: includeReits,
                 p_limit: 500,
-                p_neighborhood_id: p.filterMode === 'neighborhood' ? nhId : null,
-                p_subject_zip: p.filterMode === 'neighborhood' && nhId === null ? subjectZip : null,
-                p_expand_adjacent: p.filterMode === 'neighborhood' && nhId !== null ? expandAdjacent : false,
+                p_neighborhood_ids: p.filterMode === 'neighborhood' ? nhIdsForSearch : null,
+                p_neighborhood_id: null,
+                p_subject_zip: p.filterMode === 'neighborhood' && !nhIdsForSearch ? subjectZip : null,
             });
 
             if (rpcError) {
@@ -312,20 +337,20 @@ function CompsContent() {
             setError("Something went wrong. Please try again.");
         }
         setLoading(false);
-    }, [areaTolerance, includeReits, cachedZip, expandAdjacent]);
+    }, [areaTolerance, includeReits, cachedZip, refreshCandidates]);
 
     // Re-run search when filters change (if a search has already been run)
     useEffect(() => {
         if (!comps) return;
         findComps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [areaTolerance, includeReits, expandAdjacent]);
+    }, [areaTolerance, includeReits]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
         if (didAutoSearch.current || !initAddress) return;
         didAutoSearch.current = true;
-        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode, zip: initZip, expandAdjacent: initExpandAdjacent });
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode, zip: initZip });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -341,10 +366,27 @@ function CompsContent() {
             area: subjectArea,
             reits: includeReits,
             zip: cachedZip,
-            expandAdjacent,
         };
         pushToUrl(p);
         runSearch(p);
+    };
+
+    // Assign toggle handler each render to avoid stale closures via ref
+    toggleNhRef.current = (nhId: number, action: 'add' | 'remove') => {
+        const cur = selectedNhIdsRef.current;
+        if (action === 'remove' && cur.length <= 1) return;
+        const newIds = action === 'add' ? [...cur, nhId] : cur.filter(id => id !== nhId);
+        setSelectedNhIds(newIds);
+        selectedNhIdsRef.current = newIds;
+        // Immediately remove from candidates (don't wait for async refresh)
+        if (action === 'add') setCandidateNhIds(prev => prev.filter(id => id !== nhId));
+        refreshCandidates(newIds);
+        const primary = nhDataCacheRef.current[newIds[0]];
+        if (primary) {
+            setNeighborhoodName(newIds.length > 1
+                ? `${primary.name} + ${newIds.length - 1} more`
+                : `${primary.name}, ${primary.city}`);
+        }
     };
 
     const hasSubjectAttrs = subjectPrice || subjectBeds || subjectBaths || subjectArea;
@@ -416,11 +458,29 @@ function CompsContent() {
             map.addSource('radius', { type: 'geojson', data: makeCircle(selectedCoords!, radiusMiles * 1609.34) });
             map.addLayer({ id: 'radius-fill', type: 'fill', source: 'radius', paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.12 } });
             map.addLayer({ id: 'radius-outline', type: 'line', source: 'radius', paint: { 'line-color': '#3b82f6', 'line-width': 1.5, 'line-opacity': 0.6 } });
-            // Neighborhood polygon layers (hidden initially)
-            map.addSource('neighborhood-boundary', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-            map.addLayer({ id: 'neighborhood-fill', type: 'fill', source: 'neighborhood-boundary', paint: { 'fill-color': '#8b5cf6', 'fill-opacity': 0.1 }, layout: { visibility: 'none' } });
-            map.addLayer({ id: 'neighborhood-outline', type: 'line', source: 'neighborhood-boundary', paint: { 'line-color': '#8b5cf6', 'line-width': 2, 'line-opacity': 0.8 }, layout: { visibility: 'none' } });
-            map.addLayer({ id: 'neighborhood-labels', type: 'symbol', source: 'neighborhood-boundary', layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'], 'text-anchor': 'center', 'symbol-placement': 'point', visibility: 'none' }, paint: { 'text-color': '#6d28d9', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+            // Selected neighborhoods (purple)
+            map.addSource('neighborhoods-selected', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addLayer({ id: 'neighborhoods-selected-fill', type: 'fill', source: 'neighborhoods-selected', paint: { 'fill-color': '#8b5cf6', 'fill-opacity': 0.1 }, layout: { visibility: 'none' } });
+            map.addLayer({ id: 'neighborhoods-selected-outline', type: 'line', source: 'neighborhoods-selected', paint: { 'line-color': '#8b5cf6', 'line-width': 2, 'line-opacity': 0.8 }, layout: { visibility: 'none' } });
+            map.addLayer({ id: 'neighborhoods-selected-labels', type: 'symbol', source: 'neighborhoods-selected', layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'], 'text-anchor': 'center', 'symbol-placement': 'point', visibility: 'none' }, paint: { 'text-color': '#6d28d9', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+            // Candidate neighborhoods (green)
+            map.addSource('neighborhoods-candidate', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            map.addLayer({ id: 'neighborhoods-candidate-fill', type: 'fill', source: 'neighborhoods-candidate', paint: { 'fill-color': '#16a34a', 'fill-opacity': 0.12 }, layout: { visibility: 'none' } });
+            map.addLayer({ id: 'neighborhoods-candidate-outline', type: 'line', source: 'neighborhoods-candidate', paint: { 'line-color': '#15803d', 'line-width': 1.5 }, layout: { visibility: 'none' } });
+            map.addLayer({ id: 'neighborhoods-candidate-labels', type: 'symbol', source: 'neighborhoods-candidate', layout: { 'text-field': ['get', 'name'], 'text-size': 10, 'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'], 'text-anchor': 'center', 'symbol-placement': 'point', visibility: 'none' }, paint: { 'text-color': '#15803d', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+            // Click: candidate → add to selected; selected → remove from selected
+            map.on('click', 'neighborhoods-candidate-fill', (e) => {
+                const id = e.features?.[0]?.properties?.id as number | undefined;
+                if (id != null) toggleNhRef.current?.(id, 'add');
+            });
+            map.on('click', 'neighborhoods-selected-fill', (e) => {
+                const id = e.features?.[0]?.properties?.id as number | undefined;
+                if (id != null) toggleNhRef.current?.(id, 'remove');
+            });
+            ['neighborhoods-candidate-fill', 'neighborhoods-selected-fill'].forEach(layer => {
+                map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
+                map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
+            });
             const r = radiusMiles * 1609.34 / 111320;
             const lng = selectedCoords![0], lat = selectedCoords![1];
             map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24, duration: 0 });
@@ -450,37 +510,45 @@ function CompsContent() {
     useEffect(() => {
         const map = miniMapInstance.current;
         if (!map || !selectedCoords) return;
+        const nhLayers = [
+            'neighborhoods-selected-fill', 'neighborhoods-selected-outline', 'neighborhoods-selected-labels',
+            'neighborhoods-candidate-fill', 'neighborhoods-candidate-outline', 'neighborhoods-candidate-labels',
+        ];
+        const vis = (ids: string[], v: 'visible' | 'none') => ids.forEach(l => map.setLayoutProperty(l, 'visibility', v));
         const update = () => {
-            if (filterMode === 'neighborhood' && neighborhoodGeoJSON) {
-                (map.getSource('neighborhood-boundary') as mapboxgl.GeoJSONSource | undefined)?.setData(neighborhoodGeoJSON);
-                map.setLayoutProperty('neighborhood-fill', 'visibility', 'visible');
-                map.setLayoutProperty('neighborhood-outline', 'visibility', 'visible');
-                map.setLayoutProperty('neighborhood-labels', 'visibility', 'visible');
-                map.setLayoutProperty('radius-fill', 'visibility', 'none');
-                map.setLayoutProperty('radius-outline', 'visibility', 'none');
-                map.fitBounds(getGeomBounds(neighborhoodGeoJSON), { padding: 32 });
-            } else if (filterMode === 'neighborhood') {
+            const showNh = filterMode === 'neighborhood';
+            if (showNh && (selectedNhFC.features.length > 0 || candidateNhFC.features.length > 0)) {
+                (map.getSource('neighborhoods-selected') as mapboxgl.GeoJSONSource | undefined)?.setData(selectedNhFC);
+                (map.getSource('neighborhoods-candidate') as mapboxgl.GeoJSONSource | undefined)?.setData(candidateNhFC);
+                vis(['neighborhoods-selected-fill', 'neighborhoods-selected-outline', 'neighborhoods-selected-labels'],
+                    selectedNhFC.features.length > 0 ? 'visible' : 'none');
+                vis(['neighborhoods-candidate-fill', 'neighborhoods-candidate-outline', 'neighborhoods-candidate-labels'],
+                    candidateNhFC.features.length > 0 ? 'visible' : 'none');
+                vis(['radius-fill', 'radius-outline'], 'none');
+                if (!nhFittedRef.current && selectedNhFC.features.length > 0) {
+                    const allFC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [...selectedNhFC.features, ...candidateNhFC.features] };
+                    map.fitBounds(getGeomBounds(allFC), { padding: 40 });
+                    // Lock only once candidates are included — the effect will run again
+                    // when candidates load, giving us a final fit that includes both
+                    if (candidateNhFC.features.length > 0) nhFittedRef.current = true;
+                }
+            } else if (showNh) {
                 // ZIP fallback — no polygon, no circle
-                map.setLayoutProperty('radius-fill', 'visibility', 'none');
-                map.setLayoutProperty('radius-outline', 'visibility', 'none');
-                map.setLayoutProperty('neighborhood-fill', 'visibility', 'none');
-                map.setLayoutProperty('neighborhood-outline', 'visibility', 'none');
-                map.setLayoutProperty('neighborhood-labels', 'visibility', 'none');
+                vis([...nhLayers, 'radius-fill', 'radius-outline'], 'none');
             } else {
+                // Radius mode
                 (map.getSource('radius') as mapboxgl.GeoJSONSource | undefined)?.setData(makeCircle(selectedCoords, radiusMiles * 1609.34));
-                map.setLayoutProperty('radius-fill', 'visibility', 'visible');
-                map.setLayoutProperty('radius-outline', 'visibility', 'visible');
-                map.setLayoutProperty('neighborhood-fill', 'visibility', 'none');
-                map.setLayoutProperty('neighborhood-outline', 'visibility', 'none');
-                map.setLayoutProperty('neighborhood-labels', 'visibility', 'none');
+                vis(['radius-fill', 'radius-outline'], 'visible');
+                vis(nhLayers, 'none');
+                nhFittedRef.current = false;
                 const r = radiusMiles * 1609.34 / 111320;
-                const lng = selectedCoords[0], lat = selectedCoords[1];
+                const [lng, lat] = selectedCoords;
                 map.fitBounds([[lng - r / Math.cos(lat * Math.PI / 180), lat - r], [lng + r / Math.cos(lat * Math.PI / 180), lat + r]], { padding: 24 });
             }
         };
         map.isStyleLoaded() ? update() : map.once('load', update);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [radiusMiles, selectedCoords, filterMode, neighborhoodGeoJSON]);
+    }, [selectedNhFC, candidateNhFC, filterMode, radiusMiles, selectedCoords]);
 
     // Plot comps on the radius preview map
     useEffect(() => {
@@ -725,9 +793,12 @@ function CompsContent() {
                                             onClick={() => {
                                                 setFilterMode(mode);
                                                 if (mode === 'radius') {
-                                                    setNeighborhoodId(null);
                                                     setNeighborhoodName(null);
-                                                    setNeighborhoodGeoJSON(null);
+                                                    setSelectedNhIds([]);
+                                                    setCandidateNhIds([]);
+                                                    setNhDataCache({});
+                                                    selectedNhIdsRef.current = [];
+                                                    lastNhDetectedRef.current = null;
                                                 }
                                             }}
                                             className={cn(
@@ -774,15 +845,11 @@ function CompsContent() {
                                             <span className="text-gray-400">Enter an address to detect its neighborhood</span>
                                         )}
                                     </div>
-                                    <label className="flex items-center gap-2 cursor-pointer mt-1">
-                                        <input
-                                            type="checkbox"
-                                            checked={expandAdjacent}
-                                            onChange={e => setExpandAdjacent(e.target.checked)}
-                                            className="rounded border-gray-300 accent-violet-600"
-                                        />
-                                        <span className="text-xs text-gray-600 dark:text-gray-400">Include adjacent neighborhoods</span>
-                                    </label>
+                                    {selectedNhIds.length > 0 && (
+                                        <p className="text-[10px] text-gray-400 mt-1">
+                                            Click map to add or remove neighborhoods
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>
