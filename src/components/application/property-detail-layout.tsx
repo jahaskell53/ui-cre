@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 interface PropertyDetailLayoutProps {
-    backHref: string;
+    backHref?: string;
     title: string;
     subtitle: ReactNode;
     headerBadge: ReactNode;
@@ -32,7 +32,7 @@ export function PropertyDetailLayout({
         e.preventDefault();
         if (typeof window !== "undefined" && window.history.length > 1) {
             router.back();
-        } else {
+        } else if (backHref) {
             router.push(backHref);
         }
     };
@@ -41,14 +41,16 @@ export function PropertyDetailLayout({
         <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
             {/* Header */}
             <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
-                <Link
-                    href={backHref}
-                    onClick={handleBackClick}
-                    className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer mb-4"
-                >
-                    <ChevronLeft className="size-4" />
-                    Back
-                </Link>
+                {backHref && (
+                    <Link
+                        href={backHref}
+                        onClick={handleBackClick}
+                        className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer mb-4"
+                    >
+                        <ChevronLeft className="size-4" />
+                        Back
+                    </Link>
+                )}
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
                         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h1>
