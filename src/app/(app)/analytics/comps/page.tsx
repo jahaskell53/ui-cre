@@ -13,6 +13,9 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { supabase } from "@/utils/supabase";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { PropertyPopupContent } from "@/components/application/map/property-popup-content";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { ListingDetailContent } from "@/components/application/listing-detail-content";
 import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
@@ -151,6 +154,7 @@ function CompsContent() {
     const miniMapPopupRootsRef = useRef<ReturnType<typeof createRoot>[]>([]);
     const didAutoSearch = useRef(false);
     const [miniMapActiveIndex, setMiniMapActiveIndex] = useState<number | null>(null);
+    const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
     const selectedNhIdsRef = useRef<number[]>([]);
     const nhDataCacheRef = useRef<Record<number, NhData>>({});
     const toggleNhRef = useRef<((id: number, action: 'add' | 'remove') => void) | null>(null);
@@ -1209,7 +1213,7 @@ function CompsContent() {
                                                 <tr key={isAggregated ? `agg-${comp.building_zpid}-${comp.beds}-${comp.baths}` : comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                     <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
                                                     <td className="px-4 py-3">
-                                                        <Link href={`/analytics/listing/zillow-${comp.id}`} className="group flex items-center gap-3">
+                                                        <button type="button" onClick={() => setSelectedCompId(`zillow-${comp.id}`)} className="group flex items-center gap-3 text-left w-full">
                                                             <div className="w-16 h-12 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0 overflow-hidden">
                                                                 {comp.img_src ? (
                                                                     <img src={comp.img_src} alt="" className="w-full h-full object-cover" />
@@ -1228,7 +1232,7 @@ function CompsContent() {
                                                                 </div>
                                                                 <div className="text-xs text-gray-500 truncate max-w-[160px]">{subLabel}</div>
                                                             </div>
-                                                        </Link>
+                                                        </button>
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
                                                         {comp.price ? `$${comp.price.toLocaleString()}${isAggregated ? ' avg' : ''}` : '—'}
@@ -1278,6 +1282,15 @@ function CompsContent() {
                     </div>
                 )}
             </div>
+
+            <Dialog open={!!selectedCompId} onOpenChange={(open) => { if (!open) setSelectedCompId(null); }}>
+                <DialogContent className="w-full !max-w-[40vw] h-[90vh] p-0 overflow-hidden flex flex-col">
+                    <VisuallyHidden><DialogTitle>Property Detail</DialogTitle></VisuallyHidden>
+                    {selectedCompId && (
+                        <ListingDetailContent key={selectedCompId} id={selectedCompId} />
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
