@@ -1213,7 +1213,7 @@ function CompsContent() {
                                                 <tr key={isAggregated ? `agg-${comp.building_zpid}-${comp.beds}-${comp.baths}` : comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                     <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
                                                     <td className="px-4 py-3">
-                                                        <button type="button" onClick={() => setSelectedCompId(`zillow-${comp.id}`)} className="group flex items-center gap-3 text-left w-full">
+                                                        <button type="button" onClick={() => setSelectedCompId(`zillow-${comp.id}`)} className="group flex items-center gap-3 text-left w-full cursor-pointer">
                                                             <div className="w-16 h-12 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0 overflow-hidden">
                                                                 {comp.img_src ? (
                                                                     <img src={comp.img_src} alt="" className="w-full h-full object-cover" />
@@ -1284,7 +1284,7 @@ function CompsContent() {
             </div>
 
             <Dialog open={!!selectedCompId} onOpenChange={(open) => { if (!open) setSelectedCompId(null); }}>
-                <DialogContent className="w-full !max-w-[40vw] h-[90vh] p-0 overflow-hidden flex flex-col">
+                <DialogContent className="w-full !max-w-[40vw] h-[90vh] p-0 pr-14 overflow-hidden flex flex-col">
                     <VisuallyHidden><DialogTitle>Property Detail</DialogTitle></VisuallyHidden>
                     {selectedCompId && (
                         <ListingDetailContent key={selectedCompId} id={selectedCompId} />
