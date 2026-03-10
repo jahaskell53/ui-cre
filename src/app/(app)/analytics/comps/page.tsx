@@ -1121,9 +1121,6 @@ function CompsContent() {
                             )}>
                                 Subject rent of <span className="font-bold">${parseInt(subjectPrice).toLocaleString()}/mo</span> is higher than{' '}
                                 <span className="font-bold">{marketStats.subjectPercentile}%</span> of similar listings
-                                {marketStats.subjectPercentile >= 75 && ' — above the 75th percentile'}
-                                {marketStats.subjectPercentile <= 25 && ' — below the 25th percentile'}
-                                .
                             </div>
                         )}
                     </div>
