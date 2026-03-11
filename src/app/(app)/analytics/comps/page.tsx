@@ -482,7 +482,7 @@ function CompsContent() {
             map.addSource('neighborhoods-candidate', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addLayer({ id: 'neighborhoods-candidate-fill', type: 'fill', source: 'neighborhoods-candidate', paint: { 'fill-color': '#16a34a', 'fill-opacity': 0.12 }, layout: { visibility: 'none' } });
             map.addLayer({ id: 'neighborhoods-candidate-outline', type: 'line', source: 'neighborhoods-candidate', paint: { 'line-color': '#15803d', 'line-width': 1.5 }, layout: { visibility: 'none' } });
-            map.addLayer({ id: 'neighborhoods-candidate-labels', type: 'symbol', source: 'neighborhoods-candidate', layout: { 'text-field': ['get', 'name'], 'text-size': 10, 'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'], 'text-anchor': 'center', 'symbol-placement': 'point', visibility: 'none' }, paint: { 'text-color': '#15803d', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+            map.addLayer({ id: 'neighborhoods-candidate-labels', type: 'symbol', source: 'neighborhoods-candidate', layout: { 'text-field': ['concat', '＋ ', ['get', 'name']], 'text-size': 10, 'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'], 'text-anchor': 'center', 'symbol-placement': 'point', visibility: 'none' }, paint: { 'text-color': '#15803d', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
             // ZIP boundary (amber dashed)
             map.addSource('zip-boundary', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addLayer({ id: 'zip-boundary-fill', type: 'fill', source: 'zip-boundary', paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.08 }, layout: { visibility: 'none' } });
