@@ -191,6 +191,7 @@ The application uses Supabase (PostgreSQL) with the following main tables:
 - **likes**: Post likes
 - **comments**: Post comments
 - **notifications**: User notifications
+- **neighborhoods**: Neighborhood boundary polygons (Zillow 2017 dataset)
 
 See `supabase/migrations/` for the complete schema.
 
