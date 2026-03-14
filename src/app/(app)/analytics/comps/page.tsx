@@ -612,7 +612,7 @@ function CompsContent() {
                 "Address not listed";
 
             const price = comp.price ? `$${comp.price.toLocaleString()}/mo` : "TBD";
-            const beds = comp.beds ?? null;
+            const beds = comp.beds ?? 0;
             const baths = comp.baths != null ? Number(comp.baths).toFixed(1) : null;
             const sqft = comp.area != null ? `${comp.area.toLocaleString()} sqft` : null;
 
@@ -620,15 +620,15 @@ function CompsContent() {
             const root = createRoot(popupContainer);
             miniMapPopupRootsRef.current.push(root);
             root.render(
-                <PropertyPopupContent
-                    name={addr}
-                    address={addr}
-                    price={price}
-                    units={null}
-                    capRate={beds != null || baths != null ? `${beds ?? "?"} bd · ${baths ?? "?"} ba` : null}
-                    squareFootage={sqft}
-                    thumbnailUrl={comp.img_src}
-                />
+                    <PropertyPopupContent
+                        name={addr}
+                        address={addr}
+                        price={price}
+                        units={null}
+                        capRate={`${beds} bd · ${baths ?? "?"} ba`}
+                        squareFootage={sqft}
+                        thumbnailUrl={comp.img_src}
+                    />
             );
 
             const popup = new mapboxgl.Popup({
@@ -1227,13 +1227,13 @@ function CompsContent() {
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">0 mi</td>
                                             <td className="px-4 py-3 text-right text-blue-600/70 dark:text-blue-400/70 text-xs">—</td>
                                         </tr>
-                                        {sortedComps.slice((compsPage - 1) * 25, compsPage * 25).map((comp, i) => {
-                                            const isAggregated = comp.unit_count > 1;
-                                            const subLabel = isAggregated
-                                                ? `${comp.beds ?? '?'} bed · ${comp.baths != null ? Number(comp.baths).toFixed(1) : '?'} ba · ${comp.unit_count} units`
+                                            {sortedComps.slice((compsPage - 1) * 25, compsPage * 25).map((comp, i) => {
+                                                const isAggregated = comp.unit_count > 1;
+                                                const subLabel = isAggregated
+                                                ? `${comp.beds ?? 0} bed · ${comp.baths != null ? Number(comp.baths).toFixed(1) : '?'} ba · ${comp.unit_count} units`
                                                 : [titleCaseAddress(comp.address_city), comp.address_state?.toUpperCase(), comp.address_zip].filter(Boolean).join(', ');
                                             return (
-                                                <tr key={isAggregated ? `agg-${comp.building_zpid}-${comp.beds}-${comp.baths}` : comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                                <tr key={isAggregated ? `agg-${comp.building_zpid}-${comp.beds ?? 0}-${comp.baths}` : comp.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                                     <td className="px-4 py-3 text-xs text-gray-400">{(compsPage - 1) * 25 + i + 1}</td>
                                                     <td className="px-4 py-3">
                                                         <button type="button" onClick={() => setSelectedCompId(`zillow-${comp.id}`)} className="group flex items-center gap-3 text-left w-full cursor-pointer">
@@ -1260,7 +1260,7 @@ function CompsContent() {
                                                     <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-gray-100">
                                                         {comp.price ? `$${comp.price.toLocaleString()}${isAggregated ? ' avg' : ''}` : '—'}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{comp.beds ?? '—'}</td>
+                                                    <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{comp.beds ?? 0}</td>
                                                     <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">
                                                         {comp.baths ? Number(comp.baths).toFixed(1) : '—'}
                                                     </td>

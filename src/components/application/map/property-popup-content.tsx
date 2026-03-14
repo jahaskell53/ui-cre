@@ -75,7 +75,7 @@ export function PropertyPopupContent({
                 {unitMix.map((row, i) => (
                   <tr key={i} className="border-b border-gray-50 last:border-0">
                     <td className="py-0.5 text-gray-700">
-                      {row.beds ?? '?'}bd · {row.baths != null ? Number(row.baths).toFixed(1) : '?'}ba
+                      {(row.beds ?? 0)}bd · {row.baths != null ? Number(row.baths).toFixed(1) : '?'}ba
                     </td>
                     <td className="py-0.5 text-right text-gray-600">{row.count}</td>
                     <td className="py-0.5 text-right font-medium text-gray-900">

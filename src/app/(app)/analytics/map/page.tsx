@@ -161,9 +161,9 @@ export default function MapPage() {
                 // Build unit mix grouped by (beds, baths)
                 const mixMap: Record<string, { beds: number | null; baths: number | null; count: number; totalPrice: number; validPriceCount: number }> = {};
                 for (const unit of units) {
-                    const key = `${unit.beds ?? 'null'}-${unit.baths ?? 'null'}`;
+                    const key = `${(unit.beds ?? 0)}-${unit.baths ?? 'null'}`;
                     if (!mixMap[key]) {
-                        mixMap[key] = { beds: unit.beds as number | null, baths: unit.baths as number | null, count: 0, totalPrice: 0, validPriceCount: 0 };
+                        mixMap[key] = { beds: (unit.beds as number | null) ?? 0, baths: unit.baths as number | null, count: 0, totalPrice: 0, validPriceCount: 0 };
                     }
                     mixMap[key].count++;
                     if (unit.price) {

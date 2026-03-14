@@ -252,7 +252,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
         if (!units || units.length === 0) return [];
         const groups = new Map<string, UnitRow[]>();
         for (const unit of units) {
-            const key = `${unit.beds ?? 'null'}|${unit.baths ?? 'null'}`;
+            const key = `${unit.beds ?? 0}|${unit.baths ?? 'null'}`;
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key)!.push(unit);
         }
@@ -260,7 +260,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             const prices = rows.filter(r => r.price != null).map(r => r.price!);
             const areas = rows.filter(r => r.area != null).map(r => r.area!);
             return {
-                beds: rows[0].beds,
+                beds: rows[0].beds ?? 0,
                 baths: rows[0].baths,
                 count: rows.length,
                 avgPrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null,
@@ -399,7 +399,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                             )}
                             <div className="flex justify-between">
                                 <dt className="text-gray-500 dark:text-gray-400">Beds</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.beds ?? "—"}</dd>
+                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.beds ?? 0}</dd>
                             </div>
                             <div className="flex justify-between">
                                 <dt className="text-gray-500 dark:text-gray-400">Baths</dt>
@@ -492,7 +492,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                 {unitTypeSummary.map((row) => (
                                     <tr key={`${row.beds}-${row.baths}`} className="border-b border-gray-50 dark:border-gray-700/50">
                                         <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
-                                            {row.beds ?? '?'} bd · {row.baths != null ? Number(row.baths).toFixed(1) : '?'} ba
+                                            {row.beds} bd · {row.baths != null ? Number(row.baths).toFixed(1) : '?'} ba
                                         </td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.count}</td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
@@ -533,7 +533,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                                 {unit.price ? `$${unit.price.toLocaleString()}` : '—'}
                                             </Link>
                                         </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.beds ?? '—'}</td>
+                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.beds ?? 0}</td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
                                             {unit.baths != null ? Number(unit.baths).toFixed(1) : '—'}
                                         </td>
