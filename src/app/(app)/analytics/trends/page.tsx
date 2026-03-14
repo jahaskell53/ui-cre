@@ -8,6 +8,8 @@ import {
     ResponsiveContainer,
     LineChart,
     Line,
+    BarChart,
+    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -32,7 +34,24 @@ interface TrendRow {
     listing_count: number;
 }
 
+interface ActivityRow {
+    week_start: string;
+    beds: number;
+    new_listings: number;
+    off_market: number;
+    active_count: number;
+}
+
 interface ChartPoint {
+    week: string;
+    weekLabel: string;
+    studio?: number;
+    "1bd"?: number;
+    "2bd"?: number;
+    "3bd+"?: number;
+}
+
+interface ActivityChartPoint {
     week: string;
     weekLabel: string;
     studio?: number;
@@ -72,6 +91,21 @@ function buildChartData(rows: TrendRow[]): ChartPoint[] {
     return Object.values(byWeek).sort((a, b) => a.week.localeCompare(b.week));
 }
 
+function buildActivityChartData(rows: ActivityRow[], metric: 'new_listings' | 'off_market'): ActivityChartPoint[] {
+    const byWeek: Record<string, ActivityChartPoint> = {};
+    for (const row of rows) {
+        const w = row.week_start;
+        if (!byWeek[w]) {
+            byWeek[w] = { week: w, weekLabel: formatWeekLabel(w) };
+        }
+        const bedEntry = BED_KEYS.find(b => b.beds === row.beds);
+        if (bedEntry) {
+            byWeek[w][bedEntry.key] = row[metric];
+        }
+    }
+    return Object.values(byWeek).sort((a, b) => a.week.localeCompare(b.week));
+}
+
 function pctChange(first: number | undefined, last: number | undefined): number | null {
     if (first == null || last == null || first === 0) return null;
     return ((last - first) / first) * 100;
@@ -84,6 +118,8 @@ export default function TrendsPage() {
     const [selectedZip, setSelectedZip] = useState<string | null>(null);
     const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
     const [trendData, setTrendData] = useState<TrendRow[] | null>(null);
+    const [activityData, setActivityData] = useState<ActivityRow[] | null>(null);
+    const [activityView, setActivityView] = useState<'new_listings' | 'off_market'>('new_listings');
     const [loading, setLoading] = useState(false);
     const [includeReits, setIncludeReits] = useState(true);
 
@@ -122,20 +158,32 @@ export default function TrendsPage() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // Fetch trends when zip or reit filter changes
+    // Fetch trends + activity when zip or reit filter changes
     useEffect(() => {
         if (!selectedZip) {
             setTrendData(null);
+            setActivityData(null);
             return;
         }
         setLoading(true);
-        supabase
-            .rpc("get_rent_trends", { p_zip: selectedZip, p_include_reits: includeReits })
-            .then(({ data, error }) => {
-                setLoading(false);
-                if (error) { console.error(error); return; }
-                setTrendData((data ?? []) as TrendRow[]);
-            });
+        Promise.all([
+            supabase
+                .rpc("get_rent_trends", { p_zip: selectedZip, p_include_reits: includeReits })
+                .then(({ data, error }) => {
+                    if (error) { console.error(error); return null; }
+                    return (data ?? []) as TrendRow[];
+                }),
+            supabase
+                .rpc("get_market_activity", { p_zip: selectedZip, p_include_reits: includeReits })
+                .then(({ data, error }) => {
+                    if (error) { console.error(error); return null; }
+                    return (data ?? []) as ActivityRow[];
+                }),
+        ]).then(([trends, activity]) => {
+            setLoading(false);
+            if (trends !== null) setTrendData(trends);
+            if (activity !== null) setActivityData(activity);
+        });
     }, [selectedZip, includeReits]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
@@ -164,6 +212,20 @@ export default function TrendsPage() {
         const first = weeks.length > 0 ? weeks[0][key] : undefined;
         const change = weeks.length >= 2 ? pctChange(first, latest) : null;
         return { beds, key, label, color, latest, change };
+    });
+
+    // Activity chart data
+    const activityChartData = activityData ? buildActivityChartData(activityData, activityView) : [];
+    const weekCount = activityChartData.length;
+
+    // Latest week activity for cards
+    const latestWeek = activityData && activityData.length > 0
+        ? activityData.reduce((max, r) => r.week_start > max ? r.week_start : max, activityData[0].week_start)
+        : null;
+    const activityCards = BED_KEYS.map(({ beds, key, label, color }) => {
+        const latestRows = activityData?.filter(r => r.week_start === latestWeek && r.beds === beds) ?? [];
+        const row = latestRows[0];
+        return { beds, key, label, color, row };
     });
 
     return (
@@ -249,7 +311,7 @@ export default function TrendsPage() {
 
             {selectedZip && !loading && chartData.length > 0 && (
                 <>
-                    {/* Chart */}
+                    {/* Rent Chart */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="font-semibold text-gray-900 dark:text-gray-100">Median Rent by Bedroom Type</h2>
@@ -303,8 +365,8 @@ export default function TrendsPage() {
                         </ResponsiveContainer>
                     </div>
 
-                    {/* Summary cards */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Rent Summary Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                         {summaryCards.map(({ key, label, color, latest, change }) => (
                             <div
                                 key={key}
@@ -336,6 +398,110 @@ export default function TrendsPage() {
                             </div>
                         ))}
                     </div>
+
+                    {/* Market Activity Section */}
+                    {activityData && activityData.length > 0 && (
+                        <>
+                            {/* Activity Chart */}
+                            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="font-semibold text-gray-900 dark:text-gray-100">Market Activity</h2>
+                                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setActivityView('new_listings')}
+                                            className={`px-3 py-1.5 transition-colors ${
+                                                activityView === 'new_listings'
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            New Listings
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActivityView('off_market')}
+                                            className={`px-3 py-1.5 transition-colors border-l border-gray-200 dark:border-gray-600 ${
+                                                activityView === 'off_market'
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                            }`}
+                                        >
+                                            Off Market
+                                        </button>
+                                    </div>
+                                </div>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={activityChartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                        <XAxis
+                                            dataKey="weekLabel"
+                                            tick={{ fontSize: 12, fill: "#6b7280" }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            tick={{ fontSize: 12, fill: "#6b7280" }}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            width={40}
+                                        />
+                                        <Tooltip
+                                            formatter={(value: unknown, name: unknown) => [value as number, name as string]}
+                                            labelFormatter={(label) => `Week of ${label}`}
+                                            contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
+                                        />
+                                        <Legend
+                                            formatter={(value) => (
+                                                <span style={{ fontSize: 12, color: "#374151" }}>{value}</span>
+                                            )}
+                                        />
+                                        {BED_KEYS.map(({ key, label, color }) => (
+                                            <Bar key={key} dataKey={key} name={label} fill={color} radius={[3, 3, 0, 0]} />
+                                        ))}
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                                    Days-to-rent granularity improves with each weekly scrape. Currently showing {weekCount} week{weekCount !== 1 ? 's' : ''} of data.
+                                </p>
+                            </div>
+
+                            {/* Activity Cards */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                {activityCards.map(({ key, label, color, row }) => (
+                                    <div
+                                        key={key}
+                                        className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
+                                    >
+                                        <div className="flex items-center gap-1.5 mb-3">
+                                            <span className="size-2.5 rounded-full" style={{ backgroundColor: color }} />
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
+                                        </div>
+                                        {row ? (
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{row.active_count.toLocaleString()}</p>
+                                                    <p className="text-xs text-gray-400">currently active</p>
+                                                </div>
+                                                <div className="border-t border-gray-100 dark:border-gray-700 pt-2 space-y-1">
+                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                        <span className="font-medium">{row.new_listings.toLocaleString()}</span>
+                                                        <span className="text-gray-400"> new last week</span>
+                                                    </p>
+                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                                                        <span className="font-medium">{row.off_market.toLocaleString()}</span>
+                                                        <span className="text-gray-400"> off market</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xl font-semibold text-gray-400">—</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </>
             )}
         </div>
