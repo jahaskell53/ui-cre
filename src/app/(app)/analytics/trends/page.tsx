@@ -19,6 +19,7 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW1
 
 interface MapboxFeature {
     id: string;
+    text: string;
     place_name: string;
     center: [number, number];
     context?: Array<{ id: string; text: string }>;
@@ -140,10 +141,9 @@ export default function TrendsPage() {
         setAddress(feature.place_name);
         setSuggestions([]);
         setShowSuggestions(false);
-        // Try postcode from context (address results), or from place_name if it's a zip search
+        // For postcode features, zip is in feature.text; for address features it's in context
         const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
-        // If the feature itself is a postcode type, its text is in place_name prefix
-        const zip = postcodeCtx ?? (feature.id.startsWith("postcode") ? feature.place_name.split(",")[0].trim() : null);
+        const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
         if (zip) {
             setSelectedZip(zip);
             setSelectedLabel(feature.place_name);
