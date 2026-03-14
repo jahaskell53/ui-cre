@@ -85,6 +85,7 @@ export default function TrendsPage() {
     const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
     const [trendData, setTrendData] = useState<TrendRow[] | null>(null);
     const [loading, setLoading] = useState(false);
+    const [includeReits, setIncludeReits] = useState(true);
 
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
@@ -121,7 +122,7 @@ export default function TrendsPage() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // Fetch trends when zip changes
+    // Fetch trends when zip or reit filter changes
     useEffect(() => {
         if (!selectedZip) {
             setTrendData(null);
@@ -129,13 +130,13 @@ export default function TrendsPage() {
         }
         setLoading(true);
         supabase
-            .rpc("get_rent_trends", { p_zip: selectedZip })
+            .rpc("get_rent_trends", { p_zip: selectedZip, p_include_reits: includeReits })
             .then(({ data, error }) => {
                 setLoading(false);
                 if (error) { console.error(error); return; }
                 setTrendData((data ?? []) as TrendRow[]);
             });
-    }, [selectedZip]);
+    }, [selectedZip, includeReits]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress(feature.place_name);
@@ -175,7 +176,8 @@ export default function TrendsPage() {
 
             {/* Search */}
             <div className="mb-6">
-                <div className="relative" ref={inputWrapperRef}>
+                <div className="flex items-center gap-4 mb-2">
+                    <div className="flex-1 relative" ref={inputWrapperRef}>
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
                     <Input
                         placeholder="Search address or zip code…"
@@ -205,6 +207,16 @@ export default function TrendsPage() {
                             ))}
                         </ul>
                     )}
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={includeReits}
+                            onChange={(e) => setIncludeReits(e.target.checked)}
+                            className="size-4 rounded accent-blue-600"
+                        />
+                        Include REITs
+                    </label>
                 </div>
                 {selectedZip && selectedLabel && (
                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
