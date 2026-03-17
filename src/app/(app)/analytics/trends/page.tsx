@@ -18,16 +18,26 @@ interface MapboxFeature {
     context?: Array<{ id: string; text: string }>;
 }
 
+const BED_OPTIONS = [
+    { beds: 0, label: "Studio" },
+    { beds: 1, label: "1BR" },
+    { beds: 2, label: "2BR" },
+    { beds: 3, label: "3BR" },
+];
+
+const AREA_TYPES = ["ZIP Code", "Neighborhood", "City", "County", "MSA"];
+
 export default function TrendsPage() {
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedZip, setSelectedZip] = useState<string | null>(null);
-    const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+
+    const [selectedBeds, setSelectedBeds] = useState<number>(1);
+    const [reitsOnly, setReitsOnly] = useState(false);
     const [trendData, setTrendData] = useState<TrendRow[] | null>(null);
     const [activityData, setActivityData] = useState<ActivityRow[] | null>(null);
     const [loading, setLoading] = useState(false);
-    const [reitsOnly, setReitsOnly] = useState(false);
 
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
@@ -61,13 +71,13 @@ export default function TrendsPage() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // Fetch trends + activity when zip or reit filter changes
+    // Fetch when any filter changes
     useEffect(() => {
         if (!selectedZip) { setTrendData(null); setActivityData(null); return; }
         setLoading(true);
         Promise.all([
             supabase
-                .rpc("get_rent_trends", { p_zip: selectedZip, p_reits_only: reitsOnly })
+                .rpc("get_rent_trends", { p_zip: selectedZip, p_beds: selectedBeds, p_reits_only: reitsOnly })
                 .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
             supabase
                 .rpc("get_market_activity", { p_zip: selectedZip, p_reits_only: reitsOnly })
@@ -77,7 +87,7 @@ export default function TrendsPage() {
             if (trends !== null) setTrendData(trends);
             if (activity !== null) setActivityData(activity);
         });
-    }, [selectedZip, reitsOnly]);
+    }, [selectedZip, selectedBeds, reitsOnly]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress(feature.place_name);
@@ -85,11 +95,21 @@ export default function TrendsPage() {
         setShowSuggestions(false);
         const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
-        if (zip) { setSelectedZip(zip); setSelectedLabel(feature.place_name); }
-        else { setSelectedZip(null); setSelectedLabel(null); }
+        if (zip) { setSelectedZip(zip); }
+        else { setSelectedZip(null); }
     };
 
     const chartData = trendData ? buildChartData(trendData) : [];
+
+    const segmentToggle = (label: string, active: boolean, onClick: () => void, first = false) => (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`px-3 py-1.5 whitespace-nowrap transition-colors text-sm ${first ? '' : 'border-l border-gray-200 dark:border-gray-600'} ${active ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+        >
+            {label}
+        </button>
+    );
 
     return (
         <div className="flex-1 p-6 overflow-auto max-w-5xl mx-auto w-full">
@@ -99,13 +119,32 @@ export default function TrendsPage() {
                 <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h1>
             </div>
 
-            {/* Search */}
-            <div className="mb-6">
-                <div className="flex items-center gap-4 mb-2">
+            {/* Filter panel */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6 space-y-4">
+                {/* Area type */}
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Area type</span>
+                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                        {AREA_TYPES.map((t, i) => (
+                            <button
+                                key={t}
+                                type="button"
+                                disabled={t !== "ZIP Code"}
+                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${t === "ZIP Code" ? 'bg-blue-600 text-white' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Area search */}
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Area</span>
                     <div className="flex-1 relative" ref={inputWrapperRef}>
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
                         <Input
-                            placeholder="Search address or zip code…"
+                            placeholder="Enter zip code or address…"
                             value={address}
                             onChange={(e) => { setAddress(e.target.value); setSelectedZip(null); }}
                             onKeyDown={(e) => { if (e.key === "Escape") setShowSuggestions(false); }}
@@ -130,36 +169,31 @@ export default function TrendsPage() {
                             </ul>
                         )}
                     </div>
+                </div>
+
+                {/* Bedrooms */}
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Bedrooms</span>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
-                        <button
-                            type="button"
-                            onClick={() => setReitsOnly(false)}
-                            className={`px-3 py-1.5 whitespace-nowrap transition-colors ${!reitsOnly ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                        >
-                            Non-REITs
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setReitsOnly(true)}
-                            className={`px-3 py-1.5 whitespace-nowrap transition-colors border-l border-gray-200 dark:border-gray-600 ${reitsOnly ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                        >
-                            REITs
-                        </button>
+                        {BED_OPTIONS.map((opt, i) => segmentToggle(opt.label, selectedBeds === opt.beds, () => setSelectedBeds(opt.beds), i === 0))}
                     </div>
                 </div>
-                {selectedZip && selectedLabel && (
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Showing trends for: <span className="font-medium text-gray-700 dark:text-gray-300">ZIP {selectedZip}</span>
-                        {" · "}{selectedLabel}
-                    </p>
-                )}
+
+                {/* Segment */}
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Segment</span>
+                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                        {segmentToggle("Mid-market", !reitsOnly, () => setReitsOnly(false), true)}
+                        {segmentToggle("REIT", reitsOnly, () => setReitsOnly(true))}
+                    </div>
+                </div>
             </div>
 
             {/* Empty state */}
             {!selectedZip && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">Search an address or zip code to see rent trends</p>
+                    <p className="text-gray-500 dark:text-gray-400">Enter a zip code above to see rent trends</p>
                 </div>
             )}
 
@@ -174,16 +208,16 @@ export default function TrendsPage() {
             {selectedZip && !loading && trendData && trendData.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">No rental data available for this zip code yet</p>
+                    <p className="text-gray-500 dark:text-gray-400">No data for this zip code and bedroom type</p>
                 </div>
             )}
 
             {/* Data */}
             {selectedZip && !loading && chartData.length > 0 && (
                 <>
-                    <RentTrendsSection chartData={chartData} />
+                    <RentTrendsSection chartData={chartData} selectedBeds={selectedBeds} />
                     {activityData && activityData.length > 0 && (
-                        <MarketActivitySection activityData={activityData} />
+                        <MarketActivitySection activityData={activityData} selectedBeds={selectedBeds} />
                     )}
                 </>
             )}
