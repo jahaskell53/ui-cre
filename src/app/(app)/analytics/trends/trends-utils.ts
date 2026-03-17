@@ -76,3 +76,54 @@ export function pctChange(first: number | undefined, last: number | undefined): 
     if (first == null || last == null || first === 0) return null;
     return ((last - first) / first) * 100;
 }
+
+export const AREA_COLORS = ["#3b82f6", "#f97316", "#8b5cf6", "#10b981", "#ef4444"];
+
+export interface AreaSelection {
+    zip: string;
+    label: string;
+    color: string;
+}
+
+export function buildMultiAreaRentData(
+    areaResults: Record<string, TrendRow[]>,
+    areas: AreaSelection[],
+    selectedBeds: number
+): Array<Record<string, string | number>> {
+    const allWeeks = new Set<string>();
+    for (const area of areas) {
+        (areaResults[area.zip] ?? [])
+            .filter(r => r.beds === selectedBeds)
+            .forEach(r => allWeeks.add(r.week_start));
+    }
+    return Array.from(allWeeks).sort().map(w => {
+        const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
+        for (const area of areas) {
+            const row = (areaResults[area.zip] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
+            if (row) point[area.zip] = Math.round(row.median_rent);
+        }
+        return point;
+    });
+}
+
+export function buildMultiAreaActivityData(
+    areaResults: Record<string, ActivityRow[]>,
+    areas: AreaSelection[],
+    selectedBeds: number,
+    metric: 'new_listings' | 'accumulated_listings' | 'closed_listings'
+): Array<Record<string, string | number>> {
+    const allWeeks = new Set<string>();
+    for (const area of areas) {
+        (areaResults[area.zip] ?? [])
+            .filter(r => r.beds === selectedBeds)
+            .forEach(r => allWeeks.add(r.week_start));
+    }
+    return Array.from(allWeeks).sort().map(w => {
+        const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
+        for (const area of areas) {
+            const row = (areaResults[area.zip] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
+            if (row) point[area.zip] = row[metric];
+        }
+        return point;
+    });
+}

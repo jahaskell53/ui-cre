@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/utils/supabase";
-import { TrendRow, ActivityRow, buildChartData, BED_KEYS, pctChange, formatDollars } from "./trends-utils";
+import {
+    TrendRow,
+    ActivityRow,
+    BED_KEYS,
+    AREA_COLORS,
+    AreaSelection,
+    pctChange,
+    formatDollars,
+} from "./trends-utils";
 import { RentTrendsSection } from "./rent-trends-section";
 import { MarketActivitySection } from "./market-activity-section";
 
@@ -27,18 +35,24 @@ const BED_OPTIONS = [
 
 const AREA_TYPES = ["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code"]);
+const MAX_AREAS = 5;
+
+interface AreaResult {
+    trends: TrendRow[];
+    activity: ActivityRow[];
+}
 
 export default function TrendsPage() {
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [selectedZip, setSelectedZip] = useState<string | null>(null);
     const [areaType, setAreaType] = useState<string>("Address");
+
+    const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
+    const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
 
     const [selectedBeds, setSelectedBeds] = useState<number>(1);
     const [reitsOnly, setReitsOnly] = useState(false);
-    const [trendData, setTrendData] = useState<TrendRow[] | null>(null);
-    const [activityData, setActivityData] = useState<ActivityRow[] | null>(null);
     const [loading, setLoading] = useState(false);
 
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,7 +64,7 @@ export default function TrendsPage() {
         if (!navigator.geolocation) return;
         navigator.geolocation.getCurrentPosition(
             (pos) => { userCoordsRef.current = { lng: pos.coords.longitude, lat: pos.coords.latitude }; },
-            () => { /* permission denied or unavailable — no proximity bias */ }
+            () => { /* permission denied — no proximity bias */ }
         );
     }, []);
 
@@ -87,41 +101,64 @@ export default function TrendsPage() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
-    // Fetch when any filter changes
+    // Fetch when areas or filters change
     useEffect(() => {
-        if (!selectedZip) { setTrendData(null); setActivityData(null); return; }
+        if (selectedAreas.length === 0) { setAreaResults({}); return; }
         setLoading(true);
-        Promise.all([
-            supabase
-                .rpc("get_rent_trends", { p_zip: selectedZip, p_beds: selectedBeds, p_reits_only: reitsOnly })
-                .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
-            supabase
-                .rpc("get_market_activity", { p_zip: selectedZip, p_reits_only: reitsOnly })
-                .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; }),
-        ]).then(([trends, activity]) => {
+        Promise.all(
+            selectedAreas.map(area =>
+                Promise.all([
+                    supabase
+                        .rpc("get_rent_trends", { p_zip: area.zip, p_beds: selectedBeds, p_reits_only: reitsOnly })
+                        .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
+                    supabase
+                        .rpc("get_market_activity", { p_zip: area.zip, p_reits_only: reitsOnly })
+                        .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; }),
+                ]).then(([trends, activity]) => ({ zip: area.zip, trends, activity }))
+            )
+        ).then(results => {
             setLoading(false);
-            if (trends !== null) setTrendData(trends);
-            if (activity !== null) setActivityData(activity);
+            const next: Record<string, AreaResult> = {};
+            for (const r of results) {
+                if (r.trends !== null && r.activity !== null) {
+                    next[r.zip] = { trends: r.trends!, activity: r.activity! };
+                }
+            }
+            setAreaResults(next);
         });
-    }, [selectedZip, selectedBeds, reitsOnly]);
+    }, [selectedAreas, selectedBeds, reitsOnly]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
-        setAddress(feature.place_name);
+        setAddress("");
         setSuggestions([]);
         setShowSuggestions(false);
         const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
-        if (zip) { setSelectedZip(zip); }
-        else { setSelectedZip(null); }
+        if (!zip) return;
+        if (selectedAreas.find(a => a.zip === zip)) return;
+        if (selectedAreas.length >= MAX_AREAS) return;
+        const placeCtx = feature.context?.find(c => c.id.startsWith("place."))?.text;
+        const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
+        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+        setSelectedAreas(prev => [...prev, { zip, label, color }]);
     };
 
-    const chartData = trendData ? buildChartData(trendData) : [];
+    const removeArea = (zip: string) => {
+        setSelectedAreas(prev => prev.filter(a => a.zip !== zip));
+        setAreaResults(prev => { const next = { ...prev }; delete next[zip]; return next; });
+    };
 
-    const bed = BED_KEYS.find(b => b.beds === selectedBeds)!;
-    const weeks = chartData.filter(p => p[bed.key] != null);
-    const latestRent = weeks.length > 0 ? weeks[weeks.length - 1][bed.key] : undefined;
-    const firstRent = weeks.length > 0 ? weeks[0][bed.key] : undefined;
-    const rentChange = weeks.length >= 2 ? pctChange(firstRent, latestRent) : null;
+    const rentResults: Record<string, TrendRow[]> = {};
+    const activityResults: Record<string, ActivityRow[]> = {};
+    for (const area of selectedAreas) {
+        if (areaResults[area.zip]) {
+            rentResults[area.zip] = areaResults[area.zip].trends;
+            activityResults[area.zip] = areaResults[area.zip].activity;
+        }
+    }
+
+    const hasData = selectedAreas.some(a => (rentResults[a.zip]?.length ?? 0) > 0);
+    const hasActivity = selectedAreas.some(a => (activityResults[a.zip]?.length ?? 0) > 0);
 
     const segmentToggle = (label: string, active: boolean, onClick: () => void, first = false) => (
         <button
@@ -155,7 +192,7 @@ export default function TrendsPage() {
                                     key={t}
                                     type="button"
                                     disabled={!enabled}
-                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSelectedZip(null); setSuggestions([]); } }}
+                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); } }}
                                     className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
                                 >
                                     {t}
@@ -166,34 +203,63 @@ export default function TrendsPage() {
                 </div>
 
                 {/* Area search */}
-                <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Area</span>
-                    <div className="flex-1 relative" ref={inputWrapperRef}>
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
-                        <Input
-                            placeholder={areaType === "ZIP Code" ? "Enter zip code…" : "Enter address…"}
-                            value={address}
-                            onChange={(e) => { setAddress(e.target.value); setSelectedZip(null); }}
-                            onKeyDown={(e) => { if (e.key === "Escape") setShowSuggestions(false); }}
-                            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                            className="pl-9"
-                            autoComplete="off"
-                        />
-                        {showSuggestions && suggestions.length > 0 && (
-                            <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-                                {suggestions.map((feature) => (
-                                    <li key={feature.id}>
+                <div className="flex items-start gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0 pt-2">Area</span>
+                    <div className="flex-1 space-y-2">
+                        {/* Chips */}
+                        {selectedAreas.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {selectedAreas.map(area => (
+                                    <span
+                                        key={area.zip}
+                                        className="flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 border font-medium"
+                                        style={{ borderColor: area.color, color: area.color, backgroundColor: `${area.color}14` }}
+                                    >
+                                        <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: area.color }} />
+                                        {area.label}
                                         <button
                                             type="button"
-                                            onMouseDown={(e) => { e.preventDefault(); selectSuggestion(feature); }}
-                                            className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start gap-2 transition-colors"
+                                            onClick={() => removeArea(area.zip)}
+                                            className="ml-0.5 hover:opacity-60 transition-opacity"
                                         >
-                                            <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                                            <span className="text-gray-800 dark:text-gray-200 leading-snug">{feature.place_name}</span>
+                                            <X className="size-3" />
                                         </button>
-                                    </li>
+                                    </span>
                                 ))}
-                            </ul>
+                            </div>
+                        )}
+                        {/* Search input */}
+                        {selectedAreas.length < MAX_AREAS && (
+                            <div className="relative" ref={inputWrapperRef}>
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
+                                <Input
+                                    placeholder={selectedAreas.length === 0
+                                        ? (areaType === "ZIP Code" ? "Enter zip code…" : "Enter address…")
+                                        : "Add another area to compare…"}
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Escape") setShowSuggestions(false); }}
+                                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                                    className="pl-9"
+                                    autoComplete="off"
+                                />
+                                {showSuggestions && suggestions.length > 0 && (
+                                    <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+                                        {suggestions.map((feature) => (
+                                            <li key={feature.id}>
+                                                <button
+                                                    type="button"
+                                                    onMouseDown={(e) => { e.preventDefault(); selectSuggestion(feature); }}
+                                                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start gap-2 transition-colors"
+                                                >
+                                                    <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                    <span className="text-gray-800 dark:text-gray-200 leading-snug">{feature.place_name}</span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
@@ -217,86 +283,75 @@ export default function TrendsPage() {
             </div>
 
             {/* Empty state */}
-            {!selectedZip && (
+            {selectedAreas.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">Enter a zip code above to see rent trends</p>
+                    <p className="text-gray-500 dark:text-gray-400">Search an address or zip code above to see rent trends</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Add up to {MAX_AREAS} areas to compare</p>
                 </div>
             )}
 
             {/* Loading */}
-            {selectedZip && loading && (
+            {selectedAreas.length > 0 && loading && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex items-center justify-center">
                     <p className="text-gray-400 text-sm">Loading…</p>
                 </div>
             )}
 
             {/* No data */}
-            {selectedZip && !loading && trendData && trendData.length === 0 && (
+            {selectedAreas.length > 0 && !loading && !hasData && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">No data for this zip code and bedroom type</p>
+                    <p className="text-gray-500 dark:text-gray-400">No data for the selected areas and bedroom type</p>
                 </div>
             )}
 
             {/* Grid dashboard */}
-            {selectedZip && !loading && chartData.length > 0 && (
+            {selectedAreas.length > 0 && !loading && hasData && (
                 <div className="grid grid-cols-4 gap-4">
                     {/* Stat tile */}
-                    <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-6">
-                        <div>
-                            <div className="flex items-center gap-1.5 mb-2">
-                                <span className="size-2.5 rounded-full" style={{ backgroundColor: bed.color }} />
-                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Median Rent</span>
-                            </div>
-                            {latestRent != null ? (
-                                <>
-                                    <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{formatDollars(latestRent)}</p>
-                                    <p className="text-xs text-gray-400 mt-0.5">{bed.label} · latest week</p>
-                                    {rentChange != null && (
-                                        <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${rentChange >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                            {rentChange >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
-                                            {Math.abs(rentChange).toFixed(1)}% over period
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
-                                <p className="text-2xl font-semibold text-gray-400">—</p>
-                            )}
-                        </div>
-                        {activityData && activityData.length > 0 && (() => {
-                            const latestWeek = activityData
+                    <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-5">
+                        {selectedAreas.map(area => {
+                            const rows = (rentResults[area.zip] ?? [])
                                 .filter(r => r.beds === selectedBeds)
-                                .reduce((max, r) => r.week_start > max ? r.week_start : max, "");
-                            const row = activityData.find(r => r.beds === selectedBeds && r.week_start === latestWeek);
-                            return row ? (
-                                <div className="space-y-3 border-t border-gray-100 dark:border-gray-700 pt-4">
-                                    <div>
-                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{row.accumulated_listings.toLocaleString()}</p>
-                                        <p className="text-xs text-gray-400">accumulated listings</p>
+                                .sort((a, b) => a.week_start.localeCompare(b.week_start));
+                            const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
+                            const first = rows.length > 0 ? rows[0].median_rent : undefined;
+                            const change = rows.length >= 2 ? pctChange(first, latest) : null;
+                            return (
+                                <div key={area.zip}>
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                        <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: area.color }} />
+                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{area.label}</span>
                                     </div>
-                                    <div>
-                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{row.new_listings.toLocaleString()}</p>
-                                        <p className="text-xs text-gray-400">new last week</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{row.closed_listings.toLocaleString()}</p>
-                                        <p className="text-xs text-gray-400">closed last week</p>
-                                    </div>
+                                    {latest != null ? (
+                                        <>
+                                            <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{formatDollars(latest)}</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">{BED_KEYS.find(b => b.beds === selectedBeds)!.label} · latest week</p>
+                                            {change != null && (
+                                                <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                                    {change >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+                                                    {Math.abs(change).toFixed(1)}% over period
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p className="text-xl font-semibold text-gray-400">—</p>
+                                    )}
                                 </div>
-                            ) : null;
-                        })()}
+                            );
+                        })}
                     </div>
 
                     {/* Rent chart */}
                     <div className="col-span-3">
-                        <RentTrendsSection chartData={chartData} selectedBeds={selectedBeds} />
+                        <RentTrendsSection areas={selectedAreas} areaResults={rentResults} selectedBeds={selectedBeds} />
                     </div>
 
                     {/* Activity chart */}
-                    {activityData && activityData.length > 0 && (
+                    {hasActivity && (
                         <div className="col-span-4 mb-8">
-                            <MarketActivitySection activityData={activityData} selectedBeds={selectedBeds} />
+                            <MarketActivitySection areas={selectedAreas} areaResults={activityResults} selectedBeds={selectedBeds} />
                         </div>
                     )}
                 </div>
