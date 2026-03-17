@@ -38,8 +38,8 @@ interface ActivityRow {
     week_start: string;
     beds: number;
     new_listings: number;
-    off_market: number;
-    active_count: number;
+    accumulated_listings: number;
+    closed_listings: number;
 }
 
 interface ChartPoint {
@@ -91,7 +91,10 @@ function buildChartData(rows: TrendRow[]): ChartPoint[] {
     return Object.values(byWeek).sort((a, b) => a.week.localeCompare(b.week));
 }
 
-function buildActivityChartData(rows: ActivityRow[], metric: 'new_listings' | 'off_market'): ActivityChartPoint[] {
+function buildActivityChartData(
+    rows: ActivityRow[],
+    metric: 'new_listings' | 'accumulated_listings' | 'closed_listings'
+): ActivityChartPoint[] {
     const byWeek: Record<string, ActivityChartPoint> = {};
     for (const row of rows) {
         const w = row.week_start;
@@ -119,9 +122,9 @@ export default function TrendsPage() {
     const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
     const [trendData, setTrendData] = useState<TrendRow[] | null>(null);
     const [activityData, setActivityData] = useState<ActivityRow[] | null>(null);
-    const [activityView, setActivityView] = useState<'new_listings' | 'off_market'>('new_listings');
+    const [activityView, setActivityView] = useState<'new_listings' | 'accumulated_listings' | 'closed_listings'>('new_listings');
     const [loading, setLoading] = useState(false);
-    const [includeReits, setIncludeReits] = useState(true);
+    const [reitsOnly, setReitsOnly] = useState(false);
 
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
@@ -168,13 +171,13 @@ export default function TrendsPage() {
         setLoading(true);
         Promise.all([
             supabase
-                .rpc("get_rent_trends", { p_zip: selectedZip, p_include_reits: includeReits })
+                .rpc("get_rent_trends", { p_zip: selectedZip, p_reits_only: reitsOnly })
                 .then(({ data, error }) => {
                     if (error) { console.error(error); return null; }
                     return (data ?? []) as TrendRow[];
                 }),
             supabase
-                .rpc("get_market_activity", { p_zip: selectedZip, p_include_reits: includeReits })
+                .rpc("get_market_activity", { p_zip: selectedZip, p_reits_only: reitsOnly })
                 .then(({ data, error }) => {
                     if (error) { console.error(error); return null; }
                     return (data ?? []) as ActivityRow[];
@@ -184,7 +187,7 @@ export default function TrendsPage() {
             if (trends !== null) setTrendData(trends);
             if (activity !== null) setActivityData(activity);
         });
-    }, [selectedZip, includeReits]);
+    }, [selectedZip, reitsOnly]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress(feature.place_name);
@@ -270,15 +273,22 @@ export default function TrendsPage() {
                         </ul>
                     )}
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={includeReits}
-                            onChange={(e) => setIncludeReits(e.target.checked)}
-                            className="size-4 rounded accent-blue-600"
-                        />
-                        Include REITs
-                    </label>
+	                                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                        <button
+                            type="button"
+                            onClick={() => setReitsOnly(false)}
+                            className={`px-3 py-1.5 whitespace-nowrap transition-colors ${!reitsOnly ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        >
+                            Non-REITs
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setReitsOnly(true)}
+                            className={`px-3 py-1.5 whitespace-nowrap transition-colors border-l border-gray-200 dark:border-gray-600 ${reitsOnly ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        >
+                            REITs
+                        </button>
+                    </div>
                 </div>
                 {selectedZip && selectedLabel && (
                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -418,19 +428,30 @@ export default function TrendsPage() {
                                         >
                                             New Listings
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActivityView('off_market')}
-                                            className={`px-3 py-1.5 transition-colors border-l border-gray-200 dark:border-gray-600 ${
-                                                activityView === 'off_market'
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                            }`}
-                                        >
-                                            Off Market
-                                        </button>
-                                    </div>
-                                </div>
+	                                        <button
+	                                            type="button"
+	                                            onClick={() => setActivityView('accumulated_listings')}
+	                                            className={`px-3 py-1.5 transition-colors border-l border-gray-200 dark:border-gray-600 ${
+	                                                activityView === 'accumulated_listings'
+	                                                    ? 'bg-blue-600 text-white'
+	                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+	                                            }`}
+	                                        >
+	                                            Accumulated
+	                                        </button>
+	                                        <button
+	                                            type="button"
+	                                            onClick={() => setActivityView('closed_listings')}
+	                                            className={`px-3 py-1.5 transition-colors border-l border-gray-200 dark:border-gray-600 ${
+	                                                activityView === 'closed_listings'
+	                                                    ? 'bg-blue-600 text-white'
+	                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+	                                            }`}
+	                                        >
+	                                            Closed
+	                                        </button>
+	                                    </div>
+	                                </div>
                                 <ResponsiveContainer width="100%" height={280}>
                                     <BarChart data={activityChartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -477,24 +498,24 @@ export default function TrendsPage() {
                                             <span className="size-2.5 rounded-full" style={{ backgroundColor: color }} />
                                             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</span>
                                         </div>
-                                        {row ? (
-                                            <div className="space-y-2">
-                                                <div>
-                                                    <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{row.active_count.toLocaleString()}</p>
-                                                    <p className="text-xs text-gray-400">currently active</p>
-                                                </div>
-                                                <div className="border-t border-gray-100 dark:border-gray-700 pt-2 space-y-1">
-                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                        <span className="font-medium">{row.new_listings.toLocaleString()}</span>
-                                                        <span className="text-gray-400"> new last week</span>
-                                                    </p>
-                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                        <span className="font-medium">{row.off_market.toLocaleString()}</span>
-                                                        <span className="text-gray-400"> off market</span>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ) : (
+	                                        {row ? (
+	                                            <div className="space-y-2">
+	                                                <div>
+	                                                    <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{row.accumulated_listings.toLocaleString()}</p>
+	                                                    <p className="text-xs text-gray-400">accumulated listings</p>
+	                                                </div>
+	                                                <div className="border-t border-gray-100 dark:border-gray-700 pt-2 space-y-1">
+	                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+	                                                        <span className="font-medium">{row.new_listings.toLocaleString()}</span>
+	                                                        <span className="text-gray-400"> new last week</span>
+	                                                    </p>
+	                                                    <p className="text-sm text-gray-700 dark:text-gray-300">
+	                                                        <span className="font-medium">{row.closed_listings.toLocaleString()}</span>
+	                                                        <span className="text-gray-400"> closed last week</span>
+	                                                    </p>
+	                                                </div>
+	                                            </div>
+	                                        ) : (
                                             <p className="text-xl font-semibold text-gray-400">—</p>
                                         )}
                                     </div>
