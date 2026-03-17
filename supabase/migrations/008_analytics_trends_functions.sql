@@ -33,7 +33,7 @@ $function$;
 CREATE OR REPLACE FUNCTION public.get_rent_trends(
   p_zip text DEFAULT NULL::text,
   p_beds integer DEFAULT NULL::integer,
-  p_include_reits boolean DEFAULT true
+  p_reits_only boolean DEFAULT false
 )
 RETURNS TABLE(
   week_start date,
@@ -55,21 +55,21 @@ AS $function$
     price IS NOT NULL AND price > 500 AND price < 30000
     AND (p_zip IS NULL OR address_zip = p_zip)
     AND (p_beds IS NULL OR CASE WHEN beds IS NULL OR beds = 0 THEN 0 WHEN beds >= 3 THEN 3 ELSE beds END = p_beds)
-    AND (p_include_reits OR building_zpid IS NULL)
+    AND p_reits_only = (building_zpid IS NOT NULL)
   GROUP BY 1, 2
   ORDER BY 1, 2;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.get_market_activity(
   p_zip text DEFAULT NULL::text,
-  p_include_reits boolean DEFAULT true
+  p_reits_only boolean DEFAULT false
 )
 RETURNS TABLE(
   week_start date,
   beds integer,
   new_listings bigint,
-  off_market bigint,
-  active_count bigint
+  closed_listings bigint,
+  accumulated_listings bigint
 )
 LANGUAGE sql
 STABLE
@@ -90,7 +90,7 @@ lifecycle AS (
     zpid IS NOT NULL
     AND price > 500 AND price < 30000
     AND (p_zip IS NULL OR address_zip = p_zip)
-    AND (p_include_reits OR building_zpid IS NULL)
+    AND p_reits_only = (building_zpid IS NOT NULL)
   GROUP BY zpid, 2
 ),
 all_weeks AS (
@@ -102,8 +102,8 @@ SELECT
   w.week_start,
   b.beds,
   COUNT(*) FILTER (WHERE l.first_seen = w.week_start)                    AS new_listings,
-  COUNT(*) FILTER (WHERE l.last_seen = w.week_start AND NOT l.is_active) AS off_market,
-  COUNT(*) FILTER (WHERE l.first_seen <= w.week_start AND l.is_active)   AS active_count
+  COUNT(*) FILTER (WHERE l.last_seen = w.week_start AND NOT l.is_active) AS closed_listings,
+  COUNT(*) FILTER (WHERE l.first_seen <= w.week_start AND l.is_active)   AS accumulated_listings
 FROM all_weeks w
 CROSS JOIN bed_types b
 JOIN lifecycle l ON l.beds = b.beds
