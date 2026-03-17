@@ -25,7 +25,21 @@ def raw_zillow_scrapes(
     inserted = 0
     failed = []
 
+    existing = (
+        client.table("raw_zillow_scrapes")
+        .select("zip_code")
+        .eq("run_id", context.run_id)
+        .execute()
+    ).data
+    already_scraped = {row["zip_code"] for row in existing}
+    if already_scraped:
+        context.log.info(f"Skipping {len(already_scraped)} already-scraped zip codes from previous attempt.")
+
     for zip_code in ba_zip_codes:
+        if zip_code in already_scraped:
+            context.log.info(f"Skipping already-scraped zip code {zip_code}")
+            inserted += 1
+            continue
         context.log.info(f"Scraping zip code {zip_code}")
         try:
             data = apify.run_zillow_search(zip_code)
