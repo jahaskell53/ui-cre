@@ -27,11 +27,6 @@ export function MarketActivitySection({ activityData, selectedBeds }: Props) {
     const activityChartData = buildActivityChartData(filteredData, activityView);
     const weekCount = activityChartData.length;
 
-    const latestWeek = filteredData.length > 0
-        ? filteredData.reduce((max, r) => r.week_start > max ? r.week_start : max, filteredData[0].week_start)
-        : null;
-    const latestRow = filteredData.find(r => r.week_start === latestWeek);
-
     const toggleBtn = (view: ActivityView, label: string, first = false) => (
         <button
             type="button"
@@ -48,7 +43,7 @@ export function MarketActivitySection({ activityData, selectedBeds }: Props) {
 
     return (
         <>
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="font-semibold text-gray-900 dark:text-gray-100">Market Activity — {bed.label}</h2>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
@@ -85,32 +80,6 @@ export function MarketActivitySection({ activityData, selectedBeds }: Props) {
                 </p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-8">
-                <div className="flex items-center gap-1.5 mb-3">
-                    <span className="size-2.5 rounded-full" style={{ backgroundColor: bed.color }} />
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{bed.label}</span>
-                </div>
-                {latestRow ? (
-                    <div className="space-y-2">
-                        <div>
-                            <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{latestRow.accumulated_listings.toLocaleString()}</p>
-                            <p className="text-xs text-gray-400">accumulated listings</p>
-                        </div>
-                        <div className="border-t border-gray-100 dark:border-gray-700 pt-2 space-y-1">
-                            <p className="text-sm text-gray-700 dark:text-gray-300">
-                                <span className="font-medium">{latestRow.new_listings.toLocaleString()}</span>
-                                <span className="text-gray-400"> new last week</span>
-                            </p>
-                            <p className="text-sm text-gray-700 dark:text-gray-300">
-                                <span className="font-medium">{latestRow.closed_listings.toLocaleString()}</span>
-                                <span className="text-gray-400"> closed last week</span>
-                            </p>
-                        </div>
-                    </div>
-                ) : (
-                    <p className="text-xl font-semibold text-gray-400">—</p>
-                )}
-            </div>
         </>
     );
 }
