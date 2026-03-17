@@ -43,7 +43,7 @@ export function MarketActivitySection({ activityData, selectedBeds }: Props) {
 
     return (
         <>
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-8">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="font-semibold text-gray-900 dark:text-gray-100">Market Activity — {bed.label}</h2>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">

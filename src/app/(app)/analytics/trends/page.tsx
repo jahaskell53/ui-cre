@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrendingUp, MapPin, Search } from "lucide-react";
+import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/utils/supabase";
-import { TrendRow, ActivityRow, buildChartData } from "./trends-utils";
+import { TrendRow, ActivityRow, buildChartData, BED_KEYS, pctChange, formatDollars } from "./trends-utils";
 import { RentTrendsSection } from "./rent-trends-section";
 import { MarketActivitySection } from "./market-activity-section";
 
@@ -117,6 +117,12 @@ export default function TrendsPage() {
 
     const chartData = trendData ? buildChartData(trendData) : [];
 
+    const bed = BED_KEYS.find(b => b.beds === selectedBeds)!;
+    const weeks = chartData.filter(p => p[bed.key] != null);
+    const latestRent = weeks.length > 0 ? weeks[weeks.length - 1][bed.key] : undefined;
+    const firstRent = weeks.length > 0 ? weeks[0][bed.key] : undefined;
+    const rentChange = weeks.length >= 2 ? pctChange(firstRent, latestRent) : null;
+
     const segmentToggle = (label: string, active: boolean, onClick: () => void, first = false) => (
         <button
             type="button"
@@ -128,7 +134,7 @@ export default function TrendsPage() {
     );
 
     return (
-        <div className="flex-1 p-6 overflow-auto max-w-5xl mx-auto w-full">
+        <div className="flex-1 p-6 overflow-auto max-w-7xl mx-auto w-full">
             {/* Header */}
             <div className="flex items-center gap-2 mb-6">
                 <TrendingUp className="size-5 text-blue-600" />
@@ -233,14 +239,67 @@ export default function TrendsPage() {
                 </div>
             )}
 
-            {/* Data */}
+            {/* Grid dashboard */}
             {selectedZip && !loading && chartData.length > 0 && (
-                <>
-                    <RentTrendsSection chartData={chartData} selectedBeds={selectedBeds} />
+                <div className="grid grid-cols-4 gap-4">
+                    {/* Stat tile */}
+                    <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-6">
+                        <div>
+                            <div className="flex items-center gap-1.5 mb-2">
+                                <span className="size-2.5 rounded-full" style={{ backgroundColor: bed.color }} />
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Median Rent</span>
+                            </div>
+                            {latestRent != null ? (
+                                <>
+                                    <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{formatDollars(latestRent)}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5">{bed.label} · latest week</p>
+                                    {rentChange != null && (
+                                        <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${rentChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                            {rentChange >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+                                            {Math.abs(rentChange).toFixed(1)}% over period
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="text-2xl font-semibold text-gray-400">—</p>
+                            )}
+                        </div>
+                        {activityData && activityData.length > 0 && (() => {
+                            const latestWeek = activityData
+                                .filter(r => r.beds === selectedBeds)
+                                .reduce((max, r) => r.week_start > max ? r.week_start : max, "");
+                            const row = activityData.find(r => r.beds === selectedBeds && r.week_start === latestWeek);
+                            return row ? (
+                                <div className="space-y-3 border-t border-gray-100 dark:border-gray-700 pt-4">
+                                    <div>
+                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{row.accumulated_listings.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-400">accumulated listings</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{row.new_listings.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-400">new last week</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{row.closed_listings.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-400">closed last week</p>
+                                    </div>
+                                </div>
+                            ) : null;
+                        })()}
+                    </div>
+
+                    {/* Rent chart */}
+                    <div className="col-span-3">
+                        <RentTrendsSection chartData={chartData} selectedBeds={selectedBeds} />
+                    </div>
+
+                    {/* Activity chart */}
                     {activityData && activityData.length > 0 && (
-                        <MarketActivitySection activityData={activityData} selectedBeds={selectedBeds} />
+                        <div className="col-span-4 mb-8">
+                            <MarketActivitySection activityData={activityData} selectedBeds={selectedBeds} />
+                        </div>
                     )}
-                </>
+                </div>
             )}
         </div>
     );
