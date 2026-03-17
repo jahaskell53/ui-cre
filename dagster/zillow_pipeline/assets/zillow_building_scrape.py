@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from apify_client.errors import ApifyApiError
-from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy, asset
+from dagster import AssetExecutionContext, Backoff, Config, Failure, Output, RetryPolicy, asset
 
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
@@ -106,8 +106,10 @@ def raw_building_scrapes(
             context.log.error(f"Failed building zpid={building_zpid}: [{e.status_code}] {e.type} — {e.message}")
             failed += 1
             if e.status_code in (402, 429) or (e.type and "hard_limit" in e.type.lower()):
-                context.log.error("Apify credit limit hit — aborting remaining buildings.")
-                break
+                raise Failure(
+                    description=f"Apify monthly credit limit exceeded after {inserted} buildings. Top up credits and re-run.",
+                    allow_retries=False,
+                )
         except Exception as e:
             context.log.error(f"Failed building zpid={building_zpid}: {e}")
             failed += 1

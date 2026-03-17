@@ -2,7 +2,7 @@ import time
 from datetime import datetime, timezone
 
 from apify_client.errors import ApifyApiError
-from dagster import AssetExecutionContext, Backoff, Output, RetryPolicy, asset
+from dagster import AssetExecutionContext, Backoff, Failure, Output, RetryPolicy, asset
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
 
@@ -25,8 +25,6 @@ def raw_zillow_scrapes(
     inserted = 0
     failed = []
 
-    credit_exhausted = False
-
     for zip_code in ba_zip_codes:
         context.log.info(f"Scraping zip code {zip_code}")
         try:
@@ -45,25 +43,18 @@ def raw_zillow_scrapes(
             context.log.error(f"Failed {zip_code}: [{e.status_code}] {e.type} — {e.message}")
             failed.append(zip_code)
             if e.status_code in (402, 429) or (e.type and "hard_limit" in e.type.lower()):
-                context.log.error("Apify credit limit hit — aborting remaining zip codes.")
-                credit_exhausted = True
-                break
+                raise Failure(
+                    description=f"Apify monthly credit limit exceeded after {inserted} zip codes. Top up credits and re-run.",
+                    allow_retries=False,
+                )
         except Exception as e:
             context.log.error(f"Failed {zip_code}: {e}")
             failed.append(zip_code)
         time.sleep(1)
 
-    remaining = len(ba_zip_codes) - inserted - len(failed)
     if failed:
         context.log.warning(f"Failed zip codes ({len(failed)}): {failed}")
-    if credit_exhausted and remaining > 0:
-        context.log.warning(f"{remaining} zip codes were not attempted due to credit exhaustion.")
-
-    if failed:
-        raise Exception(
-            f"{len(failed)} zip codes failed (credit_exhausted={credit_exhausted}). "
-            f"Inserted {inserted}/{len(ba_zip_codes)}."
-        )
+        raise Exception(f"{len(failed)} zip codes failed. Inserted {inserted}/{len(ba_zip_codes)}.")
 
     return Output(
         value=inserted,
