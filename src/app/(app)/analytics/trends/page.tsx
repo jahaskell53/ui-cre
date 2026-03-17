@@ -43,6 +43,16 @@ export default function TrendsPage() {
 
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
+    const userCoordsRef = useRef<{ lng: number; lat: number } | null>(null);
+
+    // Get user location once for proximity bias
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => { userCoordsRef.current = { lng: pos.coords.longitude, lat: pos.coords.latitude }; },
+            () => { /* permission denied or unavailable — no proximity bias */ }
+        );
+    }, []);
 
     // Autocomplete
     useEffect(() => {
@@ -51,8 +61,11 @@ export default function TrendsPage() {
         suggestTimerRef.current = setTimeout(async () => {
             try {
                 const types = areaType === "ZIP Code" ? "postcode" : "address";
+                const proximity = userCoordsRef.current
+                    ? `&proximity=${userCoordsRef.current.lng},${userCoordsRef.current.lat}`
+                    : "";
                 const res = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=${types}&country=US`
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=${types}&country=US${proximity}`
                 );
                 const data = await res.json();
                 setSuggestions((data.features ?? []) as MapboxFeature[]);
