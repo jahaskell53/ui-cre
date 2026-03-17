@@ -25,13 +25,15 @@ const BED_OPTIONS = [
     { beds: 3, label: "3BR" },
 ];
 
-const AREA_TYPES = ["ZIP Code", "Neighborhood", "City", "County", "MSA"];
+const AREA_TYPES = ["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"];
+const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code"]);
 
 export default function TrendsPage() {
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedZip, setSelectedZip] = useState<string | null>(null);
+    const [areaType, setAreaType] = useState<string>("Address");
 
     const [selectedBeds, setSelectedBeds] = useState<number>(1);
     const [reitsOnly, setReitsOnly] = useState(false);
@@ -48,8 +50,9 @@ export default function TrendsPage() {
         if (address.length < 3) { setSuggestions([]); return; }
         suggestTimerRef.current = setTimeout(async () => {
             try {
+                const types = areaType === "ZIP Code" ? "postcode" : "address";
                 const res = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=address,postcode,place&country=US`
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=${types}&country=US`
                 );
                 const data = await res.json();
                 setSuggestions((data.features ?? []) as MapboxFeature[]);
@@ -58,7 +61,7 @@ export default function TrendsPage() {
                 setSuggestions([]);
             }
         }, 250);
-    }, [address]);
+    }, [address, areaType]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -125,16 +128,21 @@ export default function TrendsPage() {
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Area type</span>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
-                        {AREA_TYPES.map((t, i) => (
-                            <button
-                                key={t}
-                                type="button"
-                                disabled={t !== "ZIP Code"}
-                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${t === "ZIP Code" ? 'bg-blue-600 text-white' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
-                            >
-                                {t}
-                            </button>
-                        ))}
+                        {AREA_TYPES.map((t, i) => {
+                            const enabled = ENABLED_AREA_TYPES.has(t);
+                            const active = areaType === t;
+                            return (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    disabled={!enabled}
+                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSelectedZip(null); setSuggestions([]); } }}
+                                    className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
+                                >
+                                    {t}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -144,7 +152,7 @@ export default function TrendsPage() {
                     <div className="flex-1 relative" ref={inputWrapperRef}>
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
                         <Input
-                            placeholder="Enter zip code or address…"
+                            placeholder={areaType === "ZIP Code" ? "Enter zip code…" : "Enter address…"}
                             value={address}
                             onChange={(e) => { setAddress(e.target.value); setSelectedZip(null); }}
                             onKeyDown={(e) => { if (e.key === "Escape") setShowSuggestions(false); }}
