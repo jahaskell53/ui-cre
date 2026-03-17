@@ -83,8 +83,7 @@ lifecycle AS (
     zpid,
     CASE WHEN beds IS NULL OR beds = 0 THEN 0 WHEN beds >= 3 THEN 3 ELSE beds END AS beds,
     MIN(DATE_TRUNC('week', scraped_at)::date) AS first_seen,
-    MAX(DATE_TRUNC('week', scraped_at)::date) AS last_seen,
-    MAX(DATE_TRUNC('week', scraped_at)::date) = (SELECT w FROM latest_week) AS is_active
+    MAX(DATE_TRUNC('week', scraped_at)::date) AS last_seen
   FROM cleaned_listings
   WHERE
     zpid IS NOT NULL
@@ -101,9 +100,9 @@ bed_types AS (SELECT DISTINCT beds FROM lifecycle)
 SELECT
   w.week_start,
   b.beds,
-  COUNT(*) FILTER (WHERE l.first_seen = w.week_start)                    AS new_listings,
-  COUNT(*) FILTER (WHERE l.last_seen = w.week_start AND NOT l.is_active) AS closed_listings,
-  COUNT(*) FILTER (WHERE l.first_seen <= w.week_start AND l.is_active)   AS accumulated_listings
+  COUNT(*) FILTER (WHERE l.first_seen = w.week_start)                                                    AS new_listings,
+  COUNT(*) FILTER (WHERE l.last_seen = w.week_start AND l.last_seen < (SELECT w FROM latest_week))       AS closed_listings,
+  COUNT(*) FILTER (WHERE l.first_seen <= w.week_start AND l.last_seen >= w.week_start)                   AS accumulated_listings
 FROM all_weeks w
 CROSS JOIN bed_types b
 JOIN lifecycle l ON l.beds = b.beds
