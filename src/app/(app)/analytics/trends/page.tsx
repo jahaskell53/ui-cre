@@ -336,17 +336,17 @@ export default function TrendsPage() {
                 />
             )}
 
-            {/* Chart view */}
-            {view === "chart" && <>
-
-            {/* Empty state */}
-            {selectedAreas.length === 0 && (
+            {/* Empty state — chart view with no areas selected */}
+            {view === "chart" && selectedAreas.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
                     <p className="text-gray-500 dark:text-gray-400">Search an address or zip code above to see rent trends</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Add up to {MAX_AREAS} areas to compare</p>
                 </div>
             )}
+
+            {/* Charts — shown in both views when areas are selected */}
+            {selectedAreas.length > 0 && <>
 
             {/* Loading */}
             {selectedAreas.length > 0 && loading && (
