@@ -148,7 +148,7 @@ export default function TrendsPage() {
     };
 
     const addAreaByZip = (zip: string) => {
-        if (selectedAreas.find(a => a.zip === zip)) return;
+        if (selectedAreas.find(a => a.zip === zip)) { removeArea(zip); return; }
         if (selectedAreas.length >= MAX_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas(prev => [...prev, { zip, label: zip, color }]);
