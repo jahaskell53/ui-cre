@@ -106,11 +106,10 @@ export function buildMultiAreaRentData(
     });
 }
 
-export function buildMultiAreaActivityData(
+export function buildActivityComboData(
     areaResults: Record<string, ActivityRow[]>,
     areas: AreaSelection[],
-    selectedBeds: number,
-    metric: 'new_listings' | 'accumulated_listings' | 'closed_listings'
+    selectedBeds: number
 ): Array<Record<string, string | number>> {
     const allWeeks = new Set<string>();
     for (const area of areas) {
@@ -122,7 +121,11 @@ export function buildMultiAreaActivityData(
         const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
         for (const area of areas) {
             const row = (areaResults[area.zip] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
-            if (row) point[area.zip] = row[metric];
+            if (row) {
+                point[`${area.zip}_new`] = row.new_listings;
+                point[`${area.zip}_closed`] = row.closed_listings;
+                point[`${area.zip}_acc`] = row.accumulated_listings;
+            }
         }
         return point;
     });
