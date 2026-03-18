@@ -146,8 +146,8 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
             },
         });
 
-        // Hover
-        m.on("mouseenter", "zip-fill", (e) => {
+        // Hover — update content + position on every move so it tracks across zip boundaries
+        m.on("mousemove", "zip-fill", (e) => {
             m.getCanvas().style.cursor = "pointer";
             const f = e.features?.[0];
             if (!f) return;
@@ -165,10 +165,6 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
                     </div>
                 `)
                 .addTo(m);
-        });
-
-        m.on("mousemove", "zip-fill", (e) => {
-            popupRef.current?.setLngLat(e.lngLat);
         });
 
         m.on("mouseleave", "zip-fill", () => {
