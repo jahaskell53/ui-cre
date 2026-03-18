@@ -50,6 +50,7 @@ export default function TrendsPage() {
 
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
+    const [showAddInput, setShowAddInput] = useState(false);
 
     const [selectedBeds, setSelectedBeds] = useState<number>(1);
     const [reitsOnly, setReitsOnly] = useState(false);
@@ -141,6 +142,7 @@ export default function TrendsPage() {
         const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas(prev => [...prev, { zip, label, color }]);
+        setShowAddInput(false);
     };
 
     const removeArea = (zip: string) => {
@@ -206,9 +208,9 @@ export default function TrendsPage() {
                 <div className="flex items-start gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0 pt-2">Area</span>
                     <div className="flex-1 space-y-2">
-                        {/* Chips */}
+                        {/* Chips + add button */}
                         {selectedAreas.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 {selectedAreas.map(area => (
                                     <span
                                         key={area.zip}
@@ -226,22 +228,36 @@ export default function TrendsPage() {
                                         </button>
                                     </span>
                                 ))}
+                                {selectedAreas.length < MAX_AREAS && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowAddInput(true); setAddress(""); }}
+                                        className="size-6 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
+                                        title="Add area to compare"
+                                    >
+                                        <span className="text-base leading-none mb-px">+</span>
+                                    </button>
+                                )}
                             </div>
                         )}
-                        {/* Search input */}
-                        {selectedAreas.length < MAX_AREAS && (
+                        {/* Search input — always shown for first area, toggled for subsequent */}
+                        {(selectedAreas.length === 0 || showAddInput) && (
                             <div className="relative" ref={inputWrapperRef}>
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
                                 <Input
-                                    placeholder={selectedAreas.length === 0
-                                        ? (areaType === "ZIP Code" ? "Enter zip code…" : "Enter address…")
-                                        : "Add another area to compare…"}
+                                    placeholder={areaType === "ZIP Code" ? "Enter zip code…" : "Enter address…"}
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === "Escape") setShowSuggestions(false); }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Escape") {
+                                            setShowSuggestions(false);
+                                            if (selectedAreas.length > 0) { setShowAddInput(false); setAddress(""); }
+                                        }
+                                    }}
                                     onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                                     className="pl-9"
                                     autoComplete="off"
+                                    autoFocus={showAddInput}
                                 />
                                 {showSuggestions && suggestions.length > 0 && (
                                     <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
