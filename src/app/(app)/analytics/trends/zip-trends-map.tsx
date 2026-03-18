@@ -50,8 +50,8 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
         const m = new mapboxgl.Map({
             container: containerRef.current,
             style: "mapbox://styles/mapbox/light-v11",
-            center: [-98.5795, 39.8283],
-            zoom: 3.5,
+            center: [-122.2, 37.75],
+            zoom: 8.5,
         });
         m.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
         popupRef.current = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
