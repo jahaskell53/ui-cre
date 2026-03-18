@@ -173,6 +173,7 @@ export default function TrendsPage() {
 
     const segmentToggle = (label: string, active: boolean, onClick: () => void, first = false) => (
         <button
+            key={label}
             type="button"
             onClick={onClick}
             className={`px-3 py-1.5 whitespace-nowrap transition-colors text-sm ${first ? '' : 'border-l border-gray-200 dark:border-gray-600'} ${active ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
