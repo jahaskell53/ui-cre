@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
+import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X, BarChart2, Map } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/utils/supabase";
 import {
@@ -15,6 +15,7 @@ import {
 } from "./trends-utils";
 import { RentTrendsSection } from "./rent-trends-section";
 import { MarketActivitySection } from "./market-activity-section";
+import { ZipTrendsMap } from "./zip-trends-map";
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
@@ -48,6 +49,7 @@ export default function TrendsPage() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [areaType, setAreaType] = useState<string>("Address");
 
+    const [view, setView] = useState<"chart" | "map">("chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
     const [showAddInput, setShowAddInput] = useState(false);
@@ -145,6 +147,13 @@ export default function TrendsPage() {
         setShowAddInput(false);
     };
 
+    const addAreaByZip = (zip: string) => {
+        if (selectedAreas.find(a => a.zip === zip)) return;
+        if (selectedAreas.length >= MAX_AREAS) return;
+        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+        setSelectedAreas(prev => [...prev, { zip, label: zip, color }]);
+    };
+
     const removeArea = (zip: string) => {
         setSelectedAreas(prev => prev.filter(a => a.zip !== zip));
         setAreaResults(prev => { const next = { ...prev }; delete next[zip]; return next; });
@@ -175,9 +184,27 @@ export default function TrendsPage() {
     return (
         <div className="flex-1 p-6 overflow-auto max-w-7xl mx-auto w-full">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-6">
-                <TrendingUp className="size-5 text-blue-600" />
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h1>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="size-5 text-blue-600" />
+                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h1>
+                </div>
+                <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                    <button
+                        type="button"
+                        onClick={() => setView("chart")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${view === "chart" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+                    >
+                        <BarChart2 className="size-3.5" /> Chart
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setView("map")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${view === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+                    >
+                        <Map className="size-3.5" /> Map
+                    </button>
+                </div>
             </div>
 
             {/* Filter panel */}
@@ -298,6 +325,19 @@ export default function TrendsPage() {
                 </div>
             </div>
 
+            {/* Map view */}
+            {view === "map" && (
+                <ZipTrendsMap
+                    selectedBeds={selectedBeds}
+                    reitsOnly={reitsOnly}
+                    selectedAreas={selectedAreas}
+                    onAddArea={addAreaByZip}
+                />
+            )}
+
+            {/* Chart view */}
+            {view === "chart" && <>
+
             {/* Empty state */}
             {selectedAreas.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
@@ -372,6 +412,8 @@ export default function TrendsPage() {
                     )}
                 </div>
             )}
+
+            </> /* end chart view */}
         </div>
     );
 }
