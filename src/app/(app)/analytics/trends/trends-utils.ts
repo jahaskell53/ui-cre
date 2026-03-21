@@ -86,6 +86,8 @@ export interface AreaSelection {
     neighborhoodId?: number;
     cityName?: string;
     cityState?: string;
+    countyName?: string;
+    countyState?: string;
 }
 
 export function buildMultiAreaRentData(
