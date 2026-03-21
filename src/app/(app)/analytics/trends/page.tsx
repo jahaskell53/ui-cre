@@ -42,7 +42,7 @@ const BED_OPTIONS = [
 ];
 
 const AREA_TYPES = ["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"];
-const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code", "Neighborhood"]);
+const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code", "Neighborhood", "City"]);
 const MAX_AREAS = 5;
 
 interface AreaResult {
@@ -98,7 +98,7 @@ export default function TrendsPage() {
                 }
             } else {
                 try {
-                    const types = areaType === "ZIP Code" ? "postcode" : "address";
+                    const types = areaType === "ZIP Code" ? "postcode" : areaType === "City" ? "place" : "address";
                     const proximity = userCoordsRef.current
                         ? `&proximity=${userCoordsRef.current.lng},${userCoordsRef.current.lat}`
                         : "";
@@ -140,20 +140,23 @@ export default function TrendsPage() {
         Promise.all(
             selectedAreas.map(area => {
                 const isNh = area.neighborhoodId != null;
+                const isCity = area.cityName != null;
                 return Promise.all([
                     isNh
-                        ? supabase
-                            .rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_beds: selectedBeds, p_reits_only: reitsOnly })
+                        ? supabase.rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_beds: selectedBeds, p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
-                        : supabase
-                            .rpc("get_rent_trends", { p_zip: area.id, p_beds: selectedBeds, p_reits_only: reitsOnly })
+                        : isCity
+                        ? supabase.rpc("get_rent_trends_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_beds: selectedBeds, p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
+                        : supabase.rpc("get_rent_trends", { p_zip: area.id, p_beds: selectedBeds, p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
                     isNh
-                        ? supabase
-                            .rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly })
+                        ? supabase.rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
-                        : supabase
-                            .rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly })
+                        : isCity
+                        ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
+                        : supabase.rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; }),
                 ]).then(([trends, activity]) => ({ id: area.id, trends, activity }));
             })
@@ -173,6 +176,23 @@ export default function TrendsPage() {
         setAddress("");
         setSuggestions([]);
         setShowSuggestions(false);
+        setActiveSuggestionIndex(-1);
+
+        if (areaType === "City") {
+            const cityName = feature.text;
+            const regionCtx = feature.context?.find(c => c.id.startsWith("region."));
+            const shortCode = (regionCtx as (typeof regionCtx) & { short_code?: string })?.short_code ?? "";
+            const stateCode = shortCode.replace("US-", "");
+            const key = `city:${cityName}:${stateCode}`;
+            if (selectedAreas.find(a => a.id === key)) return;
+            if (selectedAreas.length >= MAX_AREAS) return;
+            const label = stateCode ? `${cityName}, ${stateCode}` : cityName;
+            const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+            setSelectedAreas(prev => [...prev, { id: key, label, color, cityName, cityState: stateCode }]);
+            setShowAddInput(false);
+            return;
+        }
+
         const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
         if (!zip) return;
@@ -236,6 +256,7 @@ export default function TrendsPage() {
     const searchPlaceholder =
         areaType === "ZIP Code" ? "Enter zip code…" :
         areaType === "Neighborhood" ? "Search neighborhood name…" :
+        areaType === "City" ? "Search city…" :
         "Enter address…";
 
     return (

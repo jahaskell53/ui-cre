@@ -80,10 +80,12 @@ export function pctChange(first: number | undefined, last: number | undefined): 
 export const AREA_COLORS = ["#3b82f6", "#f97316", "#8b5cf6", "#10b981", "#ef4444"];
 
 export interface AreaSelection {
-    id: string;          // zip code string, or "nh:<neighborhoodId>" for neighborhoods
+    id: string;          // zip, "nh:<neighborhoodId>", or "city:<name>:<state>"
     label: string;
     color: string;
     neighborhoodId?: number;
+    cityName?: string;
+    cityState?: string;
 }
 
 export function buildMultiAreaRentData(
