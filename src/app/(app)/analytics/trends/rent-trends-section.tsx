@@ -46,9 +46,9 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                     {areas.length > 1 && <Legend />}
                     {areas.map(area => (
                         <Line
-                            key={area.zip}
+                            key={area.id}
                             type="monotone"
-                            dataKey={area.zip}
+                            dataKey={area.id}
                             name={area.label}
                             stroke={area.color}
                             strokeWidth={2}

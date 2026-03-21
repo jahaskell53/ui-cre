@@ -57,10 +57,10 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                     {areas.map(area => {
                         const prefix = areas.length > 1 ? `${area.label} ` : "";
                         return (
-                            <React.Fragment key={area.zip}>
-                                <Bar key={`${area.zip}_new`} yAxisId="left" dataKey={`${area.zip}_new`} name={`${prefix}New`} stackId={area.zip} fill={area.color} radius={[0, 0, 0, 0]} />
-                                <Bar yAxisId="left" dataKey={`${area.zip}_closed`} name={`${prefix}Closed`} stackId={area.zip} fill={withOpacity(area.color, 0.35)} radius={[3, 3, 0, 0]} />
-                                <Line yAxisId="right" type="monotone" dataKey={`${area.zip}_acc`} name={`${prefix}Inventory`} stroke={area.color} strokeWidth={2} strokeDasharray="4 3" dot={false} activeDot={{ r: 4 }} />
+                            <React.Fragment key={area.id}>
+                                <Bar key={`${area.id}_new`} yAxisId="left" dataKey={`${area.id}_new`} name={`${prefix}New`} stackId={area.id} fill={area.color} radius={[0, 0, 0, 0]} />
+                                <Bar yAxisId="left" dataKey={`${area.id}_closed`} name={`${prefix}Closed`} stackId={area.id} fill={withOpacity(area.color, 0.35)} radius={[3, 3, 0, 0]} />
+                                <Line yAxisId="right" type="monotone" dataKey={`${area.id}_acc`} name={`${prefix}Inventory`} stroke={area.color} strokeWidth={2} strokeDasharray="4 3" dot={false} activeDot={{ r: 4 }} />
                             </React.Fragment>
                         );
                     })}

@@ -80,9 +80,10 @@ export function pctChange(first: number | undefined, last: number | undefined): 
 export const AREA_COLORS = ["#3b82f6", "#f97316", "#8b5cf6", "#10b981", "#ef4444"];
 
 export interface AreaSelection {
-    zip: string;
+    id: string;          // zip code string, or "nh:<neighborhoodId>" for neighborhoods
     label: string;
     color: string;
+    neighborhoodId?: number;
 }
 
 export function buildMultiAreaRentData(
@@ -92,15 +93,15 @@ export function buildMultiAreaRentData(
 ): Array<Record<string, string | number>> {
     const allWeeks = new Set<string>();
     for (const area of areas) {
-        (areaResults[area.zip] ?? [])
+        (areaResults[area.id] ?? [])
             .filter(r => r.beds === selectedBeds)
             .forEach(r => allWeeks.add(r.week_start));
     }
     return Array.from(allWeeks).sort().map(w => {
         const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
         for (const area of areas) {
-            const row = (areaResults[area.zip] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
-            if (row) point[area.zip] = Math.round(row.median_rent);
+            const row = (areaResults[area.id] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
+            if (row) point[area.id] = Math.round(row.median_rent);
         }
         return point;
     });
@@ -113,18 +114,18 @@ export function buildActivityComboData(
 ): Array<Record<string, string | number>> {
     const allWeeks = new Set<string>();
     for (const area of areas) {
-        (areaResults[area.zip] ?? [])
+        (areaResults[area.id] ?? [])
             .filter(r => r.beds === selectedBeds)
             .forEach(r => allWeeks.add(r.week_start));
     }
     return Array.from(allWeeks).sort().map(w => {
         const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
         for (const area of areas) {
-            const row = (areaResults[area.zip] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
+            const row = (areaResults[area.id] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
             if (row) {
-                point[`${area.zip}_new`] = row.new_listings;
-                point[`${area.zip}_closed`] = row.closed_listings;
-                point[`${area.zip}_acc`] = row.accumulated_listings;
+                point[`${area.id}_new`] = row.new_listings;
+                point[`${area.id}_closed`] = row.closed_listings;
+                point[`${area.id}_acc`] = row.accumulated_listings;
             }
         }
         return point;

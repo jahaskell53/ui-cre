@@ -27,6 +27,13 @@ interface MapboxFeature {
     context?: Array<{ id: string; text: string }>;
 }
 
+interface NeighborhoodResult {
+    id: number;
+    name: string;
+    city: string;
+    state: string;
+}
+
 const BED_OPTIONS = [
     { beds: 0, label: "Studio" },
     { beds: 1, label: "1BR" },
@@ -35,7 +42,7 @@ const BED_OPTIONS = [
 ];
 
 const AREA_TYPES = ["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"];
-const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code"]);
+const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code", "Neighborhood"]);
 const MAX_AREAS = 5;
 
 interface AreaResult {
@@ -46,6 +53,7 @@ interface AreaResult {
 export default function TrendsPage() {
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
+    const [nhSuggestions, setNhSuggestions] = useState<NeighborhoodResult[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [areaType, setAreaType] = useState<string>("Address");
 
@@ -58,6 +66,8 @@ export default function TrendsPage() {
     const [reitsOnly, setReitsOnly] = useState(false);
     const [loading, setLoading] = useState(false);
 
+    const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+    const suggestListRef = useRef<HTMLUListElement>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
     const userCoordsRef = useRef<{ lng: number; lat: number } | null>(null);
@@ -74,24 +84,43 @@ export default function TrendsPage() {
     // Autocomplete
     useEffect(() => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
-        if (address.length < 3) { setSuggestions([]); return; }
+        setActiveSuggestionIndex(-1);
+        if (address.length < 3) { setSuggestions([]); setNhSuggestions([]); return; }
         suggestTimerRef.current = setTimeout(async () => {
-            try {
-                const types = areaType === "ZIP Code" ? "postcode" : "address";
-                const proximity = userCoordsRef.current
-                    ? `&proximity=${userCoordsRef.current.lng},${userCoordsRef.current.lat}`
-                    : "";
-                const res = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=${types}&country=US${proximity}`
-                );
-                const data = await res.json();
-                setSuggestions((data.features ?? []) as MapboxFeature[]);
-                setShowSuggestions(true);
-            } catch {
-                setSuggestions([]);
+            if (areaType === "Neighborhood") {
+                try {
+                    const { data } = await supabase
+                        .rpc('search_neighborhoods', { p_query: address });
+                    setNhSuggestions((data ?? []) as NeighborhoodResult[]);
+                    setShowSuggestions(true);
+                } catch {
+                    setNhSuggestions([]);
+                }
+            } else {
+                try {
+                    const types = areaType === "ZIP Code" ? "postcode" : "address";
+                    const proximity = userCoordsRef.current
+                        ? `&proximity=${userCoordsRef.current.lng},${userCoordsRef.current.lat}`
+                        : "";
+                    const res = await fetch(
+                        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=${types}&country=US${proximity}`
+                    );
+                    const data = await res.json();
+                    setSuggestions((data.features ?? []) as MapboxFeature[]);
+                    setShowSuggestions(true);
+                } catch {
+                    setSuggestions([]);
+                }
             }
         }, 250);
     }, [address, areaType]);
+
+    // Scroll active suggestion into view
+    useEffect(() => {
+        if (activeSuggestionIndex < 0 || !suggestListRef.current) return;
+        const item = suggestListRef.current.children[activeSuggestionIndex] as HTMLElement | undefined;
+        item?.scrollIntoView({ block: 'nearest' });
+    }, [activeSuggestionIndex]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -109,22 +138,31 @@ export default function TrendsPage() {
         if (selectedAreas.length === 0) { setAreaResults({}); return; }
         setLoading(true);
         Promise.all(
-            selectedAreas.map(area =>
-                Promise.all([
-                    supabase
-                        .rpc("get_rent_trends", { p_zip: area.zip, p_beds: selectedBeds, p_reits_only: reitsOnly })
-                        .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
-                    supabase
-                        .rpc("get_market_activity", { p_zip: area.zip, p_reits_only: reitsOnly })
-                        .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; }),
-                ]).then(([trends, activity]) => ({ zip: area.zip, trends, activity }))
-            )
+            selectedAreas.map(area => {
+                const isNh = area.neighborhoodId != null;
+                return Promise.all([
+                    isNh
+                        ? supabase
+                            .rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_beds: selectedBeds, p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
+                        : supabase
+                            .rpc("get_rent_trends", { p_zip: area.id, p_beds: selectedBeds, p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
+                    isNh
+                        ? supabase
+                            .rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
+                        : supabase
+                            .rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; }),
+                ]).then(([trends, activity]) => ({ id: area.id, trends, activity }));
+            })
         ).then(results => {
             setLoading(false);
             const next: Record<string, AreaResult> = {};
             for (const r of results) {
                 if (r.trends !== null && r.activity !== null) {
-                    next[r.zip] = { trends: r.trends!, activity: r.activity! };
+                    next[r.id] = { trends: r.trends!, activity: r.activity! };
                 }
             }
             setAreaResults(next);
@@ -138,38 +176,51 @@ export default function TrendsPage() {
         const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
         if (!zip) return;
-        if (selectedAreas.find(a => a.zip === zip)) return;
+        if (selectedAreas.find(a => a.id === zip)) return;
         if (selectedAreas.length >= MAX_AREAS) return;
         const placeCtx = feature.context?.find(c => c.id.startsWith("place."))?.text;
         const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
-        setSelectedAreas(prev => [...prev, { zip, label, color }]);
+        setSelectedAreas(prev => [...prev, { id: zip, label, color }]);
+        setShowAddInput(false);
+    };
+
+    const selectNeighborhood = (nh: NeighborhoodResult) => {
+        setAddress("");
+        setNhSuggestions([]);
+        setShowSuggestions(false);
+        const key = `nh:${nh.id}`;
+        if (selectedAreas.find(a => a.id === key)) return;
+        if (selectedAreas.length >= MAX_AREAS) return;
+        const label = `${nh.name} · ${nh.city}`;
+        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+        setSelectedAreas(prev => [...prev, { id: key, label, color, neighborhoodId: nh.id }]);
         setShowAddInput(false);
     };
 
     const addAreaByZip = (zip: string) => {
-        if (selectedAreas.find(a => a.zip === zip)) { removeArea(zip); return; }
+        if (selectedAreas.find(a => a.id === zip)) { removeArea(zip); return; }
         if (selectedAreas.length >= MAX_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
-        setSelectedAreas(prev => [...prev, { zip, label: zip, color }]);
+        setSelectedAreas(prev => [...prev, { id: zip, label: zip, color }]);
     };
 
-    const removeArea = (zip: string) => {
-        setSelectedAreas(prev => prev.filter(a => a.zip !== zip));
-        setAreaResults(prev => { const next = { ...prev }; delete next[zip]; return next; });
+    const removeArea = (id: string) => {
+        setSelectedAreas(prev => prev.filter(a => a.id !== id));
+        setAreaResults(prev => { const next = { ...prev }; delete next[id]; return next; });
     };
 
     const rentResults: Record<string, TrendRow[]> = {};
     const activityResults: Record<string, ActivityRow[]> = {};
     for (const area of selectedAreas) {
-        if (areaResults[area.zip]) {
-            rentResults[area.zip] = areaResults[area.zip].trends;
-            activityResults[area.zip] = areaResults[area.zip].activity;
+        if (areaResults[area.id]) {
+            rentResults[area.id] = areaResults[area.id].trends;
+            activityResults[area.id] = areaResults[area.id].activity;
         }
     }
 
-    const hasData = selectedAreas.some(a => (rentResults[a.zip]?.length ?? 0) > 0);
-    const hasActivity = selectedAreas.some(a => (activityResults[a.zip]?.length ?? 0) > 0);
+    const hasData = selectedAreas.some(a => (rentResults[a.id]?.length ?? 0) > 0);
+    const hasActivity = selectedAreas.some(a => (activityResults[a.id]?.length ?? 0) > 0);
 
     const segmentToggle = (label: string, active: boolean, onClick: () => void, first = false) => (
         <button
@@ -181,6 +232,11 @@ export default function TrendsPage() {
             {label}
         </button>
     );
+
+    const searchPlaceholder =
+        areaType === "ZIP Code" ? "Enter zip code…" :
+        areaType === "Neighborhood" ? "Search neighborhood name…" :
+        "Enter address…";
 
     return (
         <div className="flex-1 p-6 overflow-auto max-w-7xl mx-auto w-full">
@@ -194,7 +250,7 @@ export default function TrendsPage() {
                     <button type="button" onClick={() => setDisplay("chart")} className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${display === "chart" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <BarChart2 className="size-3.5" /> Chart
                     </button>
-                    <button type="button" onClick={() => { setDisplay("map"); setAreaType("ZIP Code"); setAddress(""); setSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                    <button type="button" onClick={() => { setDisplay("map"); setAreaType("ZIP Code"); setAddress(""); setSuggestions([]); setNhSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <Map className="size-3.5" /> Map
                     </button>
                 </div>
@@ -214,7 +270,7 @@ export default function TrendsPage() {
                                     key={t}
                                     type="button"
                                     disabled={!enabled}
-                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); } }}
+                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); } }}
                                     className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
                                 >
                                     {t}
@@ -233,7 +289,7 @@ export default function TrendsPage() {
                             <div className="flex flex-wrap items-center gap-2">
                                 {selectedAreas.map(area => (
                                     <span
-                                        key={area.zip}
+                                        key={area.id}
                                         className="flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 border font-medium"
                                         style={{ borderColor: area.color, color: area.color, backgroundColor: `${area.color}14` }}
                                     >
@@ -241,7 +297,7 @@ export default function TrendsPage() {
                                         {area.label}
                                         <button
                                             type="button"
-                                            onClick={() => removeArea(area.zip)}
+                                            onClick={() => removeArea(area.id)}
                                             className="ml-0.5 hover:opacity-60 transition-opacity"
                                         >
                                             <X className="size-3" />
@@ -265,28 +321,59 @@ export default function TrendsPage() {
                             <div className="relative" ref={inputWrapperRef}>
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
                                 <Input
-                                    placeholder={areaType === "ZIP Code" ? "Enter zip code…" : "Enter address…"}
+                                    placeholder={searchPlaceholder}
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
                                     onKeyDown={(e) => {
-                                        if (e.key === "Escape") {
+                                        const list = areaType === "Neighborhood" ? nhSuggestions : suggestions;
+                                        if (e.key === "ArrowDown") {
+                                            e.preventDefault();
+                                            setActiveSuggestionIndex(i => Math.min(i + 1, list.length - 1));
+                                        } else if (e.key === "ArrowUp") {
+                                            e.preventDefault();
+                                            setActiveSuggestionIndex(i => Math.max(i - 1, 0));
+                                        } else if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            if (activeSuggestionIndex >= 0) {
+                                                if (areaType === "Neighborhood") selectNeighborhood(nhSuggestions[activeSuggestionIndex]);
+                                                else selectSuggestion(suggestions[activeSuggestionIndex]);
+                                                setActiveSuggestionIndex(-1);
+                                            }
+                                        } else if (e.key === "Escape") {
                                             setShowSuggestions(false);
+                                            setActiveSuggestionIndex(-1);
                                             if (selectedAreas.length > 0) { setShowAddInput(false); setAddress(""); }
                                         }
                                     }}
-                                    onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                                    onFocus={() => (suggestions.length > 0 || nhSuggestions.length > 0) && setShowSuggestions(true)}
                                     className="pl-9"
                                     autoComplete="off"
                                     autoFocus={showAddInput}
                                 />
-                                {showSuggestions && suggestions.length > 0 && (
-                                    <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-                                        {suggestions.map((feature) => (
+                                {showSuggestions && areaType === "Neighborhood" && nhSuggestions.length > 0 && (
+                                    <ul ref={suggestListRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-60">
+                                        {nhSuggestions.map((nh, i) => (
+                                            <li key={nh.id}>
+                                                <button
+                                                    type="button"
+                                                    onMouseDown={(e) => { e.preventDefault(); selectNeighborhood(nh); }}
+                                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-start gap-2 transition-colors ${i === activeSuggestionIndex ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                                >
+                                                    <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                    <span className="text-gray-800 dark:text-gray-200 leading-snug">{nh.name} · {nh.city}, {nh.state}</span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {showSuggestions && areaType !== "Neighborhood" && suggestions.length > 0 && (
+                                    <ul ref={suggestListRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-60">
+                                        {suggestions.map((feature, i) => (
                                             <li key={feature.id}>
                                                 <button
                                                     type="button"
                                                     onMouseDown={(e) => { e.preventDefault(); selectSuggestion(feature); }}
-                                                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-start gap-2 transition-colors"
+                                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-start gap-2 transition-colors ${i === activeSuggestionIndex ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                                                 >
                                                     <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
                                                     <span className="text-gray-800 dark:text-gray-200 leading-snug">{feature.place_name}</span>
@@ -332,7 +419,7 @@ export default function TrendsPage() {
             {display === "chart" && selectedAreas.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">Search an address or zip code above to see rent trends</p>
+                    <p className="text-gray-500 dark:text-gray-400">Search an address, zip code, or neighborhood above to see rent trends</p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Add up to {MAX_AREAS} areas to compare</p>
                 </div>
             )}
@@ -361,14 +448,14 @@ export default function TrendsPage() {
                     {/* Stat tile */}
                     <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-5">
                         {selectedAreas.map(area => {
-                            const rows = (rentResults[area.zip] ?? [])
+                            const rows = (rentResults[area.id] ?? [])
                                 .filter(r => r.beds === selectedBeds)
                                 .sort((a, b) => a.week_start.localeCompare(b.week_start));
                             const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
                             const first = rows.length > 0 ? rows[0].median_rent : undefined;
                             const change = rows.length >= 2 ? pctChange(first, latest) : null;
                             return (
-                                <div key={area.zip}>
+                                <div key={area.id}>
                                     <div className="flex items-center gap-1.5 mb-1">
                                         <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: area.color }} />
                                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{area.label}</span>
