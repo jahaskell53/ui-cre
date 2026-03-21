@@ -1,4 +1,4 @@
 .DS_Store
-scrapes/.DS_Store
+scrapes/
 .env
 scripts/.env
