@@ -8,9 +8,16 @@ Scrapes Bay Area multifamily listings from LoopNet and uploads them to the Supab
 
 ```mermaid
 flowchart LR
-    A[LoopNet\nBay Area Search] -->|scrape_loopnet.js\nPhase 1: search pages| B[Listing URLs\n+ basic data]
-    B -->|scrape_loopnet.js\nPhase 2: detail pages| C[Enriched CSV\nin Downloads]
-    C -->|upload_to_supabase.py\ngeocode + insert| D[(Supabase\nloopnet_listings)]
+    A["LoopNet
+Bay Area Search"] -->|"scrape_loopnet.js
+Phase 1: search pages"| B["Listing URLs
++ basic data"]
+    B -->|"scrape_loopnet.js
+Phase 2: detail pages"| C["Enriched CSV
+in Downloads"]
+    C -->|"upload_to_supabase.py
+geocode + insert"| D[("Supabase
+loopnet_listings")]
 ```
 
 ---
