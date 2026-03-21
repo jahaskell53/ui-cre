@@ -3,8 +3,9 @@
   const TOTAL_PAGES = 13;
   const allListings = [];
 
+  // ── Phase 1: Scrape search result pages ──────────────────────────────────
   for (let page = 1; page <= TOTAL_PAGES; page++) {
-    console.log(`Scraping page ${page}/${TOTAL_PAGES}...`);
+    console.log(`[Phase 1] Scraping search page ${page}/${TOTAL_PAGES}...`);
     const url = `https://www.loopnet.com/search/apartment-buildings/for-sale/${page}/?bb=${BB}&view=map`;
 
     try {
@@ -29,17 +30,76 @@
         });
       });
 
-      // Small delay to be polite
       await new Promise(r => setTimeout(r, 600));
     } catch (e) {
       console.error(`Page ${page} failed:`, e);
     }
   }
 
-  console.log(`Done! ${allListings.length} listings found.`);
+  console.log(`[Phase 1] Done. ${allListings.length} listings found.`);
 
-  // Build and download CSV
-  const headers = ['url', 'address', 'location', 'price', 'detail1', 'detail2', 'page'];
+  // ── Phase 2: Fetch detail pages and extract JSON-LD ──────────────────────
+  function extractJsonLd(doc) {
+    // Find the JSON-LD script that describes the listing (has additionalProperty)
+    const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of scripts) {
+      try {
+        const data = JSON.parse(script.textContent);
+        if (data.additionalProperty) return data;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function getProp(data, name) {
+    const prop = data.additionalProperty.find(p => p.name === name);
+    return prop ? (prop.value[0] || '') : '';
+  }
+
+  for (let i = 0; i < allListings.length; i++) {
+    const listing = allListings[i];
+    if (!listing.url) continue;
+
+    console.log(`[Phase 2] ${i + 1}/${allListings.length} ${listing.url}`);
+
+    try {
+      const res = await fetch(listing.url, { credentials: 'include' });
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const data = extractJsonLd(doc);
+
+      if (data) {
+        listing.description    = data.description || '';
+        listing.date_modified  = data.dateModified || '';
+        listing.price_per_unit = getProp(data, 'Price Per Unit');
+        listing.grm            = getProp(data, 'Gross Rent Multiplier');
+        listing.num_units      = getProp(data, 'No. Units');
+        listing.property_subtype = getProp(data, 'Property Subtype');
+        listing.apartment_style  = getProp(data, 'Apartment Style');
+        listing.building_class   = getProp(data, 'Building Class');
+        listing.lot_size         = getProp(data, 'Lot Size');
+        listing.building_size    = getProp(data, 'Building Size');
+        listing.num_stories      = getProp(data, 'No. Stories');
+        listing.year_built       = getProp(data, 'Year Built');
+        listing.zoning           = getProp(data, 'Zoning');
+      }
+    } catch (e) {
+      console.error(`Detail fetch failed for ${listing.url}:`, e);
+    }
+
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  console.log('[Phase 2] Done. Building CSV...');
+
+  // ── Download CSV ──────────────────────────────────────────────────────────
+  const headers = [
+    'url', 'address', 'location', 'price', 'detail1', 'detail2', 'page',
+    'description', 'date_modified', 'price_per_unit', 'grm', 'num_units',
+    'property_subtype', 'apartment_style', 'building_class',
+    'lot_size', 'building_size', 'num_stories', 'year_built', 'zoning',
+  ];
+
   const csv = [
     headers.join(','),
     ...allListings.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(','))
@@ -48,7 +108,8 @@
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'loopnet-bay-area-multifamily.csv';
+  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  a.download = `${ts}-loopnet-bay-area-multifamily.csv`;
   a.click();
   console.log('CSV downloaded!');
 })();

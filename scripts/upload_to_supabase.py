@@ -123,17 +123,38 @@ def main(csv_path):
         lat, lng = geocode(full_address)
         time.sleep(0.2)  # respect rate limits
 
+        def to_int(val):
+            """Convert a string like '8' or '4' to int, or None."""
+            try:
+                return int(str(val).strip().replace(',', '')) if val else None
+            except (ValueError, TypeError):
+                return None
+
         records.append({
-            'listing_url': row.get('url', '').strip(),
-            'address': address,
-            'headline': address,  # headline = address for this scraper
-            'location': location,
-            'price': row.get('price', '').strip(),
-            'cap_rate': cap_rate,
+            'listing_url':      row.get('url', '').strip(),
+            'address':          address,
+            'headline':         address,
+            'location':         location,
+            'price':            row.get('price', '').strip(),
+            'cap_rate':         cap_rate,
             'building_category': building_cat,
-            'square_footage': sq_ft,
-            'latitude': lat,
-            'longitude': lng,
+            'square_footage':   sq_ft,
+            'latitude':         lat,
+            'longitude':        lng,
+            # Detail page fields
+            'description':      row.get('description', '').strip() or None,
+            'date_on_market':   row.get('date_modified', '').strip() or None,
+            'price_per_unit':   row.get('price_per_unit', '').strip() or None,
+            'grm':              row.get('grm', '').strip() or None,
+            'num_units':        to_int(row.get('num_units')),
+            'property_subtype': row.get('property_subtype', '').strip() or None,
+            'apartment_style':  row.get('apartment_style', '').strip() or None,
+            'building_class':   row.get('building_class', '').strip() or None,
+            'lot_size':         row.get('lot_size', '').strip() or None,
+            'building_size':    row.get('building_size', '').strip() or None,
+            'num_stories':      to_int(row.get('num_stories')),
+            'year_built':       to_int(row.get('year_built')),
+            'zoning':           row.get('zoning', '').strip() or None,
         })
 
     print(f"\nUploading {len(records)} records to Supabase...")
@@ -144,7 +165,7 @@ def main(csv_path):
         batch = records[start:start + batch_size]
         result = (
             client.table('loopnet_listings')
-            .upsert(batch, on_conflict='listing_url')
+            .insert(batch)
             .execute()
         )
         print(f"  ✅ Upserted rows {start+1}–{min(start+batch_size, len(records))}")
