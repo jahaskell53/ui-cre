@@ -122,7 +122,7 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
                 ],
                 "fill-opacity": [
                     "case",
-                    ["boolean", ["get", "selected"], false], 1,
+                    ["boolean", ["get", "selected"], false], 0.85,
                     0.65,
                 ],
             },
@@ -136,12 +136,12 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
             paint: {
                 "line-color": [
                     "case",
-                    ["boolean", ["get", "selected"], false], "#2563eb",
+                    ["boolean", ["get", "selected"], false], "#1d4ed8",
                     "rgba(0,0,0,0.15)",
                 ],
                 "line-width": [
                     "case",
-                    ["boolean", ["get", "selected"], false], 3,
+                    ["boolean", ["get", "selected"], false], 2,
                     0.5,
                 ],
             },
