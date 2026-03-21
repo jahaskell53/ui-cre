@@ -35,13 +35,15 @@ export async function updateSession(request: NextRequest) {
   const isPublicEventPage = request.nextUrl.pathname.startsWith('/events/') &&
     /^\/events\/[^\/]+$/.test(request.nextUrl.pathname)
 
+  const isInternalApiRoute = request.nextUrl.pathname.startsWith('/api/news/')
+
   // Redirect authenticated users away from auth pages
   if (user && isAuthPage) {
     return NextResponse.redirect(new URL('/network', request.url))
   }
 
-  // Redirect unauthenticated users to login (except auth pages and public event pages)
-  if (!user && !isAuthPage && !isPublicEventPage) {
+  // Redirect unauthenticated users to login (except auth pages, public event pages, and internal API routes)
+  if (!user && !isAuthPage && !isPublicEventPage && !isInternalApiRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
