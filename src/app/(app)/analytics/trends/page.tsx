@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
+import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X, BarChart2, Map } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/utils/supabase";
 import {
@@ -34,8 +34,8 @@ const BED_OPTIONS = [
     { beds: 3, label: "3BR" },
 ];
 
-const AREA_TYPES = ["Address", "ZIP Code", "Map", "Neighborhood", "City", "County", "MSA"];
-const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code", "Map"]);
+const AREA_TYPES = ["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"];
+const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code"]);
 const MAX_AREAS = 5;
 
 interface AreaResult {
@@ -49,6 +49,7 @@ export default function TrendsPage() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [areaType, setAreaType] = useState<string>("Address");
 
+    const [display, setDisplay] = useState<"chart" | "map">("chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
     const [showAddInput, setShowAddInput] = useState(false);
@@ -184,9 +185,19 @@ export default function TrendsPage() {
     return (
         <div className="flex-1 p-6 overflow-auto max-w-7xl mx-auto w-full">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-6">
-                <TrendingUp className="size-5 text-blue-600" />
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h1>
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="size-5 text-blue-600" />
+                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h1>
+                </div>
+                <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                    <button type="button" onClick={() => setDisplay("chart")} className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${display === "chart" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                        <BarChart2 className="size-3.5" /> Chart
+                    </button>
+                    <button type="button" onClick={() => setDisplay("map")} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                        <Map className="size-3.5" /> Map
+                    </button>
+                </div>
             </div>
 
             {/* Filter panel */}
@@ -203,7 +214,7 @@ export default function TrendsPage() {
                                     key={t}
                                     type="button"
                                     disabled={!enabled}
-                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); if (t === "Map") { setSelectedAreas([]); setAreaResults({}); } } }}
+                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); } }}
                                     className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
                                 >
                                     {t}
@@ -213,8 +224,8 @@ export default function TrendsPage() {
                     </div>
                 </div>
 
-                {/* Area search — hidden in Map mode */}
-                {areaType !== "Map" && <div className="flex items-start gap-4">
+                {/* Area search */}
+                <div className="flex items-start gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0 pt-2">Area</span>
                     <div className="flex-1 space-y-2">
                         {/* Chips + add button */}
@@ -287,7 +298,7 @@ export default function TrendsPage() {
                             </div>
                         )}
                     </div>
-                </div>}
+                </div>
 
                 {/* Bedrooms */}
                 <div className="flex items-center gap-4">
@@ -307,8 +318,8 @@ export default function TrendsPage() {
                 </div>
             </div>
 
-            {/* Map area type */}
-            {areaType === "Map" && (
+            {/* Map display */}
+            {display === "map" && (
                 <ZipTrendsMap
                     selectedBeds={selectedBeds}
                     reitsOnly={reitsOnly}
@@ -317,8 +328,8 @@ export default function TrendsPage() {
                 />
             )}
 
-            {/* Empty state — non-map mode with no areas selected */}
-            {areaType !== "Map" && selectedAreas.length === 0 && (
+            {/* Empty state — chart display with no areas selected */}
+            {display === "chart" && selectedAreas.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
                     <p className="text-gray-500 dark:text-gray-400">Search an address or zip code above to see rent trends</p>
