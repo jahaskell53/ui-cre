@@ -95,6 +95,12 @@ def main(csv_path):
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+    # Get next sequential run_id
+    result = client.table('loopnet_listings').select('run_id').order('run_id', desc=True).limit(1).execute()
+    last_run_id = result.data[0]['run_id'] if result.data and result.data[0]['run_id'] else 0
+    run_id = last_run_id + 1
+    print(f"Run ID: {run_id}")
+
     rows = []
     with open(csv_path, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
@@ -155,6 +161,7 @@ def main(csv_path):
             'num_stories':      to_int(row.get('num_stories')),
             'year_built':       to_int(row.get('year_built')),
             'zoning':           row.get('zoning', '').strip() or None,
+            'run_id':           run_id,
         })
 
     print(f"\nUploading {len(records)} records to Supabase...")
