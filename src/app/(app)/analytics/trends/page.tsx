@@ -194,7 +194,7 @@ export default function TrendsPage() {
                     <button type="button" onClick={() => setDisplay("chart")} className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${display === "chart" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <BarChart2 className="size-3.5" /> Chart
                     </button>
-                    <button type="button" onClick={() => setDisplay("map")} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                    <button type="button" onClick={() => { setDisplay("map"); setAreaType("ZIP Code"); setAddress(""); setSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <Map className="size-3.5" /> Map
                     </button>
                 </div>
@@ -202,8 +202,8 @@ export default function TrendsPage() {
 
             {/* Filter panel */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6 space-y-4">
-                {/* Area type */}
-                <div className="flex items-center gap-4">
+                {/* Area type — hidden in Map display mode */}
+                {display === "chart" && <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Area type</span>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
                         {AREA_TYPES.map((t, i) => {
@@ -222,7 +222,7 @@ export default function TrendsPage() {
                             );
                         })}
                     </div>
-                </div>
+                </div>}
 
                 {/* Area search */}
                 <div className="flex items-start gap-4">

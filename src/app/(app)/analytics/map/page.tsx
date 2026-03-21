@@ -207,12 +207,21 @@ export default function MapPage() {
         };
 
         if (source === 'loopnet') {
+            const { data: latestRun } = await supabase
+                .from('loopnet_listings')
+                .select('run_id')
+                .order('run_id', { ascending: false })
+                .limit(1)
+                .single();
             let loopnetQuery = supabase
                 .from('loopnet_listings')
                 .select('*', { count: 'exact' })
                 .not('latitude', 'is', null)
                 .not('longitude', 'is', null)
                 .order('created_at', { ascending: false });
+            if (latestRun?.run_id != null) {
+                loopnetQuery = loopnetQuery.eq('run_id', latestRun.run_id);
+            }
             if (search) {
                 loopnetQuery = loopnetQuery.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
             }
@@ -296,12 +305,21 @@ export default function MapPage() {
         }
 
         // source === 'all': fetch both in parallel
+        const { data: latestRun } = await supabase
+            .from('loopnet_listings')
+            .select('run_id')
+            .order('run_id', { ascending: false })
+            .limit(1)
+            .single();
         let loopnetQuery = supabase
             .from('loopnet_listings')
             .select('*', { count: 'exact' })
             .not('latitude', 'is', null)
             .not('longitude', 'is', null)
             .order('created_at', { ascending: false });
+        if (latestRun?.run_id != null) {
+            loopnetQuery = loopnetQuery.eq('run_id', latestRun.run_id);
+        }
         let zillowQuery = supabase
             .from('cleaned_listings')
             .select('*', { count: 'exact' })
