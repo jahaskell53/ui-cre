@@ -76,7 +76,7 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
         const m = mapRef.current;
         if (!m || !mapLoaded) return;
 
-        const selectedZips = new Set(selectedAreas.map(a => a.zip));
+        const selectedZips = new Set(selectedAreas.map(a => a.id));
 
         const geojson: GeoJSON.FeatureCollection = {
             type: "FeatureCollection",
@@ -96,6 +96,7 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
         const source = m.getSource("zip-trends") as mapboxgl.GeoJSONSource | undefined;
         if (source) {
             source.setData(geojson);
+            m.moveLayer("zip-border");
             return;
         }
 
@@ -121,7 +122,7 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
                 ],
                 "fill-opacity": [
                     "case",
-                    ["boolean", ["get", "selected"], false], 0.85,
+                    ["boolean", ["get", "selected"], false], 1,
                     0.65,
                 ],
             },
@@ -135,12 +136,12 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
             paint: {
                 "line-color": [
                     "case",
-                    ["boolean", ["get", "selected"], false], "#1d4ed8",
+                    ["boolean", ["get", "selected"], false], "#2563eb",
                     "rgba(0,0,0,0.15)",
                 ],
                 "line-width": [
                     "case",
-                    ["boolean", ["get", "selected"], false], 2,
+                    ["boolean", ["get", "selected"], false], 3,
                     0.5,
                 ],
             },
@@ -162,6 +163,7 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
                         <div style="font-weight:600;margin-bottom:1px">${p.zip}</div>
                         <div>${formatDollars(p.current_median)}/mo &nbsp;·&nbsp; ${pct}</div>
                         <div style="color:#9ca3af;font-size:11px">${p.listing_count} listing${p.listing_count !== 1 ? "s" : ""}</div>
+                        <div style="color:#3b82f6;font-size:11px;margin-top:3px">Click to compare</div>
                     </div>
                 `)
                 .addTo(m);
