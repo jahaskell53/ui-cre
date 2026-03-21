@@ -19,7 +19,7 @@
         const getAttr = (sel, attr) => { const el = card.querySelector(sel); return el ? el.getAttribute(attr) : ''; };
         const get = (sel) => { const el = card.querySelector(sel); return el ? el.textContent.trim() : ''; };
         allListings.push({
-          url: getAttr('div.placard-pseudo > a', 'href'),
+          url: getAttr('a.placard-carousel-pseudo', 'ng-href') || getAttr('div.placard-pseudo > a', 'ng-href'),
           address: get('h4 a') || get('h4'),
           location: get('a.subtitle-beta'),
           price: liItems[0] || '',
