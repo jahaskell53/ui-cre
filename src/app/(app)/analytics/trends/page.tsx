@@ -42,7 +42,7 @@ const BED_OPTIONS = [
 ];
 
 const AREA_TYPES = ["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"];
-const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code", "Neighborhood", "City", "County"]);
+const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"]);
 const MAX_AREAS = 5;
 
 interface AreaResult {
@@ -54,6 +54,7 @@ export default function TrendsPage() {
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
     const [nhSuggestions, setNhSuggestions] = useState<NeighborhoodResult[]>([]);
+    const [msaSuggestions, setMsaSuggestions] = useState<{ id: number; name: string; name_lsad: string; geoid: string }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [areaType, setAreaType] = useState<string>("Address");
 
@@ -85,9 +86,17 @@ export default function TrendsPage() {
     useEffect(() => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
         setActiveSuggestionIndex(-1);
-        if (address.length < 3) { setSuggestions([]); setNhSuggestions([]); return; }
+        if (address.length < 3) { setSuggestions([]); setNhSuggestions([]); setMsaSuggestions([]); return; }
         suggestTimerRef.current = setTimeout(async () => {
-            if (areaType === "Neighborhood") {
+            if (areaType === "MSA") {
+                try {
+                    const { data } = await supabase.rpc('search_msas', { p_query: address });
+                    setMsaSuggestions((data ?? []) as { id: number; name: string; name_lsad: string; geoid: string }[]);
+                    setShowSuggestions(true);
+                } catch {
+                    setMsaSuggestions([]);
+                }
+            } else if (areaType === "Neighborhood") {
                 try {
                     const { data } = await supabase
                         .rpc('search_neighborhoods', { p_query: address });
@@ -142,6 +151,7 @@ export default function TrendsPage() {
                 const isNh = area.neighborhoodId != null;
                 const isCity = area.cityName != null;
                 const isCounty = area.countyName != null;
+                const isMsa = area.msaGeoid != null;
                 return Promise.all([
                     isNh
                         ? supabase.rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_beds: selectedBeds, p_reits_only: reitsOnly })
@@ -151,6 +161,9 @@ export default function TrendsPage() {
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
                         : isCounty
                         ? supabase.rpc("get_rent_trends_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, p_beds: selectedBeds, p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
+                        : isMsa
+                        ? supabase.rpc("get_rent_trends_by_msa", { p_geoid: area.msaGeoid!, p_beds: selectedBeds, p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
                         : supabase.rpc("get_rent_trends", { p_zip: area.id, p_beds: selectedBeds, p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
@@ -162,6 +175,9 @@ export default function TrendsPage() {
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
                         : isCounty
                         ? supabase.rpc("get_market_activity_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, p_reits_only: reitsOnly })
+                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
+                        : isMsa
+                        ? supabase.rpc("get_market_activity_by_msa", { p_geoid: area.msaGeoid!, p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
                         : supabase.rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly })
                             .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; }),
@@ -240,6 +256,19 @@ export default function TrendsPage() {
         setShowAddInput(false);
     };
 
+    const selectMsa = (msa: { id: number; name: string; name_lsad: string; geoid: string }) => {
+        setAddress("");
+        setMsaSuggestions([]);
+        setShowSuggestions(false);
+        setActiveSuggestionIndex(-1);
+        const key = `msa:${msa.geoid}`;
+        if (selectedAreas.find(a => a.id === key)) return;
+        if (selectedAreas.length >= MAX_AREAS) return;
+        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+        setSelectedAreas(prev => [...prev, { id: key, label: msa.name, color, msaGeoid: msa.geoid }]);
+        setShowAddInput(false);
+    };
+
     const addAreaByZip = (zip: string) => {
         if (selectedAreas.find(a => a.id === zip)) { removeArea(zip); return; }
         if (selectedAreas.length >= MAX_AREAS) return;
@@ -280,6 +309,7 @@ export default function TrendsPage() {
         areaType === "Neighborhood" ? "Search neighborhood name…" :
         areaType === "City" ? "Search city…" :
         areaType === "County" ? "Search county…" :
+        areaType === "MSA" ? "Search metro area…" :
         "Enter address…";
 
     return (
@@ -369,7 +399,7 @@ export default function TrendsPage() {
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
                                     onKeyDown={(e) => {
-                                        const list = areaType === "Neighborhood" ? nhSuggestions : suggestions;
+                                        const list = areaType === "Neighborhood" ? nhSuggestions : areaType === "MSA" ? msaSuggestions : suggestions;
                                         if (e.key === "ArrowDown") {
                                             e.preventDefault();
                                             setActiveSuggestionIndex(i => Math.min(i + 1, list.length - 1));
@@ -380,6 +410,7 @@ export default function TrendsPage() {
                                             e.preventDefault();
                                             if (activeSuggestionIndex >= 0) {
                                                 if (areaType === "Neighborhood") selectNeighborhood(nhSuggestions[activeSuggestionIndex]);
+                                                else if (areaType === "MSA") selectMsa(msaSuggestions[activeSuggestionIndex]);
                                                 else selectSuggestion(suggestions[activeSuggestionIndex]);
                                                 setActiveSuggestionIndex(-1);
                                             }
@@ -389,7 +420,7 @@ export default function TrendsPage() {
                                             if (selectedAreas.length > 0) { setShowAddInput(false); setAddress(""); }
                                         }
                                     }}
-                                    onFocus={() => (suggestions.length > 0 || nhSuggestions.length > 0) && setShowSuggestions(true)}
+                                    onFocus={() => (suggestions.length > 0 || nhSuggestions.length > 0 || msaSuggestions.length > 0) && setShowSuggestions(true)}
                                     className="pl-9"
                                     autoComplete="off"
                                     autoFocus={showAddInput}
@@ -410,7 +441,23 @@ export default function TrendsPage() {
                                         ))}
                                     </ul>
                                 )}
-                                {showSuggestions && areaType !== "Neighborhood" && suggestions.length > 0 && (
+                                {showSuggestions && areaType === "MSA" && msaSuggestions.length > 0 && (
+                                    <ul ref={suggestListRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-60">
+                                        {msaSuggestions.map((msa, i) => (
+                                            <li key={msa.geoid}>
+                                                <button
+                                                    type="button"
+                                                    onMouseDown={(e) => { e.preventDefault(); selectMsa(msa); }}
+                                                    className={`w-full text-left px-3 py-2.5 text-sm flex items-start gap-2 transition-colors ${i === activeSuggestionIndex ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                                >
+                                                    <MapPin className="size-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                                                    <span className="text-gray-800 dark:text-gray-200 leading-snug">{msa.name_lsad}</span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                {showSuggestions && areaType !== "Neighborhood" && areaType !== "MSA" && suggestions.length > 0 && (
                                     <ul ref={suggestListRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-60">
                                         {suggestions.map((feature, i) => (
                                             <li key={feature.id}>

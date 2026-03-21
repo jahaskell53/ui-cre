@@ -88,6 +88,7 @@ export interface AreaSelection {
     cityState?: string;
     countyName?: string;
     countyState?: string;
+    msaGeoid?: string;
 }
 
 export function buildMultiAreaRentData(
