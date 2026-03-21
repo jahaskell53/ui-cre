@@ -6,9 +6,11 @@ Scrapes Bay Area multifamily listings from LoopNet and uploads them to the Supab
 
 ## Pipeline Overview
 
-```
-LoopNet (browser)  →  CSV (downloads folder)  →  Supabase
-   scrape_loopnet.js        upload_to_supabase.py
+```mermaid
+flowchart LR
+    A[LoopNet\nBay Area Search] -->|scrape_loopnet.js\nPhase 1: search pages| B[Listing URLs\n+ basic data]
+    B -->|scrape_loopnet.js\nPhase 2: detail pages| C[Enriched CSV\nin Downloads]
+    C -->|upload_to_supabase.py\ngeocode + insert| D[(Supabase\nloopnet_listings)]
 ```
 
 ---
