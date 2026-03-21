@@ -1,3 +1,12 @@
+-- County boundary data loaded from:
+-- US Census Bureau TIGER/Line Shapefiles 2025
+-- https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html
+-- File: tl_2025_us_county.zip (National county shapefile)
+-- Loaded via load_counties.py: converted to GeoJSON (ogr2ogr, simplified 0.01 deg,
+-- reprojected NAD83→WGS84), inserted via Supabase Python client in batches of 100,
+-- geom column populated with ST_Multi(ST_GeomFromGeoJSON(...)).
+-- 3,235 counties, coverage: all US states + territories.
+
 CREATE TABLE IF NOT EXISTS public.county_boundaries (
   id         bigserial PRIMARY KEY,
   geoid      text UNIQUE NOT NULL,
