@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getActiveSubscribers, PreferredSendTime } from "@/lib/news/subscribers";
 import { fetchArticlesForNewsletter } from "@/lib/news/newsletter-utils";
+import { sendAlertEmail } from "@/lib/news/alert";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minute timeout
@@ -132,6 +133,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Newsletter preparation error:', error);
+    await sendAlertEmail(
+      '🚨 Newsletter prepare cron crashed',
+      `The prepare-newsletters cron threw an unexpected error.\n\n` +
+      `Error: ${error instanceof Error ? error.message : String(error)}\n\n` +
+      `Check Vercel logs for the full stack trace.`
+    );
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

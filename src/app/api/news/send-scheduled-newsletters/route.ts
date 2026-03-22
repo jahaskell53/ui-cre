@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getSubscriberByEmail } from "@/lib/news/subscribers";
 import { EmailService } from "@/lib/news/email-service";
 import { generateEmailContentFromArticles, splitArticlesIntoNationalAndLocal } from "@/lib/news/newsletter-utils";
+import { sendAlertEmail } from "@/lib/news/alert";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minute timeout
@@ -174,10 +175,25 @@ export async function GET(request: NextRequest) {
 
     console.log('Scheduled newsletter send process completed:', result);
 
+    if (errorCount > 0) {
+      await sendAlertEmail(
+        `⚠️ Newsletter send failures: ${errorCount}/${scheduledNewsletters.length}`,
+        `The send-scheduled-newsletters cron completed with errors.\n\n` +
+        `Sent: ${successCount}\nFailed: ${errorCount}\nTotal: ${scheduledNewsletters.length}\n\n` +
+        `Check Vercel logs for details.`
+      );
+    }
+
     return NextResponse.json(result);
 
   } catch (error) {
     console.error('Scheduled newsletter send error:', error);
+    await sendAlertEmail(
+      '🚨 Newsletter send cron crashed',
+      `The send-scheduled-newsletters cron threw an unexpected error.\n\n` +
+      `Error: ${error instanceof Error ? error.message : String(error)}\n\n` +
+      `Check Vercel logs for the full stack trace.`
+    );
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
