@@ -14,5 +14,8 @@ dependencies = [
     "apify-client",
     "python-dotenv",
     "postal",
+    "pytest",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
