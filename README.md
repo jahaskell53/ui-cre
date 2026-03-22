@@ -192,6 +192,8 @@ The application uses Supabase (PostgreSQL) with the following main tables:
 - **comments**: Post comments
 - **notifications**: User notifications
 - **neighborhoods**: Neighborhood boundary polygons ([Zillow 2017 dataset](https://www.arcgis.com/home/item.html?id=56b89613f9f7450fb44e857691a244e7))
+- **county_boundaries**: US county polygons ([Census TIGER/Line 2025 — tl_2025_us_county.zip](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html))
+- **msa_boundaries**: Metropolitan Statistical Area polygons ([Census TIGER/Line 2025 — tl_2025_us_cbsa.zip](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html), MEMI=1 only)
 
 See `supabase/migrations/` for the complete schema.
 
