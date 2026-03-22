@@ -3,7 +3,7 @@
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 export const ThemeToggle = () => {
     const { theme, setTheme } = useTheme();

@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 export const NavAccountMenu = ({
     className,

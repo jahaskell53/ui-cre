@@ -17,7 +17,7 @@ import {
     useSlottedContext,
 } from "react-aria-components";
 import { Button } from "@/components/ui/button";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 import { CalendarCell } from "./cell";
 import { DateInput } from "./date-input";
 

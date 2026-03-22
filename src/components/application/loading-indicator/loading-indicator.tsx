@@ -1,6 +1,6 @@
 "use client";
 
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 const styles = {
     sm: {

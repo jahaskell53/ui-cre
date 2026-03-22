@@ -8,7 +8,7 @@ import { useDateFormatter } from "react-aria";
 import type { DateRangePickerProps as AriaDateRangePickerProps, DateValue } from "react-aria-components";
 import { DateRangePicker as AriaDateRangePicker, Dialog as AriaDialog, Group as AriaGroup, Popover as AriaPopover, useLocale } from "react-aria-components";
 import { Button } from "@/components/ui/button";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 import { DateInput } from "./date-input";
 import { RangeCalendar } from "./range-calendar";
 import { RangePresetButton } from "./range-preset";

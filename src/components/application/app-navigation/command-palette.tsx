@@ -5,7 +5,7 @@ import { Search as SearchLg, X as XClose, Home as Home02, Map as Map01, File as 
 import { useHotkeys } from "react-hotkeys-hook";
 import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 import { Input } from "@/components/ui/input";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { APP_NAV_ITEMS, FOOTER_NAV_ITEMS } from "@/config/nav";
 

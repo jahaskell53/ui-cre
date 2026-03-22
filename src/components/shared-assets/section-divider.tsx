@@ -1,7 +1,7 @@
 "use client";
 
 import type { HTMLAttributes } from "react";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 export const SectionDivider = (props: HTMLAttributes<HTMLDivElement>) => {
     return (

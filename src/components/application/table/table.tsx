@@ -30,7 +30,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 export const TableRowActionsDropdown = () => (
     <DropdownMenu>

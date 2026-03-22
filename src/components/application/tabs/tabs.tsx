@@ -6,7 +6,7 @@ import type { TabListProps as AriaTabListProps, TabProps as AriaTabProps, TabRen
 import { Tab as AriaTab, TabList as AriaTabList, TabPanel as AriaTabPanel, Tabs as AriaTabs, TabsContext, useSlottedContext } from "react-aria-components";
 type BadgeColors = "gray" | "brand";
 import { Badge } from "@/components/ui/badge";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 type Orientation = "horizontal" | "vertical";
 

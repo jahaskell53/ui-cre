@@ -2,7 +2,7 @@
 
 import type { HTMLAttributes } from "react";
 import { AlertCircle } from "lucide-react";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 interface IllustrationProps extends HTMLAttributes<HTMLDivElement> {
     size?: "sm" | "md" | "lg";

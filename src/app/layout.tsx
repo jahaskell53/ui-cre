@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
 import "@/styles/globals.css";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 const inter = Inter({
     subsets: ["latin"],
     display: "swap",

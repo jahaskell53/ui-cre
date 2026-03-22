@@ -1,7 +1,7 @@
 "use client";
 
 import type { SVGProps } from "react";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 export const Grid = (props: Omit<SVGProps<SVGSVGElement>, "size"> & { size?: "sm" | "md" | "lg" }) => {
     const { size = "lg", className } = props;

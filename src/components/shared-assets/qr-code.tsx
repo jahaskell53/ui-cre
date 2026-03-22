@@ -3,7 +3,7 @@
 import type { HTMLAttributes } from "react";
 import { useEffect, useRef, useState } from "react";
 import QRCodeStyling, { type Options as QRCodeStylingOptions } from "qr-code-styling";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 const QRCodeFrameHandle = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
     <div {...props} className={cx("size-3 rounded-tl border-t-2 border-l-2 border-brand_alt", className)} />

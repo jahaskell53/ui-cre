@@ -1,7 +1,7 @@
 "use client";
 
 import type { SVGProps } from "react";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 import { Circle } from "./circle";
 import { Grid } from "./grid";
 import { GridCheck } from "./grid-check";

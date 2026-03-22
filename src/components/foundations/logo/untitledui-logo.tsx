@@ -2,7 +2,7 @@
 
 import type { HTMLAttributes } from "react";
 import Image from "next/image";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 export const UntitledLogo = (props: HTMLAttributes<HTMLDivElement>) => {
     return (

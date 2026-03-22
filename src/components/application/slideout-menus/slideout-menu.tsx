@@ -9,7 +9,7 @@ import type {
 import { Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Modal as AriaModal, ModalOverlay as AriaModalOverlay } from "react-aria-components";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 interface ModalOverlayProps extends AriaModalOverlayProps, RefAttributes<HTMLDivElement> {}
 

@@ -4,7 +4,7 @@ import type { FC, HTMLAttributes, MouseEventHandler, ReactNode } from "react";
 import { ChevronDown, Share2 as Share04 } from "lucide-react";
 import { Link as AriaLink } from "react-aria-components";
 import { Badge } from "@/components/ui/badge";
-import { cx, sortCx } from "@/utils/cx";
+import { cn as cx, sortCx } from "@/lib/utils";
 
 const styles = sortCx({
     root: "group relative flex w-full cursor-pointer items-center rounded-md bg-primary outline-focus-ring transition duration-100 ease-linear select-none hover:bg-primary_hover focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2",

@@ -2,7 +2,7 @@
 
 import type { DateInputProps as AriaDateInputProps } from "react-aria-components";
 import { DateInput as AriaDateInput, DateSegment as AriaDateSegment } from "react-aria-components";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 interface DateInputProps extends Omit<AriaDateInputProps, "children"> {}
 

@@ -7,7 +7,7 @@ import { useDateFormatter } from "react-aria";
 import type { DatePickerProps as AriaDatePickerProps, DateValue } from "react-aria-components";
 import { DatePicker as AriaDatePicker, Dialog as AriaDialog, Group as AriaGroup, Popover as AriaPopover } from "react-aria-components";
 import { Button } from "@/components/ui/button";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 import { Calendar } from "./calendar";
 
 const highlightedDates = [today(getLocalTimeZone())];

@@ -6,7 +6,7 @@ import { Search as SearchLg } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountCard } from "../base-components/nav-account-card";
 import { NavItemBase } from "../base-components/nav-item";

@@ -8,7 +8,7 @@ import { FeaturedIcon as FeaturedIconbase } from "@/components/foundations/featu
 import type { BackgroundPatternProps } from "@/components/shared-assets/background-patterns";
 import { BackgroundPattern } from "@/components/shared-assets/background-patterns";
 import { Illustration as Illustrations } from "@/components/shared-assets/illustrations";
-import { cx } from "@/utils/cx";
+import { cn as cx } from "@/lib/utils";
 
 interface RootContextProps {
     size?: "sm" | "md" | "lg";
