@@ -65,9 +65,37 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
         ? (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`
         : (v: number) => formatDollars(v);
 
-    const tooltipFormatter = yView === "pct"
-        ? (value: unknown, name: string) => [`${(value as number) >= 0 ? "+" : ""}${(value as number).toFixed(2)}%`, name ?? ""]
-        : (value: unknown, name: string) => [formatDollars(value as number), name ?? ""];
+    // Custom tooltip so both $ and % are always visible
+    const CustomTooltip = ({ active, payload, label }: {
+        active?: boolean;
+        payload?: Array<{ dataKey: string; name: string; color: string; value: number }>;
+        label?: string;
+    }) => {
+        if (!active || !payload?.length) return null;
+        return (
+            <div style={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13, background: "#fff", padding: "8px 12px" }}>
+                <p className="text-gray-500 mb-1">{`Week of ${label}`}</p>
+                {payload.map(entry => {
+                    const week = chartData.find(p => p.weekLabel === label)?.week as string | undefined;
+                    const absPoint = week ? absData.find(p => p.week === week) : undefined;
+                    const pctPoint = week ? pctData.find(p => p.week === week) : undefined;
+                    const absVal = absPoint?.[entry.dataKey] as number | undefined;
+                    const pctVal = pctPoint?.[entry.dataKey] as number | undefined;
+                    return (
+                        <div key={entry.dataKey} className="flex items-center gap-2">
+                            <span style={{ color: entry.color, fontWeight: 600 }}>{entry.name}</span>
+                            {absVal != null && <span>{formatDollars(absVal)}</span>}
+                            {pctVal != null && (
+                                <span className={pctVal >= 0 ? "text-green-600" : "text-red-500"}>
+                                    ({pctVal >= 0 ? "+" : ""}{pctVal.toFixed(2)}%)
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 h-full">
@@ -88,7 +116,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                             }`}
                         >
-                            % Change
+                            %
                         </button>
                         <button
                             onClick={() => setYView("abs")}
@@ -98,7 +126,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                             }`}
                         >
-                            $ Rent
+                            $
                         </button>
                     </div>
                 </div>
@@ -114,11 +142,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                         tickLine={false}
                         width={yView === "pct" ? 55 : 75}
                     />
-                    <Tooltip
-                        formatter={tooltipFormatter}
-                        labelFormatter={(label) => `Week of ${label}`}
-                        contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
-                    />
+                    <Tooltip content={<CustomTooltip />} />
                     {areas.length > 1 && <Legend />}
                     {yView === "pct" && <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="3 3" />}
                     {areas.map(area => (
