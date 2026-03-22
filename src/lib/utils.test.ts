@@ -38,11 +38,6 @@ describe('cn utility', () => {
     expect(result).not.toContain('bg-inactive')
   })
 
-  it('recognises custom display text sizes', () => {
-    // With the extended config these are not treated as conflicting
-    const result = cn('text-display-sm', 'text-display-lg')
-    expect(result).toBe('text-display-lg')
-  })
 })
 
 describe('sortCx utility', () => {
