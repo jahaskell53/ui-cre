@@ -206,6 +206,8 @@ Rental listings are scraped from Zillow via two Apify actors:
 - **ZIP code scraper** — fetches active listings by ZIP code: [Apify actor](https://console.apify.com/actors/l7auNT3I30CssRrvO/input)
 - **Detail scraper** — fetches full listing details, used for REIT/building-level data: [Apify actor](https://console.apify.com/actors/ENK9p4RZHg0iVso52/input)
 
+The orchestration pipeline (scheduling, transformation, loading into `cleaned_listings`) lives in [`../zillow/pipeline/dagster`](../zillow/pipeline/dagster).
+
 ### LoopNet (loopnet_listings)
 
 Custom browser console scraper — see [`../loopnet-bot`](../loopnet-bot/README.md). Scrapes Bay Area multifamily listings from LoopNet in two phases (search pages → detail pages), outputs a CSV, then uploads via `upload_to_supabase.py`. Each run is stored as a historical snapshot keyed by `run_id`.
