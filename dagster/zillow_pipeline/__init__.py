@@ -11,7 +11,12 @@ defs = Definitions(
     assets=all_assets,
     jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job],
     schedules=[weekly_scrape_schedule],
-    sensors=[trigger_cleaning_job_after_scrape, trigger_building_job_after_cleaning, alert_on_pipeline_failure, alert_on_pipeline_success],
+    sensors=[
+        trigger_cleaning_job_after_scrape,
+        trigger_building_job_after_cleaning,
+        alert_on_pipeline_failure,
+        alert_on_pipeline_success,  # remove this to only alert on failures
+    ],
     resources={
         "supabase": SupabaseResource(
             url=EnvVar("SUPABASE_URL"),
