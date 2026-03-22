@@ -197,6 +197,19 @@ The application uses Supabase (PostgreSQL) with the following main tables:
 
 See `supabase/migrations/` for the complete schema.
 
+## Data Ingestion
+
+### Zillow (cleaned_listings)
+
+Rental listings are scraped from Zillow via two Apify actors:
+
+- **ZIP code scraper** — fetches active listings by ZIP code: [Apify actor](https://console.apify.com/actors/l7auNT3I30CssRrvO/input)
+- **Detail scraper** — fetches full listing details, used for REIT/building-level data: [Apify actor](https://console.apify.com/actors/ENK9p4RZHg0iVso52/input)
+
+### LoopNet (loopnet_listings)
+
+Coming soon.
+
 ## AWS Lambda Setup
 
 The email sync functionality uses AWS Lambda to process long-running operations asynchronously. See [AWS_SETUP.md](./AWS_SETUP.md) and [lambda/README.md](./lambda/README.md) for detailed setup instructions.
