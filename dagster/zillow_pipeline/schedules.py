@@ -1,4 +1,7 @@
-from dagster import AssetSelection, DagsterRunStatus, RunRequest, ScheduleDefinition, RunStatusSensorContext, define_asset_job, run_status_sensor
+import os
+
+import requests
+from dagster import AssetSelection, DagsterRunStatus, RunFailureSensorContext, RunRequest, ScheduleDefinition, RunStatusSensorContext, define_asset_job, run_failure_sensor, run_status_sensor
 
 from zillow_pipeline.assets.cleaned_listings import cleaned_listings
 from zillow_pipeline.assets.zip_codes import ba_zip_codes
@@ -26,6 +29,43 @@ zillow_building_job = define_asset_job(
     name="zillow_building_job",
     selection=AssetSelection.assets(raw_building_scrapes, cleaned_building_units),
 )
+
+
+@run_failure_sensor(
+    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job],
+)
+def alert_on_pipeline_failure(context: RunFailureSensorContext):
+    api_key = os.environ.get("SENDGRID_API_KEY")
+    alert_email = os.environ.get("ALERT_EMAIL")
+    from_email = os.environ.get("SMTP_FROM", "hello@openmidmarket.com")
+
+    if not api_key or not alert_email:
+        context.log.warning("SENDGRID_API_KEY or ALERT_EMAIL not set — skipping alert")
+        return
+
+    job_name = context.dagster_run.job_name
+    run_id = context.dagster_run.run_id
+    error_msg = str(context.failure_event.message) if context.failure_event else "Unknown error"
+
+    requests.post(
+        "https://api.sendgrid.com/v3/mail/send",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "personalizations": [{"to": [{"email": alert_email}]}],
+            "from": {"email": from_email, "name": "OpenMidmarket Pipeline"},
+            "subject": f"🚨 Zillow pipeline failed: {job_name}",
+            "content": [{
+                "type": "text/plain",
+                "value": (
+                    f"Job: {job_name}\n"
+                    f"Run ID: {run_id}\n"
+                    f"Error: {error_msg}\n\n"
+                    f"Check Dagster Cloud for the full logs."
+                ),
+            }],
+        },
+        timeout=10,
+    )
 
 
 @run_status_sensor(
