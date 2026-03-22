@@ -3,6 +3,38 @@ import os
 import requests
 from dagster import AssetSelection, DagsterRunStatus, RunFailureSensorContext, RunRequest, ScheduleDefinition, RunStatusSensorContext, define_asset_job, run_failure_sensor, run_status_sensor
 
+
+def _send_run_alert(job_name: str, run_id: str, success: bool, error_msg: str | None = None) -> None:
+    api_key = os.environ.get("SENDGRID_API_KEY")
+    alert_email = os.environ.get("ALERT_EMAIL")
+    from_email = os.environ.get("SMTP_FROM", "hello@openmidmarket.com")
+
+    if not api_key or not alert_email:
+        return
+
+    if success:
+        subject = f"✅ Zillow pipeline succeeded: {job_name}"
+        body = f"Job: {job_name}\nRun ID: {run_id}\nStatus: SUCCESS"
+    else:
+        subject = f"🚨 Zillow pipeline failed: {job_name}"
+        body = (
+            f"Job: {job_name}\nRun ID: {run_id}\nStatus: FAILED\n"
+            f"Error: {error_msg or 'Unknown error'}\n\n"
+            f"Check Dagster Cloud for the full logs."
+        )
+
+    requests.post(
+        "https://api.sendgrid.com/v3/mail/send",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "personalizations": [{"to": [{"email": alert_email}]}],
+            "from": {"email": from_email, "name": "OpenMidmarket Pipeline"},
+            "subject": subject,
+            "content": [{"type": "text/plain", "value": body}],
+        },
+        timeout=10,
+    )
+
 from zillow_pipeline.assets.cleaned_listings import cleaned_listings
 from zillow_pipeline.assets.zip_codes import ba_zip_codes
 from zillow_pipeline.assets.zillow_scrape import raw_zillow_scrapes
@@ -35,37 +67,16 @@ zillow_building_job = define_asset_job(
     monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job],
 )
 def alert_on_pipeline_failure(context: RunFailureSensorContext):
-    api_key = os.environ.get("SENDGRID_API_KEY")
-    alert_email = os.environ.get("ALERT_EMAIL")
-    from_email = os.environ.get("SMTP_FROM", "hello@openmidmarket.com")
+    error_msg = str(context.failure_event.message) if context.failure_event else None
+    _send_run_alert(context.dagster_run.job_name, context.dagster_run.run_id, success=False, error_msg=error_msg)
 
-    if not api_key or not alert_email:
-        context.log.warning("SENDGRID_API_KEY or ALERT_EMAIL not set — skipping alert")
-        return
 
-    job_name = context.dagster_run.job_name
-    run_id = context.dagster_run.run_id
-    error_msg = str(context.failure_event.message) if context.failure_event else "Unknown error"
-
-    requests.post(
-        "https://api.sendgrid.com/v3/mail/send",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json={
-            "personalizations": [{"to": [{"email": alert_email}]}],
-            "from": {"email": from_email, "name": "OpenMidmarket Pipeline"},
-            "subject": f"🚨 Zillow pipeline failed: {job_name}",
-            "content": [{
-                "type": "text/plain",
-                "value": (
-                    f"Job: {job_name}\n"
-                    f"Run ID: {run_id}\n"
-                    f"Error: {error_msg}\n\n"
-                    f"Check Dagster Cloud for the full logs."
-                ),
-            }],
-        },
-        timeout=10,
-    )
+@run_status_sensor(
+    run_status=DagsterRunStatus.SUCCESS,
+    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job],
+)
+def alert_on_pipeline_success(context: RunStatusSensorContext):
+    _send_run_alert(context.dagster_run.job_name, context.dagster_run.run_id, success=True)
 
 
 @run_status_sensor(
