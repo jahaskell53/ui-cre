@@ -1,3 +1,8 @@
+-- Neighborhood boundary data loaded from:
+-- Zillow Neighborhood Boundaries (2017)
+-- https://www.arcgis.com/home/item.html?id=56b89613f9f7450fb44e857691a244e7
+-- Loaded into the neighborhoods table with PostGIS geometry for spatial joins.
+
 CREATE OR REPLACE FUNCTION public.get_rent_trends_by_neighborhood(
   p_neighborhood_ids integer[],
   p_beds integer DEFAULT NULL,
