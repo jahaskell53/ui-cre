@@ -1,4 +1,4 @@
-import { EmailService } from './email-service';
+import { EmailService } from './newsletter-service';
 
 /**
  * Send a plain-text alert email to ALERT_EMAIL (falls back to SMTP_USER).

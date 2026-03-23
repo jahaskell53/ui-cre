@@ -22,7 +22,7 @@ vi.mock('@/lib/news/email-template', () => ({
   generateNewsletterHTML: mockGenerateNewsletterHTML,
 }))
 
-vi.mock('@/lib/news/email-service', () => ({
+vi.mock('@/lib/news/newsletter-service', () => ({
   EmailService: vi.fn().mockImplementation(() => ({
     sendEmail: mockSendEmail,
   })),

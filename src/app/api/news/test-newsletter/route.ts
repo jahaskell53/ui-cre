@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { EmailService } from "@/lib/news/email-service";
+import { EmailService } from "@/lib/news/newsletter-service";
 import { fetchArticlesForNewsletter, generateEmailContentFromArticles } from "@/lib/news/newsletter-utils";
 import { getSubscriberByEmail } from "@/lib/news/subscribers";
 

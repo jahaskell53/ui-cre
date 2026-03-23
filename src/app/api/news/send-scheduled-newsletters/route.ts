@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getSubscriberByEmail } from "@/lib/news/subscribers";
-import { EmailService } from "@/lib/news/email-service";
+import { EmailService } from "@/lib/news/newsletter-service";
 import { generateEmailContentFromArticles, splitArticlesIntoNationalAndLocal } from "@/lib/news/newsletter-utils";
 import { sendAlertEmail } from "@/lib/news/alert";
 

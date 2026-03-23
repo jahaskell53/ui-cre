@@ -15,7 +15,7 @@ vi.mock('./email-template', () => ({
 
 import { createTransport } from 'nodemailer'
 import { formatInterests } from './email-template'
-import { EmailService } from './email-service'
+import { EmailService } from './newsletter-service'
 import type { Subscriber } from './subscribers'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

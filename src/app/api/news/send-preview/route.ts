@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchArticlesForNewsletter, generateEmailContentFromArticles } from "@/lib/news/newsletter-utils";
 import { generateNewsletterHTML } from "@/lib/news/email-template";
-import { EmailService } from "@/lib/news/email-service";
+import { EmailService } from "@/lib/news/newsletter-service";
 
 async function sendNewsletterInBackground(
   interests: string,

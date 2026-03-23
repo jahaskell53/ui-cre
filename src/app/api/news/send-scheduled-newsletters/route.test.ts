@@ -11,7 +11,7 @@ vi.mock('@/lib/news/subscribers', () => ({
   getSubscriberByEmail: mockGetSubscriberByEmail,
 }))
 
-vi.mock('@/lib/news/email-service', () => ({
+vi.mock('@/lib/news/newsletter-service', () => ({
   EmailService: vi.fn().mockImplementation(() => ({
     sendNewsletterToSubscriber: mockSendNewsletterToSubscriber,
   })),
