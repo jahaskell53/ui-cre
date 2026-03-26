@@ -12,39 +12,42 @@ import {
     Legend,
     ReferenceLine,
 } from "recharts";
-import { AreaSelection, TrendRow, BED_KEYS, buildMultiAreaRentData, formatDollars } from "./trends-utils";
+import {
+    AreaSelection,
+    TrendRow,
+    BED_KEYS,
+    SeriesInfo,
+    buildMultiAreaRentData,
+    getRentSeriesList,
+    formatDollars,
+} from "./trends-utils";
 
 interface Props {
     areas: AreaSelection[];
     areaResults: Record<string, TrendRow[]>;
-    selectedBeds: number;
+    selectedBeds: number[];
 }
 
 type YAxisView = "pct" | "abs";
 
 function buildPctChangeData(
     absData: Array<Record<string, string | number>>,
-    areas: AreaSelection[]
+    series: SeriesInfo[]
 ): Array<Record<string, string | number>> {
-    // Find the first non-null value per area to use as baseline
     const baselines: Record<string, number> = {};
-    for (const area of areas) {
+    for (const s of series) {
         for (const point of absData) {
-            const v = point[area.id];
-            if (typeof v === "number") {
-                baselines[area.id] = v;
-                break;
-            }
+            const v = point[s.key];
+            if (typeof v === "number") { baselines[s.key] = v; break; }
         }
     }
-
     return absData.map(point => {
         const out: Record<string, string | number> = { week: point.week, weekLabel: point.weekLabel };
-        for (const area of areas) {
-            const v = point[area.id];
-            const base = baselines[area.id];
+        for (const s of series) {
+            const v = point[s.key];
+            const base = baselines[s.key];
             if (typeof v === "number" && base != null && base !== 0) {
-                out[area.id] = parseFloat((((v - base) / base) * 100).toFixed(2));
+                out[s.key] = parseFloat((((v - base) / base) * 100).toFixed(2));
             }
         }
         return out;
@@ -54,18 +57,20 @@ function buildPctChangeData(
 export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
     const [yView, setYView] = useState<YAxisView>("pct");
 
-    const bed = BED_KEYS.find(b => b.beds === selectedBeds)!;
+    const series = getRentSeriesList(areas, selectedBeds);
     const absData = buildMultiAreaRentData(areaResults, areas, selectedBeds);
-    const pctData = buildPctChangeData(absData, areas);
-
+    const pctData = buildPctChangeData(absData, series);
     const chartData = yView === "pct" ? pctData : absData;
     const onlyOneWeek = chartData.length === 1;
+
+    const bedLabel = selectedBeds.length === 1
+        ? (BED_KEYS.find(b => b.beds === selectedBeds[0])?.label ?? "")
+        : selectedBeds.map(b => BED_KEYS.find(k => k.beds === b)?.label).join(" vs ");
 
     const yFormatter = yView === "pct"
         ? (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`
         : (v: number) => formatDollars(v);
 
-    // Custom tooltip so both $ and % are always visible
     const CustomTooltip = ({ active, payload, label }: {
         active?: boolean;
         payload?: Array<{ dataKey: string; name: string; color: string; value: number }>;
@@ -100,7 +105,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 h-full">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Median Rent — {bed.label}</h2>
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">Median Rent — {bedLabel}</h2>
                 <div className="flex items-center gap-2">
                     {onlyOneWeek && (
                         <span className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2 py-1">
@@ -115,9 +120,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                                     ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
                                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                             }`}
-                        >
-                            %
-                        </button>
+                        >%</button>
                         <button
                             onClick={() => setYView("abs")}
                             className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
@@ -125,9 +128,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                                     ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
                                     : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                             }`}
-                        >
-                            $
-                        </button>
+                        >$</button>
                     </div>
                 </div>
             </div>
@@ -143,17 +144,18 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                         width={yView === "pct" ? 55 : 75}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    {areas.length > 1 && <Legend />}
+                    {series.length > 1 && <Legend />}
                     {yView === "pct" && <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="3 3" />}
-                    {areas.map(area => (
+                    {series.map(s => (
                         <Line
-                            key={area.id}
+                            key={s.key}
                             type="monotone"
-                            dataKey={area.id}
-                            name={area.label}
-                            stroke={area.color}
+                            dataKey={s.key}
+                            name={s.label}
+                            stroke={s.color}
                             strokeWidth={2}
-                            dot={onlyOneWeek ? { r: 5, fill: area.color } : { r: 3 }}
+                            strokeDasharray={s.dash || undefined}
+                            dot={onlyOneWeek ? { r: 5, fill: s.color } : { r: 3 }}
                             activeDot={{ r: 5 }}
                             connectNulls={false}
                         />

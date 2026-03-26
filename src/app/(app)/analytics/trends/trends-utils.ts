@@ -33,10 +33,59 @@ export interface ActivityChartPoint {
 
 export const BED_KEYS = [
     { beds: 0, key: "studio" as const, label: "Studio", color: "#6b7280" },
-    { beds: 1, key: "1bd" as const, label: "1 bed", color: "#3b82f6" },
-    { beds: 2, key: "2bd" as const, label: "2 bed", color: "#8b5cf6" },
-    { beds: 3, key: "3bd+" as const, label: "3+ bed", color: "#f97316" },
+    { beds: 1, key: "1bd" as const, label: "1BR", color: "#3b82f6" },
+    { beds: 2, key: "2bd" as const, label: "2BR", color: "#8b5cf6" },
+    { beds: 3, key: "3bd+" as const, label: "3BR+", color: "#f97316" },
 ];
+
+// Line dash per bed type: 1BR is solid (primary), others get distinct dashes
+export const BED_DASH: Record<number, string> = {
+    0: "2 4",   // Studio: dots
+    1: "",      // 1BR: solid
+    2: "7 3",   // 2BR: dashed
+    3: "2 7",   // 3BR+: long dots
+};
+
+export interface SeriesInfo {
+    key: string;
+    label: string;
+    color: string;
+    dash: string;
+}
+
+export function getRentSeriesList(areas: AreaSelection[], selectedBeds: number[]): SeriesInfo[] {
+    const multibed = selectedBeds.length > 1;
+    const series: SeriesInfo[] = [];
+    for (const area of areas) {
+        for (const beds of selectedBeds) {
+            const bedEntry = BED_KEYS.find(b => b.beds === beds)!;
+            series.push({
+                key: multibed ? `${area.id}:${beds}` : area.id,
+                label: multibed ? `${area.label} · ${bedEntry.label}` : area.label,
+                color: area.color,
+                dash: multibed ? (BED_DASH[beds] ?? "") : "",
+            });
+        }
+    }
+    return series;
+}
+
+export function getActivitySeriesList(areas: AreaSelection[], selectedBeds: number[]): SeriesInfo[] {
+    const multibed = selectedBeds.length > 1;
+    const series: SeriesInfo[] = [];
+    for (const area of areas) {
+        for (const beds of selectedBeds) {
+            const bedEntry = BED_KEYS.find(b => b.beds === beds)!;
+            series.push({
+                key: multibed ? `${area.id}:${beds}` : area.id,
+                label: multibed ? `${area.label} · ${bedEntry.label}` : area.label,
+                color: area.color,
+                dash: multibed ? (BED_DASH[beds] ?? "") : "",
+            });
+        }
+    }
+    return series;
+}
 
 export function formatWeekLabel(dateStr: string): string {
     const d = new Date(dateStr + "T00:00:00Z");
@@ -94,19 +143,25 @@ export interface AreaSelection {
 export function buildMultiAreaRentData(
     areaResults: Record<string, TrendRow[]>,
     areas: AreaSelection[],
-    selectedBeds: number
+    selectedBeds: number[]
 ): Array<Record<string, string | number>> {
+    const multibed = selectedBeds.length > 1;
     const allWeeks = new Set<string>();
     for (const area of areas) {
-        (areaResults[area.id] ?? [])
-            .filter(r => r.beds === selectedBeds)
-            .forEach(r => allWeeks.add(r.week_start));
+        for (const beds of selectedBeds) {
+            (areaResults[area.id] ?? [])
+                .filter(r => r.beds === beds)
+                .forEach(r => allWeeks.add(r.week_start));
+        }
     }
     return Array.from(allWeeks).sort().map(w => {
         const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
         for (const area of areas) {
-            const row = (areaResults[area.id] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
-            if (row) point[area.id] = Math.round(row.median_rent);
+            for (const beds of selectedBeds) {
+                const key = multibed ? `${area.id}:${beds}` : area.id;
+                const row = (areaResults[area.id] ?? []).find(r => r.beds === beds && r.week_start === w);
+                if (row) point[key] = Math.round(row.median_rent);
+            }
         }
         return point;
     });
@@ -115,22 +170,28 @@ export function buildMultiAreaRentData(
 export function buildActivityComboData(
     areaResults: Record<string, ActivityRow[]>,
     areas: AreaSelection[],
-    selectedBeds: number
+    selectedBeds: number[]
 ): Array<Record<string, string | number>> {
+    const multibed = selectedBeds.length > 1;
     const allWeeks = new Set<string>();
     for (const area of areas) {
-        (areaResults[area.id] ?? [])
-            .filter(r => r.beds === selectedBeds)
-            .forEach(r => allWeeks.add(r.week_start));
+        for (const beds of selectedBeds) {
+            (areaResults[area.id] ?? [])
+                .filter(r => r.beds === beds)
+                .forEach(r => allWeeks.add(r.week_start));
+        }
     }
     return Array.from(allWeeks).sort().map(w => {
         const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
         for (const area of areas) {
-            const row = (areaResults[area.id] ?? []).find(r => r.beds === selectedBeds && r.week_start === w);
-            if (row) {
-                point[`${area.id}_new`] = row.new_listings;
-                point[`${area.id}_closed`] = row.closed_listings;
-                point[`${area.id}_acc`] = row.accumulated_listings;
+            for (const beds of selectedBeds) {
+                const prefix = multibed ? `${area.id}:${beds}` : area.id;
+                const row = (areaResults[area.id] ?? []).find(r => r.beds === beds && r.week_start === w);
+                if (row) {
+                    point[`${prefix}_new`] = row.new_listings;
+                    point[`${prefix}_closed`] = row.closed_listings;
+                    point[`${prefix}_acc`] = row.accumulated_listings;
+                }
             }
         }
         return point;

@@ -11,27 +11,33 @@ import {
     Tooltip,
     Legend,
 } from "recharts";
-import { AreaSelection, ActivityRow, BED_KEYS, buildActivityComboData } from "./trends-utils";
+import { AreaSelection, ActivityRow, BED_KEYS, buildActivityComboData, getActivitySeriesList } from "./trends-utils";
 
 interface Props {
     areas: AreaSelection[];
     areaResults: Record<string, ActivityRow[]>;
-    selectedBeds: number;
+    selectedBeds: number[];
 }
 
 type View = "inventory" | "velocity";
 
 export function MarketActivitySection({ areas, areaResults, selectedBeds }: Props) {
     const [view, setView] = useState<View>("inventory");
-    const bed = BED_KEYS.find(b => b.beds === selectedBeds)!;
+
+    const bedLabel = selectedBeds.length === 1
+        ? (BED_KEYS.find(b => b.beds === selectedBeds[0])?.label ?? "")
+        : selectedBeds.map(b => BED_KEYS.find(k => k.beds === b)?.label).join(" vs ");
+
+    const series = getActivitySeriesList(areas, selectedBeds);
     const chartData = buildActivityComboData(areaResults, areas, selectedBeds);
     const weekCount = chartData.length;
+    const showLegend = series.length > 1 || view === "velocity";
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                    {view === "inventory" ? "Inventory" : "Velocity"} — {bed.label}
+                    {view === "inventory" ? "Inventory" : "Velocity"} — {bedLabel}
                 </h2>
                 <div className="flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
                     <button
@@ -69,22 +75,20 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                                 labelFormatter={(label) => `Week of ${label}`}
                                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
                             />
-                            {areas.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
-                            {areas.map(area => {
-                                const label = areas.length > 1 ? `${area.label} Inventory` : "Active Listings";
-                                return (
-                                    <Line
-                                        key={area.id}
-                                        type="monotone"
-                                        dataKey={`${area.id}_acc`}
-                                        name={label}
-                                        stroke={area.color}
-                                        strokeWidth={2}
-                                        dot={false}
-                                        activeDot={{ r: 4 }}
-                                    />
-                                );
-                            })}
+                            {showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
+                            {series.map(s => (
+                                <Line
+                                    key={s.key}
+                                    type="monotone"
+                                    dataKey={`${s.key}_acc`}
+                                    name={series.length > 1 ? `${s.label} Inventory` : "Active Listings"}
+                                    stroke={s.color}
+                                    strokeWidth={2}
+                                    strokeDasharray={s.dash || undefined}
+                                    dot={false}
+                                    activeDot={{ r: 4 }}
+                                />
+                            ))}
                         </LineChart>
                     </ResponsiveContainer>
                     <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
@@ -104,26 +108,27 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
                             />
                             <Legend wrapperStyle={{ fontSize: 12 }} />
-                            {areas.map(area => {
-                                const prefix = areas.length > 1 ? `${area.label} ` : "";
+                            {series.map(s => {
+                                const prefix = series.length > 1 ? `${s.label} ` : "";
                                 return (
-                                    <React.Fragment key={area.id}>
+                                    <React.Fragment key={s.key}>
                                         <Line
                                             type="monotone"
-                                            dataKey={`${area.id}_new`}
+                                            dataKey={`${s.key}_new`}
                                             name={`${prefix}New`}
-                                            stroke={area.color}
+                                            stroke={s.color}
                                             strokeWidth={2}
+                                            strokeDasharray={s.dash || undefined}
                                             dot={false}
                                             activeDot={{ r: 4 }}
                                         />
                                         <Line
                                             type="monotone"
-                                            dataKey={`${area.id}_closed`}
+                                            dataKey={`${s.key}_closed`}
                                             name={`${prefix}Closed`}
-                                            stroke={area.color}
+                                            stroke={s.color}
                                             strokeWidth={2}
-                                            strokeDasharray="4 3"
+                                            strokeDasharray={s.dash ? `${s.dash}` : "4 3"}
                                             dot={false}
                                             activeDot={{ r: 4 }}
                                         />

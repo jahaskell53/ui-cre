@@ -71,7 +71,7 @@ export default function TrendsPage() {
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
     const [showAddInput, setShowAddInput] = useState(false);
 
-    const [selectedBeds, setSelectedBeds] = useState<number>(1);
+    const [selectedBeds, setSelectedBeds] = useState<number[]>([1]);
     const [reitsOnly, setReitsOnly] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -166,43 +166,50 @@ export default function TrendsPage() {
     useEffect(() => {
         if (selectedAreas.length === 0) { setAreaResults({}); return; }
         setLoading(true);
+
+        const fetchTrends = (area: AreaSelection, beds: number) => {
+            const isNh = area.neighborhoodId != null;
+            const isCity = area.cityName != null;
+            const isCounty = area.countyName != null;
+            const isMsa = area.msaGeoid != null;
+            const p = { p_beds: beds, p_reits_only: reitsOnly };
+            const call = isNh
+                ? supabase.rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], ...p })
+                : isCity
+                ? supabase.rpc("get_rent_trends_by_city", { p_city: area.cityName!, p_state: area.cityState!, ...p })
+                : isCounty
+                ? supabase.rpc("get_rent_trends_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, ...p })
+                : isMsa
+                ? supabase.rpc("get_rent_trends_by_msa", { p_geoid: area.msaGeoid!, ...p })
+                : supabase.rpc("get_rent_trends", { p_zip: area.id, ...p });
+            return call.then(({ data, error }) => { if (error) { console.error(error); return [] as TrendRow[]; } return (data ?? []) as TrendRow[]; });
+        };
+
+        const fetchActivity = (area: AreaSelection, beds: number) => {
+            const isNh = area.neighborhoodId != null;
+            const isCity = area.cityName != null;
+            const isCounty = area.countyName != null;
+            const isMsa = area.msaGeoid != null;
+            const p = { p_beds: beds, p_reits_only: reitsOnly };
+            const call = isNh
+                ? supabase.rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly })
+                : isCity
+                ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, ...p })
+                : isCounty
+                ? supabase.rpc("get_market_activity_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, ...p })
+                : isMsa
+                ? supabase.rpc("get_market_activity_by_msa", { p_geoid: area.msaGeoid!, p_reits_only: reitsOnly })
+                : supabase.rpc("get_market_activity", { p_zip: area.id, ...p });
+            return call.then(({ data, error }) => { if (error) { console.error(error); return [] as ActivityRow[]; } return (data ?? []) as ActivityRow[]; });
+        };
+
         Promise.all(
-            selectedAreas.map(area => {
-                const isNh = area.neighborhoodId != null;
-                const isCity = area.cityName != null;
-                const isCounty = area.countyName != null;
-                const isMsa = area.msaGeoid != null;
-                return Promise.all([
-                    isNh
-                        ? supabase.rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_beds: selectedBeds, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
-                        : isCity
-                        ? supabase.rpc("get_rent_trends_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_beds: selectedBeds, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
-                        : isCounty
-                        ? supabase.rpc("get_rent_trends_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, p_beds: selectedBeds, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
-                        : isMsa
-                        ? supabase.rpc("get_rent_trends_by_msa", { p_geoid: area.msaGeoid!, p_beds: selectedBeds, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; })
-                        : supabase.rpc("get_rent_trends", { p_zip: area.id, p_beds: selectedBeds, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as TrendRow[]; }),
-                    isNh
-                        ? supabase.rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
-                        : isCity
-                        ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
-                        : isCounty
-                        ? supabase.rpc("get_market_activity_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
-                        : isMsa
-                        ? supabase.rpc("get_market_activity_by_msa", { p_geoid: area.msaGeoid!, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; })
-                        : supabase.rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly })
-                            .then(({ data, error }) => { if (error) { console.error(error); return null; } return (data ?? []) as ActivityRow[]; }),
-                ]).then(([trends, activity]) => ({ id: area.id, trends, activity }));
-            })
+            selectedAreas.map(area =>
+                Promise.all([
+                    Promise.all(selectedBeds.map(beds => fetchTrends(area, beds))).then(r => r.flat()),
+                    Promise.all(selectedBeds.map(beds => fetchActivity(area, beds))).then(r => r.flat()),
+                ]).then(([trends, activity]) => ({ id: area.id, trends, activity }))
+            )
         ).then(results => {
             setLoading(false);
             const next: Record<string, AreaResult> = {};
@@ -657,11 +664,23 @@ export default function TrendsPage() {
                     </div>
                 </div>
 
-                {/* Bedrooms */}
+                {/* Bedrooms — multi-select for cross-bedroom comparison */}
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Bedrooms</span>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
-                        {BED_OPTIONS.map((opt, i) => segmentToggle(opt.label, selectedBeds === opt.beds, () => setSelectedBeds(opt.beds), i === 0))}
+                        {BED_OPTIONS.map((opt, i) => segmentToggle(
+                            opt.label,
+                            selectedBeds.includes(opt.beds),
+                            () => setSelectedBeds(prev => {
+                                if (prev.includes(opt.beds)) {
+                                    // Don't allow deselecting the last one
+                                    if (prev.length === 1) return prev;
+                                    return prev.filter(b => b !== opt.beds);
+                                }
+                                return [...prev, opt.beds].sort((a, b) => a - b);
+                            }),
+                            i === 0
+                        ))}
                     </div>
                 </div>
 
@@ -678,7 +697,7 @@ export default function TrendsPage() {
             {/* Map display */}
             {display === "map" && (
                 <ZipTrendsMap
-                    selectedBeds={selectedBeds}
+                    selectedBeds={selectedBeds[0]}
                     reitsOnly={reitsOnly}
                     selectedAreas={selectedAreas}
                     onAddArea={addAreaByZip}
@@ -719,7 +738,7 @@ export default function TrendsPage() {
                     <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-5">
                         {selectedAreas.map(area => {
                             const rows = (rentResults[area.id] ?? [])
-                                .filter(r => r.beds === selectedBeds)
+                                .filter(r => r.beds === selectedBeds[0])
                                 .sort((a, b) => a.week_start.localeCompare(b.week_start));
                             const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
                             const first = rows.length > 0 ? rows[0].median_rent : undefined;
@@ -733,7 +752,7 @@ export default function TrendsPage() {
                                     {latest != null ? (
                                         <>
                                             <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{formatDollars(latest)}</p>
-                                            <p className="text-xs text-gray-400 mt-0.5">{BED_KEYS.find(b => b.beds === selectedBeds)!.label} · latest week</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">{BED_KEYS.find(b => b.beds === selectedBeds[0])!.label} · latest week</p>
                                             {change != null && (
                                                 <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}>
                                                     {change >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
@@ -769,7 +788,7 @@ export default function TrendsPage() {
                     areas={selectedAreas}
                     rentResults={rentResults}
                     activityResults={activityResults}
-                    selectedBeds={selectedBeds}
+                    selectedBeds={selectedBeds[0]}
                 />
             )}
 
