@@ -824,7 +824,7 @@ export default function TrendsPage() {
                                                 )}
                                                 {latest != null ? (
                                                     <>
-                                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatDollars(latest)}</p>
+                                                        <p className="text-lg font-semibold" style={{ color: area.color }}>{formatDollars(latest)}</p>
                                                         {selectedBeds.length === 1 && (
                                                             <p className="text-xs text-gray-400 mt-0.5">{bedEntry.label} · latest week</p>
                                                         )}
