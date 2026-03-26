@@ -822,10 +822,10 @@ export default function TrendsPage() {
                                             <div key={beds}>
                                                 {selectedBeds.length > 1 && (
                                                     <div className="flex items-center gap-1.5 mb-0.5">
-                                                        <svg width="16" height="8" viewBox="0 0 16 8" className="shrink-0 text-gray-400 dark:text-gray-500">
-                                                            <line x1="0" y1="4" x2="16" y2="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray={dash || undefined} />
+                                                        <svg width="28" height="10" viewBox="0 0 28 10" className="shrink-0 text-gray-400 dark:text-gray-500">
+                                                            <line x1="0" y1="5" x2="28" y2="5" stroke="currentColor" strokeWidth="2" strokeDasharray={dash || undefined} />
                                                         </svg>
-                                                        <span className="text-xs text-gray-400 dark:text-gray-500">{bedEntry.label}</span>
+                                                        <span className="text-sm text-gray-500 dark:text-gray-400">{bedEntry.label}</span>
                                                     </div>
                                                 )}
                                                 {latest != null ? (
