@@ -122,10 +122,8 @@ git clone <repository-url>
 cd cre-ui
 ```
 
-2. Install dependencies:
+2. Install dependencies (use Bun — the project lockfile is `bun.lockb`):
 ```bash
-npm install
-# or
 bun install
 ```
 
@@ -159,8 +157,6 @@ npm run sls:deploy
 
 6. Start the development server:
 ```bash
-npm run dev
-# or
 bun dev
 ```
 
@@ -168,14 +164,14 @@ bun dev
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run test` - Run tests
-- `npm run test:watch` - Run tests in watch mode
-- `npm run test:ui` - Run tests with UI
-- `npm run test:coverage` - Run tests with coverage
-- `npm run sls:deploy` - Deploy AWS Lambda function
+- `bun dev` - Start development server
+- `bun run build` - Build for production
+- `bun run start` - Start production server
+- `bun run test` - Run tests
+- `bun run test:watch` - Run tests in watch mode
+- `bun run test:ui` - Run tests with UI
+- `bun run test:coverage` - Run tests with coverage
+- `bun run sls:deploy` - Deploy AWS Lambda function
 - `npm run sls:remove` - Remove AWS Lambda function
 - `npm run sls:logs` - View Lambda function logs
 
