@@ -23,9 +23,9 @@ vi.mock('@/lib/news/newsletter-utils', () => ({
 }))
 
 vi.mock('@/lib/news/newsletter-service', () => ({
-  EmailService: vi.fn().mockImplementation(() => ({
-    sendNewsletterToSubscriber: mockSendNewsletterToSubscriber,
-  })),
+  EmailService: vi.fn().mockImplementation(function() {
+    return { sendNewsletterToSubscriber: mockSendNewsletterToSubscriber }
+  }),
 }))
 
 import { GET } from './route'

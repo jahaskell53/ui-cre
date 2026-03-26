@@ -43,10 +43,12 @@ vi.mock('@/utils/supabase/server', () => ({
 }))
 
 vi.mock('apify-client', () => ({
-  ApifyClient: vi.fn().mockImplementation(() => ({
-    actor: vi.fn().mockReturnValue({ call: mockApifyCall }),
-    dataset: vi.fn().mockReturnValue({ listItems: mockApifyListItems }),
-  })),
+  ApifyClient: vi.fn().mockImplementation(function() {
+    return {
+      actor: vi.fn().mockReturnValue({ call: mockApifyCall }),
+      dataset: vi.fn().mockReturnValue({ listItems: mockApifyListItems }),
+    }
+  }),
 }))
 
 import { GET } from './route'

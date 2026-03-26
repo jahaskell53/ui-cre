@@ -15,9 +15,9 @@ vi.mock('@/utils/supabase/server', () => ({
 }))
 
 vi.mock('@/utils/email-service', () => ({
-  EmailService: vi.fn().mockImplementation(() => ({
-    sendEmail: mockSendEmail,
-  })),
+  EmailService: vi.fn().mockImplementation(function() {
+    return { sendEmail: mockSendEmail }
+  }),
 }))
 
 vi.mock('@/utils/email-templates', () => ({

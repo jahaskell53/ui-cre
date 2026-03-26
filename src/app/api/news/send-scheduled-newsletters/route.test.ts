@@ -12,9 +12,9 @@ vi.mock('@/lib/news/subscribers', () => ({
 }))
 
 vi.mock('@/lib/news/newsletter-service', () => ({
-  EmailService: vi.fn().mockImplementation(() => ({
-    sendNewsletterToSubscriber: mockSendNewsletterToSubscriber,
-  })),
+  EmailService: vi.fn().mockImplementation(function() {
+    return { sendNewsletterToSubscriber: mockSendNewsletterToSubscriber }
+  }),
 }))
 
 vi.mock('@/lib/news/newsletter-utils', () => ({

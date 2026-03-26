@@ -22,9 +22,9 @@ vi.mock('@/utils/supabase/admin', () => ({
 }))
 
 vi.mock('@/utils/email-service', () => ({
-  EmailService: vi.fn().mockImplementation(() => ({
-    sendEmail: mockSendEmail,
-  })),
+  EmailService: vi.fn().mockImplementation(function() {
+    return { sendEmail: mockSendEmail }
+  }),
 }))
 
 import { POST } from './route'

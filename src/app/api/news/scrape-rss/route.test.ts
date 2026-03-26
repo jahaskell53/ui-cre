@@ -20,9 +20,9 @@ vi.mock('@/utils/supabase/server', () => ({
 
 // Mock rss-parser so no real network calls are made
 vi.mock('rss-parser', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    parseURL: vi.fn().mockResolvedValue({ items: [] }),
-  })),
+  default: vi.fn().mockImplementation(function() {
+    return { parseURL: vi.fn().mockResolvedValue({ items: [] }) }
+  }),
 }))
 
 import { GET } from './route'
