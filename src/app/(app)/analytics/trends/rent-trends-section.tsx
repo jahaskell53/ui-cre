@@ -9,7 +9,6 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
     ReferenceLine,
 } from "recharts";
 import {
@@ -144,7 +143,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                         width={yView === "pct" ? 55 : 75}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    {series.length > 1 && <Legend />}
+
                     {yView === "pct" && <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="3 3" />}
                     {series.map(s => (
                         <Line

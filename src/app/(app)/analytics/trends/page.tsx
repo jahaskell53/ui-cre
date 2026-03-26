@@ -9,6 +9,7 @@ import {
     TrendRow,
     ActivityRow,
     BED_KEYS,
+    BED_DASH,
     AREA_COLORS,
     AreaSelection,
     pctChange,
@@ -801,36 +802,54 @@ export default function TrendsPage() {
                 <div className="grid grid-cols-4 gap-4">
                     {/* Stat tile */}
                     <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-5">
-                        {displayAreas.map(area => {
-                            const rows = (displayRentResults[area.id] ?? [])
-                                .filter(r => r.beds === selectedBeds[0])
-                                .sort((a, b) => a.week_start.localeCompare(b.week_start));
-                            const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
-                            const first = rows.length > 0 ? rows[0].median_rent : undefined;
-                            const change = rows.length >= 2 ? pctChange(first, latest) : null;
-                            return (
-                                <div key={area.id}>
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                        <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: area.color }} />
-                                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{area.label}</span>
-                                    </div>
-                                    {latest != null ? (
-                                        <>
-                                            <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">{formatDollars(latest)}</p>
-                                            <p className="text-xs text-gray-400 mt-0.5">{BED_KEYS.find(b => b.beds === selectedBeds[0])!.label} · latest week</p>
-                                            {change != null && (
-                                                <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                                    {change >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
-                                                    {Math.abs(change).toFixed(1)}% over period
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <p className="text-xl font-semibold text-gray-400">—</p>
-                                    )}
+                        {displayAreas.map(area => (
+                            <div key={area.id}>
+                                <div className="flex items-center gap-1.5 mb-2">
+                                    <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: area.color }} />
+                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{area.label}</span>
                                 </div>
-                            );
-                        })}
+                                <div className="space-y-2">
+                                    {selectedBeds.map(beds => {
+                                        const bedEntry = BED_KEYS.find(b => b.beds === beds)!;
+                                        const dash = BED_DASH[beds] ?? "";
+                                        const rows = (displayRentResults[area.id] ?? [])
+                                            .filter(r => r.beds === beds)
+                                            .sort((a, b) => a.week_start.localeCompare(b.week_start));
+                                        const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
+                                        const first = rows.length > 0 ? rows[0].median_rent : undefined;
+                                        const change = rows.length >= 2 ? pctChange(first, latest) : null;
+                                        return (
+                                            <div key={beds}>
+                                                {selectedBeds.length > 1 && (
+                                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                                        <svg width="16" height="8" viewBox="0 0 16 8" className="shrink-0 text-gray-400 dark:text-gray-500">
+                                                            <line x1="0" y1="4" x2="16" y2="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray={dash || undefined} />
+                                                        </svg>
+                                                        <span className="text-xs text-gray-400 dark:text-gray-500">{bedEntry.label}</span>
+                                                    </div>
+                                                )}
+                                                {latest != null ? (
+                                                    <>
+                                                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatDollars(latest)}</p>
+                                                        {selectedBeds.length === 1 && (
+                                                            <p className="text-xs text-gray-400 mt-0.5">{bedEntry.label} · latest week</p>
+                                                        )}
+                                                        {change != null && (
+                                                            <div className={`flex items-center gap-1 mt-0.5 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                                                {change >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+                                                                {Math.abs(change).toFixed(1)}% over period
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <p className="text-lg font-semibold text-gray-400">—</p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
                     </div>
 
                     {/* Rent chart */}

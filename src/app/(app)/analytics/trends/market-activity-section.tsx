@@ -9,7 +9,6 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
 } from "recharts";
 import { AreaSelection, ActivityRow, BED_KEYS, buildActivityComboData, getActivitySeriesList } from "./trends-utils";
 
@@ -31,7 +30,6 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
     const series = getActivitySeriesList(areas, selectedBeds);
     const chartData = buildActivityComboData(areaResults, areas, selectedBeds);
     const weekCount = chartData.length;
-    const showLegend = series.length > 1 || view === "velocity";
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -75,7 +73,6 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                                 labelFormatter={(label) => `Week of ${label}`}
                                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
                             />
-                            {showLegend && <Legend wrapperStyle={{ fontSize: 12 }} />}
                             {series.map(s => (
                                 <Line
                                     key={s.key}
@@ -107,7 +104,6 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                                 labelFormatter={(label) => `Week of ${label}`}
                                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
                             />
-                            <Legend wrapperStyle={{ fontSize: 12 }} />
                             {series.map(s => {
                                 const prefix = series.length > 1 ? `${s.label} ` : "";
                                 return (
