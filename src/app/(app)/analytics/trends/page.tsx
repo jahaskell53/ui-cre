@@ -63,6 +63,7 @@ export default function TrendsPage() {
     const [pendingNh, setPendingNh] = useState<{ id: number; name: string; city: string } | null | "loading">(null);
     const [pendingMsa, setPendingMsa] = useState<{ geoid: string; name: string } | null | "loading">(null);
     const prevAreaTypeRef = useRef<string>("ZIP Code");
+    const lastAddressFeatureRef = useRef<MapboxFeature | null>(null);
 
     const [display, setDisplay] = useState<"chart" | "table" | "map">("chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
@@ -219,6 +220,12 @@ export default function TrendsPage() {
         setShowSuggestions(false);
         setActiveSuggestionIndex(-1);
 
+        // Address mode always shows granularity picker first, regardless of areaType
+        if (addressMode) {
+            setPendingFeature(feature);
+            return;
+        }
+
         if (areaType === "County") {
             const countyName = feature.text;
             const regionCtx = feature.context?.find(c => c.id.startsWith("region."));
@@ -249,12 +256,6 @@ export default function TrendsPage() {
             return;
         }
 
-        // Address mode: show granularity picker before committing
-        if (addressMode) {
-            setPendingFeature(feature);
-            return;
-        }
-
         // ZIP Code: add directly
         const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
@@ -271,15 +272,17 @@ export default function TrendsPage() {
     const cancelAddressMode = () => {
         setAddressMode(false);
         setPendingFeature(null);
+        lastAddressFeatureRef.current = null;
         setAddress("");
         setSuggestions([]);
         setAreaType(prevAreaTypeRef.current);
         setShowAddInput(selectedAreas.length > 0 ? false : false);
     };
 
-    const resolveGranularity = async (granularity: string) => {
-        if (!pendingFeature) return;
-        const feature = pendingFeature;
+    const resolveGranularity = async (granularity: string, featureOverride?: MapboxFeature) => {
+        const feature = featureOverride ?? pendingFeature;
+        if (!feature) return;
+        lastAddressFeatureRef.current = feature;
         setPendingFeature(null);
         setAddressMode(false);
         setShowAddInput(false);
@@ -436,7 +439,13 @@ export default function TrendsPage() {
                                     disabled={dimmed}
                                     onClick={() => {
                                         if (resolvable) { resolveGranularity(t); }
-                                        else if (!addressMode && enabled) { setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); setPendingFeature(null); }
+                                        else if (!addressMode && enabled) {
+                                            if (lastAddressFeatureRef.current && t !== areaType) {
+                                                resolveGranularity(t, lastAddressFeatureRef.current);
+                                            } else {
+                                                setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); setPendingFeature(null);
+                                            }
+                                        }
                                     }}
                                     className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : dimmed ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : resolvable ? 'text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
                                 >
@@ -532,7 +541,7 @@ export default function TrendsPage() {
                                 <Input
                                     placeholder={searchPlaceholder}
                                     value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
+                                    onChange={(e) => { setAddress(e.target.value); if (!addressMode) lastAddressFeatureRef.current = null; }}
                                     onKeyDown={(e) => {
                                         const list = areaType === "Neighborhood" && !addressMode ? nhSuggestions : areaType === "MSA" && !addressMode ? msaSuggestions : suggestions;
                                         if (e.key === "ArrowDown") {
