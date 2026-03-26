@@ -800,7 +800,7 @@ export default function TrendsPage() {
             {/* Grid dashboard */}
             {selectedAreas.length > 0 && !loading && hasData && display === "chart" && (
                 <div className="grid grid-cols-4 gap-4">
-                    {/* Stat tile */}
+                    {/* Stats tile */}
                     <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-5">
                         {displayAreas.map(area => (
                             <div key={area.id}>
@@ -811,7 +811,6 @@ export default function TrendsPage() {
                                 <div className="space-y-2">
                                     {selectedBeds.map(beds => {
                                         const bedEntry = BED_KEYS.find(b => b.beds === beds)!;
-                                        const dash = BED_DASH[beds] ?? "";
                                         const rows = (displayRentResults[area.id] ?? [])
                                             .filter(r => r.beds === beds)
                                             .sort((a, b) => a.week_start.localeCompare(b.week_start));
@@ -821,12 +820,7 @@ export default function TrendsPage() {
                                         return (
                                             <div key={beds}>
                                                 {selectedBeds.length > 1 && (
-                                                    <div className="flex items-center gap-1.5 mb-0.5">
-                                                        <svg width="28" height="10" viewBox="0 0 28 10" className="shrink-0 text-gray-400 dark:text-gray-500">
-                                                            <line x1="0" y1="5" x2="28" y2="5" stroke="currentColor" strokeWidth="2" strokeDasharray={dash || undefined} />
-                                                        </svg>
-                                                        <span className="text-sm text-gray-500 dark:text-gray-400">{bedEntry.label}</span>
-                                                    </div>
+                                                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">{bedEntry.label}</p>
                                                 )}
                                                 {latest != null ? (
                                                     <>
@@ -852,9 +846,37 @@ export default function TrendsPage() {
                         ))}
                     </div>
 
-                    {/* Rent chart */}
-                    <div className="col-span-3">
+                    {/* Rent chart — spans both left tiles */}
+                    <div className="col-span-3 row-span-2">
                         <RentTrendsSection areas={displayAreas} areaResults={displayRentResults} selectedBeds={selectedBeds} />
+                    </div>
+
+                    {/* Legend tile */}
+                    <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-3">
+                        <div className="space-y-2">
+                            {displayAreas.map(area => (
+                                <div key={area.id} className="flex items-center gap-1.5">
+                                    <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: area.color }} />
+                                    <span className="text-xs text-gray-600 dark:text-gray-400 truncate">{area.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                        {selectedBeds.length > 1 && (
+                            <div className="border-t border-gray-100 dark:border-gray-700 pt-3 space-y-2">
+                                {selectedBeds.map(beds => {
+                                    const bedEntry = BED_KEYS.find(b => b.beds === beds)!;
+                                    const dash = BED_DASH[beds] ?? "";
+                                    return (
+                                        <div key={beds} className="flex items-center gap-2">
+                                            <svg width="28" height="10" viewBox="0 0 28 10" className="shrink-0 text-gray-400 dark:text-gray-500">
+                                                <line x1="0" y1="5" x2="28" y2="5" stroke="currentColor" strokeWidth="2" strokeDasharray={dash || undefined} />
+                                            </svg>
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">{bedEntry.label}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Activity chart */}
