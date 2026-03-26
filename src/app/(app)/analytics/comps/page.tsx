@@ -687,6 +687,35 @@ function CompsContent() {
         if (zip) setCachedZip(zip);
         setSuggestions([]);
         setShowSuggestions(false);
+
+        // Auto-detect neighborhood in background so it's ready before search
+        const [lng, lat] = feature.center;
+        supabase.rpc('find_neighborhood', { p_lng: lng, p_lat: lat }).then(({ data: nhData }) => {
+            if (nhData && nhData.length > 0) {
+                const nhId = nhData[0].id as number;
+                lastNhDetectedRef.current = { lng, lat };
+                nhFittedRef.current = false;
+                const newCache: Record<number, NhData> = {
+                    [nhId]: { id: nhId, name: nhData[0].name, city: nhData[0].city, geojson: nhData[0].geojson },
+                };
+                setNhDataCache(newCache);
+                nhDataCacheRef.current = newCache;
+                setSelectedNhIds([nhId]);
+                selectedNhIdsRef.current = [nhId];
+                setCandidateNhIds([]);
+                setZipGeoJSON(null);
+                setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
+                refreshCandidates([nhId]);
+            } else {
+                // No neighborhood found — clear state, show ZIP if available
+                setSelectedNhIds([]);
+                setCandidateNhIds([]);
+                setNhDataCache({});
+                selectedNhIdsRef.current = [];
+                lastNhDetectedRef.current = null;
+                setNeighborhoodName(zip ? `ZIP ${zip}` : null);
+            }
+        });
     };
 
     // Rent estimate banner removed
