@@ -60,6 +60,8 @@ export default function TrendsPage() {
     const [areaType, setAreaType] = useState<string>("ZIP Code");
     const [addressMode, setAddressMode] = useState(false);
     const [pendingFeature, setPendingFeature] = useState<MapboxFeature | null>(null);
+    const [pendingNh, setPendingNh] = useState<{ id: number; name: string; city: string } | null | "loading">(null);
+    const [pendingMsa, setPendingMsa] = useState<{ geoid: string; name: string } | null | "loading">(null);
     const prevAreaTypeRef = useRef<string>("ZIP Code");
 
     const [display, setDisplay] = useState<"chart" | "table" | "map">("chart");
@@ -145,6 +147,18 @@ export default function TrendsPage() {
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
     }, []);
+
+    // Resolve neighborhood + MSA names when a pending address is selected
+    useEffect(() => {
+        if (!pendingFeature) { setPendingNh(null); setPendingMsa(null); return; }
+        const [lng, lat] = pendingFeature.center;
+        setPendingNh("loading");
+        setPendingMsa("loading");
+        supabase.rpc("get_neighborhood_at_point", { p_lat: lat, p_lng: lng })
+            .then(({ data }) => setPendingNh((data as { id: number; name: string; city: string }[] | null)?.[0] ?? null));
+        supabase.rpc("get_msa_at_point", { p_lat: lat, p_lng: lng })
+            .then(({ data }) => setPendingMsa((data as { geoid: string; name: string }[] | null)?.[0] ?? null));
+    }, [pendingFeature]);
 
     // Fetch when areas or filters change
     useEffect(() => {
@@ -488,7 +502,8 @@ export default function TrendsPage() {
                                             g === "ZIP Code" ? (ctx.find(c => c.id.startsWith("postcode."))?.text ?? null) :
                                             g === "City" ? (ctx.find(c => c.id.startsWith("place."))?.text ? `${ctx.find(c => c.id.startsWith("place."))!.text}${regionShort ? `, ${regionShort}` : ""}` : null) :
                                             g === "County" ? (ctx.find(c => c.id.startsWith("district."))?.text ?? null) :
-                                            g;
+                                            g === "Neighborhood" ? (pendingNh === "loading" ? "…" : pendingNh ? `${pendingNh.name}` : null) :
+                                            /* MSA */ (pendingMsa === "loading" ? "…" : pendingMsa ? pendingMsa.name : null);
                                         const disabled = resolvedLabel === null;
                                         return (
                                             <button
