@@ -57,6 +57,7 @@ export default function TrendsPage() {
     const [msaSuggestions, setMsaSuggestions] = useState<{ id: number; name: string; name_lsad: string; geoid: string }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [areaType, setAreaType] = useState<string>("Address");
+    const [pendingFeature, setPendingFeature] = useState<MapboxFeature | null>(null);
 
     const [display, setDisplay] = useState<"chart" | "map">("chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
@@ -231,6 +232,14 @@ export default function TrendsPage() {
             return;
         }
 
+        // Address: show granularity picker before committing
+        if (areaType === "Address") {
+            setPendingFeature(feature);
+            setShowAddInput(true);
+            return;
+        }
+
+        // ZIP Code: add directly
         const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
         if (!zip) return;
@@ -241,6 +250,56 @@ export default function TrendsPage() {
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas(prev => [...prev, { id: zip, label, color }]);
         setShowAddInput(false);
+    };
+
+    const resolveGranularity = async (granularity: string) => {
+        if (!pendingFeature) return;
+        const feature = pendingFeature;
+        setPendingFeature(null);
+        setShowAddInput(false);
+        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+
+        if (granularity === "ZIP Code") {
+            const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
+            const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
+            if (!zip || selectedAreas.find(a => a.id === zip) || selectedAreas.length >= MAX_AREAS) return;
+            const placeCtx = feature.context?.find(c => c.id.startsWith("place."))?.text;
+            const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
+            setSelectedAreas(prev => [...prev, { id: zip, label, color }]);
+        } else if (granularity === "City") {
+            const cityName = feature.context?.find(c => c.id.startsWith("place."))?.text ?? feature.text;
+            const regionCtx = feature.context?.find(c => c.id.startsWith("region."));
+            const stateCode = ((regionCtx as (typeof regionCtx) & { short_code?: string })?.short_code ?? "").replace("US-", "");
+            const key = `city:${cityName}:${stateCode}`;
+            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
+            const label = stateCode ? `${cityName}, ${stateCode}` : cityName;
+            setSelectedAreas(prev => [...prev, { id: key, label, color, cityName, cityState: stateCode }]);
+        } else if (granularity === "County") {
+            const countyName = feature.context?.find(c => c.id.startsWith("district."))?.text;
+            if (!countyName) return;
+            const regionCtx = feature.context?.find(c => c.id.startsWith("region."));
+            const stateCode = ((regionCtx as (typeof regionCtx) & { short_code?: string })?.short_code ?? "").replace("US-", "");
+            const key = `county:${countyName}:${stateCode}`;
+            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
+            const label = stateCode ? `${countyName}, ${stateCode}` : countyName;
+            setSelectedAreas(prev => [...prev, { id: key, label, color, countyName, countyState: stateCode }]);
+        } else if (granularity === "Neighborhood") {
+            const [lng, lat] = feature.center;
+            const { data } = await supabase.rpc("get_neighborhood_at_point", { p_lat: lat, p_lng: lng });
+            const nh = (data as { id: number; name: string; city: string; state: string }[] | null)?.[0];
+            if (!nh) return;
+            const key = `nh:${nh.id}`;
+            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
+            setSelectedAreas(prev => [...prev, { id: key, label: `${nh.name} · ${nh.city}`, color, neighborhoodId: nh.id }]);
+        } else if (granularity === "MSA") {
+            const [lng, lat] = feature.center;
+            const { data } = await supabase.rpc("get_msa_at_point", { p_lat: lat, p_lng: lng });
+            const msa = (data as { id: number; name: string; name_lsad: string; geoid: string }[] | null)?.[0];
+            if (!msa) return;
+            const key = `msa:${msa.geoid}`;
+            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
+            setSelectedAreas(prev => [...prev, { id: key, label: msa.name, color, msaGeoid: msa.geoid }]);
+        }
     };
 
     const selectNeighborhood = (nh: NeighborhoodResult) => {
@@ -344,7 +403,7 @@ export default function TrendsPage() {
                                     key={t}
                                     type="button"
                                     disabled={!enabled}
-                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); } }}
+                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); setPendingFeature(null); } }}
                                     className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
                                 >
                                     {t}
@@ -390,8 +449,44 @@ export default function TrendsPage() {
                                 )}
                             </div>
                         )}
+                        {/* Granularity picker — shown after selecting an address */}
+                        {pendingFeature && areaType === "Address" && (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                    <MapPin className="size-3.5 shrink-0 text-gray-400" />
+                                    <span className="truncate flex-1">{pendingFeature.place_name}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setPendingFeature(null); setShowAddInput(selectedAreas.length === 0); }}
+                                        className="hover:opacity-60 transition-opacity shrink-0"
+                                    >
+                                        <X className="size-4" />
+                                    </button>
+                                </div>
+                                <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                                    {(["ZIP Code", "Neighborhood", "City", "County", "MSA"] as const).map((g, i) => {
+                                        const ctx = pendingFeature.context ?? [];
+                                        const disabled =
+                                            (g === "ZIP Code" && !ctx.find(c => c.id.startsWith("postcode."))) ||
+                                            (g === "City" && !ctx.find(c => c.id.startsWith("place."))) ||
+                                            (g === "County" && !ctx.find(c => c.id.startsWith("district.")));
+                                        return (
+                                            <button
+                                                key={g}
+                                                type="button"
+                                                disabled={disabled}
+                                                onClick={() => resolveGranularity(g)}
+                                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${disabled ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+                                            >
+                                                {g}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                         {/* Search input — always shown for first area, toggled for subsequent */}
-                        {(selectedAreas.length === 0 || showAddInput) && (
+                        {!pendingFeature && (selectedAreas.length === 0 || showAddInput) && (
                             <div className="relative" ref={inputWrapperRef}>
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
                                 <Input
