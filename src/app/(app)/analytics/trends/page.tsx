@@ -185,21 +185,20 @@ export default function TrendsPage() {
             return call.then(({ data, error }) => { if (error) { console.error(error); return [] as TrendRow[]; } return (data ?? []) as TrendRow[]; });
         };
 
-        const fetchActivity = (area: AreaSelection, beds: number) => {
+        const fetchActivity = (area: AreaSelection) => {
             const isNh = area.neighborhoodId != null;
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
-            const p = { p_beds: beds, p_reits_only: reitsOnly };
             const call = isNh
                 ? supabase.rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly })
                 : isCity
-                ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, ...p })
+                ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_reits_only: reitsOnly })
                 : isCounty
-                ? supabase.rpc("get_market_activity_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, ...p })
+                ? supabase.rpc("get_market_activity_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, p_reits_only: reitsOnly })
                 : isMsa
                 ? supabase.rpc("get_market_activity_by_msa", { p_geoid: area.msaGeoid!, p_reits_only: reitsOnly })
-                : supabase.rpc("get_market_activity", { p_zip: area.id, ...p });
+                : supabase.rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly });
             return call.then(({ data, error }) => { if (error) { console.error(error); return [] as ActivityRow[]; } return (data ?? []) as ActivityRow[]; });
         };
 
@@ -207,7 +206,7 @@ export default function TrendsPage() {
             selectedAreas.map(area =>
                 Promise.all([
                     Promise.all(selectedBeds.map(beds => fetchTrends(area, beds))).then(r => r.flat()),
-                    Promise.all(selectedBeds.map(beds => fetchActivity(area, beds))).then(r => r.flat()),
+                    fetchActivity(area),
                 ]).then(([trends, activity]) => ({ id: area.id, trends, activity }))
             )
         ).then(results => {
