@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X, BarChart2, Map, Table2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/utils/supabase";
@@ -51,29 +52,64 @@ interface AreaResult {
     activity: ActivityRow[];
 }
 
+function parseAreas(param: string | null): AreaSelection[] {
+    if (!param) return [];
+    try { return JSON.parse(atob(param)) as AreaSelection[]; } catch { return []; }
+}
+
+function serializeAreas(areas: AreaSelection[]): string {
+    return btoa(JSON.stringify(areas));
+}
+
 export default function TrendsPage() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
     const [nhSuggestions, setNhSuggestions] = useState<NeighborhoodResult[]>([]);
     const [msaSuggestions, setMsaSuggestions] = useState<{ id: number; name: string; name_lsad: string; geoid: string }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [areaType, setAreaType] = useState<string>("ZIP Code");
+    const [areaType, setAreaType] = useState<string>(searchParams.get("areaType") ?? "ZIP Code");
     const [addressMode, setAddressMode] = useState(false);
     const [pendingFeature, setPendingFeature] = useState<MapboxFeature | null>(null);
     const [pendingNh, setPendingNh] = useState<{ id: number; name: string; city: string } | null | "loading">(null);
     const [pendingMsa, setPendingMsa] = useState<{ geoid: string; name: string } | null | "loading">(null);
-    const prevAreaTypeRef = useRef<string>("ZIP Code");
+    const prevAreaTypeRef = useRef<string>(searchParams.get("areaType") ?? "ZIP Code");
     const lastAddressFeatureRef = useRef<MapboxFeature | null>(null);
     const lastAddressAreaIdRef = useRef<string | null>(null);
 
-    const [display, setDisplay] = useState<"chart" | "table" | "map">("chart");
-    const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
+    const [display, setDisplay] = useState<"chart" | "table" | "map">(
+        (searchParams.get("display") as "chart" | "table" | "map") ?? "chart"
+    );
+    const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>(() => parseAreas(searchParams.get("areas")));
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
     const [showAddInput, setShowAddInput] = useState(false);
 
-    const [selectedBeds, setSelectedBeds] = useState<number[]>([1]);
-    const [selectedSources, setSelectedSources] = useState<('mid' | 'reit')[]>(['mid']);
+    const [selectedBeds, setSelectedBeds] = useState<number[]>(() => {
+        const raw = searchParams.get("beds");
+        if (!raw) return [1];
+        const parsed = raw.split(",").map(Number).filter(n => !isNaN(n));
+        return parsed.length > 0 ? parsed : [1];
+    });
+    const [selectedSources, setSelectedSources] = useState<('mid' | 'reit')[]>(() => {
+        const raw = searchParams.get("sources");
+        if (!raw) return ['mid'];
+        const parsed = raw.split(",").filter((s): s is 'mid' | 'reit' => s === 'mid' || s === 'reit');
+        return parsed.length > 0 ? parsed : ['mid'];
+    });
     const [loading, setLoading] = useState(false);
+
+    // Sync persisted state to URL (shallow push, no navigation)
+    useEffect(() => {
+        const params = new URLSearchParams();
+        params.set("areaType", areaType);
+        params.set("display", display);
+        params.set("beds", selectedBeds.join(","));
+        params.set("sources", selectedSources.join(","));
+        if (selectedAreas.length > 0) params.set("areas", serializeAreas(selectedAreas));
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [areaType, display, selectedAreas, selectedBeds, selectedSources]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
