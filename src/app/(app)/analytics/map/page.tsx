@@ -5,21 +5,13 @@ import Link from "next/link";
 import {
     Search,
     Filter,
-    TrendingUp,
-    Map,
-    BarChart3,
     Building2,
-    Layers,
-    DollarSign,
-    Home,
-    Activity,
-    ShoppingCart,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { PropertyMap, type Property, type UnitMixRow, type HeatmapMetric, type MapBounds } from "@/components/application/map/property-map";
+import { PropertyMap, type Property, type UnitMixRow, type MapBounds } from "@/components/application/map/property-map";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
@@ -46,15 +38,6 @@ const defaultFilters: Filters = {
     sqftMax: "",
 };
 
-const heatmapOptions: { value: HeatmapMetric; label: string; icon: React.ElementType; description?: string }[] = [
-    { value: 'none', label: 'None', icon: Layers, description: 'Show markers only' },
-    { value: 'neighborhood', label: 'Neighborhoods', icon: Map, description: 'Filter by area' },
-    { value: 'capRate', label: 'Cap Rate', icon: TrendingUp, description: 'Heatmap by cap rate' },
-    { value: 'rent', label: 'Avg Rent', icon: Home, description: 'Heatmap by rent levels' },
-    { value: 'valuation', label: 'Valuation', icon: DollarSign, description: 'Heatmap by property value' },
-    { value: 'recentSales', label: 'Recent Sales', icon: ShoppingCart, description: 'Heatmap by sales activity' },
-    { value: 'trending', label: 'Trending', icon: Activity, description: 'Heatmap by appreciation' },
-];
 
 function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
     return (
@@ -86,9 +69,6 @@ export default function MapPage() {
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>("all");
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
-    const [mapFilter, setMapFilter] = useState<"all" | "owned">("all");
-    const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('none');
-    const [layersOpen, setLayersOpen] = useState(false);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const activeFilterCount = useMemo(() => {
@@ -441,24 +421,6 @@ export default function MapPage() {
                     ))}
                 </div>
 
-                {/* Filter Tabs */}
-                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                    {(["all", "owned"] as const).map((filter) => (
-                        <button
-                            key={filter}
-                            onClick={() => setMapFilter(filter)}
-                            className={cn(
-                                "px-3 py-1 text-xs font-medium rounded-md transition-colors capitalize",
-                                mapFilter === filter
-                                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
-                                    : "text-gray-600 dark:text-gray-400"
-                            )}
-                        >
-                            {filter === "all" ? "All" : filter}
-                        </button>
-                    ))}
-                </div>
-
                 {/* Search */}
                 <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
@@ -540,61 +502,6 @@ export default function MapPage() {
                     </PopoverContent>
                 </Popover>
 
-                {/* Heatmap Layers Popover */}
-                <Popover open={layersOpen} onOpenChange={setLayersOpen}>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant={heatmapMetric !== 'none' ? 'default' : 'outline'}
-                            size="sm"
-                            className={cn(
-                                "h-8 gap-1.5",
-                                heatmapMetric !== 'none' && "bg-blue-600 hover:bg-blue-700"
-                            )}
-                        >
-                            <Layers className="size-3.5" />
-                            Layers
-                            {heatmapMetric !== 'none' && (
-                                <span className="text-[10px] opacity-80">
-                                    ({heatmapOptions.find(o => o.value === heatmapMetric)?.label})
-                                </span>
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-64 p-2">
-                        <div className="space-y-1">
-                            <p className="text-xs font-medium text-gray-500 px-2 py-1">Map Layers</p>
-                            {heatmapOptions.map((option) => {
-                                const Icon = option.icon;
-                                return (
-                                    <button
-                                        key={option.value}
-                                        onClick={() => {
-                                            setHeatmapMetric(option.value);
-                                            setLayersOpen(false);
-                                        }}
-                                        className={cn(
-                                            "w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors text-left",
-                                            heatmapMetric === option.value
-                                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                                        )}
-                                    >
-                                        <Icon className="size-4 flex-shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-medium">{option.label}</div>
-                                            {option.description && (
-                                                <div className="text-[10px] text-gray-500 dark:text-gray-400">{option.description}</div>
-                                            )}
-                                        </div>
-                                        {heatmapMetric === option.value && (
-                                            <span className="text-blue-600 dark:text-blue-400 flex-shrink-0">✓</span>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </PopoverContent>
-                </Popover>
             </div>
 
             {/* Map Content */}
@@ -679,7 +586,6 @@ export default function MapPage() {
                     <PropertyMap
                         properties={properties}
                         selectedId={selectedId}
-                        heatmapMetric={heatmapMetric}
                         className="absolute inset-0"
                         onBoundsChange={handleBoundsChange}
                     />
