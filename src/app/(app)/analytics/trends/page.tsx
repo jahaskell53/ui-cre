@@ -42,8 +42,8 @@ const BED_OPTIONS = [
     { beds: 3, label: "3BR" },
 ];
 
-const AREA_TYPES = ["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"];
-const ENABLED_AREA_TYPES = new Set(["Address", "ZIP Code", "Neighborhood", "City", "County", "MSA"]);
+const AREA_TYPES = ["ZIP Code", "Neighborhood", "City", "County", "MSA"];
+const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
 const MAX_AREAS = 5;
 
 interface AreaResult {
@@ -57,8 +57,10 @@ export default function TrendsPage() {
     const [nhSuggestions, setNhSuggestions] = useState<NeighborhoodResult[]>([]);
     const [msaSuggestions, setMsaSuggestions] = useState<{ id: number; name: string; name_lsad: string; geoid: string }[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [areaType, setAreaType] = useState<string>("Address");
+    const [areaType, setAreaType] = useState<string>("ZIP Code");
+    const [addressMode, setAddressMode] = useState(false);
     const [pendingFeature, setPendingFeature] = useState<MapboxFeature | null>(null);
+    const prevAreaTypeRef = useRef<string>("ZIP Code");
 
     const [display, setDisplay] = useState<"chart" | "table" | "map">("chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
@@ -90,7 +92,7 @@ export default function TrendsPage() {
         setActiveSuggestionIndex(-1);
         if (address.length < 3) { setSuggestions([]); setNhSuggestions([]); setMsaSuggestions([]); return; }
         suggestTimerRef.current = setTimeout(async () => {
-            if (areaType === "MSA") {
+            if (areaType === "MSA" && !addressMode) {
                 try {
                     const { data } = await supabase.rpc('search_msas', { p_query: address });
                     setMsaSuggestions((data ?? []) as { id: number; name: string; name_lsad: string; geoid: string }[]);
@@ -98,7 +100,7 @@ export default function TrendsPage() {
                 } catch {
                     setMsaSuggestions([]);
                 }
-            } else if (areaType === "Neighborhood") {
+            } else if (areaType === "Neighborhood" && !addressMode) {
                 try {
                     const { data } = await supabase
                         .rpc('search_neighborhoods', { p_query: address });
@@ -109,7 +111,7 @@ export default function TrendsPage() {
                 }
             } else {
                 try {
-                    const types = areaType === "ZIP Code" ? "postcode" : areaType === "City" ? "place" : areaType === "County" ? "district" : "address";
+                    const types = addressMode ? "address" : areaType === "ZIP Code" ? "postcode" : areaType === "City" ? "place" : areaType === "County" ? "district" : "address";
                     const proximity = userCoordsRef.current
                         ? `&proximity=${userCoordsRef.current.lng},${userCoordsRef.current.lat}`
                         : "";
@@ -124,7 +126,7 @@ export default function TrendsPage() {
                 }
             }
         }, 250);
-    }, [address, areaType]);
+    }, [address, areaType, addressMode]);
 
     // Scroll active suggestion into view
     useEffect(() => {
@@ -233,10 +235,9 @@ export default function TrendsPage() {
             return;
         }
 
-        // Address: show granularity picker before committing
-        if (areaType === "Address") {
+        // Address mode: show granularity picker before committing
+        if (addressMode) {
             setPendingFeature(feature);
-            setShowAddInput(true);
             return;
         }
 
@@ -253,11 +254,22 @@ export default function TrendsPage() {
         setShowAddInput(false);
     };
 
+    const cancelAddressMode = () => {
+        setAddressMode(false);
+        setPendingFeature(null);
+        setAddress("");
+        setSuggestions([]);
+        setAreaType(prevAreaTypeRef.current);
+        setShowAddInput(selectedAreas.length > 0 ? false : false);
+    };
+
     const resolveGranularity = async (granularity: string) => {
         if (!pendingFeature) return;
         const feature = pendingFeature;
         setPendingFeature(null);
+        setAddressMode(false);
         setShowAddInput(false);
+        setAreaType(granularity);
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
 
         if (granularity === "ZIP Code") {
@@ -364,13 +376,12 @@ export default function TrendsPage() {
         </button>
     );
 
-    const searchPlaceholder =
+    const searchPlaceholder = addressMode ? "Enter address…" :
         areaType === "ZIP Code" ? "Enter zip code…" :
         areaType === "Neighborhood" ? "Search neighborhood name…" :
         areaType === "City" ? "Search city…" :
         areaType === "County" ? "Search county…" :
-        areaType === "MSA" ? "Search metro area…" :
-        "Enter address…";
+        "Search metro area…";
 
     return (
         <div className="flex-1 p-6 overflow-auto max-w-7xl mx-auto w-full">
@@ -401,14 +412,19 @@ export default function TrendsPage() {
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
                         {AREA_TYPES.map((t, i) => {
                             const enabled = ENABLED_AREA_TYPES.has(t);
-                            const active = areaType === t;
+                            const active = !addressMode && areaType === t;
+                            const dimmed = addressMode && !pendingFeature;
+                            const resolvable = addressMode && !!pendingFeature;
                             return (
                                 <button
                                     key={t}
                                     type="button"
-                                    disabled={!enabled}
-                                    onClick={() => { if (enabled) { setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); setPendingFeature(null); } }}
-                                    className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
+                                    disabled={dimmed}
+                                    onClick={() => {
+                                        if (resolvable) { resolveGranularity(t); }
+                                        else if (!addressMode && enabled) { setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); setPendingFeature(null); }
+                                    }}
+                                    className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${active ? 'bg-blue-600 text-white' : dimmed ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : resolvable ? 'text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600' : enabled ? 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700' : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'}`}
                                 >
                                     {t}
                                 </button>
@@ -453,52 +469,57 @@ export default function TrendsPage() {
                                 )}
                             </div>
                         )}
-                        {/* Granularity picker — shown after selecting an address */}
-                        {pendingFeature && areaType === "Address" && (
+                        {/* Granularity picker — shown after selecting an address in address mode */}
+                        {pendingFeature && addressMode && (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                                     <MapPin className="size-3.5 shrink-0 text-gray-400" />
                                     <span className="truncate flex-1">{pendingFeature.place_name}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setPendingFeature(null); setShowAddInput(selectedAreas.length === 0); }}
-                                        className="hover:opacity-60 transition-opacity shrink-0"
-                                    >
-                                        <X className="size-4" />
+                                    <button type="button" onClick={cancelAddressMode} className="hover:opacity-60 transition-opacity shrink-0 text-xs">
+                                        ✕ change
                                     </button>
                                 </div>
+                                <div className="text-xs text-gray-400 dark:text-gray-500">Analyze as</div>
                                 <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
                                     {(["ZIP Code", "Neighborhood", "City", "County", "MSA"] as const).map((g, i) => {
                                         const ctx = pendingFeature.context ?? [];
-                                        const disabled =
-                                            (g === "ZIP Code" && !ctx.find(c => c.id.startsWith("postcode."))) ||
-                                            (g === "City" && !ctx.find(c => c.id.startsWith("place."))) ||
-                                            (g === "County" && !ctx.find(c => c.id.startsWith("district.")));
+                                        const regionShort = ((ctx.find(c => c.id.startsWith("region.")) as ({ short_code?: string } & { id: string; text: string }) | undefined)?.short_code ?? "").replace("US-", "");
+                                        const resolvedLabel =
+                                            g === "ZIP Code" ? (ctx.find(c => c.id.startsWith("postcode."))?.text ?? null) :
+                                            g === "City" ? (ctx.find(c => c.id.startsWith("place."))?.text ? `${ctx.find(c => c.id.startsWith("place."))!.text}${regionShort ? `, ${regionShort}` : ""}` : null) :
+                                            g === "County" ? (ctx.find(c => c.id.startsWith("district."))?.text ?? null) :
+                                            g;
+                                        const disabled = resolvedLabel === null;
                                         return (
                                             <button
                                                 key={g}
                                                 type="button"
                                                 disabled={disabled}
                                                 onClick={() => resolveGranularity(g)}
-                                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${disabled ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+                                                className={`flex-1 px-2 py-2 text-center transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${disabled ? "text-gray-300 dark:text-gray-600 cursor-not-allowed" : "text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600"}`}
                                             >
-                                                {g}
+                                                <div className="font-medium text-xs leading-tight">{resolvedLabel ?? "—"}</div>
+                                                <div className="text-xs text-gray-400 leading-tight mt-0.5">{g}</div>
                                             </button>
                                         );
                                     })}
                                 </div>
                             </div>
                         )}
-                        {/* Search input — always shown for first area, toggled for subsequent */}
-                        {!pendingFeature && (selectedAreas.length === 0 || showAddInput) && (
-                            <div className="relative" ref={inputWrapperRef}>
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
+                        {/* Search input — shown when no pending feature and either first area or add mode */}
+                        {!pendingFeature && (selectedAreas.length === 0 || showAddInput || addressMode) && (
+                            <div className="flex items-center gap-2">
+                            <div className="relative flex-1" ref={inputWrapperRef}>
+                                {addressMode
+                                    ? <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-blue-500 z-10 pointer-events-none" />
+                                    : <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 z-10 pointer-events-none" />
+                                }
                                 <Input
                                     placeholder={searchPlaceholder}
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
                                     onKeyDown={(e) => {
-                                        const list = areaType === "Neighborhood" ? nhSuggestions : areaType === "MSA" ? msaSuggestions : suggestions;
+                                        const list = areaType === "Neighborhood" && !addressMode ? nhSuggestions : areaType === "MSA" && !addressMode ? msaSuggestions : suggestions;
                                         if (e.key === "ArrowDown") {
                                             e.preventDefault();
                                             setActiveSuggestionIndex(i => Math.min(i + 1, list.length - 1));
@@ -508,23 +529,24 @@ export default function TrendsPage() {
                                         } else if (e.key === "Enter") {
                                             e.preventDefault();
                                             if (activeSuggestionIndex >= 0) {
-                                                if (areaType === "Neighborhood") selectNeighborhood(nhSuggestions[activeSuggestionIndex]);
-                                                else if (areaType === "MSA") selectMsa(msaSuggestions[activeSuggestionIndex]);
+                                                if (areaType === "Neighborhood" && !addressMode) selectNeighborhood(nhSuggestions[activeSuggestionIndex]);
+                                                else if (areaType === "MSA" && !addressMode) selectMsa(msaSuggestions[activeSuggestionIndex]);
                                                 else selectSuggestion(suggestions[activeSuggestionIndex]);
                                                 setActiveSuggestionIndex(-1);
                                             }
                                         } else if (e.key === "Escape") {
                                             setShowSuggestions(false);
                                             setActiveSuggestionIndex(-1);
-                                            if (selectedAreas.length > 0) { setShowAddInput(false); setAddress(""); }
+                                            if (addressMode) { cancelAddressMode(); }
+                                            else if (selectedAreas.length > 0) { setShowAddInput(false); setAddress(""); }
                                         }
                                     }}
                                     onFocus={() => (suggestions.length > 0 || nhSuggestions.length > 0 || msaSuggestions.length > 0) && setShowSuggestions(true)}
                                     className="pl-9"
                                     autoComplete="off"
-                                    autoFocus={showAddInput}
+                                    autoFocus={showAddInput || addressMode}
                                 />
-                                {showSuggestions && areaType === "Neighborhood" && nhSuggestions.length > 0 && (
+                                {showSuggestions && areaType === "Neighborhood" && !addressMode && nhSuggestions.length > 0 && (
                                     <ul ref={suggestListRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-60">
                                         {nhSuggestions.map((nh, i) => (
                                             <li key={nh.id}>
@@ -540,7 +562,7 @@ export default function TrendsPage() {
                                         ))}
                                     </ul>
                                 )}
-                                {showSuggestions && areaType === "MSA" && msaSuggestions.length > 0 && (
+                                {showSuggestions && areaType === "MSA" && !addressMode && msaSuggestions.length > 0 && (
                                     <ul ref={suggestListRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-60">
                                         {msaSuggestions.map((msa, i) => (
                                             <li key={msa.geoid}>
@@ -556,7 +578,7 @@ export default function TrendsPage() {
                                         ))}
                                     </ul>
                                 )}
-                                {showSuggestions && areaType !== "Neighborhood" && areaType !== "MSA" && suggestions.length > 0 && (
+                                {showSuggestions && (addressMode || (areaType !== "Neighborhood" && areaType !== "MSA")) && suggestions.length > 0 && (
                                     <ul ref={suggestListRef} className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-60">
                                         {suggestions.map((feature, i) => (
                                             <li key={feature.id}>
@@ -572,6 +594,24 @@ export default function TrendsPage() {
                                         ))}
                                     </ul>
                                 )}
+                            </div>
+                            {addressMode ? (
+                                <button
+                                    type="button"
+                                    onClick={cancelAddressMode}
+                                    className="text-xs text-gray-500 hover:text-red-500 transition-colors whitespace-nowrap shrink-0"
+                                >
+                                    ✕ cancel
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => { prevAreaTypeRef.current = areaType; setAddressMode(true); setAddress(""); setSuggestions([]); }}
+                                    className="text-xs text-gray-500 hover:text-blue-600 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
+                                >
+                                    <MapPin className="size-3" /> by address
+                                </button>
+                            )}
                             </div>
                         )}
                     </div>
