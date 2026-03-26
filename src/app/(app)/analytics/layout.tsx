@@ -2,22 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TrendingUp, Map, BarChart3, Calculator, Building2 } from "lucide-react";
+import { TrendingUp, Map, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
     { href: "/analytics/trends", label: "Trends", icon: TrendingUp },
     { href: "/analytics/map", label: "Map", icon: Map },
     { href: "/analytics/comps", label: "Comps", icon: BarChart3 },
-    { href: "/analytics/valuation", label: "Valuation", icon: Calculator },
-    { href: "/analytics/properties", label: "Your Properties", icon: Building2 },
 ];
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
     // Detail pages have their own full-page layout
-    const isDetailPage = /^\/analytics\/(listing|your-properties)\//.test(pathname ?? "");
+    const isDetailPage = /^\/analytics\/listing\//.test(pathname ?? "");
 
     if (isDetailPage) {
         return <>{children}</>;
