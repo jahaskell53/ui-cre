@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X, BarChart2, Map } from "lucide-react";
+import { TrendingUp, MapPin, Search, ArrowUpRight, ArrowDownRight, X, BarChart2, Map, Table2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/utils/supabase";
 import {
@@ -16,6 +16,7 @@ import {
 import { RentTrendsSection } from "./rent-trends-section";
 import { MarketActivitySection } from "./market-activity-section";
 import { ZipTrendsMap } from "./zip-trends-map";
+import { TrendsTableSection } from "./trends-table-section";
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
@@ -59,7 +60,7 @@ export default function TrendsPage() {
     const [areaType, setAreaType] = useState<string>("Address");
     const [pendingFeature, setPendingFeature] = useState<MapboxFeature | null>(null);
 
-    const [display, setDisplay] = useState<"chart" | "map">("chart");
+    const [display, setDisplay] = useState<"chart" | "table" | "map">("chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
     const [showAddInput, setShowAddInput] = useState(false);
@@ -383,6 +384,9 @@ export default function TrendsPage() {
                     <button type="button" onClick={() => setDisplay("chart")} className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${display === "chart" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <BarChart2 className="size-3.5" /> Chart
                     </button>
+                    <button type="button" onClick={() => setDisplay("table")} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "table" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                        <Table2 className="size-3.5" /> Table
+                    </button>
                     <button type="button" onClick={() => { setDisplay("map"); setAreaType("ZIP Code"); setAddress(""); setSuggestions([]); setNhSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <Map className="size-3.5" /> Map
                     </button>
@@ -392,7 +396,7 @@ export default function TrendsPage() {
             {/* Filter panel */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6 space-y-4">
                 {/* Area type — hidden in Map display mode */}
-                {display === "chart" && <div className="flex items-center gap-4">
+                {(display === "chart" || display === "table") && <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Area type</span>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
                         {AREA_TYPES.map((t, i) => {
@@ -601,8 +605,8 @@ export default function TrendsPage() {
                 />
             )}
 
-            {/* Empty state — chart display with no areas selected */}
-            {display === "chart" && selectedAreas.length === 0 && (
+            {/* Empty state — chart/table display with no areas selected */}
+            {(display === "chart" || display === "table") && selectedAreas.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 flex flex-col items-center justify-center text-center">
                     <TrendingUp className="size-10 text-gray-300 mb-3" />
                     <p className="text-gray-500 dark:text-gray-400">Search an address, zip code, or neighborhood above to see rent trends</p>
@@ -629,7 +633,7 @@ export default function TrendsPage() {
             )}
 
             {/* Grid dashboard */}
-            {selectedAreas.length > 0 && !loading && hasData && (
+            {selectedAreas.length > 0 && !loading && hasData && display === "chart" && (
                 <div className="grid grid-cols-4 gap-4">
                     {/* Stat tile */}
                     <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-5">
@@ -677,6 +681,16 @@ export default function TrendsPage() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Table view */}
+            {selectedAreas.length > 0 && !loading && hasData && display === "table" && (
+                <TrendsTableSection
+                    areas={selectedAreas}
+                    rentResults={rentResults}
+                    activityResults={activityResults}
+                    selectedBeds={selectedBeds}
+                />
             )}
 
             </> /* end chart view */}
