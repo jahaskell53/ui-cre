@@ -72,7 +72,7 @@ export default function TrendsPage() {
     const [showAddInput, setShowAddInput] = useState(false);
 
     const [selectedBeds, setSelectedBeds] = useState<number[]>([1]);
-    const [reitsOnly, setReitsOnly] = useState(false);
+    const [selectedSources, setSelectedSources] = useState<('mid' | 'reit')[]>(['mid']);
     const [loading, setLoading] = useState(false);
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
@@ -167,7 +167,7 @@ export default function TrendsPage() {
         if (selectedAreas.length === 0) { setAreaResults({}); return; }
         setLoading(true);
 
-        const fetchTrends = (area: AreaSelection, beds: number) => {
+        const fetchTrends = (area: AreaSelection, beds: number, reitsOnly: boolean) => {
             const isNh = area.neighborhoodId != null;
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
@@ -185,7 +185,7 @@ export default function TrendsPage() {
             return call.then(({ data, error }) => { if (error) { console.error(error); return [] as TrendRow[]; } return (data ?? []) as TrendRow[]; });
         };
 
-        const fetchActivity = (area: AreaSelection) => {
+        const fetchActivity = (area: AreaSelection, reitsOnly: boolean) => {
             const isNh = area.neighborhoodId != null;
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
@@ -202,24 +202,28 @@ export default function TrendsPage() {
             return call.then(({ data, error }) => { if (error) { console.error(error); return [] as ActivityRow[]; } return (data ?? []) as ActivityRow[]; });
         };
 
+        const multiSource = selectedSources.length > 1;
+        const sourcesToFetch = selectedSources.map(src => ({ src, reitsOnly: src === 'reit' }));
+
         Promise.all(
-            selectedAreas.map(area =>
-                Promise.all([
-                    Promise.all(selectedBeds.map(beds => fetchTrends(area, beds))).then(r => r.flat()),
-                    fetchActivity(area),
-                ]).then(([trends, activity]) => ({ id: area.id, trends, activity }))
+            selectedAreas.flatMap(area =>
+                sourcesToFetch.map(({ src, reitsOnly: ro }) => {
+                    const key = multiSource ? `${area.id}:${src}` : area.id;
+                    return Promise.all([
+                        Promise.all(selectedBeds.map(beds => fetchTrends(area, beds, ro))).then(r => r.flat()),
+                        fetchActivity(area, ro),
+                    ]).then(([trends, activity]) => ({ key, trends, activity }));
+                })
             )
         ).then(results => {
             setLoading(false);
             const next: Record<string, AreaResult> = {};
             for (const r of results) {
-                if (r.trends !== null && r.activity !== null) {
-                    next[r.id] = { trends: r.trends!, activity: r.activity! };
-                }
+                next[r.key] = { trends: r.trends, activity: r.activity };
             }
             setAreaResults(next);
         });
-    }, [selectedAreas, selectedBeds, reitsOnly]);
+    }, [selectedAreas, selectedBeds, selectedSources]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress("");
@@ -389,20 +393,40 @@ export default function TrendsPage() {
 
     const removeArea = (id: string) => {
         setSelectedAreas(prev => prev.filter(a => a.id !== id));
-        setAreaResults(prev => { const next = { ...prev }; delete next[id]; return next; });
+        setAreaResults(prev => {
+            const next = { ...prev };
+            delete next[id];
+            delete next[`${id}:mid`];
+            delete next[`${id}:reit`];
+            return next;
+        });
     };
 
-    const rentResults: Record<string, TrendRow[]> = {};
-    const activityResults: Record<string, ActivityRow[]> = {};
-    for (const area of selectedAreas) {
+    const REIT_AREA_COLORS = ["#1d4ed8", "#c2410c", "#6d28d9", "#065f46", "#b91c1c"];
+    const multiSource = selectedSources.length > 1;
+
+    const displayAreas: AreaSelection[] = multiSource
+        ? selectedAreas.flatMap((area, i) => selectedSources.map(src => ({
+            ...area,
+            id: `${area.id}:${src}`,
+            label: `${area.label} (${src === 'reit' ? 'REIT' : 'Mid-market'})`,
+            color: src === 'reit'
+                ? REIT_AREA_COLORS[i % REIT_AREA_COLORS.length]
+                : AREA_COLORS[i % AREA_COLORS.length],
+        })))
+        : selectedAreas;
+
+    const displayRentResults: Record<string, TrendRow[]> = {};
+    const displayActivityResults: Record<string, ActivityRow[]> = {};
+    for (const area of displayAreas) {
         if (areaResults[area.id]) {
-            rentResults[area.id] = areaResults[area.id].trends;
-            activityResults[area.id] = areaResults[area.id].activity;
+            displayRentResults[area.id] = areaResults[area.id].trends;
+            displayActivityResults[area.id] = areaResults[area.id].activity;
         }
     }
 
-    const hasData = selectedAreas.some(a => (rentResults[a.id]?.length ?? 0) > 0);
-    const hasActivity = selectedAreas.some(a => (activityResults[a.id]?.length ?? 0) > 0);
+    const hasData = displayAreas.some(a => (displayRentResults[a.id]?.length ?? 0) > 0);
+    const hasActivity = displayAreas.some(a => (displayActivityResults[a.id]?.length ?? 0) > 0);
 
     const segmentToggle = (label: string, active: boolean, onClick: () => void, first = false) => (
         <button
@@ -687,8 +711,14 @@ export default function TrendsPage() {
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Segment</span>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
-                        {segmentToggle("Mid-market", !reitsOnly, () => setReitsOnly(false), true)}
-                        {segmentToggle("REIT", reitsOnly, () => setReitsOnly(true))}
+                        {segmentToggle("Mid-market", selectedSources.includes('mid'), () => setSelectedSources(prev => {
+                            if (prev.includes('mid')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'mid'); }
+                            return prev.includes('reit') ? ['mid', 'reit'] : ['mid'];
+                        }), true)}
+                        {segmentToggle("REIT", selectedSources.includes('reit'), () => setSelectedSources(prev => {
+                            if (prev.includes('reit')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'reit'); }
+                            return prev.includes('mid') ? ['mid', 'reit'] : ['reit'];
+                        }))}
                     </div>
                 </div>
             </div>
@@ -697,7 +727,7 @@ export default function TrendsPage() {
             {display === "map" && (
                 <ZipTrendsMap
                     selectedBeds={selectedBeds[0]}
-                    reitsOnly={reitsOnly}
+                    reitsOnly={selectedSources.length === 1 && selectedSources[0] === 'reit'}
                     selectedAreas={selectedAreas}
                     onAddArea={addAreaByZip}
                 />
@@ -735,8 +765,8 @@ export default function TrendsPage() {
                 <div className="grid grid-cols-4 gap-4">
                     {/* Stat tile */}
                     <div className="col-span-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-5">
-                        {selectedAreas.map(area => {
-                            const rows = (rentResults[area.id] ?? [])
+                        {displayAreas.map(area => {
+                            const rows = (displayRentResults[area.id] ?? [])
                                 .filter(r => r.beds === selectedBeds[0])
                                 .sort((a, b) => a.week_start.localeCompare(b.week_start));
                             const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
@@ -769,13 +799,13 @@ export default function TrendsPage() {
 
                     {/* Rent chart */}
                     <div className="col-span-3">
-                        <RentTrendsSection areas={selectedAreas} areaResults={rentResults} selectedBeds={selectedBeds} />
+                        <RentTrendsSection areas={displayAreas} areaResults={displayRentResults} selectedBeds={selectedBeds} />
                     </div>
 
                     {/* Activity chart */}
                     {hasActivity && (
                         <div className="col-span-4 mb-8">
-                            <MarketActivitySection areas={selectedAreas} areaResults={activityResults} selectedBeds={selectedBeds} />
+                            <MarketActivitySection areas={displayAreas} areaResults={displayActivityResults} selectedBeds={selectedBeds} />
                         </div>
                     )}
                 </div>
@@ -784,9 +814,9 @@ export default function TrendsPage() {
             {/* Table view */}
             {selectedAreas.length > 0 && !loading && hasData && display === "table" && (
                 <TrendsTableSection
-                    areas={selectedAreas}
-                    rentResults={rentResults}
-                    activityResults={activityResults}
+                    areas={displayAreas}
+                    rentResults={displayRentResults}
+                    activityResults={displayActivityResults}
                     selectedBeds={selectedBeds[0]}
                 />
             )}
