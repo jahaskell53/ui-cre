@@ -64,6 +64,7 @@ export default function TrendsPage() {
     const [pendingMsa, setPendingMsa] = useState<{ geoid: string; name: string } | null | "loading">(null);
     const prevAreaTypeRef = useRef<string>("ZIP Code");
     const lastAddressFeatureRef = useRef<MapboxFeature | null>(null);
+    const lastAddressAreaIdRef = useRef<string | null>(null);
 
     const [display, setDisplay] = useState<"chart" | "table" | "map">("chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>([]);
@@ -273,6 +274,7 @@ export default function TrendsPage() {
         setAddressMode(false);
         setPendingFeature(null);
         lastAddressFeatureRef.current = null;
+        lastAddressAreaIdRef.current = null;
         setAddress("");
         setSuggestions([]);
         setAreaType(prevAreaTypeRef.current);
@@ -287,48 +289,62 @@ export default function TrendsPage() {
         setAddressMode(false);
         setShowAddInput(false);
         setAreaType(granularity);
-        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+
+        // When replacing an existing address area, reuse its color and slot
+        const replaceId = featureOverride ? lastAddressAreaIdRef.current : null;
+        const replaceArea = replaceId ? selectedAreas.find(a => a.id === replaceId) : null;
+        const color = replaceArea?.color ?? AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+        const applyArea = (id: string, area: AreaSelection) => {
+            lastAddressAreaIdRef.current = id;
+            if (replaceId) {
+                setSelectedAreas(prev => prev.map(a => a.id === replaceId ? area : a));
+                setAreaResults(prev => { const next = { ...prev }; if (replaceId !== id) delete next[replaceId]; return next; });
+            } else {
+                setSelectedAreas(prev => [...prev, area]);
+            }
+        };
 
         if (granularity === "ZIP Code") {
             const postcodeCtx = feature.context?.find(c => c.id.startsWith("postcode."))?.text;
             const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
-            if (!zip || selectedAreas.find(a => a.id === zip) || selectedAreas.length >= MAX_AREAS) return;
+            if (!zip) return;
+            if (!replaceId && (selectedAreas.find(a => a.id === zip) || selectedAreas.length >= MAX_AREAS)) return;
             const placeCtx = feature.context?.find(c => c.id.startsWith("place."))?.text;
             const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
-            setSelectedAreas(prev => [...prev, { id: zip, label, color }]);
+            applyArea(zip, { id: zip, label, color });
         } else if (granularity === "City") {
             const cityName = feature.context?.find(c => c.id.startsWith("place."))?.text ?? feature.text;
             const regionCtx = feature.context?.find(c => c.id.startsWith("region."));
             const stateCode = ((regionCtx as (typeof regionCtx) & { short_code?: string })?.short_code ?? "").replace("US-", "");
             const key = `city:${cityName}:${stateCode}`;
-            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
+            if (!replaceId && (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
             const label = stateCode ? `${cityName}, ${stateCode}` : cityName;
-            setSelectedAreas(prev => [...prev, { id: key, label, color, cityName, cityState: stateCode }]);
+            applyArea(key, { id: key, label, color, cityName, cityState: stateCode });
         } else if (granularity === "County") {
             const countyName = feature.context?.find(c => c.id.startsWith("district."))?.text;
             if (!countyName) return;
             const regionCtx = feature.context?.find(c => c.id.startsWith("region."));
             const stateCode = ((regionCtx as (typeof regionCtx) & { short_code?: string })?.short_code ?? "").replace("US-", "");
             const key = `county:${countyName}:${stateCode}`;
-            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
+            if (!replaceId && (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
             const label = stateCode ? `${countyName}, ${stateCode}` : countyName;
-            setSelectedAreas(prev => [...prev, { id: key, label, color, countyName, countyState: stateCode }]);
+            applyArea(key, { id: key, label, color, countyName, countyState: stateCode });
         } else if (granularity === "Neighborhood") {
             const [lng, lat] = feature.center;
             const { data } = await supabase.rpc("get_neighborhood_at_point", { p_lat: lat, p_lng: lng });
             const nh = (data as { id: number; name: string; city: string; state: string }[] | null)?.[0];
             if (!nh) return;
             const key = `nh:${nh.id}`;
-            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
-            setSelectedAreas(prev => [...prev, { id: key, label: `${nh.name} · ${nh.city}`, color, neighborhoodId: nh.id }]);
+            if (!replaceId && (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
+            applyArea(key, { id: key, label: `${nh.name} · ${nh.city}`, color, neighborhoodId: nh.id });
         } else if (granularity === "MSA") {
             const [lng, lat] = feature.center;
             const { data } = await supabase.rpc("get_msa_at_point", { p_lat: lat, p_lng: lng });
             const msa = (data as { id: number; name: string; name_lsad: string; geoid: string }[] | null)?.[0];
             if (!msa) return;
             const key = `msa:${msa.geoid}`;
-            if (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS) return;
-            setSelectedAreas(prev => [...prev, { id: key, label: msa.name, color, msaGeoid: msa.geoid }]);
+            if (!replaceId && (selectedAreas.find(a => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
+            applyArea(key, { id: key, label: msa.name, color, msaGeoid: msa.geoid });
         }
     };
 
@@ -541,7 +557,7 @@ export default function TrendsPage() {
                                 <Input
                                     placeholder={searchPlaceholder}
                                     value={address}
-                                    onChange={(e) => { setAddress(e.target.value); if (!addressMode) lastAddressFeatureRef.current = null; }}
+                                    onChange={(e) => { setAddress(e.target.value); if (!addressMode) { lastAddressFeatureRef.current = null; lastAddressAreaIdRef.current = null; } }}
                                     onKeyDown={(e) => {
                                         const list = areaType === "Neighborhood" && !addressMode ? nhSuggestions : areaType === "MSA" && !addressMode ? msaSuggestions : suggestions;
                                         if (e.key === "ArrowDown") {
