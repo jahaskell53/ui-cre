@@ -406,6 +406,9 @@ function CompsContent() {
                 ? `${primary.name} + ${newIds.length - 1} more`
                 : `${primary.name}, ${primary.city}`);
         }
+        // Auto-refresh comps when neighborhoods are toggled on the map
+        if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current);
+        autoRunTimerRef.current = setTimeout(() => { findComps(); }, 300);
     };
 
     const hasSubjectAttrs = subjectPrice || subjectBeds || subjectBaths || subjectArea;
@@ -691,6 +694,20 @@ function CompsContent() {
         if (zip) setCachedZip(zip);
         setSuggestions([]);
         setShowSuggestions(false);
+
+        // Auto-trigger search immediately with the selected address coords
+        runSearch({
+            addr: feature.place_name,
+            coords: feature.center,
+            radius: radiusMiles,
+            price: subjectPrice,
+            filterMode,
+            beds: subjectBeds,
+            baths: subjectBaths,
+            area: subjectArea,
+            segment: rentSegment,
+            zip: zip ?? cachedZip,
+        });
 
         // Auto-detect neighborhood in background so it's ready before search
         const [lng, lat] = feature.center;
