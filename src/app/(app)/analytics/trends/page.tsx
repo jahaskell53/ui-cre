@@ -47,7 +47,7 @@ const BED_OPTIONS = [
 const AREA_TYPES = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
 const MAP_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "County", "MSA"]);
-const MAX_AREAS = 5;
+const MAX_AREAS = 4;
 
 interface AreaResult {
     trends: TrendRow[];
