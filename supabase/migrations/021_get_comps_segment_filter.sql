@@ -1,3 +1,5 @@
+-- Replace boolean include_reits with text p_segment ('mid' | 'reit' | 'both')
+-- so the comps page can filter to mid-market only, REITs only, or both.
 CREATE OR REPLACE FUNCTION public.get_comps(
   subject_lng double precision,
   subject_lat double precision,

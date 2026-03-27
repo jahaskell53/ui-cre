@@ -92,7 +92,7 @@ interface SearchParams {
     beds: string;
     baths: string;
     area: string;
-    reits: boolean;
+    segment: 'mid' | 'reit' | 'both';
     filterMode: 'radius' | 'neighborhood';
     zip?: string | null;
 }
@@ -112,7 +112,8 @@ function CompsContent() {
     const initBeds = searchParams.get('beds') ?? '';
     const initBaths = searchParams.get('baths') ?? '';
     const initArea = searchParams.get('area') ?? '';
-    const initReits = searchParams.get('reits') === '1';
+    const rawSegment = searchParams.get('segment');
+    const initSegment: 'mid' | 'reit' | 'both' = (rawSegment === 'mid' || rawSegment === 'reit' || rawSegment === 'both') ? rawSegment : 'both';
     const initFilterMode = (searchParams.get('filterMode') ?? 'radius') as 'radius' | 'neighborhood';
     const initZip = searchParams.get('zip') ?? null;
 
@@ -126,7 +127,7 @@ function CompsContent() {
     const [subjectBaths, setSubjectBaths] = useState(initBaths);
     const [subjectArea, setSubjectArea] = useState(initArea);
 
-    const [includeReits, setIncludeReits] = useState(initReits);
+    const [rentSegment, setRentSegment] = useState<'mid' | 'reit' | 'both'>(initSegment);
     const [filterMode, setFilterMode] = useState<'radius' | 'neighborhood'>(initFilterMode);
     const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
     const [selectedNhIds, setSelectedNhIds] = useState<number[]>([]);
@@ -214,7 +215,7 @@ function CompsContent() {
         if (p.beds) url.set('beds', p.beds);
         if (p.baths) url.set('baths', p.baths);
         if (p.area) url.set('area', p.area);
-        if (p.reits) url.set('reits', '1');
+        url.set('segment', p.segment);
         if (p.filterMode !== 'radius') url.set('filterMode', p.filterMode);
         if (p.zip) url.set('zip', p.zip);
         router.replace(`/analytics/comps?${url.toString()}`, { scroll: false });
@@ -308,7 +309,7 @@ function CompsContent() {
                 subject_baths: p.baths ? parseFloat(p.baths) : null,
                 subject_area: p.area ? parseInt(p.area) : null,
 
-                include_reits: includeReits,
+                p_segment: rentSegment,
                 p_limit: 500,
                 p_neighborhood_ids: p.filterMode === 'neighborhood' ? nhIdsForSearch : null,
                 p_neighborhood_id: null,
@@ -353,7 +354,7 @@ function CompsContent() {
             setError("Something went wrong. Please try again.");
         }
         setLoading(false);
-    }, [includeReits, cachedZip, refreshCandidates]);
+    }, [rentSegment, cachedZip, refreshCandidates]);
 
     // Re-run search when any filter changes (if a search has already been run)
     useEffect(() => {
@@ -362,13 +363,13 @@ function CompsContent() {
         autoRunTimerRef.current = setTimeout(() => { findComps(); }, 500);
         return () => { if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [includeReits, subjectPrice, subjectBeds, subjectBaths, subjectArea, radiusMiles, filterMode]);
+    }, [rentSegment, subjectPrice, subjectBeds, subjectBaths, subjectArea, radiusMiles, filterMode]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
         if (didAutoSearch.current || !initAddress) return;
         didAutoSearch.current = true;
-        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, reits: initReits, filterMode: initFilterMode, zip: initZip });
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, segment: initSegment, filterMode: initFilterMode, zip: initZip });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -382,7 +383,7 @@ function CompsContent() {
             beds: subjectBeds,
             baths: subjectBaths,
             area: subjectArea,
-            reits: includeReits,
+            segment: rentSegment,
             zip: cachedZip,
         };
         pushToUrl(p);
@@ -1025,16 +1026,20 @@ function CompsContent() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2">
-                            <input
-                                type="checkbox"
-                                id="include-reits"
-                                checked={includeReits}
-                                onChange={(e) => setIncludeReits(e.target.checked)}
-                                className="h-3.5 w-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
-                            />
-                            <label htmlFor="include-reits" className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                                Include REIT units
-                            </label>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">Segment</span>
+                            <div className="flex flex-wrap gap-1.5">
+                                {(['both', 'mid', 'reit'] as const).map((seg) => (
+                                    <button
+                                        key={seg}
+                                        type="button"
+                                        onClick={() => setRentSegment(seg)}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs whitespace-nowrap transition-all ${rentSegment === seg ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                    >
+                                        <span className={`size-1.5 rounded-full border transition-all ${rentSegment === seg ? 'bg-blue-500 border-blue-500 dark:bg-blue-400 dark:border-blue-400' : 'border-gray-300 dark:border-gray-500'}`} />
+                                        {seg === 'both' ? 'Both' : seg === 'mid' ? 'Mid-market' : 'REIT'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                         <Button onClick={findComps} disabled={loading || !address.trim()} className="w-full mt-2">
                             {loading ? 'Searching...' : 'Find Comps'}
