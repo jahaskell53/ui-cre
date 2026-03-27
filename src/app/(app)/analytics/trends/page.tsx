@@ -524,7 +524,7 @@ export default function TrendsPage() {
                     <button type="button" onClick={() => setDisplay("table")} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "table" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <Table2 className="size-3.5" /> Table
                     </button>
-                    <button type="button" onClick={() => { setDisplay("map"); if (!MAP_AREA_TYPES.has(areaType)) setAreaType("ZIP Code"); setAddress(""); setSuggestions([]); setNhSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                    <button type="button" onClick={() => { setDisplay("map"); if (!MAP_AREA_TYPES.has(areaType)) { setAreaType("ZIP Code"); setSelectedAreas([]); } setAddress(""); setSuggestions([]); setNhSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <Map className="size-3.5" /> Map
                     </button>
                 </div>
@@ -552,7 +552,7 @@ export default function TrendsPage() {
                                             if (lastAddressFeatureRef.current && t !== areaType) {
                                                 resolveGranularity(t, lastAddressFeatureRef.current);
                                             } else {
-                                                setAreaType(t); setAddress(""); setSuggestions([]); setNhSuggestions([]); setPendingFeature(null);
+                                                setAreaType(t); setSelectedAreas([]); setAddress(""); setSuggestions([]); setNhSuggestions([]); setPendingFeature(null);
                                             }
                                         }
                                     }}
