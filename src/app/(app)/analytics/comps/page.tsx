@@ -148,6 +148,7 @@ function CompsContent() {
         } catch { return null; }
     });
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const autoRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
     const miniMapContainerRef = useRef<HTMLDivElement>(null);
     const miniMapInstance = useRef<mapboxgl.Map | null>(null);
@@ -354,12 +355,14 @@ function CompsContent() {
         setLoading(false);
     }, [areaTolerance, includeReits, cachedZip, refreshCandidates]);
 
-    // Re-run search when filters change (if a search has already been run)
+    // Re-run search when any filter changes (if a search has already been run)
     useEffect(() => {
         if (!comps) return;
-        findComps();
+        if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current);
+        autoRunTimerRef.current = setTimeout(() => { findComps(); }, 500);
+        return () => { if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [areaTolerance, includeReits]);
+    }, [areaTolerance, includeReits, subjectPrice, subjectBeds, subjectBaths, subjectArea, radiusMiles, filterMode]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
