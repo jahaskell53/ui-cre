@@ -46,6 +46,7 @@ const BED_OPTIONS = [
 
 const AREA_TYPES = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
+const MAP_AREA_TYPES = new Set(["ZIP Code", "Neighborhood"]);
 const MAX_AREAS = 5;
 
 interface AreaResult {
@@ -428,6 +429,14 @@ export default function TrendsPage() {
         setSelectedAreas(prev => [...prev, { id: zip, label: zip, color }]);
     };
 
+    const addAreaByNeighborhood = (id: number, name: string, city: string) => {
+        const key = `nh:${id}`;
+        if (selectedAreas.find(a => a.id === key)) { removeArea(key); return; }
+        if (selectedAreas.length >= MAX_AREAS) return;
+        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+        setSelectedAreas(prev => [...prev, { id: key, label: `${name} · ${city}`, color, neighborhoodId: id }]);
+    };
+
     const removeArea = (id: string) => {
         setSelectedAreas(prev => prev.filter(a => a.id !== id));
         setAreaResults(prev => {
@@ -498,7 +507,7 @@ export default function TrendsPage() {
                     <button type="button" onClick={() => setDisplay("table")} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "table" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <Table2 className="size-3.5" /> Table
                     </button>
-                    <button type="button" onClick={() => { setDisplay("map"); setAreaType("ZIP Code"); setAddress(""); setSuggestions([]); setNhSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+                    <button type="button" onClick={() => { setDisplay("map"); if (!MAP_AREA_TYPES.has(areaType)) setAreaType("ZIP Code"); setAddress(""); setSuggestions([]); setNhSuggestions([]); }} className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-gray-200 dark:border-gray-600 transition-colors ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                         <Map className="size-3.5" /> Map
                     </button>
                 </div>
@@ -506,12 +515,12 @@ export default function TrendsPage() {
 
             {/* Filter panel */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6 space-y-4">
-                {/* Area type — hidden in Map display mode */}
-                {(display === "chart" || display === "table") && <div className="flex items-center gap-4">
+                {/* Area type — in map mode only show map-supported types */}
+                {(display === "chart" || display === "table" || display === "map") && <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Area type</span>
                     <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
-                        {AREA_TYPES.map((t, i) => {
-                            const enabled = ENABLED_AREA_TYPES.has(t);
+                        {(display === "map" ? AREA_TYPES.filter(t => MAP_AREA_TYPES.has(t)) : AREA_TYPES).map((t, i) => {
+                            const enabled = display === "map" ? MAP_AREA_TYPES.has(t) : ENABLED_AREA_TYPES.has(t);
                             const active = !addressMode && areaType === t;
                             const dimmed = addressMode && !pendingFeature;
                             const resolvable = addressMode && !!pendingFeature;
@@ -763,10 +772,12 @@ export default function TrendsPage() {
             {/* Map display */}
             {display === "map" && (
                 <ZipTrendsMap
+                    areaType={areaType as "ZIP Code" | "Neighborhood"}
                     selectedBeds={selectedBeds[0]}
                     reitsOnly={selectedSources.length === 1 && selectedSources[0] === 'reit'}
                     selectedAreas={selectedAreas}
-                    onAddArea={addAreaByZip}
+                    onAddZip={addAreaByZip}
+                    onAddNeighborhood={addAreaByNeighborhood}
                 />
             )}
 

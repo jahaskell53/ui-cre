@@ -15,7 +15,7 @@ const PERIOD_OPTIONS = [
     { weeks: 52, label: "1y" },
 ];
 
-interface MapTrendPoint {
+interface ZipPoint {
     zip: string;
     geom_json: string;
     current_median: number;
@@ -24,24 +24,43 @@ interface MapTrendPoint {
     listing_count: number;
 }
 
+interface NhPoint {
+    neighborhood_id: number;
+    name: string;
+    city: string;
+    geom_json: string;
+    current_median: number;
+    prior_median: number;
+    pct_change: number | null;
+    listing_count: number;
+}
+
+type MapPoint = ZipPoint | NhPoint;
+
+function isNhPoint(p: MapPoint): p is NhPoint {
+    return "neighborhood_id" in p;
+}
+
 interface Props {
+    areaType: "ZIP Code" | "Neighborhood";
     selectedBeds: number;
     reitsOnly: boolean;
     selectedAreas: AreaSelection[];
-    onAddArea: (zip: string) => void;
+    onAddZip: (zip: string) => void;
+    onAddNeighborhood: (id: number, name: string, city: string) => void;
 }
 
-export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea }: Props) {
+export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas, onAddZip, onAddNeighborhood }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const popupRef = useRef<mapboxgl.Popup | null>(null);
-    const onAddAreaRef = useRef(onAddArea);
+    const callbacksRef = useRef({ onAddZip, onAddNeighborhood });
     const [mapLoaded, setMapLoaded] = useState(false);
     const [weeksBack, setWeeksBack] = useState(13);
-    const [data, setData] = useState<MapTrendPoint[]>([]);
+    const [data, setData] = useState<MapPoint[]>([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => { onAddAreaRef.current = onAddArea; }, [onAddArea]);
+    useEffect(() => { callbacksRef.current = { onAddZip, onAddNeighborhood }; }, [onAddZip, onAddNeighborhood]);
 
     // Init map once
     useEffect(() => {
@@ -60,36 +79,62 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
         return () => { m.remove(); mapRef.current = null; setMapLoaded(false); };
     }, []);
 
-    // Fetch data
+    // Fetch data when params change
     useEffect(() => {
         setLoading(true);
-        supabase
-            .rpc("get_map_rent_trends", { p_beds: selectedBeds, p_weeks_back: weeksBack, p_reits_only: reitsOnly })
-            .then(({ data: rows, error }) => {
-                setLoading(false);
-                if (!error && rows) setData(rows as MapTrendPoint[]);
-            });
-    }, [selectedBeds, weeksBack, reitsOnly]);
+        setData([]);
+        if (areaType === "Neighborhood") {
+            supabase
+                .rpc("get_map_rent_trends_by_neighborhood", { p_beds: selectedBeds, p_weeks_back: weeksBack, p_reits_only: reitsOnly })
+                .then(({ data: rows, error }) => {
+                    setLoading(false);
+                    if (!error && rows) setData(rows as NhPoint[]);
+                });
+        } else {
+            supabase
+                .rpc("get_map_rent_trends", { p_beds: selectedBeds, p_weeks_back: weeksBack, p_reits_only: reitsOnly })
+                .then(({ data: rows, error }) => {
+                    setLoading(false);
+                    if (!error && rows) setData(rows as ZipPoint[]);
+                });
+        }
+    }, [areaType, selectedBeds, weeksBack, reitsOnly]);
 
     // Build/update map layers
     useEffect(() => {
         const m = mapRef.current;
         if (!m || !mapLoaded) return;
 
-        const selectedZips = new Set(selectedAreas.map(a => a.id));
+        const selectedIds = new Set(
+            selectedAreas.map(a => a.neighborhoodId != null ? `nh:${a.neighborhoodId}` : a.id)
+        );
 
         const geojson: GeoJSON.FeatureCollection = {
             type: "FeatureCollection",
             features: data.map(d => ({
                 type: "Feature",
                 geometry: JSON.parse(d.geom_json) as GeoJSON.Geometry,
-                properties: {
-                    zip: d.zip,
-                    pct_change: d.pct_change ?? null,
-                    current_median: d.current_median,
-                    listing_count: d.listing_count,
-                    selected: selectedZips.has(d.zip),
-                },
+                properties: isNhPoint(d)
+                    ? {
+                        _id: `nh:${d.neighborhood_id}`,
+                        _type: "neighborhood",
+                        neighborhood_id: d.neighborhood_id,
+                        label: `${d.name} · ${d.city}`,
+                        pct_change: d.pct_change ?? null,
+                        current_median: d.current_median,
+                        listing_count: d.listing_count,
+                        selected: selectedIds.has(`nh:${d.neighborhood_id}`),
+                    }
+                    : {
+                        _id: d.zip,
+                        _type: "zip",
+                        zip: d.zip,
+                        label: d.zip,
+                        pct_change: d.pct_change ?? null,
+                        current_median: d.current_median,
+                        listing_count: d.listing_count,
+                        selected: selectedIds.has(d.zip),
+                    },
             })),
         };
 
@@ -147,12 +192,11 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
             },
         });
 
-        // Hover — update content + position on every move so it tracks across zip boundaries
         m.on("mousemove", "zip-fill", (e) => {
             m.getCanvas().style.cursor = "pointer";
             const f = e.features?.[0];
             if (!f) return;
-            const p = f.properties as { zip: string; pct_change: number | null; current_median: number; listing_count: number };
+            const p = f.properties as { label: string; pct_change: number | null; current_median: number; listing_count: number };
             const pct = p.pct_change != null
                 ? `<span style="color:${p.pct_change >= 0 ? "#16a34a" : "#dc2626"};font-weight:600">${p.pct_change >= 0 ? "+" : ""}${p.pct_change}%</span>`
                 : '<span style="color:#9ca3af">—</span>';
@@ -160,7 +204,7 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
                 ?.setLngLat(e.lngLat)
                 .setHTML(`
                     <div style="font-family:system-ui;font-size:13px;line-height:1.6;padding:2px 0">
-                        <div style="font-weight:600;margin-bottom:1px">${p.zip}</div>
+                        <div style="font-weight:600;margin-bottom:1px">${p.label}</div>
                         <div>${formatDollars(p.current_median)}/mo &nbsp;·&nbsp; ${pct}</div>
                         <div style="color:#9ca3af;font-size:11px">${p.listing_count} listing${p.listing_count !== 1 ? "s" : ""}</div>
                         <div style="color:#3b82f6;font-size:11px;margin-top:3px">Click to compare</div>
@@ -175,8 +219,13 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
         });
 
         m.on("click", "zip-fill", (e) => {
-            const zip = e.features?.[0]?.properties?.zip as string | undefined;
-            if (zip) onAddAreaRef.current(zip);
+            const props = e.features?.[0]?.properties as { _type: string; zip?: string; neighborhood_id?: number; name?: string; city?: string } | undefined;
+            if (!props) return;
+            if (props._type === "neighborhood" && props.neighborhood_id != null) {
+                callbacksRef.current.onAddNeighborhood(props.neighborhood_id, props.name ?? "", props.city ?? "");
+            } else if (props._type === "zip" && props.zip) {
+                callbacksRef.current.onAddZip(props.zip);
+            }
         });
     }, [data, selectedAreas, mapLoaded]);
 
@@ -212,7 +261,7 @@ export function ZipTrendsMap({ selectedBeds, reitsOnly, selectedAreas, onAddArea
             <div ref={containerRef} className="h-[520px] w-full" />
             {data.length > 0 && (
                 <p className="px-5 py-2 text-xs text-gray-400 border-t border-gray-100 dark:border-gray-700">
-                    {data.length} zip codes · click a region to add to comparison
+                    {data.length} {areaType === "Neighborhood" ? "neighborhoods" : "zip codes"} · click a region to add to comparison
                 </p>
             )}
         </div>
