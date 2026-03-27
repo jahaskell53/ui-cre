@@ -490,13 +490,14 @@ export default function TrendsPage() {
     const hasData = displayAreas.some(a => (displayRentResults[a.id]?.length ?? 0) > 0);
     const hasActivity = displayAreas.some(a => (displayActivityResults[a.id]?.length ?? 0) > 0);
 
-    const segmentToggle = (label: string, active: boolean, onClick: () => void, first = false) => (
+    const segmentToggle = (label: string, active: boolean, onClick: () => void, _first = false) => (
         <button
             key={label}
             type="button"
             onClick={onClick}
-            className={`px-3 py-1.5 whitespace-nowrap transition-colors text-sm ${first ? '' : 'border-l border-gray-200 dark:border-gray-600'} ${active ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm whitespace-nowrap transition-all ${active ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
         >
+            <span className={`size-2 rounded-full border transition-all ${active ? 'bg-blue-500 border-blue-500 dark:bg-blue-400 dark:border-blue-400' : 'border-gray-300 dark:border-gray-500'}`} />
             {label}
         </button>
     );
@@ -752,7 +753,7 @@ export default function TrendsPage() {
                 {/* Bedrooms — multi-select for cross-bedroom comparison */}
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Bedrooms</span>
-                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                    <div className="flex flex-wrap gap-2">
                         {BED_OPTIONS.map((opt, i) => segmentToggle(
                             opt.label,
                             selectedBeds.includes(opt.beds),
@@ -772,7 +773,7 @@ export default function TrendsPage() {
                 {/* Segment */}
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Segment</span>
-                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                    <div className="flex flex-wrap gap-2">
                         {segmentToggle("Mid-market", selectedSources.includes('mid'), () => setSelectedSources(prev => {
                             if (prev.includes('mid')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'mid'); }
                             return prev.includes('reit') ? ['mid', 'reit'] : ['mid'];
