@@ -25,6 +25,7 @@ interface Filters {
     capRateMax: string;
     sqftMin: string;
     sqftMax: string;
+    beds: number[]; // empty = any; values: 0=Studio, 1,2,3,4+ (4 means >=4)
 }
 
 const defaultFilters: Filters = {
@@ -34,7 +35,16 @@ const defaultFilters: Filters = {
     capRateMax: "",
     sqftMin: "",
     sqftMax: "",
+    beds: [],
 };
+
+const BED_OPTIONS = [
+    { label: "Studio", value: 0 },
+    { label: "1", value: 1 },
+    { label: "2", value: 2 },
+    { label: "3", value: 3 },
+    { label: "4+", value: 4 },
+];
 
 
 function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
@@ -87,6 +97,7 @@ function MapPageInner() {
         if (filters.priceMin || filters.priceMax) count++;
         if (filters.capRateMin || filters.capRateMax) count++;
         if (filters.sqftMin || filters.sqftMax) count++;
+        if (filters.beds.length > 0) count++;
         return count;
     }, [filters]);
 
@@ -289,6 +300,17 @@ function MapPageInner() {
                 const maxSqft = parseFloat(currentFilters.sqftMax);
                 if (!isNaN(maxSqft)) zillowQuery = zillowQuery.lte('area', maxSqft);
             }
+            if (currentFilters.beds.length > 0) {
+                const exact = currentFilters.beds.filter(b => b < 4);
+                const hasPlus = currentFilters.beds.includes(4);
+                if (exact.length > 0 && hasPlus) {
+                    zillowQuery = zillowQuery.or(`beds.in.(${exact.join(',')}),beds.gte.4`);
+                } else if (hasPlus) {
+                    zillowQuery = zillowQuery.gte('beds', 4);
+                } else {
+                    zillowQuery = zillowQuery.in('beds', exact);
+                }
+            }
             if (bounds) {
                 zillowQuery = zillowQuery
                     .gte('latitude', bounds.south).lte('latitude', bounds.north)
@@ -366,6 +388,17 @@ function MapPageInner() {
             if (!isNaN(maxSqft)) {
                 loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
                 zillowQuery = zillowQuery.lte('area', maxSqft);
+            }
+        }
+        if (currentFilters.beds.length > 0) {
+            const exact = currentFilters.beds.filter(b => b < 4);
+            const hasPlus = currentFilters.beds.includes(4);
+            if (exact.length > 0 && hasPlus) {
+                zillowQuery = zillowQuery.or(`beds.in.(${exact.join(',')}),beds.gte.4`);
+            } else if (hasPlus) {
+                zillowQuery = zillowQuery.gte('beds', 4);
+            } else {
+                zillowQuery = zillowQuery.in('beds', exact);
             }
         }
         if (bounds) {
@@ -494,6 +527,32 @@ function MapPageInner() {
                                 )}
                             </div>
                             <div className="space-y-3">
+                                {mapListingSource !== 'loopnet' && (
+                                    <div>
+                                        <Label className="text-xs">Bedrooms</Label>
+                                        <div className="flex gap-1.5 mt-1 flex-wrap">
+                                            {BED_OPTIONS.map(({ label, value }) => (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => setFilters(prev => ({
+                                                        ...prev,
+                                                        beds: prev.beds.includes(value)
+                                                            ? prev.beds.filter(b => b !== value)
+                                                            : [...prev.beds, value],
+                                                    }))}
+                                                    className={cn(
+                                                        "px-2.5 py-1 text-xs rounded-md border transition-colors",
+                                                        filters.beds.includes(value)
+                                                            ? "bg-blue-600 text-white border-blue-600"
+                                                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                                                    )}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 <div>
                                     <Label className="text-xs">Price Range</Label>
                                     <div className="flex gap-2 mt-1">
