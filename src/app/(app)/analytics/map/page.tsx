@@ -77,7 +77,7 @@ function MapPageInner() {
     const [searchQuery, setSearchQuery] = useState("");
     const [filters, setFilters] = useState<Filters>(defaultFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [mapListingSource, setMapListingSource] = useState<MapListingSource>("all");
+    const [mapListingSource, setMapListingSource] = useState<MapListingSource>("zillow");
     const [showLatestOnly, setShowLatestOnly] = useState(true);
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
