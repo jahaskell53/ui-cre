@@ -131,6 +131,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     const [unitsPage, setUnitsPage] = useState(1);
     const [heroImages, setHeroImages] = useState<string[] | null>(null);
     const [heroIndex, setHeroIndex] = useState(0);
+    const [offMarketDate, setOffMarketDate] = useState<string | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<mapboxgl.Map | null>(null);
 
@@ -179,6 +180,54 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
 
         load();
     }, [rawId]);
+
+    useEffect(() => {
+        if (!listing) return;
+        async function checkOffMarket() {
+            if (listing!.source === 'zillow') {
+                const zpid = (listing as ZillowListing).zpid;
+                if (!zpid) return;
+                const { data: latestRun } = await supabase
+                    .from('cleaned_listings')
+                    .select('run_id')
+                    .order('run_id', { ascending: false })
+                    .limit(1)
+                    .single();
+                if (!latestRun?.run_id) return;
+                const { count } = await supabase
+                    .from('cleaned_listings')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('zpid', zpid)
+                    .eq('run_id', latestRun.run_id);
+                if (count === 0) {
+                    const { data: lastSeen } = await supabase
+                        .from('cleaned_listings')
+                        .select('scraped_at')
+                        .eq('zpid', zpid)
+                        .order('scraped_at', { ascending: false })
+                        .limit(1)
+                        .single();
+                    if (lastSeen?.scraped_at) setOffMarketDate(lastSeen.scraped_at);
+                }
+            } else {
+                const { data: latestRun } = await supabase
+                    .from('loopnet_listings')
+                    .select('run_id')
+                    .order('run_id', { ascending: false })
+                    .limit(1)
+                    .single();
+                if (!latestRun?.run_id) return;
+                if ((listing as LoopnetListing).source === 'loopnet') {
+                    const listingRunId = (listing as unknown as Record<string, unknown>).run_id;
+                    if (listingRunId != null && listingRunId !== latestRun.run_id) {
+                        const createdAt = (listing as LoopnetListing).created_at;
+                        if (createdAt) setOffMarketDate(createdAt);
+                    }
+                }
+            }
+        }
+        checkOffMarket();
+    }, [listing]);
 
     useEffect(() => {
         async function loadHeroImages() {
@@ -433,6 +482,22 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     </dd>
                                 </div>
                             )}
+                            {listing.scraped_at && (
+                                <div className="flex justify-between">
+                                    <dt className="text-gray-500 dark:text-gray-400">Listed on</dt>
+                                    <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                        {new Date(listing.scraped_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                    </dd>
+                                </div>
+                            )}
+                            {offMarketDate && (
+                                <div className="flex justify-between">
+                                    <dt className="text-gray-500 dark:text-gray-400">Off market</dt>
+                                    <dd className="font-medium text-orange-600 dark:text-orange-400">
+                                        {new Date(offMarketDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                    </dd>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <>
@@ -452,6 +517,22 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                 <dt className="text-gray-500 dark:text-gray-400">Sq Ft</dt>
                                 <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.square_footage || "—"}</dd>
                             </div>
+                            {listing.created_at && (
+                                <div className="flex justify-between">
+                                    <dt className="text-gray-500 dark:text-gray-400">Listed on</dt>
+                                    <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                        {new Date(listing.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                    </dd>
+                                </div>
+                            )}
+                            {offMarketDate && (
+                                <div className="flex justify-between">
+                                    <dt className="text-gray-500 dark:text-gray-400">Off market</dt>
+                                    <dd className="font-medium text-orange-600 dark:text-orange-400">
+                                        {new Date(offMarketDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                    </dd>
+                                </div>
+                            )}
                         </>
                     )}
                 </dl>
