@@ -922,12 +922,13 @@ function CompsContent() {
                                 selectedCoords ? "h-80" : "h-0"
                             )}
                         />
-                        {!loading && comps && comps.length > 0 && (
+                        {(loading || (comps && comps.length > 0)) && selectedCoords && (
                             <div className="mt-2 flex justify-center gap-3">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    disabled={loading}
                                     onClick={() => {
                                         const total = miniMapCompMarkersRef.current.length;
                                         if (!total) return;
@@ -963,6 +964,7 @@ function CompsContent() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    disabled={loading}
                                     onClick={() => {
                                         const total = miniMapCompMarkersRef.current.length;
                                         if (!total) return;
