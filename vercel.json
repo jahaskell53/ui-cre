@@ -37,7 +37,7 @@
     },
     {
       "path": "/api/news/categorize-articles",
-      "schedule": "0 15 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/news/prepare-newsletters",
