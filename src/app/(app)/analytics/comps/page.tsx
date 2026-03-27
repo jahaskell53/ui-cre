@@ -997,6 +997,26 @@ function CompsContent() {
                             </div>
                         )}
 
+                        <div className="flex items-center gap-2">
+                            <Label className="text-xs">Segment</Label>
+                            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                                {(['both', 'mid', 'reit'] as const).map((seg) => (
+                                    <button
+                                        key={seg}
+                                        type="button"
+                                        onClick={() => setRentSegment(seg)}
+                                        className={cn(
+                                            "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                                            rentSegment === seg
+                                                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
+                                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                                        )}
+                                    >
+                                        {seg === 'both' ? 'Both' : seg === 'mid' ? 'Mid-market' : 'REIT'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         {/* Optional subject attributes */}
                         <div>
                             <p className="text-xs text-gray-500 mb-2">
@@ -1023,26 +1043,6 @@ function CompsContent() {
                                     <Input type="number" placeholder="e.g. 1200" value={subjectArea}
                                         onChange={(e) => setSubjectArea(e.target.value)} className="h-8 text-xs" />
                                 </div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                            <Label className="text-xs">Segment</Label>
-                            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
-                                {(['both', 'mid', 'reit'] as const).map((seg) => (
-                                    <button
-                                        key={seg}
-                                        type="button"
-                                        onClick={() => setRentSegment(seg)}
-                                        className={cn(
-                                            "px-3 py-1 text-xs font-medium rounded-md transition-colors",
-                                            rentSegment === seg
-                                                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
-                                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
-                                        )}
-                                    >
-                                        {seg === 'both' ? 'Both' : seg === 'mid' ? 'Mid-market' : 'REIT'}
-                                    </button>
-                                ))}
                             </div>
                         </div>
                         <Button onClick={findComps} disabled={loading || !address.trim()} className="w-full mt-2">
