@@ -41,11 +41,12 @@ interface MapProps {
     selectedId?: string | number | null;
     initialCenter?: [number, number];
     initialZoom?: number;
+    fitBoundsTarget?: MapBounds | null;
     onBoundsChange?: (bounds: MapBounds) => void;
     onViewChange?: (lat: number, lng: number, zoom: number) => void;
 }
 
-export const PropertyMap = ({ className, properties, selectedId, initialCenter, initialZoom, onBoundsChange, onViewChange }: MapProps) => {
+export const PropertyMap = ({ className, properties, selectedId, initialCenter, initialZoom, fitBoundsTarget, onBoundsChange, onViewChange }: MapProps) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
@@ -55,6 +56,12 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
 
     useEffect(() => { onBoundsChangeRef.current = onBoundsChange; });
     useEffect(() => { onViewChangeRef.current = onViewChange; });
+
+    useEffect(() => {
+        if (!fitBoundsTarget || !map.current) return;
+        const { west, south, east, north } = fitBoundsTarget;
+        map.current.fitBounds([[west, south], [east, north]], { padding: 40, duration: 600 });
+    }, [fitBoundsTarget]);
 
     useEffect(() => {
         if (!mapContainer.current || map.current) return;

@@ -7,6 +7,8 @@ import {
     Search,
     Filter,
     Building2,
+    MapPin,
+    X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,37 @@ import { PropertyMap, type Property, type UnitMixRow, type MapBounds } from "@/c
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
 
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
+
 type MapListingSource = "loopnet" | "zillow";
+type AreaType = 'zip' | 'neighborhood' | 'city' | 'county' | 'msa';
+
+interface AreaFilter {
+    type: AreaType;
+    label: string;
+    zipCode?: string;
+    cityName?: string;
+    cityState?: string;
+    neighborhoodId?: number;
+    countyName?: string;
+    countyState?: string;
+    msaGeoid?: string;
+    bbox?: MapBounds;
+}
+
+type AreaSuggestion =
+    | { kind: 'neighborhood'; id: number; name: string; city: string; state: string }
+    | { kind: 'mapbox'; feature: MapboxFeature }
+    | { kind: 'msa'; id: number; geoid: string; name: string; name_lsad: string };
+
+interface MapboxFeature {
+    id: string;
+    text: string;
+    place_name: string;
+    center: [number, number];
+    bbox?: [number, number, number, number];
+    context?: Array<{ id: string; text: string; short_code?: string }>;
+}
 
 interface Filters {
     priceMin: string;
@@ -25,7 +57,7 @@ interface Filters {
     capRateMax: string;
     sqftMin: string;
     sqftMax: string;
-    beds: number[]; // empty = any; values: 0=Studio, 1,2,3,4+ (4 means >=4)
+    beds: number[];
     propertyType: 'both' | 'reit' | 'mid-market';
 }
 
@@ -48,6 +80,21 @@ const BED_OPTIONS = [
     { label: "4+", value: 4 },
 ];
 
+const AREA_TYPE_LABELS: Record<AreaType, string> = {
+    zip: 'ZIP',
+    neighborhood: 'Neighborhood',
+    city: 'City',
+    county: 'County',
+    msa: 'MSA',
+};
+
+const AREA_TYPE_PLACEHOLDERS: Record<AreaType, string> = {
+    zip: 'Enter zip code…',
+    neighborhood: 'Search neighborhood…',
+    city: 'Search city…',
+    county: 'Search county…',
+    msa: 'Search metro area…',
+};
 
 function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
     return (
@@ -86,13 +133,22 @@ function MapPageInner() {
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
-    const [searchQuery, setSearchQuery] = useState("");
     const [filters, setFilters] = useState<Filters>(defaultFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>("zillow");
     const [showLatestOnly, setShowLatestOnly] = useState(true);
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Area-type search state
+    const [areaType, setAreaType] = useState<AreaType>('zip');
+    const [areaFilter, setAreaFilter] = useState<AreaFilter | null>(null);
+    const [areaInput, setAreaInput] = useState('');
+    const [areaSuggestions, setAreaSuggestions] = useState<AreaSuggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [fitBoundsTarget, setFitBoundsTarget] = useState<MapBounds | null>(null);
+    const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputWrapperRef = useRef<HTMLDivElement>(null);
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -102,14 +158,111 @@ function MapPageInner() {
         if (mapListingSource === 'zillow' && filters.beds.length > 0) count++;
         if (mapListingSource === 'zillow' && filters.propertyType !== 'both') count++;
         return count;
-    }, [filters]);
+    }, [filters, mapListingSource]);
 
-    const clearFilters = () => {
-        setFilters(defaultFilters);
+    const clearFilters = () => { setFilters(defaultFilters); };
+
+    const clearAreaFilter = () => {
+        setAreaFilter(null);
+        setAreaInput('');
+        setAreaSuggestions([]);
     };
 
-    const fetchProperties = useCallback(async (search: string, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null, latestOnly: boolean) => {
+    // Autocomplete suggestions based on area type
+    useEffect(() => {
+        if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+        if (areaFilter || areaInput.length < 2 || areaType === 'zip') {
+            setAreaSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+        suggestTimerRef.current = setTimeout(async () => {
+            if (areaType === 'neighborhood') {
+                const { data } = await supabase.rpc('search_neighborhoods', { p_query: areaInput });
+                setAreaSuggestions(((data ?? []) as { id: number; name: string; city: string; state: string }[]).map(r => ({ kind: 'neighborhood' as const, ...r })));
+                setShowSuggestions(true);
+            } else if (areaType === 'msa') {
+                const { data } = await supabase.rpc('search_msas', { p_query: areaInput });
+                setAreaSuggestions(((data ?? []) as { id: number; geoid: string; name: string; name_lsad: string }[]).map(r => ({ kind: 'msa' as const, ...r })));
+                setShowSuggestions(true);
+            } else {
+                const mapboxType = areaType === 'city' ? 'place' : 'district';
+                try {
+                    const res = await fetch(
+                        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(areaInput)}.json?access_token=${MAPBOX_TOKEN}&types=${mapboxType}&country=US&limit=6`
+                    );
+                    const json = await res.json();
+                    setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map(f => ({ kind: 'mapbox' as const, feature: f })));
+                    setShowSuggestions(true);
+                } catch { setAreaSuggestions([]); }
+            }
+        }, 300);
+    }, [areaInput, areaType, areaFilter]);
+
+    // Close suggestions on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (inputWrapperRef.current && !inputWrapperRef.current.contains(e.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const commitZip = (zip: string) => {
+        const v = zip.trim();
+        if (!v) return;
+        setAreaFilter({ type: 'zip', label: v, zipCode: v });
+        setShowSuggestions(false);
+    };
+
+    const selectSuggestion = async (s: AreaSuggestion) => {
+        setShowSuggestions(false);
+        setAreaSuggestions([]);
+
+        if (s.kind === 'neighborhood') {
+            const { data } = await supabase.rpc('get_neighborhood_bbox', { p_neighborhood_id: s.id });
+            const row = (data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
+            const bbox: MapBounds | undefined = row ? { west: row.west, south: row.south, east: row.east, north: row.north } : undefined;
+            const label = `${s.name} · ${s.city}`;
+            setAreaInput(label);
+            setAreaFilter({ type: 'neighborhood', label, neighborhoodId: s.id, bbox });
+            if (bbox) setFitBoundsTarget(bbox);
+        } else if (s.kind === 'msa') {
+            const { data } = await supabase.rpc('get_msa_bbox', { p_geoid: s.geoid });
+            const row = (data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
+            const bbox: MapBounds | undefined = row ? { west: row.west, south: row.south, east: row.east, north: row.north } : undefined;
+            const label = s.name_lsad || s.name;
+            setAreaInput(label);
+            setAreaFilter({ type: 'msa', label, msaGeoid: s.geoid, bbox });
+            if (bbox) setFitBoundsTarget(bbox);
+        } else {
+            const feature = s.feature;
+            const regionCtx = feature.context?.find(c => c.id.startsWith('region.'));
+            const stateCode = regionCtx?.short_code?.replace('US-', '') ?? '';
+            const mb = feature.bbox;
+            const bbox: MapBounds | undefined = mb ? { west: mb[0], south: mb[1], east: mb[2], north: mb[3] } : undefined;
+            if (areaType === 'city') {
+                const label = stateCode ? `${feature.text}, ${stateCode}` : feature.text;
+                setAreaInput(label);
+                setAreaFilter({ type: 'city', label, cityName: feature.text, cityState: stateCode, bbox });
+                if (bbox) setFitBoundsTarget(bbox);
+            } else {
+                // county
+                const label = stateCode ? `${feature.text}, ${stateCode}` : feature.text;
+                setAreaInput(label);
+                setAreaFilter({ type: 'county', label, countyName: feature.text, countyState: stateCode, bbox });
+                if (bbox) setFitBoundsTarget(bbox);
+            }
+        }
+    };
+
+    const fetchProperties = useCallback(async (activeAreaFilter: AreaFilter | null, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null, latestOnly: boolean) => {
         setLoading(true);
+
+        // Which bounds to use for geographic clipping
+        const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
 
         type RowWithDate = Property & { _createdAt?: string };
         const mapLoopnet = (item: Record<string, unknown>): RowWithDate => ({
@@ -162,7 +315,6 @@ function MapPageInner() {
                 const fullAddress = (first.address_raw as string) ||
                     [first.address_street, city, first.address_state, first.address_zip].filter(Boolean).join(', ') ||
                     'Address not listed';
-                // Build unit mix grouped by (beds, baths)
                 const mixMap: Record<string, { beds: number | null; baths: number | null; count: number; totalPrice: number; validPriceCount: number }> = {};
                 for (const unit of units) {
                     const key = `${(unit.beds ?? 0)}-${unit.baths ?? 'null'}`;
@@ -226,37 +378,43 @@ function MapPageInner() {
             if (latestOnly && latestRun?.run_id != null) {
                 loopnetQuery = loopnetQuery.eq('run_id', latestRun.run_id);
             }
-            if (search) {
-                loopnetQuery = loopnetQuery.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
+            // Area filter
+            if (activeAreaFilter?.zipCode) {
+                loopnetQuery = loopnetQuery.or(`address.ilike.%${activeAreaFilter.zipCode}%,location.ilike.%${activeAreaFilter.zipCode}%`);
+            } else if (activeAreaFilter?.cityName) {
+                loopnetQuery = loopnetQuery.ilike('location', `%${activeAreaFilter.cityName}%`);
+            } else if (activeAreaFilter?.countyName) {
+                loopnetQuery = loopnetQuery.or(`address.ilike.%${activeAreaFilter.countyName}%,location.ilike.%${activeAreaFilter.countyName}%`);
             }
+            // Price / cap-rate / sqft filters
             if (currentFilters.priceMin) {
-                const minPrice = parseFloat(currentFilters.priceMin);
-                if (!isNaN(minPrice)) loopnetQuery = loopnetQuery.gte('numeric_price', minPrice);
+                const v = parseFloat(currentFilters.priceMin);
+                if (!isNaN(v)) loopnetQuery = loopnetQuery.gte('numeric_price', v);
             }
             if (currentFilters.priceMax) {
-                const maxPrice = parseFloat(currentFilters.priceMax);
-                if (!isNaN(maxPrice)) loopnetQuery = loopnetQuery.lte('numeric_price', maxPrice);
+                const v = parseFloat(currentFilters.priceMax);
+                if (!isNaN(v)) loopnetQuery = loopnetQuery.lte('numeric_price', v);
             }
             if (currentFilters.capRateMin) {
-                const minCapRate = parseFloat(currentFilters.capRateMin);
-                if (!isNaN(minCapRate)) loopnetQuery = loopnetQuery.gte('numeric_cap_rate', minCapRate);
+                const v = parseFloat(currentFilters.capRateMin);
+                if (!isNaN(v)) loopnetQuery = loopnetQuery.gte('numeric_cap_rate', v);
             }
             if (currentFilters.capRateMax) {
-                const maxCapRate = parseFloat(currentFilters.capRateMax);
-                if (!isNaN(maxCapRate)) loopnetQuery = loopnetQuery.lte('numeric_cap_rate', maxCapRate);
+                const v = parseFloat(currentFilters.capRateMax);
+                if (!isNaN(v)) loopnetQuery = loopnetQuery.lte('numeric_cap_rate', v);
             }
             if (currentFilters.sqftMin) {
-                const minSqft = parseFloat(currentFilters.sqftMin);
-                if (!isNaN(minSqft)) loopnetQuery = loopnetQuery.gte('numeric_square_footage', minSqft);
+                const v = parseFloat(currentFilters.sqftMin);
+                if (!isNaN(v)) loopnetQuery = loopnetQuery.gte('numeric_square_footage', v);
             }
             if (currentFilters.sqftMax) {
-                const maxSqft = parseFloat(currentFilters.sqftMax);
-                if (!isNaN(maxSqft)) loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
+                const v = parseFloat(currentFilters.sqftMax);
+                if (!isNaN(v)) loopnetQuery = loopnetQuery.lte('numeric_square_footage', v);
             }
-            if (bounds) {
+            if (effectiveBounds) {
                 loopnetQuery = loopnetQuery
-                    .gte('latitude', bounds.south).lte('latitude', bounds.north)
-                    .gte('longitude', bounds.west).lte('longitude', bounds.east);
+                    .gte('latitude', effectiveBounds.south).lte('latitude', effectiveBounds.north)
+                    .gte('longitude', effectiveBounds.west).lte('longitude', effectiveBounds.east);
             }
             const { data, error, count } = await loopnetQuery;
             if (error) console.error('Error fetching loopnet listings:', error);
@@ -284,24 +442,30 @@ function MapPageInner() {
             if (latestOnly && latestZillowRun?.run_id != null) {
                 zillowQuery = zillowQuery.eq('run_id', latestZillowRun.run_id);
             }
-            if (search) {
-                zillowQuery = zillowQuery.or(`address_raw.ilike.%${search}%,address_city.ilike.%${search}%,address_state.ilike.%${search}%`);
+            // Area filter
+            if (activeAreaFilter?.zipCode) {
+                zillowQuery = zillowQuery.eq('address_zip', activeAreaFilter.zipCode);
+            } else if (activeAreaFilter?.cityName) {
+                zillowQuery = zillowQuery.ilike('address_city', `%${activeAreaFilter.cityName}%`);
+            } else if (activeAreaFilter?.countyName) {
+                // No dedicated county column — fall through to bbox filtering below
             }
+            // Price / sqft / beds / property-type filters
             if (currentFilters.priceMin) {
-                const minPrice = parseFloat(currentFilters.priceMin);
-                if (!isNaN(minPrice)) zillowQuery = zillowQuery.gte('price', minPrice);
+                const v = parseFloat(currentFilters.priceMin);
+                if (!isNaN(v)) zillowQuery = zillowQuery.gte('price', v);
             }
             if (currentFilters.priceMax) {
-                const maxPrice = parseFloat(currentFilters.priceMax);
-                if (!isNaN(maxPrice)) zillowQuery = zillowQuery.lte('price', maxPrice);
+                const v = parseFloat(currentFilters.priceMax);
+                if (!isNaN(v)) zillowQuery = zillowQuery.lte('price', v);
             }
             if (currentFilters.sqftMin) {
-                const minSqft = parseFloat(currentFilters.sqftMin);
-                if (!isNaN(minSqft)) zillowQuery = zillowQuery.gte('area', minSqft);
+                const v = parseFloat(currentFilters.sqftMin);
+                if (!isNaN(v)) zillowQuery = zillowQuery.gte('area', v);
             }
             if (currentFilters.sqftMax) {
-                const maxSqft = parseFloat(currentFilters.sqftMax);
-                if (!isNaN(maxSqft)) zillowQuery = zillowQuery.lte('area', maxSqft);
+                const v = parseFloat(currentFilters.sqftMax);
+                if (!isNaN(v)) zillowQuery = zillowQuery.lte('area', v);
             }
             if (currentFilters.beds.length > 0) {
                 const exact = currentFilters.beds.filter(b => b < 4);
@@ -319,10 +483,10 @@ function MapPageInner() {
             } else if (currentFilters.propertyType === 'mid-market') {
                 zillowQuery = zillowQuery.is('building_zpid', null).not('is_building', 'eq', true);
             }
-            if (bounds) {
+            if (effectiveBounds) {
                 zillowQuery = zillowQuery
-                    .gte('latitude', bounds.south).lte('latitude', bounds.north)
-                    .gte('longitude', bounds.west).lte('longitude', bounds.east);
+                    .gte('latitude', effectiveBounds.south).lte('latitude', effectiveBounds.north)
+                    .gte('longitude', effectiveBounds.west).lte('longitude', effectiveBounds.east);
             }
             const { data, error, count } = await zillowQuery;
             if (error) console.error('Error fetching cleaned listings:', error);
@@ -352,18 +516,14 @@ function MapPageInner() {
     }, [router]);
 
     useEffect(() => {
-        if (!mapBounds) return;
-        const timer = setTimeout(() => {
-            fetchProperties(searchQuery, filters, mapListingSource, mapBounds, showLatestOnly);
-        }, searchQuery ? 500 : 0);
-
-        return () => clearTimeout(timer);
-    }, [searchQuery, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
+        if (!areaFilter && !mapBounds) return;
+        fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
+    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
             {/* Map Controls Bar */}
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-shrink-0 bg-white dark:bg-gray-900 flex-wrap">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3 flex-shrink-0 bg-white dark:bg-gray-900 flex-wrap">
                 {/* Sales vs Rent toggle */}
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                     {(["zillow", "loopnet"] as const).map((source) => (
@@ -400,17 +560,87 @@ function MapPageInner() {
                     ))}
                 </div>
 
-                {/* Search */}
-                <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                    <Input
-                        placeholder="Search city, neighborhood..."
-                        className="pl-9 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                        }}
-                    />
+                {/* Area type selector + search */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {/* Area type buttons */}
+                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-xs flex-shrink-0">
+                        {(Object.keys(AREA_TYPE_LABELS) as AreaType[]).map((type, i) => (
+                            <button
+                                key={type}
+                                type="button"
+                                onClick={() => {
+                                    setAreaType(type);
+                                    setAreaFilter(null);
+                                    setAreaInput('');
+                                    setAreaSuggestions([]);
+                                }}
+                                className={cn(
+                                    "px-2.5 py-1.5 font-medium transition-colors whitespace-nowrap",
+                                    i > 0 && "border-l border-gray-200 dark:border-gray-600",
+                                    areaType === type
+                                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                )}
+                            >
+                                {AREA_TYPE_LABELS[type]}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Search input or committed area chip */}
+                    {areaFilter ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-700 rounded-md text-xs text-blue-700 dark:text-blue-300 flex-shrink-0">
+                            <MapPin className="size-3 flex-shrink-0" />
+                            <span className="truncate max-w-[180px]">{areaFilter.label}</span>
+                            <button
+                                type="button"
+                                onClick={clearAreaFilter}
+                                className="ml-0.5 text-blue-400 hover:text-blue-600 dark:hover:text-blue-200"
+                            >
+                                <X className="size-3" />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="relative flex-1 max-w-xs" ref={inputWrapperRef}>
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+                            <Input
+                                inputMode={areaType === 'zip' ? 'numeric' : 'text'}
+                                placeholder={AREA_TYPE_PLACEHOLDERS[areaType]}
+                                className="pl-9 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                value={areaInput}
+                                onChange={(e) => setAreaInput(e.target.value)}
+                                onFocus={() => { if (areaSuggestions.length > 0) setShowSuggestions(true); }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && areaType === 'zip') {
+                                        commitZip(areaInput);
+                                    } else if (e.key === 'Escape') {
+                                        setShowSuggestions(false);
+                                    }
+                                }}
+                            />
+                            {showSuggestions && areaSuggestions.length > 0 && (
+                                <ul className="absolute top-full mt-1 left-0 right-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                                    {areaSuggestions.map((s, i) => {
+                                        const label = s.kind === 'neighborhood'
+                                            ? `${s.name} · ${s.city}, ${s.state}`
+                                            : s.kind === 'msa'
+                                            ? (s.name_lsad || s.name)
+                                            : s.feature.place_name;
+                                        return (
+                                            <li
+                                                key={i}
+                                                className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                                                onMouseDown={(e) => { e.preventDefault(); selectSuggestion(s); }}
+                                            >
+                                                <MapPin className="size-3 text-gray-400 flex-shrink-0" />
+                                                <span className="truncate">{label}</span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Filters Popover */}
@@ -606,6 +836,7 @@ function MapPageInner() {
                         className="absolute inset-0"
                         initialCenter={initialCenter}
                         initialZoom={initialZoom}
+                        fitBoundsTarget={fitBoundsTarget}
                         onBoundsChange={handleBoundsChange}
                         onViewChange={handleViewChange}
                     />
