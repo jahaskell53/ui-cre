@@ -133,7 +133,21 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                             })}
                         </LineChart>
                     </ResponsiveContainer>
-                    <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                    <div className="mt-3 flex items-center gap-4">
+                        <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            <svg width="24" height="4" viewBox="0 0 24 4" className="shrink-0">
+                                <line x1="0" y1="2" x2="24" y2="2" stroke="currentColor" strokeWidth="2" />
+                            </svg>
+                            New
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            <svg width="24" height="4" viewBox="0 0 24 4" className="shrink-0">
+                                <line x1="0" y1="2" x2="24" y2="2" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" />
+                            </svg>
+                            Closed
+                        </span>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
                         New vs. closed listings per week. More new than closed = inventory building up.
                     </p>
                 </>
