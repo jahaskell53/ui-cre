@@ -26,6 +26,7 @@ interface Filters {
     sqftMin: string;
     sqftMax: string;
     beds: number[]; // empty = any; values: 0=Studio, 1,2,3,4+ (4 means >=4)
+    propertyType: 'both' | 'reit' | 'mid-market';
 }
 
 const defaultFilters: Filters = {
@@ -36,6 +37,7 @@ const defaultFilters: Filters = {
     sqftMin: "",
     sqftMax: "",
     beds: [],
+    propertyType: 'both',
 };
 
 const BED_OPTIONS = [
@@ -98,6 +100,7 @@ function MapPageInner() {
         if (mapListingSource === 'loopnet' && (filters.capRateMin || filters.capRateMax)) count++;
         if (filters.sqftMin || filters.sqftMax) count++;
         if (mapListingSource === 'zillow' && filters.beds.length > 0) count++;
+        if (mapListingSource === 'zillow' && filters.propertyType !== 'both') count++;
         return count;
     }, [filters]);
 
@@ -311,6 +314,11 @@ function MapPageInner() {
                     zillowQuery = zillowQuery.in('beds', exact);
                 }
             }
+            if (currentFilters.propertyType === 'reit') {
+                zillowQuery = zillowQuery.or('is_building.eq.true,building_zpid.not.is.null');
+            } else if (currentFilters.propertyType === 'mid-market') {
+                zillowQuery = zillowQuery.is('building_zpid', null).not('is_building', 'eq', true);
+            }
             if (bounds) {
                 zillowQuery = zillowQuery
                     .gte('latitude', bounds.south).lte('latitude', bounds.north)
@@ -445,6 +453,27 @@ function MapPageInner() {
                                                     className={cn(
                                                         "px-2.5 py-1 text-xs rounded-md border transition-colors",
                                                         filters.beds.includes(value)
+                                                            ? "bg-blue-600 text-white border-blue-600"
+                                                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                                                    )}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {mapListingSource === 'zillow' && (
+                                    <div>
+                                        <Label className="text-xs">Property Type</Label>
+                                        <div className="flex gap-1.5 mt-1">
+                                            {([['both', 'Both'], ['reit', 'REIT'], ['mid-market', 'Mid-market']] as const).map(([value, label]) => (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => setFilters(prev => ({ ...prev, propertyType: value }))}
+                                                    className={cn(
+                                                        "px-2.5 py-1 text-xs rounded-md border transition-colors",
+                                                        filters.propertyType === value
                                                             ? "bg-blue-600 text-white border-blue-600"
                                                             : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
                                                     )}
