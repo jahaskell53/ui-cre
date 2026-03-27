@@ -39,17 +39,22 @@ interface MapProps {
     className?: string;
     properties: Property[];
     selectedId?: string | number | null;
+    initialCenter?: [number, number];
+    initialZoom?: number;
     onBoundsChange?: (bounds: MapBounds) => void;
+    onViewChange?: (lat: number, lng: number, zoom: number) => void;
 }
 
-export const PropertyMap = ({ className, properties, selectedId, onBoundsChange }: MapProps) => {
+export const PropertyMap = ({ className, properties, selectedId, initialCenter, initialZoom, onBoundsChange, onViewChange }: MapProps) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
     const popupRoots = useRef<ReturnType<typeof createRoot>[]>([]);
     const onBoundsChangeRef = useRef(onBoundsChange);
+    const onViewChangeRef = useRef(onViewChange);
 
     useEffect(() => { onBoundsChangeRef.current = onBoundsChange; });
+    useEffect(() => { onViewChangeRef.current = onViewChange; });
 
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
@@ -57,8 +62,8 @@ export const PropertyMap = ({ className, properties, selectedId, onBoundsChange 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
             style: 'mapbox://styles/mapbox/light-v11',
-            center: [-122.4194, 37.7749],
-            zoom: 10,
+            center: initialCenter ?? [-122.4194, 37.7749],
+            zoom: initialZoom ?? 10,
         });
 
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -72,6 +77,8 @@ export const PropertyMap = ({ className, properties, selectedId, onBoundsChange 
                 east: b.getEast(),
                 west: b.getWest(),
             });
+            const center = map.current.getCenter();
+            onViewChangeRef.current?.(center.lat, center.lng, map.current.getZoom());
         };
 
         map.current.on('moveend', reportBounds);

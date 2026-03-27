@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
     Search,
@@ -55,7 +56,20 @@ function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
     );
 }
 
-export default function MapPage() {
+function MapPageInner() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const initialCenter = useMemo<[number, number] | undefined>(() => {
+        const lat = parseFloat(searchParams.get('lat') ?? '');
+        const lng = parseFloat(searchParams.get('lng') ?? '');
+        return isNaN(lat) || isNaN(lng) ? undefined : [lng, lat];
+    }, []);
+    const initialZoom = useMemo<number | undefined>(() => {
+        const z = parseFloat(searchParams.get('zoom') ?? '');
+        return isNaN(z) ? undefined : z;
+    }, []);
+
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -385,6 +399,14 @@ export default function MapPage() {
         }, 300);
     }, []);
 
+    const handleViewChange = useCallback((lat: number, lng: number, zoom: number) => {
+        const params = new URLSearchParams(window.location.search);
+        params.set('lat', lat.toFixed(5));
+        params.set('lng', lng.toFixed(5));
+        params.set('zoom', zoom.toFixed(2));
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [router]);
+
     useEffect(() => {
         if (!mapBounds) return;
         const timer = setTimeout(() => {
@@ -571,10 +593,21 @@ export default function MapPage() {
                         properties={properties}
                         selectedId={selectedId}
                         className="absolute inset-0"
+                        initialCenter={initialCenter}
+                        initialZoom={initialZoom}
                         onBoundsChange={handleBoundsChange}
+                        onViewChange={handleViewChange}
                     />
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function MapPage() {
+    return (
+        <Suspense>
+            <MapPageInner />
+        </Suspense>
     );
 }
