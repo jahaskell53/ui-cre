@@ -95,9 +95,9 @@ function MapPageInner() {
     const activeFilterCount = useMemo(() => {
         let count = 0;
         if (filters.priceMin || filters.priceMax) count++;
-        if (filters.capRateMin || filters.capRateMax) count++;
+        if (mapListingSource === 'loopnet' && (filters.capRateMin || filters.capRateMax)) count++;
         if (filters.sqftMin || filters.sqftMax) count++;
-        if (filters.beds.length > 0) count++;
+        if (mapListingSource === 'zillow' && filters.beds.length > 0) count++;
         return count;
     }, [filters]);
 
@@ -474,25 +474,27 @@ function MapPageInner() {
                                         />
                                     </div>
                                 </div>
-                                <div>
-                                    <Label className="text-xs">Cap Rate (%)</Label>
-                                    <div className="flex gap-2 mt-1">
-                                        <Input
-                                            type="number"
-                                            placeholder="Min"
-                                            value={filters.capRateMin}
-                                            onChange={(e) => { setFilters(prev => ({ ...prev, capRateMin: e.target.value })); }}
-                                            className="h-7 text-xs"
-                                        />
-                                        <Input
-                                            type="number"
-                                            placeholder="Max"
-                                            value={filters.capRateMax}
-                                            onChange={(e) => { setFilters(prev => ({ ...prev, capRateMax: e.target.value })); }}
-                                            className="h-7 text-xs"
-                                        />
+                                {mapListingSource === 'loopnet' && (
+                                    <div>
+                                        <Label className="text-xs">Cap Rate (%)</Label>
+                                        <div className="flex gap-2 mt-1">
+                                            <Input
+                                                type="number"
+                                                placeholder="Min"
+                                                value={filters.capRateMin}
+                                                onChange={(e) => { setFilters(prev => ({ ...prev, capRateMin: e.target.value })); }}
+                                                className="h-7 text-xs"
+                                            />
+                                            <Input
+                                                type="number"
+                                                placeholder="Max"
+                                                value={filters.capRateMax}
+                                                onChange={(e) => { setFilters(prev => ({ ...prev, capRateMax: e.target.value })); }}
+                                                className="h-7 text-xs"
+                                            />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </PopoverContent>
