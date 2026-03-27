@@ -125,7 +125,7 @@ function CompsContent() {
     const [subjectBeds, setSubjectBeds] = useState(initBeds);
     const [subjectBaths, setSubjectBaths] = useState(initBaths);
     const [subjectArea, setSubjectArea] = useState(initArea);
-    const [areaTolerance, setAreaTolerance] = useState(0.15);
+
     const [includeReits, setIncludeReits] = useState(initReits);
     const [filterMode, setFilterMode] = useState<'radius' | 'neighborhood'>(initFilterMode);
     const [neighborhoodName, setNeighborhoodName] = useState<string | null>(null);
@@ -307,7 +307,7 @@ function CompsContent() {
                 subject_beds: p.beds ? parseInt(p.beds) : null,
                 subject_baths: p.baths ? parseFloat(p.baths) : null,
                 subject_area: p.area ? parseInt(p.area) : null,
-                area_tolerance: areaTolerance,
+
                 include_reits: includeReits,
                 p_limit: 500,
                 p_neighborhood_ids: p.filterMode === 'neighborhood' ? nhIdsForSearch : null,
@@ -353,7 +353,7 @@ function CompsContent() {
             setError("Something went wrong. Please try again.");
         }
         setLoading(false);
-    }, [areaTolerance, includeReits, cachedZip, refreshCandidates]);
+    }, [includeReits, cachedZip, refreshCandidates]);
 
     // Re-run search when any filter changes (if a search has already been run)
     useEffect(() => {
@@ -362,7 +362,7 @@ function CompsContent() {
         autoRunTimerRef.current = setTimeout(() => { findComps(); }, 500);
         return () => { if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [areaTolerance, includeReits, subjectPrice, subjectBeds, subjectBaths, subjectArea, radiusMiles, filterMode]);
+    }, [includeReits, subjectPrice, subjectBeds, subjectBaths, subjectArea, radiusMiles, filterMode]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
@@ -1021,21 +1021,6 @@ function CompsContent() {
                                     <Label className="text-xs mb-1 block">Sq Ft</Label>
                                     <Input type="number" placeholder="e.g. 1200" value={subjectArea}
                                         onChange={(e) => setSubjectArea(e.target.value)} className="h-8 text-xs" />
-                                    {subjectArea && (
-                                        <div className="mt-1.5 flex items-center gap-1.5">
-                                            <span className="text-[10px] text-gray-400">±</span>
-                                            <select
-                                                value={areaTolerance}
-                                                onChange={(e) => setAreaTolerance(parseFloat(e.target.value))}
-                                                className="text-[10px] text-gray-500 dark:text-gray-400 bg-transparent border-none outline-none cursor-pointer"
-                                            >
-                                                {[0.05, 0.10, 0.15, 0.20, 0.25, 0.30].map(v => (
-                                                    <option key={v} value={v}>{Math.round(v * 100)}%</option>
-                                                ))}
-                                            </select>
-                                            <span className="text-[10px] text-gray-400">size match</span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>

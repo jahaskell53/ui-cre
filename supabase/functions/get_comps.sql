@@ -7,7 +7,6 @@ CREATE OR REPLACE FUNCTION public.get_comps(
   subject_baths numeric DEFAULT NULL::numeric,
   subject_area integer DEFAULT NULL::integer,
   p_limit integer DEFAULT 10,
-  area_tolerance numeric DEFAULT 0.15,
   include_reits boolean DEFAULT false,
   p_neighborhood_id integer DEFAULT NULL::integer,
   p_subject_zip text DEFAULT NULL::text,
@@ -82,7 +81,6 @@ AS $function$
       )
       AND (subject_beds  IS NULL OR COALESCE(cl.beds, 0) = subject_beds)
       AND (subject_baths IS NULL OR cl.baths BETWEEN subject_baths - 0.5 AND subject_baths + 0.5)
-      AND (subject_area  IS NULL OR cl.area  BETWEEN subject_area * (1 - area_tolerance) AND subject_area * (1 + area_tolerance))
   ),
   scored AS (
     SELECT
