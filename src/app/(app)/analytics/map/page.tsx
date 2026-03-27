@@ -12,11 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PropertyMap, type Property, type UnitMixRow, type MapBounds } from "@/components/application/map/property-map";
-import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
-
-const PAGE_SIZE = 200;
 
 type MapListingSource = "all" | "loopnet" | "zillow";
 
@@ -62,7 +59,6 @@ export default function MapPage() {
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(0);
     const [totalCount, setTotalCount] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
     const [filters, setFilters] = useState<Filters>(defaultFilters);
@@ -81,10 +77,9 @@ export default function MapPage() {
 
     const clearFilters = () => {
         setFilters(defaultFilters);
-        setPage(0);
     };
 
-    const fetchProperties = useCallback(async (pageNum: number, search: string, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null) => {
+    const fetchProperties = useCallback(async (search: string, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null) => {
         setLoading(true);
 
         type RowWithDate = Property & { _createdAt?: string };
@@ -234,7 +229,7 @@ export default function MapPage() {
                     .gte('latitude', bounds.south).lte('latitude', bounds.north)
                     .gte('longitude', bounds.west).lte('longitude', bounds.east);
             }
-            const { data, error, count } = await loopnetQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+            const { data, error, count } = await loopnetQuery;
             if (error) console.error('Error fetching loopnet listings:', error);
             const rows = (data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>));
             setProperties(rows.map(({ _createdAt: _, ...p }) => p));
@@ -284,7 +279,7 @@ export default function MapPage() {
                     .gte('latitude', bounds.south).lte('latitude', bounds.north)
                     .gte('longitude', bounds.west).lte('longitude', bounds.east);
             }
-            const { data, error, count } = await zillowQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
+            const { data, error, count } = await zillowQuery;
             if (error) console.error('Error fetching cleaned listings:', error);
             const rows = processZillowData((data ?? []) as Record<string, unknown>[]);
             setProperties(rows.map(({ _createdAt: _, ...p }) => p));
@@ -367,10 +362,7 @@ export default function MapPage() {
                 .gte('longitude', bounds.west).lte('longitude', bounds.east);
         }
 
-        const [loopnetRes, zillowRes] = await Promise.all([
-            loopnetQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1),
-            zillowQuery.range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1),
-        ]);
+        const [loopnetRes, zillowRes] = await Promise.all([loopnetQuery, zillowQuery]);
 
         if (loopnetRes.error) console.error('Error fetching loopnet listings:', loopnetRes.error);
         if (zillowRes.error) console.error('Error fetching cleaned listings:', zillowRes.error);
@@ -389,7 +381,6 @@ export default function MapPage() {
     const handleBoundsChange = useCallback((bounds: MapBounds) => {
         if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
         boundsTimerRef.current = setTimeout(() => {
-            setPage(0);
             setMapBounds(bounds);
         }, 300);
     }, []);
@@ -397,17 +388,11 @@ export default function MapPage() {
     useEffect(() => {
         if (!mapBounds) return;
         const timer = setTimeout(() => {
-            fetchProperties(page, searchQuery, filters, mapListingSource, mapBounds);
+            fetchProperties(searchQuery, filters, mapListingSource, mapBounds);
         }, searchQuery ? 500 : 0);
 
         return () => clearTimeout(timer);
-    }, [page, searchQuery, filters, mapListingSource, mapBounds, fetchProperties]);
-
-    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-
-    const handlePageChange = (newPage: number) => {
-        setPage(newPage - 1);
-    };
+    }, [searchQuery, filters, mapListingSource, mapBounds, fetchProperties]);
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -418,7 +403,7 @@ export default function MapPage() {
                     {(["loopnet", "zillow", "all"] as const).map((source) => (
                         <button
                             key={source}
-                            onClick={() => { setMapListingSource(source); setPage(0); }}
+                            onClick={() => { setMapListingSource(source); }}
                             className={cn(
                                 "px-3 py-1 text-xs font-medium rounded-md transition-colors capitalize",
                                 mapListingSource === source
@@ -440,7 +425,6 @@ export default function MapPage() {
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
-                            setPage(0);
                         }}
                     />
                 </div>
@@ -476,14 +460,14 @@ export default function MapPage() {
                                             type="number"
                                             placeholder="Min"
                                             value={filters.priceMin}
-                                            onChange={(e) => { setFilters(prev => ({ ...prev, priceMin: e.target.value })); setPage(0); }}
+                                            onChange={(e) => { setFilters(prev => ({ ...prev, priceMin: e.target.value })); }}
                                             className="h-7 text-xs"
                                         />
                                         <Input
                                             type="number"
                                             placeholder="Max"
                                             value={filters.priceMax}
-                                            onChange={(e) => { setFilters(prev => ({ ...prev, priceMax: e.target.value })); setPage(0); }}
+                                            onChange={(e) => { setFilters(prev => ({ ...prev, priceMax: e.target.value })); }}
                                             className="h-7 text-xs"
                                         />
                                     </div>
@@ -495,14 +479,14 @@ export default function MapPage() {
                                             type="number"
                                             placeholder="Min"
                                             value={filters.capRateMin}
-                                            onChange={(e) => { setFilters(prev => ({ ...prev, capRateMin: e.target.value })); setPage(0); }}
+                                            onChange={(e) => { setFilters(prev => ({ ...prev, capRateMin: e.target.value })); }}
                                             className="h-7 text-xs"
                                         />
                                         <Input
                                             type="number"
                                             placeholder="Max"
                                             value={filters.capRateMax}
-                                            onChange={(e) => { setFilters(prev => ({ ...prev, capRateMax: e.target.value })); setPage(0); }}
+                                            onChange={(e) => { setFilters(prev => ({ ...prev, capRateMax: e.target.value })); }}
                                             className="h-7 text-xs"
                                         />
                                     </div>
@@ -532,7 +516,7 @@ export default function MapPage() {
                                 No properties found
                             </div>
                         ) : (
-                            properties.slice(0, 20).map((property) => (
+                            properties.map((property) => (
                                 <div
                                     key={property.id}
                                     onClick={() => setSelectedId(property.id)}
@@ -579,16 +563,6 @@ export default function MapPage() {
                         )}
                     </div>
 
-                    {!loading && totalPages > 1 && (
-                        <div className="p-3 border-t border-gray-200 dark:border-gray-800">
-                            <PaginationButtonGroup
-                                page={page + 1}
-                                total={totalPages}
-                                onPageChange={handlePageChange}
-                                align="center"
-                            />
-                        </div>
-                    )}
                 </div>
 
                 {/* Map */}
