@@ -358,14 +358,14 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                           <>
                               <button
                                   type="button"
-                                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs"
+                                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs cursor-pointer"
                                   onClick={() => setHeroIndex((prev) => prev === 0 ? heroImages.length - 1 : prev - 1)}
                               >
                                   ‹
                               </button>
                               <button
                                   type="button"
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs cursor-pointer"
                                   onClick={() => setHeroIndex((prev) => prev === heroImages.length - 1 ? 0 : prev + 1)}
                               >
                                   ›
