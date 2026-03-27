@@ -78,6 +78,7 @@ function MapPageInner() {
     const [filters, setFilters] = useState<Filters>(defaultFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>("all");
+    const [showLatestOnly, setShowLatestOnly] = useState(true);
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,7 +94,7 @@ function MapPageInner() {
         setFilters(defaultFilters);
     };
 
-    const fetchProperties = useCallback(async (search: string, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null) => {
+    const fetchProperties = useCallback(async (search: string, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null, latestOnly: boolean) => {
         setLoading(true);
 
         type RowWithDate = Property & { _createdAt?: string };
@@ -208,7 +209,7 @@ function MapPageInner() {
                 .not('latitude', 'is', null)
                 .not('longitude', 'is', null)
                 .order('created_at', { ascending: false });
-            if (latestRun?.run_id != null) {
+            if (latestOnly && latestRun?.run_id != null) {
                 loopnetQuery = loopnetQuery.eq('run_id', latestRun.run_id);
             }
             if (search) {
@@ -266,7 +267,7 @@ function MapPageInner() {
                 .not('longitude', 'is', null)
                 .not('is_sfr', 'is', true)
                 .order('scraped_at', { ascending: false });
-            if (latestZillowRun?.run_id != null) {
+            if (latestOnly && latestZillowRun?.run_id != null) {
                 zillowQuery = zillowQuery.eq('run_id', latestZillowRun.run_id);
             }
             if (search) {
@@ -313,7 +314,7 @@ function MapPageInner() {
             .not('latitude', 'is', null)
             .not('longitude', 'is', null)
             .order('created_at', { ascending: false });
-        if (latestRun?.run_id != null) {
+        if (latestOnly && latestRun?.run_id != null) {
             loopnetQuery = loopnetQuery.eq('run_id', latestRun.run_id);
         }
         let zillowQuery = supabase
@@ -323,7 +324,7 @@ function MapPageInner() {
             .not('longitude', 'is', null)
             .not('is_sfr', 'is', true)
             .order('scraped_at', { ascending: false });
-        if (latestZillowRun?.run_id != null) {
+        if (latestOnly && latestZillowRun?.run_id != null) {
             zillowQuery = zillowQuery.eq('run_id', latestZillowRun.run_id);
         }
 
@@ -410,11 +411,11 @@ function MapPageInner() {
     useEffect(() => {
         if (!mapBounds) return;
         const timer = setTimeout(() => {
-            fetchProperties(searchQuery, filters, mapListingSource, mapBounds);
+            fetchProperties(searchQuery, filters, mapListingSource, mapBounds, showLatestOnly);
         }, searchQuery ? 500 : 0);
 
         return () => clearTimeout(timer);
-    }, [searchQuery, filters, mapListingSource, mapBounds, fetchProperties]);
+    }, [searchQuery, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -434,6 +435,24 @@ function MapPageInner() {
                             )}
                         >
                             {source === "all" ? "All" : source === "loopnet" ? "Sales" : "Rent"}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Latest / Historical toggle */}
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                    {([true, false] as const).map((latest) => (
+                        <button
+                            key={String(latest)}
+                            onClick={() => setShowLatestOnly(latest)}
+                            className={cn(
+                                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                                showLatestOnly === latest
+                                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                                    : "text-gray-600 dark:text-gray-400"
+                            )}
+                        >
+                            {latest ? "Latest" : "Historical"}
                         </button>
                     ))}
                 </div>
