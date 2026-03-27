@@ -52,20 +52,41 @@ export function TrendsTableSection({ areas, rentResults, activityResults, select
                                     <tr className="bg-gray-50 dark:bg-gray-900/40">
                                         <th className="text-left px-5 py-2.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Week</th>
                                         <th className="text-right px-5 py-2.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Median Rent</th>
+                                        <th className="text-right px-5 py-2.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">WoW $</th>
+                                        <th className="text-right px-5 py-2.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">WoW %</th>
                                         <th className="text-right px-5 py-2.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Inventory</th>
                                         <th className="text-right px-5 py-2.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">New Listings</th>
                                         <th className="text-right px-5 py-2.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Closed Listings</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {allWeeks.map(week => {
+                                    {allWeeks.map((week, i) => {
                                         const rentRow = rentByWeek[week];
                                         const actRow = activityByWeek[week];
+                                        const prevWeek = allWeeks[i + 1];
+                                        const prevRentRow = prevWeek ? rentByWeek[prevWeek] : undefined;
+                                        const dollarChange = rentRow && prevRentRow
+                                            ? Math.round(rentRow.median_rent) - Math.round(prevRentRow.median_rent)
+                                            : null;
+                                        const pctChange = dollarChange != null && prevRentRow && prevRentRow.median_rent !== 0
+                                            ? (dollarChange / prevRentRow.median_rent) * 100
+                                            : null;
+                                        const changeColor = dollarChange == null ? '' : dollarChange > 0
+                                            ? 'text-green-600 dark:text-green-400'
+                                            : dollarChange < 0
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-gray-500';
                                         return (
                                             <tr key={week} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
                                                 <td className="px-5 py-2.5 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatWeekLabel(week)}</td>
                                                 <td className="px-5 py-2.5 text-right font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
                                                     {rentRow ? formatDollars(Math.round(rentRow.median_rent)) : "—"}
+                                                </td>
+                                                <td className={`px-5 py-2.5 text-right whitespace-nowrap ${changeColor}`}>
+                                                    {dollarChange == null ? "—" : `${dollarChange >= 0 ? '+' : ''}${formatDollars(dollarChange)}`}
+                                                </td>
+                                                <td className={`px-5 py-2.5 text-right whitespace-nowrap ${changeColor}`}>
+                                                    {pctChange == null ? "—" : `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`}
                                                 </td>
                                                 <td className="px-5 py-2.5 text-right text-gray-700 dark:text-gray-300 whitespace-nowrap">
                                                     {actRow ? actRow.accumulated_listings.toLocaleString() : "—"}
