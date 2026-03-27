@@ -16,7 +16,7 @@ import { PropertyMap, type Property, type UnitMixRow, type MapBounds } from "@/c
 import { supabase } from "@/utils/supabase";
 import { cn } from "@/lib/utils";
 
-type MapListingSource = "all" | "loopnet" | "zillow";
+type MapListingSource = "loopnet" | "zillow";
 
 interface Filters {
     priceMin: string;
@@ -325,104 +325,6 @@ function MapPageInner() {
             return;
         }
 
-        // source === 'all': fetch both in parallel
-        const [{ data: latestRun }, { data: latestZillowRun }] = await Promise.all([
-            supabase.from('loopnet_listings').select('run_id').order('run_id', { ascending: false }).limit(1).single(),
-            supabase.from('cleaned_listings').select('run_id').order('run_id', { ascending: false }).limit(1).single(),
-        ]);
-        let loopnetQuery = supabase
-            .from('loopnet_listings')
-            .select('*', { count: 'exact' })
-            .not('latitude', 'is', null)
-            .not('longitude', 'is', null)
-            .order('created_at', { ascending: false });
-        if (latestOnly && latestRun?.run_id != null) {
-            loopnetQuery = loopnetQuery.eq('run_id', latestRun.run_id);
-        }
-        let zillowQuery = supabase
-            .from('cleaned_listings')
-            .select('*', { count: 'exact' })
-            .not('latitude', 'is', null)
-            .not('longitude', 'is', null)
-            .not('is_sfr', 'is', true)
-            .order('scraped_at', { ascending: false });
-        if (latestOnly && latestZillowRun?.run_id != null) {
-            zillowQuery = zillowQuery.eq('run_id', latestZillowRun.run_id);
-        }
-
-        if (search) {
-            loopnetQuery = loopnetQuery.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
-            zillowQuery = zillowQuery.or(`address_raw.ilike.%${search}%,address_city.ilike.%${search}%,address_state.ilike.%${search}%`);
-        }
-        if (currentFilters.priceMin) {
-            const minPrice = parseFloat(currentFilters.priceMin);
-            if (!isNaN(minPrice)) {
-                loopnetQuery = loopnetQuery.gte('numeric_price', minPrice);
-                zillowQuery = zillowQuery.gte('price', minPrice);
-            }
-        }
-        if (currentFilters.priceMax) {
-            const maxPrice = parseFloat(currentFilters.priceMax);
-            if (!isNaN(maxPrice)) {
-                loopnetQuery = loopnetQuery.lte('numeric_price', maxPrice);
-                zillowQuery = zillowQuery.lte('price', maxPrice);
-            }
-        }
-        if (currentFilters.capRateMin) {
-            const minCapRate = parseFloat(currentFilters.capRateMin);
-            if (!isNaN(minCapRate)) loopnetQuery = loopnetQuery.gte('numeric_cap_rate', minCapRate);
-        }
-        if (currentFilters.capRateMax) {
-            const maxCapRate = parseFloat(currentFilters.capRateMax);
-            if (!isNaN(maxCapRate)) loopnetQuery = loopnetQuery.lte('numeric_cap_rate', maxCapRate);
-        }
-        if (currentFilters.sqftMin) {
-            const minSqft = parseFloat(currentFilters.sqftMin);
-            if (!isNaN(minSqft)) {
-                loopnetQuery = loopnetQuery.gte('numeric_square_footage', minSqft);
-                zillowQuery = zillowQuery.gte('area', minSqft);
-            }
-        }
-        if (currentFilters.sqftMax) {
-            const maxSqft = parseFloat(currentFilters.sqftMax);
-            if (!isNaN(maxSqft)) {
-                loopnetQuery = loopnetQuery.lte('numeric_square_footage', maxSqft);
-                zillowQuery = zillowQuery.lte('area', maxSqft);
-            }
-        }
-        if (currentFilters.beds.length > 0) {
-            const exact = currentFilters.beds.filter(b => b < 4);
-            const hasPlus = currentFilters.beds.includes(4);
-            if (exact.length > 0 && hasPlus) {
-                zillowQuery = zillowQuery.or(`beds.in.(${exact.join(',')}),beds.gte.4`);
-            } else if (hasPlus) {
-                zillowQuery = zillowQuery.gte('beds', 4);
-            } else {
-                zillowQuery = zillowQuery.in('beds', exact);
-            }
-        }
-        if (bounds) {
-            loopnetQuery = loopnetQuery
-                .gte('latitude', bounds.south).lte('latitude', bounds.north)
-                .gte('longitude', bounds.west).lte('longitude', bounds.east);
-            zillowQuery = zillowQuery
-                .gte('latitude', bounds.south).lte('latitude', bounds.north)
-                .gte('longitude', bounds.west).lte('longitude', bounds.east);
-        }
-
-        const [loopnetRes, zillowRes] = await Promise.all([loopnetQuery, zillowQuery]);
-
-        if (loopnetRes.error) console.error('Error fetching loopnet listings:', loopnetRes.error);
-        if (zillowRes.error) console.error('Error fetching cleaned listings:', zillowRes.error);
-
-        const loopnetRows = (loopnetRes.data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>))
-            .sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-        const zillowRows = processZillowData((zillowRes.data ?? []) as Record<string, unknown>[])
-            .sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-        const merged = [...loopnetRows, ...zillowRows].sort((a, b) => (b._createdAt || '').localeCompare(a._createdAt || ''));
-        setProperties(merged.map(({ _createdAt: _, ...p }) => p));
-        setTotalCount((loopnetRes.count ?? 0) + (zillowRes.count ?? 0));
-
         setLoading(false);
     }, []);
 
@@ -456,18 +358,18 @@ function MapPageInner() {
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-4 flex-shrink-0 bg-white dark:bg-gray-900 flex-wrap">
                 {/* Sales vs Rent toggle */}
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-                    {(["loopnet", "zillow", "all"] as const).map((source) => (
+                    {(["zillow", "loopnet"] as const).map((source) => (
                         <button
                             key={source}
                             onClick={() => { setMapListingSource(source); }}
                             className={cn(
-                                "px-3 py-1 text-xs font-medium rounded-md transition-colors capitalize",
+                                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
                                 mapListingSource === source
                                     ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
                                     : "text-gray-600 dark:text-gray-400"
                             )}
                         >
-                            {source === "all" ? "All" : source === "loopnet" ? "Sales" : "Rent"}
+                            {source === "loopnet" ? "Sales" : "Rent"}
                         </button>
                     ))}
                 </div>
@@ -527,7 +429,7 @@ function MapPageInner() {
                                 )}
                             </div>
                             <div className="space-y-3">
-                                {mapListingSource !== 'loopnet' && (
+                                {mapListingSource === 'zillow' && (
                                     <div>
                                         <Label className="text-xs">Bedrooms</Label>
                                         <div className="flex gap-1.5 mt-1 flex-wrap">
