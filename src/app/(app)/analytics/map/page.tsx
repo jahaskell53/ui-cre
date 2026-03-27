@@ -147,6 +147,7 @@ function MapPageInner() {
     const [areaSuggestions, setAreaSuggestions] = useState<AreaSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [fitBoundsTarget, setFitBoundsTarget] = useState<MapBounds | null>(null);
+    const [boundaryGeoJSON, setBoundaryGeoJSON] = useState<string | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -166,6 +167,7 @@ function MapPageInner() {
         setAreaFilter(null);
         setAreaInput('');
         setAreaSuggestions([]);
+        setBoundaryGeoJSON(null);
     };
 
     // Autocomplete suggestions based on area type
@@ -210,11 +212,13 @@ function MapPageInner() {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const commitZip = (zip: string) => {
+    const commitZip = async (zip: string) => {
         const v = zip.trim();
         if (!v) return;
         setAreaFilter({ type: 'zip', label: v, zipCode: v });
         setShowSuggestions(false);
+        const { data } = await supabase.rpc('get_zip_boundary', { p_zip: v });
+        if (data) setBoundaryGeoJSON(data as string);
     };
 
     const selectSuggestion = async (s: AreaSuggestion) => {
@@ -222,21 +226,29 @@ function MapPageInner() {
         setAreaSuggestions([]);
 
         if (s.kind === 'neighborhood') {
-            const { data } = await supabase.rpc('get_neighborhood_bbox', { p_neighborhood_id: s.id });
-            const row = (data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
+            const [bboxRes, geojsonRes] = await Promise.all([
+                supabase.rpc('get_neighborhood_bbox', { p_neighborhood_id: s.id }),
+                supabase.rpc('get_neighborhood_geojson', { p_id: s.id }),
+            ]);
+            const row = (bboxRes.data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
             const bbox: MapBounds | undefined = row ? { west: row.west, south: row.south, east: row.east, north: row.north } : undefined;
             const label = `${s.name} · ${s.city}`;
             setAreaInput(label);
             setAreaFilter({ type: 'neighborhood', label, neighborhoodId: s.id, bbox });
             if (bbox) setFitBoundsTarget(bbox);
+            if (geojsonRes.data) setBoundaryGeoJSON(geojsonRes.data as string);
         } else if (s.kind === 'msa') {
-            const { data } = await supabase.rpc('get_msa_bbox', { p_geoid: s.geoid });
-            const row = (data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
+            const [bboxRes, geojsonRes] = await Promise.all([
+                supabase.rpc('get_msa_bbox', { p_geoid: s.geoid }),
+                supabase.rpc('get_msa_geojson', { p_geoid: s.geoid }),
+            ]);
+            const row = (bboxRes.data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
             const bbox: MapBounds | undefined = row ? { west: row.west, south: row.south, east: row.east, north: row.north } : undefined;
             const label = s.name_lsad || s.name;
             setAreaInput(label);
             setAreaFilter({ type: 'msa', label, msaGeoid: s.geoid, bbox });
             if (bbox) setFitBoundsTarget(bbox);
+            if (geojsonRes.data) setBoundaryGeoJSON(geojsonRes.data as string);
         } else {
             const feature = s.feature;
             const regionCtx = feature.context?.find(c => c.id.startsWith('region.'));
@@ -248,12 +260,16 @@ function MapPageInner() {
                 setAreaInput(label);
                 setAreaFilter({ type: 'city', label, cityName: feature.text, cityState: stateCode, bbox });
                 if (bbox) setFitBoundsTarget(bbox);
+                const { data } = await supabase.rpc('get_city_geojson', { p_name: feature.text, p_state: stateCode });
+                if (data) setBoundaryGeoJSON(data as string);
             } else {
                 // county
                 const label = stateCode ? `${feature.text}, ${stateCode}` : feature.text;
                 setAreaInput(label);
                 setAreaFilter({ type: 'county', label, countyName: feature.text, countyState: stateCode, bbox });
                 if (bbox) setFitBoundsTarget(bbox);
+                const { data } = await supabase.rpc('get_county_geojson', { p_name: feature.text, p_state: stateCode });
+                if (data) setBoundaryGeoJSON(data as string);
             }
         }
     };
@@ -837,6 +853,7 @@ function MapPageInner() {
                         initialCenter={initialCenter}
                         initialZoom={initialZoom}
                         fitBoundsTarget={fitBoundsTarget}
+                        boundaryGeoJSON={boundaryGeoJSON}
                         onBoundsChange={handleBoundsChange}
                         onViewChange={handleViewChange}
                     />

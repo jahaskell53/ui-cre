@@ -42,11 +42,16 @@ interface MapProps {
     initialCenter?: [number, number];
     initialZoom?: number;
     fitBoundsTarget?: MapBounds | null;
+    boundaryGeoJSON?: string | null;
     onBoundsChange?: (bounds: MapBounds) => void;
     onViewChange?: (lat: number, lng: number, zoom: number) => void;
 }
 
-export const PropertyMap = ({ className, properties, selectedId, initialCenter, initialZoom, fitBoundsTarget, onBoundsChange, onViewChange }: MapProps) => {
+const BOUNDARY_SOURCE = 'area-boundary';
+const BOUNDARY_FILL = 'area-boundary-fill';
+const BOUNDARY_LINE = 'area-boundary-line';
+
+export const PropertyMap = ({ className, properties, selectedId, initialCenter, initialZoom, fitBoundsTarget, boundaryGeoJSON, onBoundsChange, onViewChange }: MapProps) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
@@ -62,6 +67,43 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
         const { west, south, east, north } = fitBoundsTarget;
         map.current.fitBounds([[west, south], [east, north]], { padding: 40, duration: 600 });
     }, [fitBoundsTarget]);
+
+    useEffect(() => {
+        if (!map.current) return;
+        const apply = () => {
+            const m = map.current;
+            if (!m) return;
+            if (!boundaryGeoJSON) {
+                if (m.getLayer(BOUNDARY_LINE)) m.removeLayer(BOUNDARY_LINE);
+                if (m.getLayer(BOUNDARY_FILL)) m.removeLayer(BOUNDARY_FILL);
+                if (m.getSource(BOUNDARY_SOURCE)) m.removeSource(BOUNDARY_SOURCE);
+                return;
+            }
+            const data: GeoJSON.Feature = { type: 'Feature', geometry: JSON.parse(boundaryGeoJSON), properties: {} };
+            if (m.getSource(BOUNDARY_SOURCE)) {
+                (m.getSource(BOUNDARY_SOURCE) as mapboxgl.GeoJSONSource).setData(data);
+            } else {
+                m.addSource(BOUNDARY_SOURCE, { type: 'geojson', data });
+                m.addLayer({
+                    id: BOUNDARY_FILL,
+                    type: 'fill',
+                    source: BOUNDARY_SOURCE,
+                    paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 },
+                });
+                m.addLayer({
+                    id: BOUNDARY_LINE,
+                    type: 'line',
+                    source: BOUNDARY_SOURCE,
+                    paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-opacity': 0.6 },
+                });
+            }
+        };
+        if (map.current.isStyleLoaded()) {
+            apply();
+        } else {
+            map.current.once('load', apply);
+        }
+    }, [boundaryGeoJSON]);
 
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
