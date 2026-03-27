@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
     ResponsiveContainer,
     LineChart,
@@ -16,8 +16,11 @@ import {
     TrendRow,
     BED_KEYS,
     SeriesInfo,
+    Granularity,
+    GRANULARITY_OPTIONS,
     buildMultiAreaRentData,
     getRentSeriesList,
+    getAvailableGranularities,
     formatDollars,
 } from "./trends-utils";
 
@@ -55,12 +58,22 @@ function buildPctChangeData(
 
 export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
     const [yView, setYView] = useState<YAxisView>("pct");
+    const [granularity, setGranularity] = useState<Granularity>('wow');
+
+    const availableGranularities = useMemo(() => getAvailableGranularities(areaResults), [areaResults]);
+
+    // Reset to WoW if the current granularity is no longer supported by the loaded data
+    useEffect(() => {
+        if (!availableGranularities.includes(granularity)) {
+            setGranularity('wow');
+        }
+    }, [availableGranularities]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const series = getRentSeriesList(areas, selectedBeds);
-    const absData = buildMultiAreaRentData(areaResults, areas, selectedBeds);
+    const absData = buildMultiAreaRentData(areaResults, areas, selectedBeds, granularity);
     const pctData = buildPctChangeData(absData, series);
     const chartData = yView === "pct" ? pctData : absData;
-    const onlyOneWeek = chartData.length === 1;
+    const onlyOnePoint = chartData.length === 1;
 
     const bedLabel = selectedBeds.length === 1
         ? (BED_KEYS.find(b => b.beds === selectedBeds[0])?.label ?? "")
@@ -78,7 +91,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
         if (!active || !payload?.length) return null;
         return (
             <div style={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13, background: "#fff", padding: "8px 12px" }}>
-                <p className="text-gray-500 mb-1">{`Week of ${label}`}</p>
+                <p className="text-gray-500 mb-1">{granularity === 'wow' ? `Week of ${label}` : label}</p>
                 {payload.map(entry => {
                     const week = chartData.find(p => p.weekLabel === label)?.week as string | undefined;
                     const absPoint = week ? absData.find(p => p.week === week) : undefined;
@@ -106,10 +119,25 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
             <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">Median Rent — {bedLabel}</h2>
                 <div className="flex items-center gap-2">
-                    {onlyOneWeek && (
+                    {onlyOnePoint && (
                         <span className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2 py-1">
                             More data coming as scrapes accumulate
                         </span>
+                    )}
+                    {availableGranularities.length > 1 && (
+                        <div className="flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
+                            {GRANULARITY_OPTIONS.filter(opt => availableGranularities.includes(opt.value)).map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setGranularity(opt.value)}
+                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                                        granularity === opt.value
+                                            ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
+                                            : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                    }`}
+                                >{opt.label}</button>
+                            ))}
+                        </div>
                     )}
                     <div className="flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
                         <button
@@ -154,7 +182,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                             stroke={s.color}
                             strokeWidth={2}
                             strokeDasharray={s.dash || undefined}
-                            dot={onlyOneWeek ? { r: 5, fill: s.color } : { r: 3 }}
+                            dot={onlyOnePoint ? { r: 5, fill: s.color } : { r: 3 }}
                             activeDot={{ r: 5 }}
                             connectNulls={false}
                         />
