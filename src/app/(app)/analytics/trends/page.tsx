@@ -490,7 +490,7 @@ export default function TrendsPage() {
     const hasData = displayAreas.some(a => (displayRentResults[a.id]?.length ?? 0) > 0);
     const hasActivity = displayAreas.some(a => (displayActivityResults[a.id]?.length ?? 0) > 0);
 
-    const segmentToggle = (label: string, active: boolean, onClick: () => void, _first = false) => (
+    const segmentToggle = (label: string, active: boolean, onClick: () => void) => (
         <button
             key={label}
             type="button"
@@ -754,7 +754,7 @@ export default function TrendsPage() {
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Bedrooms</span>
                     <div className="flex flex-wrap gap-2">
-                        {BED_OPTIONS.map((opt, i) => segmentToggle(
+                        {BED_OPTIONS.map((opt) => segmentToggle(
                             opt.label,
                             selectedBeds.includes(opt.beds),
                             () => setSelectedBeds(prev => {
@@ -765,7 +765,6 @@ export default function TrendsPage() {
                                 }
                                 return [...prev, opt.beds].sort((a, b) => a - b);
                             }),
-                            i === 0
                         ))}
                     </div>
                 </div>
@@ -777,7 +776,7 @@ export default function TrendsPage() {
                         {segmentToggle("Mid-market", selectedSources.includes('mid'), () => setSelectedSources(prev => {
                             if (prev.includes('mid')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'mid'); }
                             return prev.includes('reit') ? ['mid', 'reit'] : ['mid'];
-                        }), true)}
+                        }))}
                         {segmentToggle("REIT", selectedSources.includes('reit'), () => setSelectedSources(prev => {
                             if (prev.includes('reit')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'reit'); }
                             return prev.includes('mid') ? ['mid', 'reit'] : ['reit'];
