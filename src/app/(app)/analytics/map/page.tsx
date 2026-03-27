@@ -244,6 +244,12 @@ export default function MapPage() {
         }
 
         if (source === 'zillow') {
+            const { data: latestZillowRun } = await supabase
+                .from('cleaned_listings')
+                .select('run_id')
+                .order('run_id', { ascending: false })
+                .limit(1)
+                .single();
             let zillowQuery = supabase
                 .from('cleaned_listings')
                 .select('*', { count: 'exact' })
@@ -251,6 +257,9 @@ export default function MapPage() {
                 .not('longitude', 'is', null)
                 .not('is_sfr', 'is', true)
                 .order('scraped_at', { ascending: false });
+            if (latestZillowRun?.run_id != null) {
+                zillowQuery = zillowQuery.eq('run_id', latestZillowRun.run_id);
+            }
             if (search) {
                 zillowQuery = zillowQuery.or(`address_raw.ilike.%${search}%,address_city.ilike.%${search}%,address_state.ilike.%${search}%`);
             }
@@ -285,12 +294,10 @@ export default function MapPage() {
         }
 
         // source === 'all': fetch both in parallel
-        const { data: latestRun } = await supabase
-            .from('loopnet_listings')
-            .select('run_id')
-            .order('run_id', { ascending: false })
-            .limit(1)
-            .single();
+        const [{ data: latestRun }, { data: latestZillowRun }] = await Promise.all([
+            supabase.from('loopnet_listings').select('run_id').order('run_id', { ascending: false }).limit(1).single(),
+            supabase.from('cleaned_listings').select('run_id').order('run_id', { ascending: false }).limit(1).single(),
+        ]);
         let loopnetQuery = supabase
             .from('loopnet_listings')
             .select('*', { count: 'exact' })
@@ -307,6 +314,9 @@ export default function MapPage() {
             .not('longitude', 'is', null)
             .not('is_sfr', 'is', true)
             .order('scraped_at', { ascending: false });
+        if (latestZillowRun?.run_id != null) {
+            zillowQuery = zillowQuery.eq('run_id', latestZillowRun.run_id);
+        }
 
         if (search) {
             loopnetQuery = loopnetQuery.or(`headline.ilike.%${search}%,address.ilike.%${search}%,location.ilike.%${search}%`);
