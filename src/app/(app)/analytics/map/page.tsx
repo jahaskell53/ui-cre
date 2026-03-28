@@ -181,6 +181,8 @@ function MapPageInner() {
         // Address type: debounce the filter directly, no dropdown suggestions
         if (areaType === 'address') {
             const q = areaInput.trim();
+            // Bail if the filter already matches — prevents infinite re-render loop
+            if ((q && areaFilter?.addressQuery === q) || (!q && !areaFilter)) return;
             suggestTimerRef.current = setTimeout(() => {
                 setAreaFilter(q ? { type: 'address', label: q, addressQuery: q } : null);
             }, 500);
