@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
 
 type MapListingSource = "loopnet" | "zillow";
-type AreaType = 'zip' | 'neighborhood' | 'city' | 'county' | 'msa';
+type AreaType = 'zip' | 'neighborhood' | 'city' | 'county' | 'msa' | 'address';
 
 interface AreaFilter {
     type: AreaType;
@@ -33,6 +33,7 @@ interface AreaFilter {
     countyName?: string;
     countyState?: string;
     msaGeoid?: string;
+    addressQuery?: string;
     bbox?: MapBounds;
 }
 
@@ -86,6 +87,7 @@ const AREA_TYPE_LABELS: Record<AreaType, string> = {
     city: 'City',
     county: 'County',
     msa: 'MSA',
+    address: 'Address',
 };
 
 const AREA_TYPE_PLACEHOLDERS: Record<AreaType, string> = {
@@ -94,6 +96,7 @@ const AREA_TYPE_PLACEHOLDERS: Record<AreaType, string> = {
     city: 'Search city…',
     county: 'Search county…',
     msa: 'Search metro area…',
+    address: 'Search address, building name…',
 };
 
 function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
@@ -168,11 +171,22 @@ function MapPageInner() {
         setAreaInput('');
         setAreaSuggestions([]);
         setBoundaryGeoJSON(null);
+        if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
     };
 
     // Autocomplete suggestions based on area type
     useEffect(() => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+
+        // Address type: debounce the filter directly, no dropdown suggestions
+        if (areaType === 'address') {
+            const q = areaInput.trim();
+            suggestTimerRef.current = setTimeout(() => {
+                setAreaFilter(q ? { type: 'address', label: q, addressQuery: q } : null);
+            }, 500);
+            return;
+        }
+
         if (areaFilter || areaInput.length < 2 || areaType === 'zip') {
             setAreaSuggestions([]);
             setShowSuggestions(false);
@@ -401,6 +415,8 @@ function MapPageInner() {
                 loopnetQuery = loopnetQuery.ilike('location', `%${activeAreaFilter.cityName}%`);
             } else if (activeAreaFilter?.countyName) {
                 loopnetQuery = loopnetQuery.or(`address.ilike.%${activeAreaFilter.countyName}%,location.ilike.%${activeAreaFilter.countyName}%`);
+            } else if (activeAreaFilter?.addressQuery) {
+                loopnetQuery = loopnetQuery.or(`headline.ilike.%${activeAreaFilter.addressQuery}%,address.ilike.%${activeAreaFilter.addressQuery}%,location.ilike.%${activeAreaFilter.addressQuery}%`);
             }
             // Price / cap-rate / sqft filters
             if (currentFilters.priceMin) {
@@ -463,6 +479,8 @@ function MapPageInner() {
                 zillowQuery = zillowQuery.eq('address_zip', activeAreaFilter.zipCode);
             } else if (activeAreaFilter?.cityName) {
                 zillowQuery = zillowQuery.ilike('address_city', `%${activeAreaFilter.cityName}%`);
+            } else if (activeAreaFilter?.addressQuery) {
+                zillowQuery = zillowQuery.or(`address_raw.ilike.%${activeAreaFilter.addressQuery}%,address_city.ilike.%${activeAreaFilter.addressQuery}%,address_state.ilike.%${activeAreaFilter.addressQuery}%`);
             } else if (activeAreaFilter?.countyName) {
                 // No dedicated county column — fall through to bbox filtering below
             }
@@ -604,7 +622,7 @@ function MapPageInner() {
                     </div>
 
                     {/* Search input or committed area chip */}
-                    {areaFilter ? (
+                    {areaFilter && areaFilter.type !== 'address' ? (
                         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-700 rounded-md text-xs text-blue-700 dark:text-blue-300 flex-shrink-0">
                             <MapPin className="size-3 flex-shrink-0" />
                             <span className="truncate max-w-[180px]">{areaFilter.label}</span>
@@ -622,7 +640,7 @@ function MapPageInner() {
                             <Input
                                 inputMode={areaType === 'zip' ? 'numeric' : 'text'}
                                 placeholder={AREA_TYPE_PLACEHOLDERS[areaType]}
-                                className="pl-9 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                className={cn("pl-9 h-8 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700", areaType === 'address' && areaInput && "pr-8")}
                                 value={areaInput}
                                 onChange={(e) => setAreaInput(e.target.value)}
                                 onFocus={() => { if (areaSuggestions.length > 0) setShowSuggestions(true); }}
@@ -634,6 +652,15 @@ function MapPageInner() {
                                     }
                                 }}
                             />
+                            {areaType === 'address' && areaInput && (
+                                <button
+                                    type="button"
+                                    onClick={clearAreaFilter}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                >
+                                    <X className="size-3.5" />
+                                </button>
+                            )}
                             {showSuggestions && areaSuggestions.length > 0 && (
                                 <ul className="absolute top-full mt-1 left-0 right-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden max-h-60 overflow-y-auto">
                                     {areaSuggestions.map((s, i) => {
