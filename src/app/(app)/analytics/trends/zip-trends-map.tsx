@@ -55,14 +55,25 @@ interface MsaPoint {
     listing_count: number;
 }
 
-type MapPoint = ZipPoint | NhPoint | CountyPoint | MsaPoint;
+interface CityPoint {
+    city_name: string;
+    state: string;
+    geom_json: string;
+    current_median: number;
+    prior_median: number;
+    pct_change: number | null;
+    listing_count: number;
+}
+
+type MapPoint = ZipPoint | NhPoint | CountyPoint | MsaPoint | CityPoint;
 
 function isNhPoint(p: MapPoint): p is NhPoint { return "neighborhood_id" in p; }
 function isCountyPoint(p: MapPoint): p is CountyPoint { return "county_name" in p; }
 function isMsaPoint(p: MapPoint): p is MsaPoint { return "geoid" in p; }
+function isCityPoint(p: MapPoint): p is CityPoint { return "city_name" in p; }
 
 interface Props {
-    areaType: "ZIP Code" | "Neighborhood" | "County" | "MSA";
+    areaType: "ZIP Code" | "Neighborhood" | "County" | "MSA" | "City";
     selectedBeds: number;
     reitsOnly: boolean;
     selectedAreas: AreaSelection[];
@@ -70,19 +81,20 @@ interface Props {
     onAddNeighborhood: (id: number, name: string, city: string) => void;
     onAddCounty: (name: string, state: string) => void;
     onAddMsa: (geoid: string, name: string) => void;
+    onAddCity: (name: string, state: string) => void;
 }
 
-export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas, onAddZip, onAddNeighborhood, onAddCounty, onAddMsa }: Props) {
+export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas, onAddZip, onAddNeighborhood, onAddCounty, onAddMsa, onAddCity }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const popupRef = useRef<mapboxgl.Popup | null>(null);
-    const callbacksRef = useRef({ onAddZip, onAddNeighborhood, onAddCounty, onAddMsa });
+    const callbacksRef = useRef({ onAddZip, onAddNeighborhood, onAddCounty, onAddMsa, onAddCity });
     const [mapLoaded, setMapLoaded] = useState(false);
     const [weeksBack, setWeeksBack] = useState(13);
     const [data, setData] = useState<MapPoint[]>([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => { callbacksRef.current = { onAddZip, onAddNeighborhood, onAddCounty, onAddMsa }; }, [onAddZip, onAddNeighborhood, onAddCounty, onAddMsa]);
+    useEffect(() => { callbacksRef.current = { onAddZip, onAddNeighborhood, onAddCounty, onAddMsa, onAddCity }; }, [onAddZip, onAddNeighborhood, onAddCounty, onAddMsa, onAddCity]);
 
     // Init map once
     useEffect(() => {
@@ -110,6 +122,7 @@ export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas,
             areaType === "Neighborhood" ? "get_map_rent_trends_by_neighborhood" :
             areaType === "County"       ? "get_map_rent_trends_by_county" :
             areaType === "MSA"          ? "get_map_rent_trends_by_msa" :
+            areaType === "City"         ? "get_map_rent_trends_by_city" :
                                           "get_map_rent_trends";
         supabase
             .rpc(rpc, params)
@@ -140,6 +153,9 @@ export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas,
                 } else if (isMsaPoint(d)) {
                     const id = `msa:${d.geoid}`;
                     props = { _id: id, _type: "msa", _geoid: d.geoid, _name: d.name, label: d.name, pct_change: d.pct_change ?? null, current_median: d.current_median, listing_count: d.listing_count, selected: selectedIds.has(id) };
+                } else if (isCityPoint(d)) {
+                    const id = `city:${d.city_name}:${d.state}`;
+                    props = { _id: id, _type: "city", _name: d.city_name, _state: d.state, label: `${d.city_name}, ${d.state}`, pct_change: d.pct_change ?? null, current_median: d.current_median, listing_count: d.listing_count, selected: selectedIds.has(id) };
                 } else {
                     props = { _id: d.zip, _type: "zip", _zip: d.zip, label: d.zip, pct_change: d.pct_change ?? null, current_median: d.current_median, listing_count: d.listing_count, selected: selectedIds.has(d.zip) };
                 }
@@ -236,6 +252,8 @@ export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas,
                 callbacksRef.current.onAddCounty(props._name, props._state);
             } else if (props._type === "msa" && props._geoid && props._name) {
                 callbacksRef.current.onAddMsa(props._geoid, props._name);
+            } else if (props._type === "city" && props._name && props._state) {
+                callbacksRef.current.onAddCity(props._name, props._state);
             } else if (props._type === "zip" && props._zip) {
                 callbacksRef.current.onAddZip(props._zip);
             }
@@ -274,7 +292,7 @@ export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas,
             <div ref={containerRef} className="h-[520px] w-full" />
             {data.length > 0 && (
                 <p className="px-5 py-2 text-xs text-gray-400 border-t border-gray-100 dark:border-gray-700">
-                    {data.length} {areaType === "Neighborhood" ? "neighborhoods" : areaType === "County" ? "counties" : areaType === "MSA" ? "metros" : "zip codes"} · click a region to add to comparison
+                    {data.length} {areaType === "Neighborhood" ? "neighborhoods" : areaType === "County" ? "counties" : areaType === "MSA" ? "metros" : areaType === "City" ? "cities" : "zip codes"} · click a region to add to comparison
                 </p>
             )}
         </div>

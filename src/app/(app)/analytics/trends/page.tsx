@@ -46,7 +46,7 @@ const BED_OPTIONS = [
 
 const AREA_TYPES = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
-const MAP_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "County", "MSA"]);
+const MAP_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
 const MAX_AREAS = 4;
 
 interface AreaResult {
@@ -453,6 +453,14 @@ export default function TrendsPage() {
         setSelectedAreas(prev => [...prev, { id: key, label: name, color, msaGeoid: geoid }]);
     };
 
+    const addAreaByCity = (name: string, state: string) => {
+        const key = `city:${name}:${state}`;
+        if (selectedAreas.find(a => a.id === key)) { removeArea(key); return; }
+        if (selectedAreas.length >= MAX_AREAS) return;
+        const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
+        setSelectedAreas(prev => [...prev, { id: key, label: `${name}, ${state}`, color, cityName: name, cityState: state }]);
+    };
+
     const removeArea = (id: string) => {
         setSelectedAreas(prev => prev.filter(a => a.id !== id));
         setAreaResults(prev => {
@@ -788,7 +796,7 @@ export default function TrendsPage() {
             {/* Map display */}
             {display === "map" && (
                 <ZipTrendsMap
-                    areaType={areaType as "ZIP Code" | "Neighborhood" | "County" | "MSA"}
+                    areaType={areaType as "ZIP Code" | "Neighborhood" | "City" | "County" | "MSA"}
                     selectedBeds={selectedBeds[0]}
                     reitsOnly={selectedSources.length === 1 && selectedSources[0] === 'reit'}
                     selectedAreas={selectedAreas}
@@ -796,6 +804,7 @@ export default function TrendsPage() {
                     onAddNeighborhood={addAreaByNeighborhood}
                     onAddCounty={addAreaByCounty}
                     onAddMsa={addAreaByMsa}
+                    onAddCity={addAreaByCity}
                 />
             )}
 
