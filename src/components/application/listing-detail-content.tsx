@@ -41,6 +41,7 @@ interface ZillowListing {
     longitude: number | null;
     is_building: boolean | null;
     building_zpid: string | null;
+    home_type: string | null;
 }
 
 interface LoopnetListing {
@@ -143,7 +144,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 const uuid = rawId.slice("zillow-".length);
                 const { data, error } = await supabase
                     .from("cleaned_listings")
-                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid")
+                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid, home_type")
                     .eq("id", uuid)
                     .single();
                 if (error || !data) {
@@ -462,6 +463,14 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     {listing.area ? listing.area.toLocaleString() : "—"}
                                 </dd>
                             </div>
+                            {listing.home_type && (
+                                <div className="flex justify-between">
+                                    <dt className="text-gray-500 dark:text-gray-400">Home Type</dt>
+                                    <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                        {listing.home_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                    </dd>
+                                </div>
+                            )}
                             {listing.availability_date && (
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Available</dt>
