@@ -15,12 +15,12 @@ CREATE OR REPLACE FUNCTION public.insert_cleaned_listing(
   p_availability_date date,
   p_lat double precision,
   p_lng double precision,
-  p_is_sfr boolean DEFAULT NULL::boolean,
   p_raw_scrape_id uuid DEFAULT NULL::uuid,
   p_img_src text DEFAULT NULL::text,
   p_detail_url text DEFAULT NULL::text,
   p_is_building boolean DEFAULT false,
-  p_building_zpid text DEFAULT NULL::text
+  p_building_zpid text DEFAULT NULL::text,
+  p_home_type text DEFAULT NULL::text
 )
  RETURNS void
  LANGUAGE plpgsql
@@ -30,8 +30,8 @@ BEGIN
         run_id, scraped_at, zip_code, zpid,
         address_raw, address_street, address_city, address_state, address_zip,
         price, beds, baths, area, availability_date,
-        geom, is_sfr, raw_scrape_id,
-        img_src, detail_url, is_building, building_zpid
+        geom, raw_scrape_id,
+        img_src, detail_url, is_building, building_zpid, home_type
     ) VALUES (
         p_run_id, p_scraped_at, p_zip_code, p_zpid,
         p_address_raw, p_address_street, p_address_city, p_address_state, p_address_zip,
@@ -40,8 +40,8 @@ BEGIN
              THEN ST_SetSRID(ST_Point(p_lng, p_lat), 4326)
              ELSE NULL
         END,
-        p_is_sfr, p_raw_scrape_id,
-        p_img_src, p_detail_url, p_is_building, p_building_zpid
+        p_raw_scrape_id,
+        p_img_src, p_detail_url, p_is_building, p_building_zpid, p_home_type
     )
     ON CONFLICT (zpid, run_id) DO NOTHING;
 END;

@@ -60,6 +60,7 @@ interface Filters {
     sqftMax: string;
     beds: number[];
     bathsMin: number | null;
+    homeTypes: string[];
     propertyType: 'both' | 'reit' | 'mid-market';
 }
 
@@ -72,6 +73,7 @@ const defaultFilters: Filters = {
     sqftMax: "",
     beds: [],
     bathsMin: null,
+    homeTypes: [],
     propertyType: 'both',
 };
 
@@ -89,6 +91,13 @@ const BATH_OPTIONS = [
     { label: "2+", value: 2 },
     { label: "3+", value: 3 },
     { label: "4+", value: 4 },
+];
+
+const HOME_TYPE_OPTIONS = [
+    { label: "Apartment", value: "APARTMENT" },
+    { label: "House", value: "SINGLE_FAMILY" },
+    { label: "Townhouse", value: "TOWNHOUSE" },
+    { label: "Condo", value: "CONDO" },
 ];
 
 const AREA_TYPE_LABELS: Record<AreaType, string> = {
@@ -171,6 +180,7 @@ function MapPageInner() {
         if (filters.sqftMin || filters.sqftMax) count++;
         if (mapListingSource === 'zillow' && filters.beds.length > 0) count++;
         if (mapListingSource === 'zillow' && filters.bathsMin !== null) count++;
+        if (mapListingSource === 'zillow' && filters.homeTypes.length > 0) count++;
         if (mapListingSource === 'zillow' && filters.propertyType !== 'both') count++;
         return count;
     }, [filters, mapListingSource]);
@@ -482,7 +492,6 @@ function MapPageInner() {
                 .select('*', { count: 'exact' })
                 .not('latitude', 'is', null)
                 .not('longitude', 'is', null)
-                .not('is_sfr', 'is', true)
                 .order('scraped_at', { ascending: false });
             if (latestOnly && latestZillowRun?.run_id != null) {
                 zillowQuery = zillowQuery.eq('run_id', latestZillowRun.run_id);
@@ -527,6 +536,9 @@ function MapPageInner() {
             }
             if (currentFilters.bathsMin !== null) {
                 zillowQuery = zillowQuery.gte('baths', currentFilters.bathsMin);
+            }
+            if (currentFilters.homeTypes.length > 0) {
+                zillowQuery = zillowQuery.in('home_type', currentFilters.homeTypes);
             }
             if (currentFilters.propertyType === 'reit') {
                 zillowQuery = zillowQuery.or('is_building.eq.true,building_zpid.not.is.null');
@@ -766,6 +778,32 @@ function MapPageInner() {
                                                     className={cn(
                                                         "px-2.5 py-1 text-xs rounded-md border transition-colors",
                                                         filters.bathsMin === value
+                                                            ? "bg-blue-600 text-white border-blue-600"
+                                                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                                                    )}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {mapListingSource === 'zillow' && (
+                                    <div>
+                                        <Label className="text-xs">Home Type</Label>
+                                        <div className="flex gap-1.5 mt-1 flex-wrap">
+                                            {HOME_TYPE_OPTIONS.map(({ label, value }) => (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => setFilters(prev => ({
+                                                        ...prev,
+                                                        homeTypes: prev.homeTypes.includes(value)
+                                                            ? prev.homeTypes.filter(t => t !== value)
+                                                            : [...prev.homeTypes, value],
+                                                    }))}
+                                                    className={cn(
+                                                        "px-2.5 py-1 text-xs rounded-md border transition-colors",
+                                                        filters.homeTypes.includes(value)
                                                             ? "bg-blue-600 text-white border-blue-600"
                                                             : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
                                                     )}

@@ -35,7 +35,7 @@ AS $function$
   deduped AS (
     SELECT DISTINCT ON (zpid)
       id, address_raw, address_street, address_city, address_state, address_zip,
-      price, beds, baths, area, building_zpid, geom, is_sfr, is_building
+      price, beds, baths, area, building_zpid, geom, home_type, is_building
     FROM cleaned_listings
     ORDER BY zpid, scraped_at DESC NULLS LAST
   ),
@@ -57,7 +57,7 @@ AS $function$
         cl.geom::geography
       ) AS distance_m
     FROM deduped cl
-    WHERE cl.is_sfr IS NOT TRUE
+    WHERE cl.home_type IS DISTINCT FROM 'SINGLE_FAMILY'
       AND (p_segment = 'both' OR (p_segment = 'mid' AND cl.building_zpid IS NULL) OR (p_segment = 'reit' AND cl.building_zpid IS NOT NULL))
       AND cl.is_building IS NOT TRUE
       AND cl.geom  IS NOT NULL
