@@ -59,6 +59,7 @@ interface Filters {
     sqftMin: string;
     sqftMax: string;
     beds: number[];
+    bathsMin: number | null;
     propertyType: 'both' | 'reit' | 'mid-market';
 }
 
@@ -70,6 +71,7 @@ const defaultFilters: Filters = {
     sqftMin: "",
     sqftMax: "",
     beds: [],
+    bathsMin: null,
     propertyType: 'both',
 };
 
@@ -78,6 +80,14 @@ const BED_OPTIONS = [
     { label: "1", value: 1 },
     { label: "2", value: 2 },
     { label: "3", value: 3 },
+    { label: "4+", value: 4 },
+];
+
+const BATH_OPTIONS = [
+    { label: "1+", value: 1 },
+    { label: "1.5+", value: 1.5 },
+    { label: "2+", value: 2 },
+    { label: "3+", value: 3 },
     { label: "4+", value: 4 },
 ];
 
@@ -160,6 +170,7 @@ function MapPageInner() {
         if (mapListingSource === 'loopnet' && (filters.capRateMin || filters.capRateMax)) count++;
         if (filters.sqftMin || filters.sqftMax) count++;
         if (mapListingSource === 'zillow' && filters.beds.length > 0) count++;
+        if (mapListingSource === 'zillow' && filters.bathsMin !== null) count++;
         if (mapListingSource === 'zillow' && filters.propertyType !== 'both') count++;
         return count;
     }, [filters, mapListingSource]);
@@ -514,6 +525,9 @@ function MapPageInner() {
                     zillowQuery = zillowQuery.in('beds', exact);
                 }
             }
+            if (currentFilters.bathsMin !== null) {
+                zillowQuery = zillowQuery.gte('baths', currentFilters.bathsMin);
+            }
             if (currentFilters.propertyType === 'reit') {
                 zillowQuery = zillowQuery.or('is_building.eq.true,building_zpid.not.is.null');
             } else if (currentFilters.propertyType === 'mid-market') {
@@ -728,6 +742,30 @@ function MapPageInner() {
                                                     className={cn(
                                                         "px-2.5 py-1 text-xs rounded-md border transition-colors",
                                                         filters.beds.includes(value)
+                                                            ? "bg-blue-600 text-white border-blue-600"
+                                                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                                                    )}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {mapListingSource === 'zillow' && (
+                                    <div>
+                                        <Label className="text-xs">Bathrooms (min)</Label>
+                                        <div className="flex gap-1.5 mt-1 flex-wrap">
+                                            {BATH_OPTIONS.map(({ label, value }) => (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => setFilters(prev => ({
+                                                        ...prev,
+                                                        bathsMin: prev.bathsMin === value ? null : value,
+                                                    }))}
+                                                    className={cn(
+                                                        "px-2.5 py-1 text-xs rounded-md border transition-colors",
+                                                        filters.bathsMin === value
                                                             ? "bg-blue-600 text-white border-blue-600"
                                                             : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
                                                     )}
