@@ -155,17 +155,62 @@ function MapPageInner() {
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
-    const [filters, setFilters] = useState<Filters>(defaultFilters);
+    const [filters, setFilters] = useState<Filters>(() => {
+        const beds = searchParams.get('beds');
+        const homeTypes = searchParams.get('homeTypes');
+        const bathsMin = searchParams.get('bathsMin');
+        const propertyType = searchParams.get('propertyType');
+        return {
+            priceMin: searchParams.get('priceMin') ?? '',
+            priceMax: searchParams.get('priceMax') ?? '',
+            capRateMin: searchParams.get('capRateMin') ?? '',
+            capRateMax: searchParams.get('capRateMax') ?? '',
+            sqftMin: searchParams.get('sqftMin') ?? '',
+            sqftMax: searchParams.get('sqftMax') ?? '',
+            beds: beds ? beds.split(',').map(Number).filter(n => !isNaN(n)) : [],
+            bathsMin: bathsMin !== null ? parseFloat(bathsMin) || null : null,
+            homeTypes: homeTypes ? homeTypes.split(',').filter(Boolean) : [],
+            propertyType: (['both', 'reit', 'mid-market'] as const).find(v => v === propertyType) ?? 'both',
+        };
+    });
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [mapListingSource, setMapListingSource] = useState<MapListingSource>("zillow");
-    const [showLatestOnly, setShowLatestOnly] = useState(true);
+    const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => {
+        return searchParams.get('source') === 'loopnet' ? 'loopnet' : 'zillow';
+    });
+    const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => {
+        return searchParams.get('latest') !== 'false';
+    });
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Area-type search state
-    const [areaType, setAreaType] = useState<AreaType>('zip');
-    const [areaFilter, setAreaFilter] = useState<AreaFilter | null>(null);
-    const [areaInput, setAreaInput] = useState('');
+    const [areaType, setAreaType] = useState<AreaType>(() => {
+        const t = searchParams.get('areaType');
+        return (['zip', 'neighborhood', 'city', 'county', 'msa', 'address'] as const).find(v => v === t) ?? 'zip';
+    });
+    const [areaFilter, setAreaFilter] = useState<AreaFilter | null>(() => {
+        const type = searchParams.get('areaType') as AreaType | null;
+        const label = searchParams.get('area');
+        if (!type || !label) return null;
+        const bboxW = parseFloat(searchParams.get('areaBboxW') ?? '');
+        const bboxS = parseFloat(searchParams.get('areaBboxS') ?? '');
+        const bboxE = parseFloat(searchParams.get('areaBboxE') ?? '');
+        const bboxN = parseFloat(searchParams.get('areaBboxN') ?? '');
+        const bbox: MapBounds | undefined = [bboxW, bboxS, bboxE, bboxN].every(n => !isNaN(n))
+            ? { west: bboxW, south: bboxS, east: bboxE, north: bboxN }
+            : undefined;
+        const base = { type, label, bbox };
+        if (type === 'zip') return { ...base, zipCode: searchParams.get('areaZip') ?? label };
+        if (type === 'city') return { ...base, cityName: searchParams.get('areaCity') ?? '', cityState: searchParams.get('areaCityState') ?? '' };
+        if (type === 'county') return { ...base, countyName: searchParams.get('areaCounty') ?? '', countyState: searchParams.get('areaCountyState') ?? '' };
+        if (type === 'neighborhood') return { ...base, neighborhoodId: parseInt(searchParams.get('areaNeighborhoodId') ?? '') || undefined };
+        if (type === 'msa') return { ...base, msaGeoid: searchParams.get('areaMsaGeoid') ?? '' };
+        if (type === 'address') return { ...base, addressQuery: searchParams.get('areaAddress') ?? label };
+        return null;
+    });
+    const [areaInput, setAreaInput] = useState<string>(() => {
+        return searchParams.get('area') ?? '';
+    });
     const [areaSuggestions, setAreaSuggestions] = useState<AreaSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [fitBoundsTarget, setFitBoundsTarget] = useState<MapBounds | null>(null);
@@ -576,6 +621,81 @@ function MapPageInner() {
         params.set('zoom', zoom.toFixed(2));
         router.replace(`?${params.toString()}`, { scroll: false });
     }, [router]);
+
+    // Sync all filter/area state to URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+
+        // Source / latest
+        if (mapListingSource !== 'zillow') params.set('source', mapListingSource); else params.delete('source');
+        if (!showLatestOnly) params.set('latest', 'false'); else params.delete('latest');
+
+        // Area type
+        params.set('areaType', areaType);
+
+        // Area filter
+        if (areaFilter) {
+            params.set('area', areaFilter.label);
+            if (areaFilter.zipCode) params.set('areaZip', areaFilter.zipCode); else params.delete('areaZip');
+            if (areaFilter.cityName) params.set('areaCity', areaFilter.cityName); else params.delete('areaCity');
+            if (areaFilter.cityState) params.set('areaCityState', areaFilter.cityState); else params.delete('areaCityState');
+            if (areaFilter.neighborhoodId != null) params.set('areaNeighborhoodId', String(areaFilter.neighborhoodId)); else params.delete('areaNeighborhoodId');
+            if (areaFilter.countyName) params.set('areaCounty', areaFilter.countyName); else params.delete('areaCounty');
+            if (areaFilter.countyState) params.set('areaCountyState', areaFilter.countyState); else params.delete('areaCountyState');
+            if (areaFilter.msaGeoid) params.set('areaMsaGeoid', areaFilter.msaGeoid); else params.delete('areaMsaGeoid');
+            if (areaFilter.addressQuery) params.set('areaAddress', areaFilter.addressQuery); else params.delete('areaAddress');
+            if (areaFilter.bbox) {
+                params.set('areaBboxW', String(areaFilter.bbox.west));
+                params.set('areaBboxS', String(areaFilter.bbox.south));
+                params.set('areaBboxE', String(areaFilter.bbox.east));
+                params.set('areaBboxN', String(areaFilter.bbox.north));
+            } else {
+                ['areaBboxW', 'areaBboxS', 'areaBboxE', 'areaBboxN'].forEach(k => params.delete(k));
+            }
+        } else {
+            ['area', 'areaZip', 'areaCity', 'areaCityState', 'areaNeighborhoodId',
+             'areaCounty', 'areaCountyState', 'areaMsaGeoid', 'areaAddress',
+             'areaBboxW', 'areaBboxS', 'areaBboxE', 'areaBboxN'].forEach(k => params.delete(k));
+        }
+
+        // Filters
+        if (filters.priceMin) params.set('priceMin', filters.priceMin); else params.delete('priceMin');
+        if (filters.priceMax) params.set('priceMax', filters.priceMax); else params.delete('priceMax');
+        if (filters.capRateMin) params.set('capRateMin', filters.capRateMin); else params.delete('capRateMin');
+        if (filters.capRateMax) params.set('capRateMax', filters.capRateMax); else params.delete('capRateMax');
+        if (filters.sqftMin) params.set('sqftMin', filters.sqftMin); else params.delete('sqftMin');
+        if (filters.sqftMax) params.set('sqftMax', filters.sqftMax); else params.delete('sqftMax');
+        if (filters.beds.length > 0) params.set('beds', filters.beds.join(',')); else params.delete('beds');
+        if (filters.bathsMin !== null) params.set('bathsMin', String(filters.bathsMin)); else params.delete('bathsMin');
+        if (filters.homeTypes.length > 0) params.set('homeTypes', filters.homeTypes.join(',')); else params.delete('homeTypes');
+        if (filters.propertyType !== 'both') params.set('propertyType', filters.propertyType); else params.delete('propertyType');
+
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, router]);
+
+    // Restore boundary GeoJSON when areaFilter is hydrated from URL on mount
+    useEffect(() => {
+        if (!areaFilter) return;
+        (async () => {
+            if (areaFilter.type === 'zip' && areaFilter.zipCode) {
+                const { data } = await supabase.rpc('get_zip_boundary', { p_zip: areaFilter.zipCode });
+                if (data) setBoundaryGeoJSON(data as string);
+            } else if (areaFilter.type === 'neighborhood' && areaFilter.neighborhoodId != null) {
+                const { data } = await supabase.rpc('get_neighborhood_geojson', { p_id: areaFilter.neighborhoodId });
+                if (data) setBoundaryGeoJSON(data as string);
+            } else if (areaFilter.type === 'msa' && areaFilter.msaGeoid) {
+                const { data } = await supabase.rpc('get_msa_geojson', { p_geoid: areaFilter.msaGeoid });
+                if (data) setBoundaryGeoJSON(data as string);
+            } else if (areaFilter.type === 'city' && areaFilter.cityName) {
+                const { data } = await supabase.rpc('get_city_geojson', { p_name: areaFilter.cityName, p_state: areaFilter.cityState ?? '' });
+                if (data) setBoundaryGeoJSON(data as string);
+            } else if (areaFilter.type === 'county' && areaFilter.countyName) {
+                const { data } = await supabase.rpc('get_county_geojson', { p_name: areaFilter.countyName, p_state: areaFilter.countyState ?? '' });
+                if (data) setBoundaryGeoJSON(data as string);
+            }
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (!areaFilter && !mapBounds) return;
