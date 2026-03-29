@@ -1,40 +1,6 @@
 """Tests for pure utility functions in cleaned_listings.py."""
 import pytest
-from zillow_pipeline.assets.cleaned_listings import is_sfr, parse_price, parse_int, parse_float
-
-
-# ─── is_sfr ──────────────────────────────────────────────────────────────────
-
-class TestIsSfr:
-    def test_status_text_house_for_rent(self):
-        assert is_sfr({"statusText": "House for rent"}) is True
-
-    def test_status_text_single_family(self):
-        assert is_sfr({"statusText": "Single family home"}) is True
-
-    def test_status_text_single_family_hyphenated(self):
-        assert is_sfr({"statusText": "Single-family home"}) is True
-
-    def test_status_text_townhouse_for_rent(self):
-        assert is_sfr({"statusText": "Townhouse for rent"}) is True
-
-    def test_home_type_single_family(self):
-        assert is_sfr({"hdpData": {"homeInfo": {"homeType": "SINGLE_FAMILY"}}}) is True
-
-    def test_home_type_case_insensitive(self):
-        assert is_sfr({"hdpData": {"homeInfo": {"homeType": "single_family"}}}) is True
-
-    def test_apartment_is_not_sfr(self):
-        assert is_sfr({"statusText": "Apartment for rent", "hdpData": {"homeInfo": {"homeType": "APARTMENT"}}}) is False
-
-    def test_empty_listing_is_not_sfr(self):
-        assert is_sfr({}) is False
-
-    def test_missing_hpd_data_falls_back_to_status_text(self):
-        assert is_sfr({"statusText": "House for rent", "hdpData": None}) is True
-
-    def test_status_text_case_insensitive(self):
-        assert is_sfr({"statusText": "HOUSE FOR RENT"}) is True
+from zillow_pipeline.assets.cleaned_listings import parse_price, parse_int, parse_float
 
 
 # ─── parse_price ─────────────────────────────────────────────────────────────

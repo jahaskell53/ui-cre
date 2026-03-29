@@ -167,12 +167,12 @@ def cleaned_building_units(
             "availability_date": None,
             "lat": float(lat) if lat is not None else None,
             "lng": float(lng) if lng is not None else None,
-            "is_sfr": False,
             "raw_scrape_id": None,
             "img_src": img_src,
             "detail_url": detail_url,
             "is_building": is_building,
             "building_zpid": building_zpid,
+            "home_type": "APARTMENT",
         }
 
     def flush():

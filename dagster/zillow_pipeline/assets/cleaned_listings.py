@@ -5,22 +5,6 @@ from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy,
 
 from zillow_pipeline.resources.supabase import SupabaseResource
 
-SFR_KEYWORDS = {"house for rent", "single family", "single-family", "townhouse for rent"}
-
-
-def is_sfr(listing: dict) -> bool:
-    status_text = (listing.get("statusText") or "").lower()
-    home_type = (
-        (listing.get("hdpData") or {})
-        .get("homeInfo", {})
-        .get("homeType", "")
-        .lower()
-    )
-    return (
-        any(kw in status_text for kw in SFR_KEYWORDS)
-        or home_type == "single_family"
-    )
-
 
 def parse_price(listing: dict) -> Optional[int]:
     price = listing.get("unformattedPrice")
@@ -152,7 +136,7 @@ def cleaned_listings(
                         "p_availability_date": avail_raw[:10] if avail_raw else None,
                         "p_lat": float(lat) if lat is not None else None,
                         "p_lng": float(lng) if lng is not None else None,
-                        "p_is_sfr": is_sfr(listing),
+                        "p_home_type": (home_info.get("homeType") or "").upper() or None,
                         "p_raw_scrape_id": raw_scrape_id,
                         "p_img_src": listing.get("imgSrc"),
                         "p_detail_url": listing.get("detailUrl"),
