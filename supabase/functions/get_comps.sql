@@ -11,7 +11,8 @@ CREATE OR REPLACE FUNCTION public.get_comps(
   p_neighborhood_id integer DEFAULT NULL::integer,
   p_subject_zip text DEFAULT NULL::text,
   p_expand_adjacent boolean DEFAULT false,
-  p_neighborhood_ids integer[] DEFAULT NULL::integer[]
+  p_neighborhood_ids integer[] DEFAULT NULL::integer[],
+  p_home_type text DEFAULT NULL::text
 )
  RETURNS TABLE(id uuid, address_raw text, address_street text, address_city text, address_state text, address_zip text, price integer, beds integer, baths numeric, area integer, distance_m double precision, composite_score double precision, building_zpid text, unit_count integer)
  LANGUAGE sql
@@ -58,6 +59,7 @@ AS $function$
       ) AS distance_m
     FROM deduped cl
     WHERE cl.home_type IS DISTINCT FROM 'SINGLE_FAMILY'
+      AND (p_home_type IS NULL OR cl.home_type = p_home_type)
       AND (p_segment = 'both' OR (p_segment = 'mid' AND cl.building_zpid IS NULL) OR (p_segment = 'reit' AND cl.building_zpid IS NOT NULL))
       AND cl.is_building IS NOT TRUE
       AND cl.geom  IS NOT NULL

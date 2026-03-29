@@ -95,6 +95,7 @@ interface SearchParams {
     segment: 'mid' | 'reit' | 'both';
     filterMode: 'radius' | 'neighborhood';
     zip?: string | null;
+    homeType?: string;
 }
 
 function CompsContent() {
@@ -112,6 +113,7 @@ function CompsContent() {
     const initBeds = searchParams.get('beds') ?? '';
     const initBaths = searchParams.get('baths') ?? '';
     const initArea = searchParams.get('area') ?? '';
+    const initHomeType = searchParams.get('homeType') ?? '';
     const rawSegment = searchParams.get('segment');
     const initSegment: 'mid' | 'reit' | 'both' = (rawSegment === 'mid' || rawSegment === 'reit' || rawSegment === 'both') ? rawSegment : 'both';
     const initFilterMode = (searchParams.get('filterMode') ?? 'radius') as 'radius' | 'neighborhood';
@@ -126,6 +128,7 @@ function CompsContent() {
     const [subjectBeds, setSubjectBeds] = useState(initBeds);
     const [subjectBaths, setSubjectBaths] = useState(initBaths);
     const [subjectArea, setSubjectArea] = useState(initArea);
+    const [subjectHomeType, setSubjectHomeType] = useState(initHomeType);
 
     const [rentSegment, setRentSegment] = useState<'mid' | 'reit' | 'both'>(initSegment);
     const [filterMode, setFilterMode] = useState<'radius' | 'neighborhood'>(initFilterMode);
@@ -215,6 +218,7 @@ function CompsContent() {
         if (p.beds) url.set('beds', p.beds);
         if (p.baths) url.set('baths', p.baths);
         if (p.area) url.set('area', p.area);
+        if (p.homeType) url.set('homeType', p.homeType);
         url.set('segment', p.segment);
         if (p.filterMode !== 'radius') url.set('filterMode', p.filterMode);
         if (p.zip) url.set('zip', p.zip);
@@ -314,6 +318,7 @@ function CompsContent() {
                 p_neighborhood_ids: p.filterMode === 'neighborhood' ? nhIdsForSearch : null,
                 p_neighborhood_id: null,
                 p_subject_zip: p.filterMode === 'neighborhood' && !nhIdsForSearch ? subjectZip : null,
+                p_home_type: p.homeType || null,
             });
 
             if (rpcError) {
@@ -363,13 +368,13 @@ function CompsContent() {
         autoRunTimerRef.current = setTimeout(() => { findComps(); }, 500);
         return () => { if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rentSegment, subjectPrice, subjectBeds, subjectBaths, subjectArea, radiusMiles, filterMode]);
+    }, [rentSegment, subjectPrice, subjectBeds, subjectBaths, subjectArea, subjectHomeType, radiusMiles, filterMode]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
         if (didAutoSearch.current || !initAddress) return;
         didAutoSearch.current = true;
-        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, segment: initSegment, filterMode: initFilterMode, zip: initZip });
+        runSearch({ addr: initAddress, coords: initCoords, radius: initRadius, price: initPrice, beds: initBeds, baths: initBaths, area: initArea, homeType: initHomeType, segment: initSegment, filterMode: initFilterMode, zip: initZip });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -383,6 +388,7 @@ function CompsContent() {
             beds: subjectBeds,
             baths: subjectBaths,
             area: subjectArea,
+            homeType: subjectHomeType,
             segment: rentSegment,
             zip: cachedZip,
         };
@@ -705,6 +711,7 @@ function CompsContent() {
             beds: subjectBeds,
             baths: subjectBaths,
             area: subjectArea,
+            homeType: subjectHomeType,
             segment: rentSegment,
             zip: zip ?? cachedZip,
         });
@@ -1041,7 +1048,7 @@ function CompsContent() {
                             <p className="text-xs text-gray-500 mb-2">
                                 Optional: add subject attributes to score by similarity, not just distance
                             </p>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                 <div>
                                     <Label className="text-xs mb-1 block">Rent / mo</Label>
                                     <Input type="number" placeholder="e.g. 3500" value={subjectPrice}
@@ -1061,6 +1068,20 @@ function CompsContent() {
                                     <Label className="text-xs mb-1 block">Sq Ft</Label>
                                     <Input type="number" placeholder="e.g. 1200" value={subjectArea}
                                         onChange={(e) => setSubjectArea(e.target.value)} className="h-8 text-xs" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs mb-1 block">Home Type</Label>
+                                    <select
+                                        value={subjectHomeType}
+                                        onChange={(e) => setSubjectHomeType(e.target.value)}
+                                        className="h-8 w-full text-xs rounded-md border border-input bg-background px-2"
+                                    >
+                                        <option value="">Any</option>
+                                        <option value="APARTMENT">Apartment</option>
+                                        <option value="TOWNHOUSE">Townhouse</option>
+                                        <option value="CONDO">Condo</option>
+                                        <option value="MULTI_FAMILY">Multi-family</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
