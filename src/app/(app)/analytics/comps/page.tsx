@@ -869,8 +869,8 @@ function CompsContent() {
                         <div>
                             <div className="flex items-center gap-2 mb-3">
                                 <Label className="text-xs">Search by</Label>
-                                <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
-                                    {(['radius', 'neighborhood'] as const).map((mode, i) => (
+                                <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                                    {(['radius', 'neighborhood'] as const).map((mode) => (
                                         <button
                                             key={mode}
                                             type="button"
@@ -885,7 +885,12 @@ function CompsContent() {
                                                     lastNhDetectedRef.current = null;
                                                 }
                                             }}
-                                            className={`px-3 py-1.5 whitespace-nowrap transition-colors capitalize ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${filterMode === mode ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                            className={cn(
+                                                "px-3 py-1 text-xs font-medium rounded-md transition-colors capitalize",
+                                                filterMode === mode
+                                                    ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
+                                                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                                            )}
                                         >
                                             {mode}
                                         </button>
@@ -1018,13 +1023,18 @@ function CompsContent() {
 
                         <div className="flex items-center gap-2">
                             <Label className="text-xs">Segment</Label>
-                            <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
-                                {(['both', 'mid', 'reit'] as const).map((seg, i) => (
+                            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                                {(['both', 'mid', 'reit'] as const).map((seg) => (
                                     <button
                                         key={seg}
                                         type="button"
                                         onClick={() => setRentSegment(seg)}
-                                        className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${rentSegment === seg ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                        className={cn(
+                                            "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                                            rentSegment === seg
+                                                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
+                                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700"
+                                        )}
                                     >
                                         {seg === 'both' ? 'Both' : seg === 'mid' ? 'Mid-market' : 'REIT'}
                                     </button>
