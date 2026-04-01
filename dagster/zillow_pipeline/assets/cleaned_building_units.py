@@ -147,9 +147,20 @@ def cleaned_building_units(
     inserted = failed = 0
     batch: list[dict] = []
 
+    def _extract_laundry(attrs: dict) -> Optional[str]:
+        appliances = attrs.get("appliances") or []
+        if any(a in appliances for a in ("Washer", "Dryer")):
+            return "in_unit"
+        shared = attrs.get("hasSharedLaundry")
+        if shared is True:
+            return "shared"
+        if shared is False:
+            return "none"
+        return None
+
     def _make_row(zpid, scraped_at, zip_code, address_raw, address_street, address_city,
                   address_state, address_zip, price, beds, baths, area, lat, lng,
-                  img_src, detail_url, is_building, building_zpid) -> dict:
+                  img_src, detail_url, is_building, building_zpid, laundry=None) -> dict:
         return {
             "run_id": run_id,
             "scraped_at": scraped_at,
@@ -173,6 +184,7 @@ def cleaned_building_units(
             "is_building": is_building,
             "building_zpid": building_zpid,
             "home_type": "APARTMENT",
+            "laundry": laundry,
         }
 
     def flush():
@@ -211,6 +223,14 @@ def cleaned_building_units(
         lng = lat_long.get("longitude") or home_info.get("longitude")
         img_src = parent_listing.get("imgSrc")
 
+        # Extract building-level attributes (laundry applies to all units)
+        building_attrs = {}
+        for result_item in raw_json:
+            if result_item.get("buildingAttributes"):
+                building_attrs = result_item["buildingAttributes"]
+                break
+        laundry = _extract_laundry(building_attrs)
+
         # Parent building row
         batch.append(_make_row(
             zpid=building_zpid, scraped_at=row_scraped_at, zip_code=zip_code,
@@ -218,7 +238,7 @@ def cleaned_building_units(
             address_city=address_city, address_state=address_state, address_zip=address_zip,
             price=None, beds=None, baths=None, area=None,
             lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
-            is_building=True, building_zpid=None,
+            is_building=True, building_zpid=None, laundry=laundry,
         ))
 
         # Unit rows
@@ -236,7 +256,7 @@ def cleaned_building_units(
                         baths=_parse_float(unit.get("baths") or unit.get("bathrooms")),
                         area=_parse_int(unit.get("area") or unit.get("livingArea")),
                         lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
-                        is_building=False, building_zpid=building_zpid,
+                        is_building=False, building_zpid=building_zpid, laundry=laundry,
                     ))
                 continue
 
@@ -258,7 +278,7 @@ def cleaned_building_units(
                             address_city=address_city, address_state=address_state, address_zip=address_zip,
                             price=price, beds=beds, baths=baths, area=area,
                             lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
-                            is_building=False, building_zpid=building_zpid,
+                            is_building=False, building_zpid=building_zpid, laundry=laundry,
                         ))
                 else:
                     unit_zpid = f"{building_zpid}_fp{fp_idx}"
@@ -269,7 +289,7 @@ def cleaned_building_units(
                         address_city=address_city, address_state=address_state, address_zip=address_zip,
                         price=price, beds=beds, baths=baths, area=area,
                         lat=lat, lng=lng, img_src=img_src, detail_url=detail_url,
-                        is_building=False, building_zpid=building_zpid,
+                        is_building=False, building_zpid=building_zpid, laundry=laundry,
                     ))
 
         if len(batch) >= BATCH_SIZE:
