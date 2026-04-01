@@ -100,6 +100,7 @@ export default function TrendsPage() {
         const parsed = raw.split(",").filter((s): s is 'mid' | 'reit' => s === 'mid' || s === 'reit');
         return parsed.length > 0 ? parsed : ['mid'];
     });
+    const [selectedHomeType, setSelectedHomeType] = useState<string | null>(() => searchParams.get("homeType"));
     const [loading, setLoading] = useState(false);
 
     // Sync persisted state to URL (shallow push, no navigation)
@@ -109,9 +110,10 @@ export default function TrendsPage() {
         params.set("display", display);
         params.set("beds", selectedBeds.join(","));
         params.set("sources", selectedSources.join(","));
+        if (selectedHomeType) params.set("homeType", selectedHomeType);
         if (selectedAreas.length > 0) params.set("areas", serializeAreas(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [areaType, display, selectedAreas, selectedBeds, selectedSources]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [areaType, display, selectedAreas, selectedBeds, selectedSources, selectedHomeType]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
@@ -210,7 +212,7 @@ export default function TrendsPage() {
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
-            const p = { p_beds: beds, p_reits_only: reitsOnly };
+            const p = { p_beds: beds, p_reits_only: reitsOnly, p_home_type: selectedHomeType };
             const call = isNh
                 ? supabase.rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], ...p })
                 : isCity
@@ -228,15 +230,16 @@ export default function TrendsPage() {
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
+            const ht = { p_home_type: selectedHomeType };
             const call = isNh
-                ? supabase.rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly })
+                ? supabase.rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly, ...ht })
                 : isCity
-                ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_reits_only: reitsOnly })
+                ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_reits_only: reitsOnly, ...ht })
                 : isCounty
-                ? supabase.rpc("get_market_activity_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, p_reits_only: reitsOnly })
+                ? supabase.rpc("get_market_activity_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, p_reits_only: reitsOnly, ...ht })
                 : isMsa
-                ? supabase.rpc("get_market_activity_by_msa", { p_geoid: area.msaGeoid!, p_reits_only: reitsOnly })
-                : supabase.rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly });
+                ? supabase.rpc("get_market_activity_by_msa", { p_geoid: area.msaGeoid!, p_reits_only: reitsOnly, ...ht })
+                : supabase.rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly, ...ht });
             return call.then(({ data, error }) => { if (error) { console.error(error); return [] as ActivityRow[]; } return (data ?? []) as ActivityRow[]; });
         };
 
@@ -261,7 +264,7 @@ export default function TrendsPage() {
             }
             setAreaResults(next);
         });
-    }, [selectedAreas, selectedBeds, selectedSources]);
+    }, [selectedAreas, selectedBeds, selectedSources, selectedHomeType]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress("");
@@ -789,6 +792,28 @@ export default function TrendsPage() {
                             if (prev.includes('reit')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'reit'); }
                             return prev.includes('mid') ? ['mid', 'reit'] : ['reit'];
                         }))}
+                    </div>
+                </div>
+
+                {/* Home Type */}
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Home type</span>
+                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                        {([
+                            { label: "All", value: null },
+                            { label: "Apartment", value: "APARTMENT" },
+                            { label: "House", value: "SINGLE_FAMILY" },
+                            { label: "Townhouse", value: "TOWNHOUSE" },
+                        ] as { label: string; value: string | null }[]).map(({ label, value }, i) => (
+                            <button
+                                key={label}
+                                type="button"
+                                onClick={() => setSelectedHomeType(value)}
+                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${selectedHomeType === value ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
