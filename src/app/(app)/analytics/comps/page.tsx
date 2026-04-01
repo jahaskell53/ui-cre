@@ -915,7 +915,7 @@ function CompsContent() {
                                 </>
                             ) : (
                                 <>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg px-3 py-2">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
                                         {neighborhoodName ? (
                                             <span>Searching in <span className="font-semibold text-violet-700 dark:text-violet-300">{neighborhoodName}</span></span>
                                         ) : selectedCoords ? (
