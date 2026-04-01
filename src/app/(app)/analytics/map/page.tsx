@@ -97,7 +97,6 @@ const HOME_TYPE_OPTIONS = [
     { label: "Apartment", value: "APARTMENT" },
     { label: "House", value: "SINGLE_FAMILY" },
     { label: "Townhouse", value: "TOWNHOUSE" },
-    { label: "Condo", value: "CONDO" },
 ];
 
 const AREA_TYPE_LABELS: Record<AreaType, string> = {

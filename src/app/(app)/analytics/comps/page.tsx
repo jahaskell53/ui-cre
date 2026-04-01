@@ -1079,7 +1079,6 @@ function CompsContent() {
                                         <option value="">Any</option>
                                         <option value="APARTMENT">Apartment</option>
                                         <option value="TOWNHOUSE">Townhouse</option>
-                                        <option value="CONDO">Condo</option>
                                         <option value="MULTI_FAMILY">Multi-family</option>
                                     </select>
                                 </div>
