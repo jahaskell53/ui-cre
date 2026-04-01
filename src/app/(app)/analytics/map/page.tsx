@@ -61,6 +61,7 @@ interface Filters {
     beds: number[];
     bathsMin: number | null;
     homeTypes: string[];
+    laundry: string[];
     propertyType: 'both' | 'reit' | 'mid-market';
 }
 
@@ -74,6 +75,7 @@ const defaultFilters: Filters = {
     beds: [],
     bathsMin: null,
     homeTypes: [],
+    laundry: [],
     propertyType: 'both',
 };
 
@@ -98,6 +100,12 @@ const HOME_TYPE_OPTIONS = [
     { label: "House", value: "SINGLE_FAMILY" },
     { label: "Townhouse", value: "TOWNHOUSE" },
     { label: "Multi-family", value: "MULTI_FAMILY" },
+];
+
+const LAUNDRY_OPTIONS = [
+    { label: "In-unit", value: "in_unit" },
+    { label: "Shared", value: "shared" },
+    { label: "None", value: "none" },
 ];
 
 const AREA_TYPE_LABELS: Record<AreaType, string> = {
@@ -158,6 +166,7 @@ function MapPageInner() {
     const [filters, setFilters] = useState<Filters>(() => {
         const beds = searchParams.get('beds');
         const homeTypes = searchParams.get('homeTypes');
+        const laundry = searchParams.get('laundry');
         const bathsMin = searchParams.get('bathsMin');
         const propertyType = searchParams.get('propertyType');
         return {
@@ -170,6 +179,7 @@ function MapPageInner() {
             beds: beds ? beds.split(',').map(Number).filter(n => !isNaN(n)) : [],
             bathsMin: bathsMin !== null ? parseFloat(bathsMin) || null : null,
             homeTypes: homeTypes ? homeTypes.split(',').filter(Boolean) : [],
+            laundry: laundry ? laundry.split(',').filter(Boolean) : [],
             propertyType: (['both', 'reit', 'mid-market'] as const).find(v => v === propertyType) ?? 'both',
         };
     });
@@ -226,6 +236,7 @@ function MapPageInner() {
         if (mapListingSource === 'zillow' && filters.beds.length > 0) count++;
         if (mapListingSource === 'zillow' && filters.bathsMin !== null) count++;
         if (mapListingSource === 'zillow' && filters.homeTypes.length > 0) count++;
+        if (mapListingSource === 'zillow' && filters.laundry.length > 0) count++;
         if (mapListingSource === 'zillow' && filters.propertyType !== 'both') count++;
         return count;
     }, [filters, mapListingSource]);
@@ -585,6 +596,9 @@ function MapPageInner() {
             if (currentFilters.homeTypes.length > 0) {
                 zillowQuery = zillowQuery.in('home_type', currentFilters.homeTypes);
             }
+            if (currentFilters.laundry.length > 0) {
+                zillowQuery = zillowQuery.in('laundry', currentFilters.laundry);
+            }
             if (currentFilters.propertyType === 'reit') {
                 zillowQuery = zillowQuery.or('is_building.eq.true,building_zpid.not.is.null');
             } else if (currentFilters.propertyType === 'mid-market') {
@@ -668,6 +682,7 @@ function MapPageInner() {
         if (filters.beds.length > 0) params.set('beds', filters.beds.join(',')); else params.delete('beds');
         if (filters.bathsMin !== null) params.set('bathsMin', String(filters.bathsMin)); else params.delete('bathsMin');
         if (filters.homeTypes.length > 0) params.set('homeTypes', filters.homeTypes.join(',')); else params.delete('homeTypes');
+        if (filters.laundry.length > 0) params.set('laundry', filters.laundry.join(',')); else params.delete('laundry');
         if (filters.propertyType !== 'both') params.set('propertyType', filters.propertyType); else params.delete('propertyType');
 
         router.replace(`?${params.toString()}`, { scroll: false });
@@ -924,6 +939,32 @@ function MapPageInner() {
                                                     className={cn(
                                                         "px-2.5 py-1 text-xs rounded-md border transition-colors",
                                                         filters.homeTypes.includes(value)
+                                                            ? "bg-blue-600 text-white border-blue-600"
+                                                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                                                    )}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {mapListingSource === 'zillow' && (
+                                    <div>
+                                        <Label className="text-xs">Laundry</Label>
+                                        <div className="flex gap-1.5 mt-1 flex-wrap">
+                                            {LAUNDRY_OPTIONS.map(({ label, value }) => (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => setFilters(prev => ({
+                                                        ...prev,
+                                                        laundry: prev.laundry.includes(value)
+                                                            ? prev.laundry.filter(l => l !== value)
+                                                            : [...prev.laundry, value],
+                                                    }))}
+                                                    className={cn(
+                                                        "px-2.5 py-1 text-xs rounded-md border transition-colors",
+                                                        filters.laundry.includes(value)
                                                             ? "bg-blue-600 text-white border-blue-600"
                                                             : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
                                                     )}
