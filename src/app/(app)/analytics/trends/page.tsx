@@ -811,6 +811,7 @@ export default function TrendsPage() {
                             { label: "Apartment", value: "APARTMENT" },
                             { label: "House", value: "SINGLE_FAMILY" },
                             { label: "Townhouse", value: "TOWNHOUSE" },
+                            { label: "Multi-family", value: "MULTI_FAMILY" },
                         ] as { label: string; value: string | null }[]).map(({ label, value }, i) => (
                             <button
                                 key={label}
