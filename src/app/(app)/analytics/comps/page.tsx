@@ -920,9 +920,7 @@ function CompsContent() {
                                             <span>Searching in <span className="font-semibold text-violet-700 dark:text-violet-300">{neighborhoodName}</span></span>
                                         ) : selectedCoords ? (
                                             <span className="text-gray-400">Neighborhood will be detected when you search</span>
-                                        ) : (
-                                            <span className="text-gray-400">Enter an address to detect its neighborhood</span>
-                                        )}
+                                        ) : null}
                                     </div>
                                     {selectedNhIds.length > 0 && (
                                         <p className="text-[10px] text-gray-400 mt-1">
