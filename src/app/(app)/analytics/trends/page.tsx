@@ -94,11 +94,10 @@ export default function TrendsPage() {
         const parsed = raw.split(",").map(Number).filter(n => !isNaN(n));
         return parsed.length > 0 ? parsed : [1];
     });
-    const [selectedSources, setSelectedSources] = useState<('mid' | 'reit')[]>(() => {
-        const raw = searchParams.get("sources");
-        if (!raw) return ['mid'];
-        const parsed = raw.split(",").filter((s): s is 'mid' | 'reit' => s === 'mid' || s === 'reit');
-        return parsed.length > 0 ? parsed : ['mid'];
+    const [selectedSegment, setSelectedSegment] = useState<'both' | 'mid' | 'reit'>(() => {
+        const raw = searchParams.get("segment");
+        if (raw === 'both' || raw === 'reit') return raw;
+        return 'mid';
     });
     const [selectedHomeType, setSelectedHomeType] = useState<string | null>(() => searchParams.get("homeType"));
     const [loading, setLoading] = useState(false);
@@ -109,11 +108,11 @@ export default function TrendsPage() {
         params.set("areaType", areaType);
         params.set("display", display);
         params.set("beds", selectedBeds.join(","));
-        params.set("sources", selectedSources.join(","));
+        params.set("segment", selectedSegment);
         if (selectedHomeType) params.set("homeType", selectedHomeType);
         if (selectedAreas.length > 0) params.set("areas", serializeAreas(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [areaType, display, selectedAreas, selectedBeds, selectedSources, selectedHomeType]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [areaType, display, selectedAreas, selectedBeds, selectedSegment, selectedHomeType]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
@@ -243,8 +242,10 @@ export default function TrendsPage() {
             return call.then(({ data, error }) => { if (error) { console.error(error); return [] as ActivityRow[]; } return (data ?? []) as ActivityRow[]; });
         };
 
-        const multiSource = selectedSources.length > 1;
-        const sourcesToFetch = selectedSources.map(src => ({ src, reitsOnly: src === 'reit' }));
+        const multiSource = selectedSegment === 'both';
+        const sourcesToFetch = multiSource
+            ? [{ src: 'mid' as const, reitsOnly: false }, { src: 'reit' as const, reitsOnly: true }]
+            : [{ src: selectedSegment as 'mid' | 'reit', reitsOnly: selectedSegment === 'reit' }];
 
         Promise.all(
             selectedAreas.flatMap(area =>
@@ -264,7 +265,7 @@ export default function TrendsPage() {
             }
             setAreaResults(next);
         });
-    }, [selectedAreas, selectedBeds, selectedSources, selectedHomeType]);
+    }, [selectedAreas, selectedBeds, selectedSegment, selectedHomeType]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress("");
@@ -476,10 +477,10 @@ export default function TrendsPage() {
     };
 
     const REIT_AREA_COLORS = ["#1d4ed8", "#c2410c", "#6d28d9", "#065f46", "#b91c1c"];
-    const multiSource = selectedSources.length > 1;
+    const multiSource = selectedSegment === 'both';
 
     const displayAreas: AreaSelection[] = multiSource
-        ? selectedAreas.flatMap((area, i) => selectedSources.map(src => ({
+        ? selectedAreas.flatMap((area, i) => (['mid', 'reit'] as const).map(src => ({
             ...area,
             id: `${area.id}:${src}`,
             label: `${area.label} (${src === 'reit' ? 'REIT' : 'Mid-market'})`,
@@ -783,15 +784,21 @@ export default function TrendsPage() {
                 {/* Segment */}
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">Segment</span>
-                    <div className="flex flex-wrap gap-2">
-                        {segmentToggle("Mid-market", selectedSources.includes('mid'), () => setSelectedSources(prev => {
-                            if (prev.includes('mid')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'mid'); }
-                            return prev.includes('reit') ? ['mid', 'reit'] : ['mid'];
-                        }))}
-                        {segmentToggle("REIT", selectedSources.includes('reit'), () => setSelectedSources(prev => {
-                            if (prev.includes('reit')) { if (prev.length === 1) return prev; return prev.filter(s => s !== 'reit'); }
-                            return prev.includes('mid') ? ['mid', 'reit'] : ['reit'];
-                        }))}
+                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden text-sm">
+                        {([
+                            { label: "Both", value: 'both' },
+                            { label: "Mid-market", value: 'mid' },
+                            { label: "REIT", value: 'reit' },
+                        ] as { label: string; value: 'both' | 'mid' | 'reit' }[]).map(({ label, value }, i) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setSelectedSegment(value)}
+                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''} ${selectedSegment === value ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -823,7 +830,7 @@ export default function TrendsPage() {
                 <ZipTrendsMap
                     areaType={areaType as "ZIP Code" | "Neighborhood" | "City" | "County" | "MSA"}
                     selectedBeds={selectedBeds[0]}
-                    reitsOnly={selectedSources.length === 1 && selectedSources[0] === 'reit'}
+                    reitsOnly={selectedSegment === 'reit'}
                     selectedAreas={selectedAreas}
                     onAddZip={addAreaByZip}
                     onAddNeighborhood={addAreaByNeighborhood}
