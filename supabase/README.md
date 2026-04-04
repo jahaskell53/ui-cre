@@ -29,3 +29,13 @@ The `functions/` files are the readable source of truth for what each function c
 ## Applying migrations to a fresh DB
 
 Run the migration files in order (001 → latest) against the target database.
+
+## Local Supabase (CLI + Docker)
+
+1. Install [Docker](https://docs.docker.com/get-docker/) and ensure the daemon is running.
+2. From the repo root: `bun install` then `bun run supabase:start` (first run pulls images and can take several minutes).
+3. Copy the API URL, `anon` key, and `service_role` key from `bun run supabase:status` into `.env.local` (see root `.env.example` commented block).
+4. Open Supabase Studio at [http://127.0.0.1:54323](http://127.0.0.1:54323). Auth is configured for `http://127.0.0.1:3000` in `supabase/config.toml`.
+5. `bun run supabase:reset` reapplies all files in `migrations/` from scratch (destructive to local data).
+
+Migrations are applied automatically on start/reset. Use `bun run supabase:stop` when finished.
