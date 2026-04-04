@@ -22,8 +22,8 @@ vi.mock('@/lib/news/newsletter-utils', () => ({
   splitArticlesIntoNationalAndLocal: vi.fn().mockReturnValue({ nationalArticles: [], localArticles: [] }),
 }))
 
-vi.mock('@/utils/supabase/server', () => ({
-  createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+vi.mock('@/utils/supabase/admin', () => ({
+  createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
 }))
 
 import { GET } from './route'

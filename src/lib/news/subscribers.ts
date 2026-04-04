@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server";
 import { UsCity } from "./cities";
 
@@ -34,11 +35,11 @@ export interface Subscriber {
   preferredSendTimes: PreferredSendTime[];
 }
 
-export async function getActiveSubscribers(): Promise<Subscriber[]> {
+export async function getActiveSubscribers(supabase?: SupabaseClient): Promise<Subscriber[]> {
   try {
-    const supabase = await createClient();
+    const client = supabase ?? (await createClient());
 
-    const { data: subscribers, error } = await supabase
+    const { data: subscribers, error } = await client
       .from("subscribers")
       .select(`
         id,
@@ -73,11 +74,11 @@ export async function getActiveSubscribers(): Promise<Subscriber[]> {
   }
 }
 
-export async function getSubscriberByEmail(email: string): Promise<Subscriber | null> {
+export async function getSubscriberByEmail(email: string, supabase?: SupabaseClient): Promise<Subscriber | null> {
   try {
-    const supabase = await createClient();
+    const client = supabase ?? (await createClient());
 
-    const { data: subscriber, error } = await supabase
+    const { data: subscriber, error } = await client
       .from("subscribers")
       .select(`
         id,

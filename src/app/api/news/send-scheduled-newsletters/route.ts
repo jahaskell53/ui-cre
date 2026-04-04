@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { getSubscriberByEmail } from "@/lib/news/subscribers";
 import { EmailService } from "@/lib/news/newsletter-service";
 import { generateEmailContentFromArticles, splitArticlesIntoNationalAndLocal } from "@/lib/news/newsletter-utils";
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const now = new Date();
     console.log(`Current time: ${now.toISOString()}`);
 
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         console.log(`Processing newsletter ${newsletter.id} for ${newsletter.subscriber_email}`);
 
         // Get subscriber
-        const subscriber = await getSubscriberByEmail(newsletter.subscriber_email);
+        const subscriber = await getSubscriberByEmail(newsletter.subscriber_email, supabase);
         if (!subscriber || !subscriber.isActive) {
           console.log(`Subscriber ${newsletter.subscriber_email} not found or inactive, marking newsletter as failed`);
           await supabase
