@@ -1,3 +1,8 @@
+-- Restructure get_comps so spatial/cheap filters run before DISTINCT ON deduplication.
+-- Previously: DISTINCT ON scanned all 100k+ rows, then candidates filtered spatially.
+-- Now: candidates_raw filters spatially first (GiST index seek), then dedup the small result set.
+-- All three geo-filter branches (neighborhood_ids, neighborhood_id, zip, radius) are preserved.
+
 CREATE OR REPLACE FUNCTION public.get_comps(
   subject_lng double precision,
   subject_lat double precision,
@@ -172,4 +177,6 @@ AS $function$
   SELECT * FROM reit_agg
   ORDER BY composite_score DESC
   LIMIT p_limit;
-$function$
+$function$;
+
+GRANT EXECUTE ON FUNCTION public.get_comps(double precision, double precision, double precision, integer, integer, numeric, integer, integer, text, integer, text, boolean, integer[], text) TO anon, authenticated;
