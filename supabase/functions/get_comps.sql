@@ -48,11 +48,7 @@ AS $function$
       AND (
         (
           p_neighborhood_ids IS NOT NULL
-          AND EXISTS (
-            SELECT 1
-            FROM unnest(p_neighborhood_ids) AS nid(id)
-            JOIN neighborhoods n ON n.id = nid.id AND ST_Within(cl.geom, n.geom)
-          )
+          AND ST_Within(cl.geom, (SELECT ST_Union(geom) FROM neighborhoods WHERE id = ANY(p_neighborhood_ids)))
         )
         OR (
           p_neighborhood_ids IS NULL
