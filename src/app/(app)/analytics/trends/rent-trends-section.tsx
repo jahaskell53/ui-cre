@@ -101,10 +101,10 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                     return (
                         <div key={entry.dataKey} className="flex items-center gap-2">
                             <span style={{ color: entry.color, fontWeight: 600 }}>{entry.name}</span>
-                            {absVal != null && <span>{formatDollars(absVal)}</span>}
-                            {pctVal != null && (
+                            {yView === "abs" && absVal != null && <span>{formatDollars(absVal)}</span>}
+                            {yView === "pct" && pctVal != null && (
                                 <span className={pctVal >= 0 ? "text-green-600" : "text-red-500"}>
-                                    ({pctVal >= 0 ? "+" : ""}{pctVal.toFixed(2)}%)
+                                    {pctVal >= 0 ? "+" : ""}{pctVal.toFixed(2)}%
                                 </span>
                             )}
                         </div>
