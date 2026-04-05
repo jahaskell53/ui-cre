@@ -15,8 +15,8 @@ vi.mock('@/lib/news/newsletter-utils', () => ({
   fetchArticlesForNewsletter: mockFetchArticlesForNewsletter,
 }))
 
-vi.mock('@/utils/supabase/server', () => ({
-  createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+vi.mock('@/utils/supabase/admin', () => ({
+  createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
 }))
 
 import { GET } from './route'

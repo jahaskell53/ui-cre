@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { getActiveSubscribers, PreferredSendTime } from "@/lib/news/subscribers";
 import { fetchArticlesForNewsletter } from "@/lib/news/newsletter-utils";
 import { sendAlertEmail } from "@/lib/news/alert";
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const now = new Date();
     const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     console.log(`Looking for subscribers who want newsletters at: ${oneHourFromNow.toISOString()}`);
 
     // Get all active subscribers
-    const subscribers = await getActiveSubscribers();
+    const subscribers = await getActiveSubscribers(supabase);
     console.log(`Found ${subscribers.length} active subscribers`);
 
     if (subscribers.length === 0) {

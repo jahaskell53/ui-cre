@@ -28,6 +28,10 @@ vi.mock('@/lib/news/newsletter-service', () => ({
   }),
 }))
 
+vi.mock('@/utils/supabase/admin', () => ({
+  createAdminClient: vi.fn().mockReturnValue({}),
+}))
+
 import { GET } from './route'
 
 function makeGet() {

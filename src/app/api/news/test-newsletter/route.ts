@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { EmailService } from "@/lib/news/newsletter-service";
 import { fetchArticlesForNewsletter, generateEmailContentFromArticles } from "@/lib/news/newsletter-utils";
 import { getSubscriberByEmail } from "@/lib/news/subscribers";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,8 @@ export async function GET(request: NextRequest) {
     const testEmail = 'alon@greenpointcollection.com';
     console.log(`Sending test newsletter to: ${testEmail}`);
 
-    // Get the actual subscriber from the database
-    const testSubscriber = await getSubscriberByEmail(testEmail);
+    const supabase = createAdminClient();
+    const testSubscriber = await getSubscriberByEmail(testEmail, supabase);
     if (!testSubscriber) {
       console.error(`Subscriber not found: ${testEmail}`);
       return NextResponse.json({
