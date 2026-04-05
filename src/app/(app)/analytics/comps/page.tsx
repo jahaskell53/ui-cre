@@ -173,6 +173,9 @@ function CompsContent() {
     const miniMapCompMarkersRef = useRef<mapboxgl.Marker[]>([]);
     const miniMapPopupRootsRef = useRef<ReturnType<typeof createRoot>[]>([]);
     const didAutoSearch = useRef(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const searchGenRef = useRef(0);
+    const hasSearchedRef = useRef(false);
     const [miniMapActiveIndex, setMiniMapActiveIndex] = useState<number | null>(null);
     const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
     const selectedNhIdsRef = useRef<number[]>([]);
@@ -256,6 +259,14 @@ function CompsContent() {
         async (p: SearchParams) => {
             if (!p.addr.trim()) return;
             if (!p.beds.trim() || !p.baths.trim()) return;
+
+            // Cancel any in-flight search
+            abortControllerRef.current?.abort();
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+            const gen = ++searchGenRef.current;
+
+            hasSearchedRef.current = true;
             setLoading(true);
             setError(null);
             setComps(null);
@@ -268,9 +279,11 @@ function CompsContent() {
                 } else {
                     const geoRes = await fetch(
                         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(p.addr.trim())}.json?access_token=${MAPBOX_TOKEN}&limit=1`,
+                        { signal: controller.signal },
                     );
                     const geoData = await geoRes.json();
                     if (!geoData.features?.length) {
+                        if (gen !== searchGenRef.current) return;
                         setError("Address not found. Please try a different address.");
                         setLoading(false);
                         return;
@@ -286,6 +299,8 @@ function CompsContent() {
                     if (geocodedZip) setCachedZip(geocodedZip);
                 }
 
+                if (gen !== searchGenRef.current) return;
+
                 // Neighborhood lookup when in neighborhood mode
                 let nhIdsForSearch: number[] | null = null;
                 let subjectZip: string | null = null;
@@ -296,6 +311,7 @@ function CompsContent() {
                         refreshCandidates(nhIdsForSearch);
                     } else {
                         const { data: nhData } = await supabase.rpc("find_neighborhood", { p_lng: lng, p_lat: lat });
+                        if (gen !== searchGenRef.current) return;
                         if (nhData && nhData.length > 0) {
                             const nhId = nhData[0].id as number;
                             nhIdsForSearch = [nhId];
@@ -352,12 +368,17 @@ function CompsContent() {
                     p_home_type: p.homeType || null,
                 });
 
+                if (gen !== searchGenRef.current) return;
+
                 if (rpcError) {
                     setError("Failed to find comps: " + rpcError.message);
                 } else {
                     const rows = (data ?? []) as Omit<CompResult, "img_src" | "latitude" | "longitude">[];
                     const ids = rows.map((r) => r.id);
                     const { data: metaData } = await supabase.from("cleaned_listings").select("id, img_src, latitude, longitude").in("id", ids);
+
+                    if (gen !== searchGenRef.current) return;
+
                     const metaMap = Object.fromEntries(
                         (metaData ?? []).map((r: any) => [
                             r.id,
@@ -383,17 +404,20 @@ function CompsContent() {
                     setComps(merged);
                     setCompsPage(1);
                 }
-            } catch {
+            } catch (err) {
+                // Ignore errors from aborted (superseded) requests
+                if (err instanceof Error && err.name === "AbortError") return;
+                if (gen !== searchGenRef.current) return;
                 setError("Something went wrong. Please try again.");
             }
-            setLoading(false);
+            if (gen === searchGenRef.current) setLoading(false);
         },
         [rentSegment, cachedZip, refreshCandidates],
     );
 
-    // Re-run search when any filter changes (if a search has already been run)
+    // Re-run search when any filter changes (if a search has already been initiated)
     useEffect(() => {
-        if (!comps) return;
+        if (!hasSearchedRef.current) return;
         if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current);
         autoRunTimerRef.current = setTimeout(() => {
             findComps();
@@ -425,6 +449,10 @@ function CompsContent() {
     }, []);
 
     const findComps = () => {
+        if (autoRunTimerRef.current) {
+            clearTimeout(autoRunTimerRef.current);
+            autoRunTimerRef.current = null;
+        }
         const p: SearchParams = {
             addr: address,
             coords: selectedCoords,
