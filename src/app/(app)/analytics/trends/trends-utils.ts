@@ -40,10 +40,10 @@ export const BED_KEYS = [
 
 // Line dash per bed type: 1BR is solid (primary), others get distinct dashes
 export const BED_DASH: Record<number, string> = {
-    0: "2 4",   // Studio: dots
-    1: "",      // 1BR: solid
-    2: "7 3",   // 2BR: dashed
-    3: "2 7",   // 3BR+: long dots
+    0: "2 4", // Studio: dots
+    1: "", // 1BR: solid
+    2: "7 3", // 2BR: dashed
+    3: "2 7", // 3BR+: long dots
 };
 
 export interface SeriesInfo {
@@ -58,7 +58,7 @@ export function getRentSeriesList(areas: AreaSelection[], selectedBeds: number[]
     const series: SeriesInfo[] = [];
     for (const area of areas) {
         for (const beds of selectedBeds) {
-            const bedEntry = BED_KEYS.find(b => b.beds === beds)!;
+            const bedEntry = BED_KEYS.find((b) => b.beds === beds)!;
             series.push({
                 key: multibed ? `${area.id}:${beds}` : area.id,
                 label: multibed ? `${area.label} · ${bedEntry.label}` : area.label,
@@ -75,7 +75,7 @@ export function getActivitySeriesList(areas: AreaSelection[], selectedBeds: numb
     const series: SeriesInfo[] = [];
     for (const area of areas) {
         for (const beds of selectedBeds) {
-            const bedEntry = BED_KEYS.find(b => b.beds === beds)!;
+            const bedEntry = BED_KEYS.find((b) => b.beds === beds)!;
             series.push({
                 key: multibed ? `${area.id}:${beds}` : area.id,
                 label: multibed ? `${area.label} · ${bedEntry.label}` : area.label,
@@ -101,21 +101,18 @@ export function buildChartData(rows: TrendRow[]): ChartPoint[] {
     for (const row of rows) {
         const w = row.week_start;
         if (!byWeek[w]) byWeek[w] = { week: w, weekLabel: formatWeekLabel(w) };
-        const bedEntry = BED_KEYS.find(b => b.beds === row.beds);
+        const bedEntry = BED_KEYS.find((b) => b.beds === row.beds);
         if (bedEntry) byWeek[w][bedEntry.key] = Math.round(row.median_rent);
     }
     return Object.values(byWeek).sort((a, b) => a.week.localeCompare(b.week));
 }
 
-export function buildActivityChartData(
-    rows: ActivityRow[],
-    metric: 'new_listings' | 'accumulated_listings' | 'closed_listings'
-): ActivityChartPoint[] {
+export function buildActivityChartData(rows: ActivityRow[], metric: "new_listings" | "accumulated_listings" | "closed_listings"): ActivityChartPoint[] {
     const byWeek: Record<string, ActivityChartPoint> = {};
     for (const row of rows) {
         const w = row.week_start;
         if (!byWeek[w]) byWeek[w] = { week: w, weekLabel: formatWeekLabel(w) };
-        const bedEntry = BED_KEYS.find(b => b.beds === row.beds);
+        const bedEntry = BED_KEYS.find((b) => b.beds === row.beds);
         if (bedEntry) byWeek[w][bedEntry.key] = row[metric];
     }
     return Object.values(byWeek).sort((a, b) => a.week.localeCompare(b.week));
@@ -130,32 +127,30 @@ export const AREA_COLORS = ["#3b82f6", "#f97316", "#8b5cf6", "#10b981", "#ef4444
 
 // ── Granularity ──────────────────────────────────────────────────────────────
 
-export type Granularity = 'wow' | 'mom' | 'qoq' | 'yoy';
+export type Granularity = "wow" | "mom" | "qoq" | "yoy";
 
 export const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
-    { value: 'wow', label: 'WoW' },
-    { value: 'mom', label: 'MoM' },
-    { value: 'qoq', label: 'QoQ' },
-    { value: 'yoy', label: 'YoY' },
+    { value: "wow", label: "WoW" },
+    { value: "mom", label: "MoM" },
+    { value: "qoq", label: "QoQ" },
+    { value: "yoy", label: "YoY" },
 ];
 
 function medianOf(values: number[]): number {
     const sorted = [...values].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0
-        ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
-        : sorted[mid];
+    return sorted.length % 2 === 0 ? Math.round((sorted[mid - 1] + sorted[mid]) / 2) : sorted[mid];
 }
 
 function toBucketStart(dateStr: string, granularity: Granularity): string {
-    const d = new Date(dateStr + 'T00:00:00Z');
+    const d = new Date(dateStr + "T00:00:00Z");
     const year = d.getUTCFullYear();
     const month = d.getUTCMonth(); // 0-11
-    if (granularity === 'mom') {
-        return `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    } else if (granularity === 'qoq') {
+    if (granularity === "mom") {
+        return `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    } else if (granularity === "qoq") {
         const qMonth = Math.floor(month / 3) * 3 + 1;
-        return `${year}-${String(qMonth).padStart(2, '0')}-01`;
+        return `${year}-${String(qMonth).padStart(2, "0")}-01`;
     } else {
         return `${year}-01-01`;
     }
@@ -163,35 +158,37 @@ function toBucketStart(dateStr: string, granularity: Granularity): string {
 
 /** Aggregate weekly TrendRows into monthly/quarterly/yearly buckets (median rent). */
 export function aggregateTrendRows(rows: TrendRow[], granularity: Granularity): TrendRow[] {
-    if (granularity === 'wow') return rows;
+    if (granularity === "wow") return rows;
     const groups: Record<string, TrendRow[]> = {};
     for (const row of rows) {
         const key = `${row.beds}::${toBucketStart(row.week_start, granularity)}`;
         if (!groups[key]) groups[key] = [];
         groups[key].push(row);
     }
-    return Object.entries(groups).map(([key, groupRows]) => {
-        const bucketStart = key.split('::')[1];
-        return {
-            week_start: bucketStart,
-            beds: groupRows[0].beds,
-            median_rent: medianOf(groupRows.map(r => r.median_rent)),
-            listing_count: Math.round(groupRows.reduce((s, r) => s + r.listing_count, 0) / groupRows.length),
-        };
-    }).sort((a, b) => a.week_start.localeCompare(b.week_start) || a.beds - b.beds);
+    return Object.entries(groups)
+        .map(([key, groupRows]) => {
+            const bucketStart = key.split("::")[1];
+            return {
+                week_start: bucketStart,
+                beds: groupRows[0].beds,
+                median_rent: medianOf(groupRows.map((r) => r.median_rent)),
+                listing_count: Math.round(groupRows.reduce((s, r) => s + r.listing_count, 0) / groupRows.length),
+            };
+        })
+        .sort((a, b) => a.week_start.localeCompare(b.week_start) || a.beds - b.beds);
 }
 
 /** Format a bucket date string for display on the chart x-axis. */
 export function formatPeriodLabel(dateStr: string, granularity: Granularity): string {
-    if (granularity === 'wow') return formatWeekLabel(dateStr);
-    const d = new Date(dateStr + 'T00:00:00Z');
+    if (granularity === "wow") return formatWeekLabel(dateStr);
+    const d = new Date(dateStr + "T00:00:00Z");
     const year = d.getUTCFullYear();
     const shortYear = String(year).slice(2);
-    if (granularity === 'mom') {
-        const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+    if (granularity === "mom") {
+        const month = d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
         return `${month} '${shortYear}`;
     }
-    if (granularity === 'qoq') {
+    if (granularity === "qoq") {
         const quarter = Math.floor(d.getUTCMonth() / 3) + 1;
         return `Q${quarter} '${shortYear}`;
     }
@@ -203,20 +200,23 @@ export function formatPeriodLabel(dateStr: string, granularity: Granularity): st
  * WoW – always; MoM – >4 weeks; QoQ – >3 months; YoY – >12 months.
  */
 export function getAvailableGranularities(areaResults: Record<string, TrendRow[]>): Granularity[] {
-    const allDates = Object.values(areaResults).flat().map(r => r.week_start).sort();
-    if (allDates.length < 2) return ['wow'];
-    const first = new Date(allDates[0] + 'T00:00:00Z');
-    const last = new Date(allDates[allDates.length - 1] + 'T00:00:00Z');
+    const allDates = Object.values(areaResults)
+        .flat()
+        .map((r) => r.week_start)
+        .sort();
+    if (allDates.length < 2) return ["wow"];
+    const first = new Date(allDates[0] + "T00:00:00Z");
+    const last = new Date(allDates[allDates.length - 1] + "T00:00:00Z");
     const diffDays = (last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24);
-    const available: Granularity[] = ['wow'];
-    if (diffDays > 28) available.push('mom');
-    if (diffDays > 91) available.push('qoq');
-    if (diffDays > 365) available.push('yoy');
+    const available: Granularity[] = ["wow"];
+    if (diffDays > 28) available.push("mom");
+    if (diffDays > 91) available.push("qoq");
+    if (diffDays > 365) available.push("yoy");
     return available;
 }
 
 export interface AreaSelection {
-    id: string;          // zip, "nh:<neighborhoodId>", or "city:<name>:<state>"
+    id: string; // zip, "nh:<neighborhoodId>", or "city:<name>:<state>"
     label: string;
     color: string;
     neighborhoodId?: number;
@@ -231,7 +231,7 @@ export function buildMultiAreaRentData(
     areaResults: Record<string, TrendRow[]>,
     areas: AreaSelection[],
     selectedBeds: number[],
-    granularity: Granularity = 'wow'
+    granularity: Granularity = "wow",
 ): Array<Record<string, string | number>> {
     // Aggregate each area's rows to the requested granularity first
     const aggregated: Record<string, TrendRow[]> = {};
@@ -243,51 +243,51 @@ export function buildMultiAreaRentData(
     const allWeeks = new Set<string>();
     for (const area of areas) {
         for (const beds of selectedBeds) {
-            (aggregated[area.id] ?? [])
-                .filter(r => r.beds === beds)
-                .forEach(r => allWeeks.add(r.week_start));
+            (aggregated[area.id] ?? []).filter((r) => r.beds === beds).forEach((r) => allWeeks.add(r.week_start));
         }
     }
-    return Array.from(allWeeks).sort().map(w => {
-        const point: Record<string, string | number> = { week: w, weekLabel: formatPeriodLabel(w, granularity) };
-        for (const area of areas) {
-            for (const beds of selectedBeds) {
-                const key = multibed ? `${area.id}:${beds}` : area.id;
-                const row = (aggregated[area.id] ?? []).find(r => r.beds === beds && r.week_start === w);
-                if (row) point[key] = Math.round(row.median_rent);
+    return Array.from(allWeeks)
+        .sort()
+        .map((w) => {
+            const point: Record<string, string | number> = { week: w, weekLabel: formatPeriodLabel(w, granularity) };
+            for (const area of areas) {
+                for (const beds of selectedBeds) {
+                    const key = multibed ? `${area.id}:${beds}` : area.id;
+                    const row = (aggregated[area.id] ?? []).find((r) => r.beds === beds && r.week_start === w);
+                    if (row) point[key] = Math.round(row.median_rent);
+                }
             }
-        }
-        return point;
-    });
+            return point;
+        });
 }
 
 export function buildActivityComboData(
     areaResults: Record<string, ActivityRow[]>,
     areas: AreaSelection[],
-    selectedBeds: number[]
+    selectedBeds: number[],
 ): Array<Record<string, string | number>> {
     const multibed = selectedBeds.length > 1;
     const allWeeks = new Set<string>();
     for (const area of areas) {
         for (const beds of selectedBeds) {
-            (areaResults[area.id] ?? [])
-                .filter(r => r.beds === beds)
-                .forEach(r => allWeeks.add(r.week_start));
+            (areaResults[area.id] ?? []).filter((r) => r.beds === beds).forEach((r) => allWeeks.add(r.week_start));
         }
     }
-    return Array.from(allWeeks).sort().map(w => {
-        const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
-        for (const area of areas) {
-            for (const beds of selectedBeds) {
-                const prefix = multibed ? `${area.id}:${beds}` : area.id;
-                const row = (areaResults[area.id] ?? []).find(r => r.beds === beds && r.week_start === w);
-                if (row) {
-                    point[`${prefix}_new`] = row.new_listings;
-                    point[`${prefix}_closed`] = row.closed_listings;
-                    point[`${prefix}_acc`] = row.accumulated_listings;
+    return Array.from(allWeeks)
+        .sort()
+        .map((w) => {
+            const point: Record<string, string | number> = { week: w, weekLabel: formatWeekLabel(w) };
+            for (const area of areas) {
+                for (const beds of selectedBeds) {
+                    const prefix = multibed ? `${area.id}:${beds}` : area.id;
+                    const row = (areaResults[area.id] ?? []).find((r) => r.beds === beds && r.week_start === w);
+                    if (row) {
+                        point[`${prefix}_new`] = row.new_listings;
+                        point[`${prefix}_closed`] = row.closed_listings;
+                        point[`${prefix}_acc`] = row.accumulated_listings;
+                    }
                 }
             }
-        }
-        return point;
-    });
+            return point;
+        });
 }

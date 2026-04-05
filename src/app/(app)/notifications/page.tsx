@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/hooks/use-user";
 import { NotificationCard } from "@/components/notifications/notification-card";
+import { useUser } from "@/hooks/use-user";
 
 interface Notification {
     id: string;
@@ -81,14 +81,14 @@ export default function NotificationsPage() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+        <div className="flex h-screen flex-col bg-white dark:bg-gray-900">
             {/* Top Header Bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
                 <button
                     onClick={() => router.push("/")}
-                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                    className="-ml-1.5 rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
@@ -98,23 +98,28 @@ export default function NotificationsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
-                <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
-                    <div className="max-w-3xl mx-auto w-full">
-                        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                <div className="flex h-full flex-col gap-8 overflow-auto p-6">
+                    <div className="mx-auto w-full max-w-3xl">
+                        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
                             {loading ? (
-                                <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
-                                    <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                                <div className="flex flex-col items-center justify-center gap-3 py-24 text-gray-400">
+                                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
                                     <div className="text-sm">Loading notifications...</div>
                                 </div>
                             ) : notifications.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
-                                    <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 border border-gray-100 dark:border-gray-800 text-gray-300">
-                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                <div className="flex flex-col items-center justify-center px-4 py-24 text-center">
+                                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-gray-100 bg-gray-50 text-gray-300 dark:border-gray-800 dark:bg-gray-800">
+                                        <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={1.5}
+                                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                                            />
                                         </svg>
                                     </div>
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">All caught up!</h3>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs">You don't have any new notifications at the moment.</p>
+                                    <h3 className="mb-1 text-lg font-semibold text-gray-900 dark:text-gray-100">All caught up!</h3>
+                                    <p className="max-w-xs text-sm text-gray-500 dark:text-gray-400">You don't have any new notifications at the moment.</p>
                                 </div>
                             ) : (
                                 <div>

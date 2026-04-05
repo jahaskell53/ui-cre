@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
-import { usePageTour } from "@/hooks/use-page-tour";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowUp, Plus, Search, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { usePageTour } from "@/hooks/use-page-tour";
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/utils/supabase";
-import { ArrowUp, Plus, Search, X } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { generateAuroraGradient } from "@/app/(app)/network/utils";
-import { motion, AnimatePresence } from "motion/react";
-import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 
 interface Conversation {
     other_user_id: string;
@@ -55,11 +55,7 @@ export default function MessagesPage() {
 
     const fetchUserProfile = useCallback(async (userId: string) => {
         try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("id, full_name, avatar_url, website, roles")
-                .eq("id", userId)
-                .single();
+            const { data, error } = await supabase.from("profiles").select("id, full_name, avatar_url, website, roles").eq("id", userId).single();
 
             if (error) throw error;
 
@@ -169,9 +165,9 @@ export default function MessagesPage() {
         if (messagesContainerRef.current) {
             messagesContainerRef.current.scrollTo({
                 top: messagesContainerRef.current.scrollHeight,
-                behavior: smooth ? "smooth" : "auto"
+                behavior: smooth ? "smooth" : "auto",
             });
-        } else if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === 'function') {
+        } else if (messagesEndRef.current && typeof messagesEndRef.current.scrollIntoView === "function") {
             messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
         }
     };
@@ -207,13 +203,7 @@ export default function MessagesPage() {
 
             // Update unread count locally without reloading conversations
             if (showLoading) {
-                setConversations(prev => 
-                    prev.map(conv => 
-                        conv.other_user_id === userId 
-                            ? { ...conv, unread_count: 0 }
-                            : conv
-                    )
-                );
+                setConversations((prev) => prev.map((conv) => (conv.other_user_id === userId ? { ...conv, unread_count: 0 } : conv)));
             }
         } catch (error) {
             console.error("Error loading messages:", error);
@@ -243,7 +233,7 @@ export default function MessagesPage() {
             pending: true,
         };
 
-        setMessages(prev => [...prev, optimisticMessage]);
+        setMessages((prev) => [...prev, optimisticMessage]);
         setMessageContent("");
         setSending(true);
 
@@ -266,16 +256,14 @@ export default function MessagesPage() {
 
             const newMessage = await response.json();
             // Replace optimistic message with real one
-            setMessages(prev => prev.map(msg =>
-                msg.id === tempId ? { ...newMessage, pending: false } : msg
-            ));
+            setMessages((prev) => prev.map((msg) => (msg.id === tempId ? { ...newMessage, pending: false } : msg)));
 
             // Refresh conversations
             loadConversations();
         } catch (error) {
             console.error("Error sending message:", error);
             // Remove the optimistic message on error
-            setMessages(prev => prev.filter(msg => msg.id !== tempId));
+            setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
             setMessageContent(content); // Restore the message content
             alert(error instanceof Error ? error.message : "Failed to send message");
         } finally {
@@ -299,7 +287,7 @@ export default function MessagesPage() {
         const name = getDisplayName(user);
         return name
             .split(" ")
-            .map(n => n[0])
+            .map((n) => n[0])
             .join("")
             .toUpperCase()
             .slice(0, 2);
@@ -332,7 +320,7 @@ export default function MessagesPage() {
     };
 
     const handleStartConversation = (userId: string) => {
-        const userProfile = searchResults.find(u => u.id === userId);
+        const userProfile = searchResults.find((u) => u.id === userId);
         if (userProfile) {
             setSelectedUserProfile(userProfile);
         }
@@ -346,7 +334,7 @@ export default function MessagesPage() {
         // Clear selected user profile when switching to an existing conversation
         // Or fetch it if we don't have it yet (e.g., from query param)
         if (selectedUserId) {
-            const conversation = conversations.find(c => c.other_user_id === selectedUserId);
+            const conversation = conversations.find((c) => c.other_user_id === selectedUserId);
             if (conversation?.other_user) {
                 // If we have a conversation, we don't need the selectedUserProfile
                 setSelectedUserProfile(null);
@@ -363,7 +351,7 @@ export default function MessagesPage() {
         const name = user?.full_name || "Unknown User";
         return name
             .split(" ")
-            .map(n => n[0])
+            .map((n) => n[0])
             .join("")
             .toUpperCase()
             .slice(0, 2);
@@ -394,15 +382,18 @@ export default function MessagesPage() {
     ];
 
     return (
-        <div className="relative flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
-            <div className="flex flex-col gap-8 p-6 overflow-auto h-full">
-                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Messages</h1>
+        <div className="relative flex h-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+            <div className="flex h-full flex-col gap-8 overflow-auto p-6">
+                <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Messages</h1>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)] min-h-[600px]">
+                <div className="grid h-[calc(100vh-200px)] min-h-[600px] grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Conversations List */}
-                    <div data-tour="conversations-list" className="lg:col-span-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-                            <div className="flex items-center justify-between mb-2">
+                    <div
+                        data-tour="conversations-list"
+                        className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:col-span-1 dark:border-gray-800 dark:bg-gray-900"
+                    >
+                        <div className="border-b border-gray-200 p-4 dark:border-gray-800">
+                            <div className="mb-2 flex items-center justify-between">
                                 <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Conversations</h2>
                                 <button
                                     data-tour="new-message"
@@ -411,33 +402,33 @@ export default function MessagesPage() {
                                         setSearchQuery("");
                                         setSearchResults([]);
                                     }}
-                                    className="flex items-center gap-1.5 px-2 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+                                    className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                                 >
                                     {showNewMessage ? <X className="size-4" /> : <Plus className="size-4" />}
                                     {showNewMessage ? "Cancel" : "New"}
                                 </button>
                             </div>
                             {showNewMessage && (
-                                <div className="mt-3 relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 dark:text-gray-500" />
+                                <div className="relative mt-3">
+                                    <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                                     <Input
                                         placeholder="Search users..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-9 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                                        className="border-gray-200 bg-gray-50 pl-9 text-gray-900 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                                         autoFocus
                                     />
                                 </div>
                             )}
                         </div>
                         {showNewMessage && searchQuery.trim() && (
-                            <div className="border-b border-gray-200 dark:border-gray-800 max-h-[200px] overflow-y-auto">
+                            <div className="max-h-[200px] overflow-y-auto border-b border-gray-200 dark:border-gray-800">
                                 {searchLoading ? (
                                     <div className="flex items-center justify-center py-8">
                                         <div className="text-sm text-gray-500 dark:text-gray-400">Searching...</div>
                                     </div>
                                 ) : searchResults.length === 0 ? (
-                                    <div className="flex items-center justify-center py-8 px-4">
+                                    <div className="flex items-center justify-center px-4 py-8">
                                         <div className="text-center text-gray-500 dark:text-gray-400">
                                             <p className="text-sm">No users found</p>
                                         </div>
@@ -447,31 +438,28 @@ export default function MessagesPage() {
                                         {searchResults.map((userProfile) => {
                                             const displayName = userProfile.full_name || "Unknown User";
                                             const initials = getInitialsFromUser(userProfile);
-                                            const isExistingConversation = conversations.some(
-                                                c => c.other_user_id === userProfile.id
-                                            );
+                                            const isExistingConversation = conversations.some((c) => c.other_user_id === userProfile.id);
 
                                             return (
                                                 <div
                                                     key={userProfile.id}
                                                     onClick={() => handleStartConversation(userProfile.id)}
-                                                    className="p-3 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                    className="cursor-pointer p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <Avatar className="h-7 w-7">
                                                             <AvatarImage src={userProfile.avatar_url || undefined} />
-                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
+                                                            <AvatarFallback
+                                                                style={{ background: generateAuroraGradient(displayName) }}
+                                                                className="text-xs font-medium text-white"
+                                                            >
                                                                 {initials}
                                                             </AvatarFallback>
                                                         </Avatar>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-                                                                {displayName}
-                                                            </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</div>
                                                             {isExistingConversation && (
-                                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                                    Existing conversation
-                                                                </div>
+                                                                <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Existing conversation</div>
                                                             )}
                                                         </div>
                                                     </div>
@@ -489,105 +477,116 @@ export default function MessagesPage() {
                                     {[...Array(6)].map((_, i) => (
                                         <div key={i} className="px-4 py-3">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                                                <div className="h-10 w-10 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700" />
                                                 <div className="flex-1">
-                                                    <div className="flex items-center justify-between mb-1.5">
-                                                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-24" />
-                                                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-12" />
+                                                    <div className="mb-1.5 flex items-center justify-between">
+                                                        <div className="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                                                        <div className="h-3 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
                                                     </div>
-                                                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-36" />
+                                                    <div className="h-3 w-36 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : conversations.length === 0 ? (
-                                <div className="flex items-center justify-center py-12 px-4">
+                                <div className="flex items-center justify-center px-4 py-12">
                                     <div className="text-center text-gray-500 dark:text-gray-400">
                                         <p className="text-sm">No conversations yet</p>
-                                        <p className="text-xs mt-2">Start a conversation from a user profile</p>
+                                        <p className="mt-2 text-xs">Start a conversation from a user profile</p>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                                    {Array.isArray(conversations) && conversations.map((conversation) => {
-                                        const displayName = getDisplayName(conversation.other_user);
-                                        const initials = getInitials(conversation.other_user);
-                                        const isSelected = selectedUserId === conversation.other_user_id;
-                                        const isUnread = conversation.unread_count > 0;
+                                    {Array.isArray(conversations) &&
+                                        conversations.map((conversation) => {
+                                            const displayName = getDisplayName(conversation.other_user);
+                                            const initials = getInitials(conversation.other_user);
+                                            const isSelected = selectedUserId === conversation.other_user_id;
+                                            const isUnread = conversation.unread_count > 0;
 
-                                        return (
-                                            <div
-                                                key={conversation.other_user_id}
-                                                onClick={() => setSelectedUserId(conversation.other_user_id)}
-                                                className={`px-4 py-3 cursor-pointer transition-all duration-150 ${
-                                                    isSelected
-                                                        ? "bg-gray-100 dark:bg-gray-800"
-                                                        : "hover:bg-gray-50 dark:hover:bg-gray-800/50 active:bg-gray-100 dark:active:bg-gray-800"
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="relative">
-                                                        <Avatar className="h-10 w-10 transition-transform duration-150 hover:scale-105">
-                                                            <AvatarImage src={conversation.other_user?.avatar_url || undefined} />
-                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
-                                                                {initials}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        {isUnread && (
-                                                            <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center justify-between mb-0.5">
-                                                            <div className={`text-sm truncate transition-colors ${
-                                                                isUnread ? "font-semibold text-gray-900 dark:text-gray-100" : "font-medium text-gray-700 dark:text-gray-300"
-                                                            }`}>
-                                                                {displayName}
-                                                            </div>
-                                                            {conversation.last_message && (
-                                                                <span className={`text-xs ml-2 transition-colors ${
-                                                                    isUnread ? "text-blue-500 font-medium" : "text-gray-400 dark:text-gray-500"
-                                                                }`}>
-                                                                    {formatDistanceToNow(
-                                                                        new Date(conversation.last_message.created_at),
-                                                                        { addSuffix: true }
-                                                                    )}
-                                                                </span>
+                                            return (
+                                                <div
+                                                    key={conversation.other_user_id}
+                                                    onClick={() => setSelectedUserId(conversation.other_user_id)}
+                                                    className={`cursor-pointer px-4 py-3 transition-all duration-150 ${
+                                                        isSelected
+                                                            ? "bg-gray-100 dark:bg-gray-800"
+                                                            : "hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-gray-800/50 dark:active:bg-gray-800"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative">
+                                                            <Avatar className="h-10 w-10 transition-transform duration-150 hover:scale-105">
+                                                                <AvatarImage src={conversation.other_user?.avatar_url || undefined} />
+                                                                <AvatarFallback
+                                                                    style={{ background: generateAuroraGradient(displayName) }}
+                                                                    className="text-xs font-medium text-white"
+                                                                >
+                                                                    {initials}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            {isUnread && (
+                                                                <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-blue-500 dark:border-gray-900" />
                                                             )}
                                                         </div>
-                                                        <div className="flex items-center justify-between">
-                                                            <p className={`text-xs truncate transition-colors ${
-                                                                isUnread ? "text-gray-800 dark:text-gray-200 font-medium" : "text-gray-500 dark:text-gray-400"
-                                                            }`}>
-                                                                {conversation.last_message.content}
-                                                            </p>
-                                                            {isUnread && (
-                                                                <span className="ml-2 bg-blue-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                                                                    {conversation.unread_count}
-                                                                </span>
-                                                            )}
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="mb-0.5 flex items-center justify-between">
+                                                                <div
+                                                                    className={`truncate text-sm transition-colors ${
+                                                                        isUnread
+                                                                            ? "font-semibold text-gray-900 dark:text-gray-100"
+                                                                            : "font-medium text-gray-700 dark:text-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    {displayName}
+                                                                </div>
+                                                                {conversation.last_message && (
+                                                                    <span
+                                                                        className={`ml-2 text-xs transition-colors ${
+                                                                            isUnread ? "font-medium text-blue-500" : "text-gray-400 dark:text-gray-500"
+                                                                        }`}
+                                                                    >
+                                                                        {formatDistanceToNow(new Date(conversation.last_message.created_at), {
+                                                                            addSuffix: true,
+                                                                        })}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center justify-between">
+                                                                <p
+                                                                    className={`truncate text-xs transition-colors ${
+                                                                        isUnread
+                                                                            ? "font-medium text-gray-800 dark:text-gray-200"
+                                                                            : "text-gray-500 dark:text-gray-400"
+                                                                    }`}
+                                                                >
+                                                                    {conversation.last_message.content}
+                                                                </p>
+                                                                {isUnread && (
+                                                                    <span className="ml-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold text-white">
+                                                                        {conversation.unread_count}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Messages View */}
-                    <div className="lg:col-span-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden flex flex-col">
+                    <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:col-span-2 dark:border-gray-800 dark:bg-gray-900">
                         {selectedUserId ? (
                             <>
                                 {/* Messages Header */}
-                                <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                                <div className="border-b border-gray-200 p-4 dark:border-gray-800">
                                     {(() => {
-                                        const conversation = conversations.find(
-                                            c => c.other_user_id === selectedUserId
-                                        );
+                                        const conversation = conversations.find((c) => c.other_user_id === selectedUserId);
 
                                         // If no conversation exists, use selected user profile from search
                                         if (!conversation?.other_user) {
@@ -599,7 +598,10 @@ export default function MessagesPage() {
                                                     <div className="flex items-center gap-2">
                                                         <Avatar className="h-7 w-7">
                                                             <AvatarImage src={selectedUserProfile.avatar_url || undefined} />
-                                                            <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
+                                                            <AvatarFallback
+                                                                style={{ background: generateAuroraGradient(displayName) }}
+                                                                className="text-xs font-medium text-white"
+                                                            >
                                                                 {initials}
                                                             </AvatarFallback>
                                                         </Avatar>
@@ -619,7 +621,10 @@ export default function MessagesPage() {
                                             <div className="flex items-center gap-2">
                                                 <Avatar className="h-7 w-7">
                                                     <AvatarImage src={conversation.other_user.avatar_url || undefined} />
-                                                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
+                                                    <AvatarFallback
+                                                        style={{ background: generateAuroraGradient(displayName) }}
+                                                        className="text-xs font-medium text-white"
+                                                    >
                                                         {initials}
                                                     </AvatarFallback>
                                                 </Avatar>
@@ -632,19 +637,22 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Messages List */}
-                                <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col justify-end scroll-smooth">
+                                <div ref={messagesContainerRef} className="flex flex-1 flex-col justify-end overflow-y-auto scroll-smooth p-4">
                                     {loadingMessages ? (
                                         <div className="space-y-3">
                                             {/* Skeleton loading for messages */}
                                             {[...Array(5)].map((_, i) => (
                                                 <div key={i} className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}>
-                                                    <div className={`rounded-2xl px-4 py-3 ${
-                                                        i % 2 === 0
-                                                            ? "bg-gray-100 dark:bg-gray-800"
-                                                            : "bg-gray-200 dark:bg-gray-700"
-                                                    }`}>
-                                                        <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" style={{ width: `${80 + Math.random() * 120}px` }} />
-                                                        <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse mt-2 w-12" />
+                                                    <div
+                                                        className={`rounded-2xl px-4 py-3 ${
+                                                            i % 2 === 0 ? "bg-gray-100 dark:bg-gray-800" : "bg-gray-200 dark:bg-gray-700"
+                                                        }`}
+                                                    >
+                                                        <div
+                                                            className="h-4 animate-pulse rounded bg-gray-200 dark:bg-gray-600"
+                                                            style={{ width: `${80 + Math.random() * 120}px` }}
+                                                        />
+                                                        <div className="mt-2 h-3 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-600" />
                                                     </div>
                                                 </div>
                                             ))}
@@ -653,7 +661,7 @@ export default function MessagesPage() {
                                         <div className="flex items-center justify-center py-12">
                                             <div className="text-center text-gray-500 dark:text-gray-400">
                                                 <p className="text-sm">No messages yet</p>
-                                                <p className="text-xs mt-2">Start the conversation!</p>
+                                                <p className="mt-2 text-xs">Start the conversation!</p>
                                             </div>
                                         </div>
                                     ) : (
@@ -680,25 +688,25 @@ export default function MessagesPage() {
                                                             <div
                                                                 className={`max-w-[70%] rounded-2xl px-4 py-2.5 transition-all duration-200 ${
                                                                     isOwn
-                                                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                                                        : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                                                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                                                        : "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
                                                                 } ${isPending ? "opacity-70" : ""}`}
                                                             >
-                                                                <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                                                                    {message.content}
-                                                                </p>
-                                                                <p className={`text-[10px] mt-1.5 flex items-center gap-1.5 ${
-                                                                    isOwn ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"
-                                                                }`}>
+                                                                <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{message.content}</p>
+                                                                <p
+                                                                    className={`mt-1.5 flex items-center gap-1.5 text-[10px] ${
+                                                                        isOwn ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"
+                                                                    }`}
+                                                                >
                                                                     {isPending ? (
                                                                         <span className="flex items-center gap-1">
-                                                                            <span className="w-1 h-1 bg-current rounded-full animate-pulse" />
+                                                                            <span className="h-1 w-1 animate-pulse rounded-full bg-current" />
                                                                             Sending...
                                                                         </span>
+                                                                    ) : message.created_at && !isNaN(new Date(message.created_at).getTime()) ? (
+                                                                        formatDistanceToNow(new Date(message.created_at), { addSuffix: true })
                                                                     ) : (
-                                                                        message.created_at && !isNaN(new Date(message.created_at).getTime())
-                                                                            ? formatDistanceToNow(new Date(message.created_at), { addSuffix: true })
-                                                                            : 'Just now'
+                                                                        "Just now"
                                                                     )}
                                                                 </p>
                                                             </div>
@@ -712,16 +720,16 @@ export default function MessagesPage() {
                                 </div>
 
                                 {/* Message Input */}
-                                <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-                                    <div data-tour="message-input" className="flex gap-3 items-end">
-                                        <div className="flex-1 relative">
+                                <div className="border-t border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                                    <div data-tour="message-input" className="flex items-end gap-3">
+                                        <div className="relative flex-1">
                                             <Textarea
                                                 placeholder="Type a message..."
                                                 value={messageContent}
                                                 onChange={(e) => setMessageContent(e.target.value)}
                                                 onKeyDown={handleKeyPress}
                                                 rows={1}
-                                                className="resize-none rounded-2xl min-h-[44px] py-3 px-4 bg-gray-100 dark:bg-gray-800 border-0 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-sm focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-gray-700 transition-all duration-200"
+                                                className="min-h-[44px] resize-none rounded-2xl border-0 bg-gray-100 px-4 py-3 text-sm text-gray-900 transition-all duration-200 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:bg-gray-700"
                                             />
                                         </div>
                                         <motion.div
@@ -736,7 +744,7 @@ export default function MessagesPage() {
                                                 onClick={sendMessage}
                                                 disabled={!messageContent.trim() || sending}
                                                 size="sm"
-                                                className="rounded-full h-11 w-11 p-0 bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-gray-900 transition-all duration-200 disabled:bg-gray-300 dark:disabled:bg-gray-700"
+                                                className="h-11 w-11 rounded-full bg-gray-900 p-0 text-white transition-all duration-200 hover:bg-gray-800 disabled:bg-gray-300 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 dark:disabled:bg-gray-700"
                                             >
                                                 <ArrowUp className="size-5" />
                                             </Button>
@@ -745,19 +753,24 @@ export default function MessagesPage() {
                                 </div>
                             </>
                         ) : (
-                            <div className="flex items-center justify-center h-full">
+                            <div className="flex h-full items-center justify-center">
                                 <motion.div
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3 }}
                                     className="text-center text-gray-500 dark:text-gray-400"
                                 >
-                                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                                        <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={1.5}
+                                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                            />
                                         </svg>
                                     </div>
-                                    <p className="text-sm font-medium mb-1">Select a conversation</p>
+                                    <p className="mb-1 text-sm font-medium">Select a conversation</p>
                                     <p className="text-xs">Choose from the list to start messaging</p>
                                 </motion.div>
                             </div>

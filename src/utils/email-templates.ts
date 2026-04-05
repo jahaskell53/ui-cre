@@ -1,30 +1,30 @@
 export interface MessageNotificationData {
-  senderName: string;
-  messageContent: string;
-  messageUrl: string;
+    senderName: string;
+    messageContent: string;
+    messageUrl: string;
 }
 
 export interface MentionNotificationData {
-  senderName: string;
-  commentContent: string;
-  postUrl: string;
+    senderName: string;
+    commentContent: string;
+    postUrl: string;
 }
 
 export interface EventInviteData {
-  hostName: string;
-  eventTitle: string;
-  eventDate: string;
-  eventTime: string;
-  eventUrl: string;
-  eventImageUrl?: string | null;
-  message?: string;
+    hostName: string;
+    eventTitle: string;
+    eventDate: string;
+    eventTime: string;
+    eventUrl: string;
+    eventImageUrl?: string | null;
+    message?: string;
 }
 
 export function generateMessageNotificationEmail(data: MessageNotificationData): { subject: string; html: string; text: string } {
-  const senderDisplay = data.senderName || 'Someone';
-  const subject = `New message from ${senderDisplay}`;
+    const senderDisplay = data.senderName || "Someone";
+    const subject = `New message from ${senderDisplay}`;
 
-  const html = `
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -70,7 +70,7 @@ export function generateMessageNotificationEmail(data: MessageNotificationData):
 </html>
   `.trim();
 
-  const text = `
+    const text = `
 New Message
 
 You received a new message from ${senderDisplay}:
@@ -82,14 +82,14 @@ View the message: ${data.messageUrl}
 This is an automated notification. You can reply to this message in the app.
   `.trim();
 
-  return { subject, html, text };
+    return { subject, html, text };
 }
 
 export function generateMentionNotificationEmail(data: MentionNotificationData): { subject: string; html: string; text: string } {
-  const senderDisplay = data.senderName || 'Someone';
-  const subject = `${senderDisplay} mentioned you in a comment`;
+    const senderDisplay = data.senderName || "Someone";
+    const subject = `${senderDisplay} mentioned you in a comment`;
 
-  const html = `
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -135,7 +135,7 @@ export function generateMentionNotificationEmail(data: MentionNotificationData):
 </html>
   `.trim();
 
-  const text = `
+    const text = `
 You were mentioned
 
 ${senderDisplay} mentioned you in a comment:
@@ -147,13 +147,13 @@ View the comment: ${data.postUrl}
 This is an automated notification. You can reply to this comment in the app.
   `.trim();
 
-  return { subject, html, text };
+    return { subject, html, text };
 }
 
 export function generateConfirmationEmail(): { subject: string; html: string } {
-  const subject = "Confirm your signup";
+    const subject = "Confirm your signup";
 
-  const html = `
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -208,13 +208,13 @@ export function generateConfirmationEmail(): { subject: string; html: string } {
 </html>
   `.trim();
 
-  return { subject, html };
+    return { subject, html };
 }
 
 export function generateEventInviteEmail(data: EventInviteData): { subject: string; html: string; text: string } {
-  const subject = `Invitation: ${data.eventTitle}`;
+    const subject = `Invitation: ${data.eventTitle}`;
 
-  const html = `
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -227,13 +227,17 @@ export function generateEventInviteEmail(data: EventInviteData): { subject: stri
     <tr>
       <td style="padding: 40px 20px;">
         <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #e5e5e5; overflow: hidden;">
-          ${data.eventImageUrl ? `
+          ${
+              data.eventImageUrl
+                  ? `
           <tr>
             <td>
               <img src="${data.eventImageUrl}" alt="${data.eventTitle}" style="width: 100%; height: 300px; object-cover: cover; display: block;">
             </td>
           </tr>
-          ` : ''}
+          `
+                  : ""
+          }
           <tr>
             <td style="padding: 40px 30px;">
               <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.05em;">
@@ -286,7 +290,7 @@ export function generateEventInviteEmail(data: EventInviteData): { subject: stri
 </html>
   `.trim();
 
-  const text = `
+    const text = `
 You're Invited!
 ${data.eventTitle}
 
@@ -299,15 +303,9 @@ View Event & RSVP: ${data.eventUrl}
 Sent via Untitled UI Calendar.
   `.trim();
 
-  return { subject, html, text };
+    return { subject, html, text };
 }
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
-

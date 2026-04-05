@@ -29,7 +29,7 @@ export async function searchArticlesWithGemini(articles: ArticleItem[], query: s
 Given the following articles, select the TOP 20 MOST RELEVANT articles that match their search query. Consider relevance to the search terms, recency, and quality of content. Return ONLY the article indices (0-based) in order of relevance.
 
 Articles:
-${articles.map((article, index) => `${index}. Title: ${article.title}\n   Description: ${article.description || 'No description'}\n   Source: ${article.source_name}\n   Date: ${article.date}`).join('\n\n')}
+${articles.map((article, index) => `${index}. Title: ${article.title}\n   Description: ${article.description || "No description"}\n   Source: ${article.source_name}\n   Date: ${article.date}`).join("\n\n")}
 
 Return a JSON array of indices, e.g. [3, 7, 1, 9, 2, 5, 8, 4, 6, 0]`;
 
@@ -39,9 +39,9 @@ Return a JSON array of indices, e.g. [3, 7, 1, 9, 2, 5, 8, 4, 6, 0]`;
             responseSchema: {
                 type: "ARRAY",
                 items: {
-                    type: "INTEGER"
-                }
-            }
+                    type: "INTEGER",
+                },
+            },
         });
 
         const text = result.candidates[0].content.parts[0].text;
@@ -55,9 +55,8 @@ Return a JSON array of indices, e.g. [3, 7, 1, 9, 2, 5, 8, 4, 6, 0]`;
 
         console.log(`Gemini selected ${filteredArticles.length} articles out of ${articles.length} for search query: "${query}"`);
         return filteredArticles;
-
     } catch (error) {
-        console.error('Error searching articles with Gemini:', error);
+        console.error("Error searching articles with Gemini:", error);
         // Return first 20 articles as fallback
         return articles.slice(0, 20);
     }

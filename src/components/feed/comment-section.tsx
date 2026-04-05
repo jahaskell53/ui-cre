@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Trash2 } from "lucide-react";
 import { supabase } from "@/utils/supabase";
-import { formatDistanceToNow } from "date-fns";
 import { MentionDropdown, UserSuggestion } from "./mention-dropdown";
-import { generateAuroraGradient } from "@/app/(app)/network/utils";
-import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
 
 interface Comment {
     id: string;
@@ -31,13 +31,7 @@ interface CommentSectionProps {
     onCommentDeleted: (commentId: string) => void;
 }
 
-export const CommentSection = ({
-    postId,
-    currentUserId,
-    currentUserProfile,
-    onCommentCreated,
-    onCommentDeleted,
-}: CommentSectionProps) => {
+export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCommentCreated, onCommentDeleted }: CommentSectionProps) => {
     const router = useRouter();
     const [comments, setComments] = useState<Comment[]>([]);
     const [commentText, setCommentText] = useState("");
@@ -79,49 +73,56 @@ export const CommentSection = ({
     const loadComments = async () => {
         const { data, error } = await supabase
             .from("comments")
-            .select(`
+            .select(
+                `
                 *,
                 profile:profiles(full_name, avatar_url)
-            `)
+            `,
+            )
             .eq("post_id", postId)
             .order("created_at", { ascending: true });
 
         if (!error && data) {
-            setComments(data.map(c => ({
-                ...c,
-                profile: (c as any).profile
-            })));
+            setComments(
+                data.map((c) => ({
+                    ...c,
+                    profile: (c as any).profile,
+                })),
+            );
         } else if (error) {
             console.error("Error loading comments:", error.message);
         }
     };
 
-    const searchMentionUsers = useCallback(async (query: string) => {
-        if (!query.trim()) {
-            setMentionSuggestions([]);
-            setShowMentionDropdown(false);
-            return;
-        }
+    const searchMentionUsers = useCallback(
+        async (query: string) => {
+            if (!query.trim()) {
+                setMentionSuggestions([]);
+                setShowMentionDropdown(false);
+                return;
+            }
 
-        try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("id, full_name, avatar_url")
-                .ilike("full_name", `%${query}%`)
-                .neq("id", currentUserId || "")
-                .limit(10);
+            try {
+                const { data, error } = await supabase
+                    .from("profiles")
+                    .select("id, full_name, avatar_url")
+                    .ilike("full_name", `%${query}%`)
+                    .neq("id", currentUserId || "")
+                    .limit(10);
 
-            if (error) throw error;
+                if (error) throw error;
 
-            setMentionSuggestions(data || []);
-            setShowMentionDropdown((data || []).length > 0);
-            setSelectedMentionIndex(-1);
-        } catch (error) {
-            console.error("Error searching users for mention:", error);
-            setMentionSuggestions([]);
-            setShowMentionDropdown(false);
-        }
-    }, [currentUserId]);
+                setMentionSuggestions(data || []);
+                setShowMentionDropdown((data || []).length > 0);
+                setSelectedMentionIndex(-1);
+            } catch (error) {
+                console.error("Error searching users for mention:", error);
+                setMentionSuggestions([]);
+                setShowMentionDropdown(false);
+            }
+        },
+        [currentUserId],
+    );
 
     const handleCommentTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -202,12 +203,10 @@ export const CommentSection = ({
         if (showMentionDropdown && mentionSuggestions.length > 0) {
             if (e.key === "ArrowDown") {
                 e.preventDefault();
-                setSelectedMentionIndex(prev =>
-                    prev < mentionSuggestions.length - 1 ? prev + 1 : prev
-                );
+                setSelectedMentionIndex((prev) => (prev < mentionSuggestions.length - 1 ? prev + 1 : prev));
             } else if (e.key === "ArrowUp") {
                 e.preventDefault();
-                setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : -1);
+                setSelectedMentionIndex((prev) => (prev > 0 ? prev - 1 : -1));
             } else if (e.key === "Enter" || e.key === "Tab") {
                 e.preventDefault();
                 if (selectedMentionIndex >= 0 && selectedMentionIndex < mentionSuggestions.length) {
@@ -272,11 +271,7 @@ export const CommentSection = ({
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        const { error } = await supabase
-            .from("comments")
-            .delete()
-            .eq("id", commentId)
-            .eq("user_id", currentUserId);
+        const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", currentUserId);
 
         if (!error) {
             loadComments();
@@ -288,18 +283,21 @@ export const CommentSection = ({
     };
 
     return (
-        <div className="border-t border-secondary bg-secondary/20 p-6 animate-in slide-in-from-top-2 duration-200">
+        <div className="border-t border-secondary bg-secondary/20 p-6 duration-200 animate-in slide-in-from-top-2">
             <div className="flex flex-col gap-6">
                 <div className="flex flex-col gap-4">
                     {comments.map((comment) => {
                         const commentAuthorName = comment.profile?.full_name || "Anonymous";
-                        const commentInitials = commentAuthorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
+                        const commentInitials =
+                            commentAuthorName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .toUpperCase()
+                                .slice(0, 2) || "U";
                         return (
                             <div key={comment.id} className="flex gap-3">
-                                <div
-                                    className="cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => router.push(`/users/${comment.user_id}`)}
-                                >
+                                <div className="cursor-pointer transition-opacity hover:opacity-80" onClick={() => router.push(`/users/${comment.user_id}`)}>
                                     <Avatar className="h-6 w-6">
                                         <AvatarImage src={comment.profile?.avatar_url || undefined} />
                                         <AvatarFallback style={{ background: generateAuroraGradient(commentAuthorName) }} className="text-[10px] text-white">
@@ -307,10 +305,10 @@ export const CommentSection = ({
                                         </AvatarFallback>
                                     </Avatar>
                                 </div>
-                                <div className="flex-1 bg-primary p-3 rounded-xl border border-secondary shadow-xs">
-                                    <div className="flex justify-between items-center mb-1">
+                                <div className="flex-1 rounded-xl border border-secondary bg-primary p-3 shadow-xs">
+                                    <div className="mb-1 flex items-center justify-between">
                                         <span
-                                            className="text-xs font-bold text-primary cursor-pointer hover:text-brand-solid transition-colors"
+                                            className="cursor-pointer text-xs font-bold text-primary transition-colors hover:text-brand-solid"
                                             onClick={() => router.push(`/users/${comment.user_id}`)}
                                         >
                                             {commentAuthorName}
@@ -320,12 +318,7 @@ export const CommentSection = ({
                                                 {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                                             </span>
                                             {currentUserId === comment.user_id && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-6 w-6"
-                                                    onClick={() => setPendingDeleteCommentId(comment.id)}
-                                                >
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPendingDeleteCommentId(comment.id)}>
                                                     <Trash2 className="size-3 text-tertiary hover:text-red-500" />
                                                 </Button>
                                             )}
@@ -338,14 +331,22 @@ export const CommentSection = ({
                     })}
                 </div>
                 {currentUserId && currentUserProfile && (
-                    <div className="flex gap-3 items-start mt-2">
+                    <div className="mt-2 flex items-start gap-3">
                         <Avatar className="h-6 w-6">
                             <AvatarImage src={currentUserProfile.avatar_url || undefined} />
-                            <AvatarFallback style={{ background: generateAuroraGradient(currentUserProfile.full_name || "User") }} className="text-[10px] text-white">
-                                {currentUserProfile.full_name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"}
+                            <AvatarFallback
+                                style={{ background: generateAuroraGradient(currentUserProfile.full_name || "User") }}
+                                className="text-[10px] text-white"
+                            >
+                                {currentUserProfile.full_name
+                                    ?.split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                    .slice(0, 2) || "U"}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 flex gap-2 relative">
+                        <div className="relative flex flex-1 gap-2">
                             <Input
                                 ref={mentionInputRef}
                                 placeholder="Write a comment..."
@@ -362,12 +363,7 @@ export const CommentSection = ({
                                     onSelect={insertMention}
                                 />
                             )}
-                            <Button
-                                size="sm"
-                                className="shrink-0"
-                                onClick={handleComment}
-                                disabled={isSubmittingComment}
-                            >
+                            <Button size="sm" className="shrink-0" onClick={handleComment} disabled={isSubmittingComment}>
                                 <Send className="size-4" />
                             </Button>
                         </div>
@@ -376,11 +372,8 @@ export const CommentSection = ({
             </div>
 
             {/* Delete Comment Confirmation Modal */}
-            <ModalOverlay
-                isOpen={pendingDeleteCommentId !== null}
-                onOpenChange={(isOpen) => !isOpen && setPendingDeleteCommentId(null)}
-            >
-                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+            <ModalOverlay isOpen={pendingDeleteCommentId !== null} onOpenChange={(isOpen) => !isOpen && setPendingDeleteCommentId(null)}>
+                <Modal className="max-w-md rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
                     <Dialog className="p-6">
                         {({ close }) => (
                             <div className="space-y-4">

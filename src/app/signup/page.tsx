@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/utils/supabase";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/utils/supabase";
 
 function SignUpPageContent() {
     const router = useRouter();
@@ -23,11 +23,7 @@ function SignUpPageContent() {
     const roles = ["Property Owner", "Broker", "Lender"];
 
     const toggleRole = (role: string) => {
-        setSelectedRoles(prev =>
-            prev.includes(role)
-                ? prev.filter(r => r !== role)
-                : [...prev, role]
-        );
+        setSelectedRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
     };
 
     const handleSignUp = async () => {
@@ -41,10 +37,10 @@ function SignUpPageContent() {
             options: {
                 data: {
                     full_name: fullName || undefined,
-                    roles: selectedRoles
+                    roles: selectedRoles,
                 },
                 emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectUrl)}`,
-            }
+            },
         });
 
         setIsLoading(false);
@@ -66,22 +62,22 @@ function SignUpPageContent() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-gray-900">
             <div className="w-full max-w-md space-y-6">
                 {/* Logo */}
-                <div className="flex flex-col items-center gap-4 mb-8">
-                    <div className="w-10 h-10 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
-                        <span className="text-white dark:text-gray-900 text-sm font-bold">OM</span>
+                <div className="mb-8 flex flex-col items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-900 dark:bg-gray-100">
+                        <span className="text-sm font-bold text-white dark:text-gray-900">OM</span>
                     </div>
                     <div className="text-center">
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Create an account</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Sign up to get started</p>
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Sign up to get started</p>
                     </div>
                 </div>
 
                 {/* Error Message */}
                 {error && (
-                    <div className="w-full p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 text-sm">
+                    <div className="w-full rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-900 dark:bg-red-950/20 dark:text-red-400">
                         {error}
                     </div>
                 )}
@@ -104,7 +100,7 @@ function SignUpPageContent() {
                                 }
                             }}
                             disabled={isLoading}
-                            className="h-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="h-10 border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                         />
                     </div>
                     <div className="space-y-2">
@@ -123,7 +119,7 @@ function SignUpPageContent() {
                                 }
                             }}
                             disabled={isLoading}
-                            className="h-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="h-10 border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                         />
                     </div>
                     <div className="space-y-2">
@@ -142,27 +138,17 @@ function SignUpPageContent() {
                                 }
                             }}
                             disabled={isLoading}
-                            className="h-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="h-10 border-gray-200 bg-gray-50 text-gray-900 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                         />
                     </div>
 
                     <div className="space-y-3">
-                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            I am a (select all that apply):
-                        </label>
-                        <div className="flex flex-col gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">I am a (select all that apply):</label>
+                        <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
                             {roles.map((role) => (
                                 <div key={role} className="flex items-center gap-2">
-                                    <Checkbox
-                                        id={role}
-                                        checked={selectedRoles.includes(role)}
-                                        onCheckedChange={() => toggleRole(role)}
-                                        disabled={isLoading}
-                                    />
-                                    <label
-                                        htmlFor={role}
-                                        className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
-                                    >
+                                    <Checkbox id={role} checked={selectedRoles.includes(role)} onCheckedChange={() => toggleRole(role)} disabled={isLoading} />
+                                    <label htmlFor={role} className="cursor-pointer text-sm text-gray-700 dark:text-gray-300">
                                         {role}
                                     </label>
                                 </div>
@@ -172,7 +158,7 @@ function SignUpPageContent() {
                     <Button
                         onClick={handleSignUp}
                         disabled={isLoading}
-                        className="w-full h-10 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
+                        className="h-10 w-full bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                     >
                         {isLoading ? "Signing up..." : "Sign Up"}
                     </Button>
@@ -181,7 +167,7 @@ function SignUpPageContent() {
                 {/* Log In Link */}
                 <div className="text-center text-sm text-gray-500 dark:text-gray-400">
                     Already have an account?{" "}
-                    <Link href="/login" className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 font-medium">
+                    <Link href="/login" className="font-medium text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300">
                         Log in
                     </Link>
                 </div>
@@ -192,22 +178,23 @@ function SignUpPageContent() {
 
 export default function SignUpPage() {
     return (
-        <Suspense fallback={
-            <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
-                <div className="w-full max-w-md space-y-6">
-                    <div className="flex flex-col items-center gap-4 mb-8">
-                        <div className="w-10 h-10 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
-                            <span className="text-white dark:text-gray-900 text-sm font-bold">OM</span>
-                        </div>
-                        <div className="text-center">
-                            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Create an account</h1>
+        <Suspense
+            fallback={
+                <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-gray-900">
+                    <div className="w-full max-w-md space-y-6">
+                        <div className="mb-8 flex flex-col items-center gap-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-900 dark:bg-gray-100">
+                                <span className="text-sm font-bold text-white dark:text-gray-900">OM</span>
+                            </div>
+                            <div className="text-center">
+                                <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Create an account</h1>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        }>
+            }
+        >
             <SignUpPageContent />
         </Suspense>
     );
 }
-

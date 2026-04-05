@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { useEffect, useRef, useState } from "react";
+import { File, Image as ImageIcon, Loader2, X } from "lucide-react";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { X, File, Loader2, Image as ImageIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/utils/supabase";
-import { generateAuroraGradient } from "@/app/(app)/network/utils";
 
 interface CreatePostInlineProps {
     onSuccess: () => void;
@@ -48,7 +48,7 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
         if (!name) return "U";
         return name
             .split(" ")
-            .map(n => n[0])
+            .map((n) => n[0])
             .join("")
             .toUpperCase()
             .slice(0, 2);
@@ -91,11 +91,7 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
         let userIdToUse = userId;
 
         if (postAsSystem && isAdmin) {
-            const { data: systemProfile, error: systemError } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq("full_name", "OpenMidmarket")
-                .single();
+            const { data: systemProfile, error: systemError } = await supabase.from("profiles").select("id").eq("full_name", "OpenMidmarket").single();
 
             if (!systemError && systemProfile) {
                 userIdToUse = systemProfile.id;
@@ -105,14 +101,12 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
             }
         }
 
-        const { error } = await supabase
-            .from("posts")
-            .insert({
-                user_id: userIdToUse,
-                type: postType,
-                content: postType === "link" ? postUrl.trim() : postContent.trim(),
-                file_url: attachedFileUrl,
-            });
+        const { error } = await supabase.from("posts").insert({
+            user_id: userIdToUse,
+            type: postType,
+            content: postType === "link" ? postUrl.trim() : postContent.trim(),
+            file_url: attachedFileUrl,
+        });
 
         if (!error) {
             setPostContent("");
@@ -130,54 +124,52 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
     const initials = getInitials(userFullName);
 
     return (
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
             <div className="flex gap-3">
                 <Avatar className="h-10 w-10 flex-shrink-0">
                     <AvatarImage src={userAvatarUrl || undefined} />
-                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs text-white font-medium">
+                    <AvatarFallback style={{ background: generateAuroraGradient(displayName) }} className="text-xs font-medium text-white">
                         {initials}
                     </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 flex flex-col gap-3">
+                <div className="flex flex-1 flex-col gap-3">
                     {!isExpanded ? (
                         <button
                             onClick={() => setIsExpanded(true)}
-                            className="text-left px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-left text-gray-500 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
                         >
                             What's on your mind?
                         </button>
                     ) : (
                         <>
                             {isAdmin && (
-                                <div className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                                <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50">
                                     <div className="flex flex-col gap-1">
-                                        <Label htmlFor="post-as-system" className="text-sm font-medium text-gray-900 dark:text-gray-100">Post as OpenMidmarket</Label>
+                                        <Label htmlFor="post-as-system" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            Post as OpenMidmarket
+                                        </Label>
                                         <span className="text-xs text-gray-500 dark:text-gray-400">Post on behalf of the system account</span>
                                     </div>
-                                    <Switch
-                                        id="post-as-system"
-                                        checked={postAsSystem}
-                                        onCheckedChange={setPostAsSystem}
-                                    />
+                                    <Switch id="post-as-system" checked={postAsSystem} onCheckedChange={setPostAsSystem} />
                                 </div>
                             )}
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setPostType("post")}
-                                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                                         postType === "post"
-                                            ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                            ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                            : "border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                                     }`}
                                 >
                                     Post
                                 </button>
                                 <button
                                     onClick={() => setPostType("link")}
-                                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                                         postType === "link"
-                                            ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                            ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                            : "border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                                     }`}
                                 >
                                     Link
@@ -189,7 +181,7 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
                                     placeholder="https://example.com"
                                     value={postUrl}
                                     onChange={(e) => setPostUrl(e.target.value)}
-                                    className="bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                    className="border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
                                 />
                             ) : (
                                 <Textarea
@@ -198,38 +190,33 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
                                     value={postContent}
                                     onChange={(e) => setPostContent(e.target.value)}
                                     rows={4}
-                                    className="resize-none bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                                    className="resize-none border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
                                 />
                             )}
                             {attachedFileUrl && (
-                                <div className="relative w-32 h-32 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden group bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-2">
+                                <div className="group relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-800/50">
                                     {attachedFileUrl.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
-                                        <img src={attachedFileUrl} className="w-full h-full object-cover rounded-md" alt="Attachment" />
+                                        <img src={attachedFileUrl} className="h-full w-full rounded-md object-cover" alt="Attachment" />
                                     ) : (
-                                        <div className="flex flex-col items-center text-center gap-1">
+                                        <div className="flex flex-col items-center gap-1 text-center">
                                             <File className="size-8 text-gray-400 dark:text-gray-500" />
-                                            <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate w-24">
-                                                {decodeURIComponent(attachedFileUrl.split('/').pop()?.split('-').slice(1).join('-') || "File")}
+                                            <span className="w-24 truncate text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                                                {decodeURIComponent(attachedFileUrl.split("/").pop()?.split("-").slice(1).join("-") || "File")}
                                             </span>
                                         </div>
                                     )}
                                     <button
                                         onClick={() => setAttachedFileUrl(null)}
-                                        className="absolute top-1 right-1 p-1 bg-white dark:bg-gray-900 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                        className="absolute top-1 right-1 rounded-full bg-white p-1 text-gray-500 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-gray-900 dark:text-gray-400"
                                     >
                                         <X className="size-4" />
                                     </button>
                                 </div>
                             )}
-                            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-800">
+                            <div className="flex items-center justify-between border-t border-gray-200 pt-2 dark:border-gray-800">
                                 <label className="cursor-pointer">
-                                    <input
-                                        type="file"
-                                        className="hidden"
-                                        onChange={handleFileUpload}
-                                        disabled={isUploadingFile}
-                                    />
-                                    <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                                    <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploadingFile} />
+                                    <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
                                         {isUploadingFile ? (
                                             <>
                                                 <Loader2 className="size-4 animate-spin" />
@@ -263,9 +250,9 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
                                         onClick={handleCreatePost}
                                         disabled={isSubmitting || (postType === "link" ? !postUrl.trim() : !postContent.trim())}
                                         size="sm"
-                                        className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="bg-gray-900 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                                     >
-                                        {isSubmitting && <Loader2 className="size-4 animate-spin mr-2" />}
+                                        {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
                                         Post
                                     </Button>
                                 </div>

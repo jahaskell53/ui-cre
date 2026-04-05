@@ -1,8 +1,8 @@
 "use client";
 
+import { BarChart3, Map, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { TrendingUp, Map, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -22,13 +22,13 @@ export default function AnalyticsLayout({ children }: { children: React.ReactNod
     }
 
     return (
-        <div className="relative flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
+        <div className="relative flex h-full flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
             {/* Header */}
-            <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex-shrink-0">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                     <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Analytics</h1>
 
-                    <div data-tour="view-tabs" className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+                    <div data-tour="view-tabs" className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
                             const active = pathname === tab.href;
@@ -37,10 +37,10 @@ export default function AnalyticsLayout({ children }: { children: React.ReactNod
                                     key={tab.href}
                                     href={tab.href}
                                     className={cn(
-                                        "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                                        "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                                         active
                                             ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800",
                                     )}
                                 >
                                     <Icon className="size-4" />
@@ -53,9 +53,7 @@ export default function AnalyticsLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* Content */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                {children}
-            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         </div>
     );
 }

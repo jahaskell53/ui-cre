@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -19,11 +19,7 @@ export async function POST(
         const notificationId = id;
 
         // Mark notification as read
-        const { error } = await supabase
-            .from("notifications")
-            .update({ read_at: new Date().toISOString() })
-            .eq("id", notificationId)
-            .eq("user_id", user.id);
+        const { error } = await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", notificationId).eq("user_id", user.id);
 
         if (error) {
             console.error("Error marking notification as read:", error);
@@ -36,4 +32,3 @@ export async function POST(
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
-

@@ -2,7 +2,7 @@
 
 import type { FC, MouseEventHandler } from "react";
 import { Pressable } from "react-aria-components";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn as cx } from "@/lib/utils";
 
 const styles = {
@@ -67,12 +67,8 @@ export const NavItemButton = ({
 
     return (
         <Tooltip>
-            <TooltipTrigger asChild>
-                {button}
-            </TooltipTrigger>
-            <TooltipContent side={tooltipPlacement}>
-                {label}
-            </TooltipContent>
+            <TooltipTrigger asChild>{button}</TooltipTrigger>
+            <TooltipContent side={tooltipPlacement}>{label}</TooltipContent>
         </Tooltip>
     );
 };

@@ -1,17 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { File, Loader2, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { X, File, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/utils/supabase";
 
 interface CreatePostModalProps {
@@ -68,11 +63,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
         let userIdToUse = userId;
 
         if (postAsSystem && isAdmin) {
-            const { data: systemProfile, error: systemError } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq("full_name", "OpenMidmarket")
-                .single();
+            const { data: systemProfile, error: systemError } = await supabase.from("profiles").select("id").eq("full_name", "OpenMidmarket").single();
 
             if (!systemError && systemProfile) {
                 userIdToUse = systemProfile.id;
@@ -82,14 +73,12 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
             }
         }
 
-        const { error } = await supabase
-            .from("posts")
-            .insert({
-                user_id: userIdToUse,
-                type: postType,
-                content: postType === "link" ? postUrl.trim() : postContent.trim(),
-                file_url: attachedFileUrl,
-            });
+        const { error } = await supabase.from("posts").insert({
+            user_id: userIdToUse,
+            type: postType,
+            content: postType === "link" ? postUrl.trim() : postContent.trim(),
+            file_url: attachedFileUrl,
+        });
 
         if (!error) {
             setPostContent("");
@@ -119,18 +108,16 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                     <DialogTitle>Create new post</DialogTitle>
                 </DialogHeader>
 
-                <div className="w-full flex flex-col gap-6">
+                <div className="flex w-full flex-col gap-6">
                     {isAdmin && (
-                        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="post-as-system" className="text-sm font-medium text-gray-900 dark:text-gray-100">Post as OpenMidmarket</Label>
+                                <Label htmlFor="post-as-system" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    Post as OpenMidmarket
+                                </Label>
                                 <span className="text-xs text-gray-500 dark:text-gray-400">Post on behalf of the system account</span>
                             </div>
-                            <Switch
-                                id="post-as-system"
-                                checked={postAsSystem}
-                                onCheckedChange={setPostAsSystem}
-                            />
+                            <Switch id="post-as-system" checked={postAsSystem} onCheckedChange={setPostAsSystem} />
                         </div>
                     )}
                     <div className="flex flex-col gap-3">
@@ -138,20 +125,20 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setPostType("post")}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 lg:flex-none ${
+                                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors lg:flex-none ${
                                     postType === "post"
-                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                        : "border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                                 }`}
                             >
                                 Post
                             </button>
                             <button
                                 onClick={() => setPostType("link")}
-                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex-1 lg:flex-none ${
+                                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors lg:flex-none ${
                                     postType === "link"
-                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                        : "border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                                 }`}
                             >
                                 Link
@@ -159,14 +146,9 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                         </div>
                     </div>
                     {postType === "link" && (
-                        <div className="space-y-2 animate-in fade-in duration-200">
+                        <div className="space-y-2 duration-200 animate-in fade-in">
                             <Label htmlFor="url-input">URL</Label>
-                            <Input
-                                id="url-input"
-                                placeholder="https://example.com"
-                                value={postUrl}
-                                onChange={(e) => setPostUrl(e.target.value)}
-                            />
+                            <Input id="url-input" placeholder="https://example.com" value={postUrl} onChange={(e) => setPostUrl(e.target.value)} />
                         </div>
                     )}
 
@@ -187,38 +169,33 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                         <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Attachments</Label>
                         <div className="flex flex-wrap gap-3">
                             {attachedFileUrl ? (
-                                <div className="relative w-32 h-32 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden group bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-2">
+                                <div className="group relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-800/50">
                                     {attachedFileUrl.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
-                                        <img src={attachedFileUrl} className="w-full h-full object-cover rounded-md" />
+                                        <img src={attachedFileUrl} className="h-full w-full rounded-md object-cover" />
                                     ) : (
-                                        <div className="flex flex-col items-center text-center gap-1">
+                                        <div className="flex flex-col items-center gap-1 text-center">
                                             <File className="size-8 text-gray-400 dark:text-gray-500" />
-                                            <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate w-24">
-                                                {decodeURIComponent(attachedFileUrl.split('/').pop()?.split('-').slice(1).join('-') || "File")}
+                                            <span className="w-24 truncate text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                                                {decodeURIComponent(attachedFileUrl.split("/").pop()?.split("-").slice(1).join("-") || "File")}
                                             </span>
                                         </div>
                                     )}
                                     <button
                                         onClick={() => setAttachedFileUrl(null)}
-                                        className="absolute top-1 right-1 p-1 bg-white dark:bg-gray-900 rounded-full text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                        className="absolute top-1 right-1 rounded-full bg-white p-1 text-gray-500 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-gray-900 dark:text-gray-400"
                                     >
                                         <X className="size-4" />
                                     </button>
                                 </div>
                             ) : (
                                 <label className="cursor-pointer">
-                                    <input
-                                        type="file"
-                                        className="hidden"
-                                        onChange={handleFileUpload}
-                                        disabled={isUploadingFile}
-                                    />
-                                    <div className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg hover:border-gray-300 dark:hover:border-gray-600 transition-colors bg-gray-50 dark:bg-gray-800/50">
+                                    <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploadingFile} />
+                                    <div className="flex h-32 w-32 flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 transition-colors hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-gray-600">
                                         {isUploadingFile ? (
-                                            <div className="text-xs text-gray-500 dark:text-gray-400 animate-pulse">Uploading...</div>
+                                            <div className="animate-pulse text-xs text-gray-500 dark:text-gray-400">Uploading...</div>
                                         ) : (
                                             <>
-                                                <File className="size-6 text-gray-400 dark:text-gray-500 mb-2" />
+                                                <File className="mb-2 size-6 text-gray-400 dark:text-gray-500" />
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">Add file</span>
                                             </>
                                         )}
@@ -229,17 +206,17 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                     </div>
                 </div>
 
-                <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-800">
+                <div className="flex flex-col-reverse justify-end gap-2 border-t border-gray-200 pt-4 sm:flex-row dark:border-gray-800">
                     <button
                         onClick={handleClose}
-                        className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md transition-colors flex-1 sm:flex-none"
+                        className="flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 sm:flex-none dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleCreatePost}
                         disabled={isSubmitting || (postType === "link" ? !postUrl.trim() : !postContent.trim())}
-                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 rounded-md transition-colors flex-1 sm:flex-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                     >
                         {isSubmitting && <Loader2 className="size-4 animate-spin" />}
                         Share

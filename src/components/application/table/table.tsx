@@ -2,7 +2,15 @@
 
 import type { ComponentPropsWithRef, HTMLAttributes, ReactNode, Ref, TdHTMLAttributes, ThHTMLAttributes } from "react";
 import { createContext, isValidElement, useContext } from "react";
-import { ArrowDown, ChevronsUpDown as ChevronSelectorVertical, Copy as Copy01, Edit as Edit01, HelpCircle, MoreVertical as DotsVertical, Trash as Trash01 } from "lucide-react";
+import {
+    ArrowDown,
+    ChevronsUpDown as ChevronSelectorVertical,
+    Copy as Copy01,
+    MoreVertical as DotsVertical,
+    Edit as Edit01,
+    HelpCircle,
+    Trash as Trash01,
+} from "lucide-react";
 import type {
     CellProps as AriaCellProps,
     ColumnProps as AriaColumnProps,
@@ -23,13 +31,8 @@ import {
 } from "react-aria-components";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn as cx } from "@/lib/utils";
 
 export const TableRowActionsDropdown = () => (
@@ -41,15 +44,15 @@ export const TableRowActionsDropdown = () => (
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-min">
             <DropdownMenuItem>
-                <Edit01 className="size-4 mr-2" />
+                <Edit01 className="mr-2 size-4" />
                 <span className="pr-4">Edit</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
-                <Copy01 className="size-4 mr-2" />
+                <Copy01 className="mr-2 size-4" />
                 <span className="pr-4">Copy link</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
-                <Trash01 className="size-4 mr-2" />
+                <Trash01 className="mr-2 size-4" />
                 <span className="pr-4">Delete</span>
             </DropdownMenuItem>
         </DropdownMenuContent>
@@ -95,15 +98,7 @@ const TableCardHeader = ({ title, badge, description, contentTrailing, className
             <div className="flex flex-1 flex-col gap-0.5">
                 <div className="flex items-center gap-2">
                     <h2 className={cx("font-semibold text-primary", size === "sm" ? "text-md" : "text-lg")}>{title}</h2>
-                    {badge ? (
-                        isValidElement(badge) ? (
-                            badge
-                        ) : (
-                            <Badge variant="default">
-                                {badge}
-                            </Badge>
-                        )
-                    ) : null}
+                    {badge ? isValidElement(badge) ? badge : <Badge variant="default">{badge}</Badge> : null}
                 </div>
                 {description && <p className="text-sm text-tertiary">{description}</p>}
             </div>
@@ -130,8 +125,7 @@ const TableRoot = ({ className, size = "md", ...props }: TableRootProps) => {
 TableRoot.displayName = "Table";
 
 interface TableHeaderProps<T extends object>
-    extends AriaTableHeaderProps<T>,
-        Omit<ComponentPropsWithRef<"thead">, "children" | "className" | "slot" | "style"> {
+    extends AriaTableHeaderProps<T>, Omit<ComponentPropsWithRef<"thead">, "children" | "className" | "slot" | "style"> {
     bordered?: boolean;
 }
 
@@ -205,9 +199,7 @@ const TableHead = ({ className, tooltip, label, children, ...props }: TableHeadP
                                     <HelpCircle className="size-4" />
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                                {tooltip}
-                            </TooltipContent>
+                            <TooltipContent>{tooltip}</TooltipContent>
                         </Tooltip>
                     )}
 
@@ -225,8 +217,7 @@ const TableHead = ({ className, tooltip, label, children, ...props }: TableHeadP
 TableHead.displayName = "TableHead";
 
 interface TableRowProps<T extends object>
-    extends AriaRowProps<T>,
-        Omit<ComponentPropsWithRef<"tr">, "children" | "className" | "onClick" | "slot" | "style" | "id"> {
+    extends AriaRowProps<T>, Omit<ComponentPropsWithRef<"tr">, "children" | "className" | "onClick" | "slot" | "style" | "id"> {
     highlightSelectedRow?: boolean;
 }
 

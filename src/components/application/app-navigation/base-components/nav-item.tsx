@@ -37,15 +37,16 @@ interface NavItemBaseProps {
 export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, truncate = true, onClick, iconOnly = false }: NavItemBaseProps) => {
     const iconElement = Icon && <Icon aria-hidden="true" className={cx("size-5 shrink-0 text-fg-quaternary transition-inherit-all", !iconOnly && "mr-2")} />;
 
-    const badgeElement = !iconOnly && badge
-        ? typeof badge === "string" || typeof badge === "number"
-            ? (
+    const badgeElement =
+        !iconOnly && badge ? (
+            typeof badge === "string" || typeof badge === "number" ? (
                 <Badge className="ml-3" variant="secondary">
                     {badge}
                 </Badge>
+            ) : (
+                badge
             )
-            : badge
-        : null;
+        ) : null;
 
     const labelElement = !iconOnly && (
         <span
@@ -64,7 +65,10 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
 
     if (type === "collapsible") {
         return (
-            <summary className={cx(iconOnly ? "px-2 py-2 justify-center" : "px-3 py-2", styles.root, current && styles.rootSelected, iconOnly && "relative")} onClick={onClick}>
+            <summary
+                className={cx(iconOnly ? "justify-center px-2 py-2" : "px-3 py-2", styles.root, current && styles.rootSelected, iconOnly && "relative")}
+                onClick={onClick}
+            >
                 {iconElement}
 
                 {labelElement}
@@ -82,7 +86,7 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
                 href={href!}
                 target={isExternal ? "_blank" : "_self"}
                 rel="noopener noreferrer"
-                className={cx(iconOnly ? "py-2 px-2 justify-center" : "py-2 pr-3 pl-10", styles.root, current && styles.rootSelected, iconOnly && "relative")}
+                className={cx(iconOnly ? "justify-center px-2 py-2" : "py-2 pr-3 pl-10", styles.root, current && styles.rootSelected, iconOnly && "relative")}
                 onClick={onClick}
                 aria-current={current ? "page" : undefined}
             >
@@ -98,7 +102,7 @@ export const NavItemBase = ({ current, type, badge, href, icon: Icon, children, 
             href={href!}
             target={isExternal ? "_blank" : "_self"}
             rel="noopener noreferrer"
-            className={cx(iconOnly ? "px-2 py-2 justify-center" : "px-3 py-2", styles.root, current && styles.rootSelected, iconOnly && "relative")}
+            className={cx(iconOnly ? "justify-center px-2 py-2" : "px-3 py-2", styles.root, current && styles.rootSelected, iconOnly && "relative")}
             onClick={onClick}
             aria-current={current ? "page" : undefined}
             aria-label={iconOnly ? (typeof children === "string" ? children : undefined) : undefined}

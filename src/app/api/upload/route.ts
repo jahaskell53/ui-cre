@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client, BUCKET_NAME, S3_REGION } from "@/utils/s3";
+import { NextResponse } from "next/server";
+import { BUCKET_NAME, S3_REGION, s3Client } from "@/utils/s3";
 
 export async function POST(request: Request) {
     try {
@@ -32,12 +32,14 @@ export async function POST(request: Request) {
             message: error.message,
             region: S3_REGION,
             bucket: BUCKET_NAME,
-            endpoint: error.Endpoint
+            endpoint: error.Endpoint,
         });
-        return NextResponse.json({
-            error: error.message || "Failed to upload to S3",
-            code: error.Code
-        }, { status: 500 });
+        return NextResponse.json(
+            {
+                error: error.message || "Failed to upload to S3",
+                code: error.Code,
+            },
+            { status: 500 },
+        );
     }
 }
-

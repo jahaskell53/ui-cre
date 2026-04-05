@@ -5,11 +5,11 @@ import { useState } from "react";
 import { LifeBuoy as LifeBuoy01, LogOut as LogOut01, Settings as Settings01 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button as AriaButton, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn as cx } from "@/lib/utils";
 import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountMenu } from "../base-components/nav-account-card";
@@ -112,9 +112,9 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
                                 cx(
                                     "will-change-transform",
                                     isEntering &&
-                                    "duration-300 ease-out animate-in fade-in placement-right:slide-in-from-left-2 placement-top:slide-in-from-bottom-2 placement-bottom:slide-in-from-top-2",
+                                        "duration-300 ease-out animate-in fade-in placement-right:slide-in-from-left-2 placement-top:slide-in-from-bottom-2 placement-bottom:slide-in-from-top-2",
                                     isExiting &&
-                                    "duration-150 ease-in animate-out fade-out placement-right:slide-out-to-left-2 placement-top:slide-out-to-bottom-2 placement-bottom:slide-out-to-top-2",
+                                        "duration-150 ease-in animate-out fade-out placement-right:slide-out-to-left-2 placement-top:slide-out-to-bottom-2 placement-bottom:slide-out-to-top-2",
                                 )
                             }
                         >
@@ -217,18 +217,14 @@ export const SidebarNavigationSlim = ({ activeUrl, items, footerItems = [], hide
                                     <AvatarImage src="https://www.untitledui.com/images/avatars/olivia-rhye?fm=webp&q=80" alt="Olivia Rhye" />
                                     <AvatarFallback>OR</AvatarFallback>
                                 </Avatar>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-secondary truncate">Olivia Rhye</p>
-                                    <p className="text-sm text-tertiary truncate">olivia@untitledui.com</p>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold text-secondary">Olivia Rhye</p>
+                                    <p className="truncate text-sm text-tertiary">olivia@untitledui.com</p>
                                 </div>
                             </div>
 
                             <div className="absolute top-1/2 right-0 -translate-y-1/2">
-                                <Button
-                                    size="icon-sm"
-                                    variant="ghost"
-                                    className="p-1.5!"
-                                >
+                                <Button size="icon-sm" variant="ghost" className="p-1.5!">
                                     <LogOut01 className="size-5 text-fg-quaternary transition-inherit-all group-hover:text-fg-quaternary_hover" />
                                 </Button>
                             </div>

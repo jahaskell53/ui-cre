@@ -4,10 +4,13 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -15,7 +18,8 @@ export async function GET(request: NextRequest) {
         // Get unread notifications
         const { data: notifications, error: notificationsError } = await supabase
             .from("notifications")
-            .select(`
+            .select(
+                `
                 id,
                 type,
                 title,
@@ -23,7 +27,8 @@ export async function GET(request: NextRequest) {
                 related_id,
                 created_at,
                 read_at
-            `)
+            `,
+            )
             .eq("user_id", user.id)
             .is("read_at", null)
             .order("created_at", { ascending: false })
@@ -39,23 +44,15 @@ export async function GET(request: NextRequest) {
             (notifications || []).map(async (notification) => {
                 if (notification.type === "message" && notification.related_id) {
                     // Get sender_id from the message
-                    const { data: message } = await supabase
-                        .from("messages")
-                        .select("sender_id")
-                        .eq("id", notification.related_id)
-                        .single();
+                    const { data: message } = await supabase.from("messages").select("sender_id").eq("id", notification.related_id).single();
 
                     // Get sender profile (sender_id references auth.users.id, and profiles.id = auth.users.id)
                     let senderProfile = null;
                     if (message?.sender_id) {
-                        const { data: profile } = await supabase
-                            .from("profiles")
-                            .select("id, full_name, avatar_url")
-                            .eq("id", message.sender_id)
-                            .single();
+                        const { data: profile } = await supabase.from("profiles").select("id, full_name, avatar_url").eq("id", message.sender_id).single();
                         senderProfile = profile;
                     }
-                    
+
                     return {
                         id: notification.id,
                         type: notification.type,
@@ -64,11 +61,13 @@ export async function GET(request: NextRequest) {
                         related_id: notification.related_id,
                         created_at: notification.created_at,
                         read_at: notification.read_at,
-                        sender: senderProfile ? {
-                            id: senderProfile.id,
-                            full_name: senderProfile.full_name,
-                            avatar_url: senderProfile.avatar_url,
-                        } : null,
+                        sender: senderProfile
+                            ? {
+                                  id: senderProfile.id,
+                                  full_name: senderProfile.full_name,
+                                  avatar_url: senderProfile.avatar_url,
+                              }
+                            : null,
                     };
                 }
 
@@ -82,7 +81,7 @@ export async function GET(request: NextRequest) {
                     read_at: notification.read_at,
                     sender: null,
                 };
-            })
+            }),
         );
 
         return NextResponse.json(formattedNotifications);
@@ -91,4 +90,3 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
-
