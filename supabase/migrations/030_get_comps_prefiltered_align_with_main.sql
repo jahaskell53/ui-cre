@@ -1,3 +1,15 @@
+-- Align get_comps with the canonical version from migration 029_get_comps_spatial_prefilter.
+-- Replaces the candidates_raw CTE (from 029_get_comps_spatial_first) with the prefiltered CTE
+-- design: uses EXISTS (unnest JOIN neighborhoods) for neighborhood_ids branch and moves
+-- beds/baths filter to after dedup rather than before.
+
+CREATE INDEX IF NOT EXISTS idx_cleaned_listings_geom
+  ON public.cleaned_listings USING GIST (geom)
+  WHERE geom IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_neighborhoods_geom
+  ON public.neighborhoods USING GIST (geom);
+
 CREATE OR REPLACE FUNCTION public.get_comps(
   subject_lng double precision,
   subject_lat double precision,
@@ -181,4 +193,6 @@ AS $function$
   SELECT * FROM reit_agg
   ORDER BY composite_score DESC
   LIMIT p_limit;
-$function$
+$function$;
+
+GRANT EXECUTE ON FUNCTION public.get_comps(double precision, double precision, double precision, integer, integer, numeric, integer, integer, text, integer, text, boolean, integer[], text) TO anon, authenticated;
