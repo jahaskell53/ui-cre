@@ -73,6 +73,8 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
 
     const yFormatter = yView === "pct" ? (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%` : (v: number) => formatDollars(v);
 
+    const showDashKey = selectedBeds.length > 1;
+
     const CustomTooltip = ({
         active,
         payload,
@@ -92,8 +94,14 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                     const pctPoint = week ? pctData.find((p) => p.week === week) : undefined;
                     const absVal = absPoint?.[entry.dataKey] as number | undefined;
                     const pctVal = pctPoint?.[entry.dataKey] as number | undefined;
+                    const dash = series.find((s) => s.key === entry.dataKey)?.dash ?? "";
                     return (
                         <div key={entry.dataKey} className="flex items-center gap-2">
+                            {showDashKey && (
+                                <svg width={28} height={12} style={{ flexShrink: 0 }}>
+                                    <line x1={1} y1={6} x2={27} y2={6} stroke={entry.color} strokeWidth={2} strokeDasharray={dash || undefined} />
+                                </svg>
+                            )}
                             <span style={{ color: entry.color, fontWeight: 600 }}>{entry.name}</span>
                             {yView === "abs" && absVal != null && <span>{formatDollars(absVal)}</span>}
                             {yView === "pct" && pctVal != null && (
