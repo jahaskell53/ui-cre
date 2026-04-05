@@ -17,6 +17,8 @@ const SUBJECT_BEDS = 2;
 const SUBJECT_BATHS = 2;
 const SUBJECT_AREA = 1200;
 const RADIUS_M = 2 * 1609.34; // 2 miles in meters
+/** Wall-clock upper bound for neighborhood-mode get_comps (RPC + network); catches regressions toward statement timeout. */
+const NEIGHBORHOOD_COMPS_MAX_MS = 20_000;
 
 describe("get_comps DB integration", () => {
     it("returns more than 20 comps for 301 Oak Ave, Redwood City (2bd/2ba/1200sqft)", async () => {
@@ -73,6 +75,7 @@ describe("get_comps DB integration", () => {
         expect(nh.city).toMatch(/Redwood City/i);
         expect(nh.name).toMatch(/Central/i);
 
+        const compsStarted = performance.now();
         const { data, error } = await client.rpc("get_comps", {
             subject_lng: SUBJECT_LNG,
             subject_lat: SUBJECT_LAT,
@@ -87,7 +90,9 @@ describe("get_comps DB integration", () => {
             p_subject_zip: null,
             p_home_type: null,
         });
+        const compsElapsedMs = performance.now() - compsStarted;
 
+        expect(compsElapsedMs).toBeLessThan(NEIGHBORHOOD_COMPS_MAX_MS);
         expect(error).toBeNull();
         expect(Array.isArray(data)).toBe(true);
         expect(data!.length).toBeGreaterThan(0);
