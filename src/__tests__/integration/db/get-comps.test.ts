@@ -48,4 +48,48 @@ describe("get_comps DB integration", () => {
         expect(Array.isArray(data)).toBe(true);
         expect(data.length).toBeGreaterThan(20);
     });
+
+    it("neighborhood mode: Central, Redwood City for 301 Oak Ave completes without timeout (2bd/2ba)", async () => {
+        const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (!supabaseUrl || !serviceRoleKey) {
+            throw new Error("Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
+        }
+
+        const client = createClient(supabaseUrl, serviceRoleKey);
+
+        const { data: nhRows, error: nhError } = await client.rpc("get_neighborhood_at_point", {
+            p_lat: SUBJECT_LAT,
+            p_lng: SUBJECT_LNG,
+        });
+
+        expect(nhError).toBeNull();
+        expect(nhRows).toBeDefined();
+        expect(Array.isArray(nhRows)).toBe(true);
+        expect(nhRows!.length).toBeGreaterThan(0);
+
+        const nh = nhRows![0] as { id: number; name: string; city: string };
+        expect(nh.city).toMatch(/Redwood City/i);
+        expect(nh.name).toMatch(/Central/i);
+
+        const { data, error } = await client.rpc("get_comps", {
+            subject_lng: SUBJECT_LNG,
+            subject_lat: SUBJECT_LAT,
+            radius_m: RADIUS_M,
+            subject_beds: SUBJECT_BEDS,
+            subject_baths: SUBJECT_BATHS,
+            subject_area: SUBJECT_AREA,
+            p_segment: "both",
+            p_limit: 500,
+            p_neighborhood_ids: [nh.id],
+            p_neighborhood_id: null,
+            p_subject_zip: null,
+            p_home_type: null,
+        });
+
+        expect(error).toBeNull();
+        expect(Array.isArray(data)).toBe(true);
+        expect(data!.length).toBeGreaterThan(0);
+    });
 });
