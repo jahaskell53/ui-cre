@@ -1,3 +1,14 @@
+-- Speed up get_comps: avoid DISTINCT ON over the entire cleaned_listings table before
+-- spatial filters (caused statement timeouts for neighborhood mode on large datasets).
+-- Prefilter by spatial/zip/radius first, then dedupe by zpid.
+
+CREATE INDEX IF NOT EXISTS idx_cleaned_listings_geom
+  ON public.cleaned_listings USING GIST (geom)
+  WHERE geom IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_neighborhoods_geom
+  ON public.neighborhoods USING GIST (geom);
+
 CREATE OR REPLACE FUNCTION public.get_comps(
   subject_lng double precision,
   subject_lat double precision,
@@ -48,7 +59,11 @@ AS $function$
       AND (
         (
           p_neighborhood_ids IS NOT NULL
-          AND ST_Within(cl.geom, (SELECT ST_Union(geom) FROM neighborhoods WHERE id = ANY(p_neighborhood_ids)))
+          AND EXISTS (
+            SELECT 1
+            FROM unnest(p_neighborhood_ids) AS nid(id)
+            JOIN neighborhoods n ON n.id = nid.id AND ST_Within(cl.geom, n.geom)
+          )
         )
         OR (
           p_neighborhood_ids IS NULL
@@ -181,4 +196,4 @@ AS $function$
   SELECT * FROM reit_agg
   ORDER BY composite_score DESC
   LIMIT p_limit;
-$function$
+$function$;
