@@ -32,45 +32,56 @@ AS $function$
         ELSE (SELECT geom FROM neighborhoods WHERE id = p_neighborhood_id)
       END AS geom
   ),
-  -- Apply cheap filters + spatial filter first so the GiST index can limit the scan,
-  -- then deduplicate only the small result set.
-  candidates_raw AS (
-    SELECT
-      id, address_raw, address_street, address_city, address_state, address_zip,
-      price, beds, baths, area, building_zpid, geom, home_type, is_building, zpid, scraped_at
-    FROM cleaned_listings
-    WHERE home_type IS DISTINCT FROM 'SINGLE_FAMILY'
-      AND (p_home_type IS NULL OR home_type = p_home_type)
-      AND (p_segment = 'both' OR (p_segment = 'mid' AND building_zpid IS NULL) OR (p_segment = 'reit' AND building_zpid IS NOT NULL))
-      AND is_building IS NOT TRUE
-      AND geom IS NOT NULL
-      AND price IS NOT NULL
-      AND (subject_beds  IS NULL OR COALESCE(beds, 0) = subject_beds)
-      AND (subject_baths IS NULL OR baths BETWEEN subject_baths - 0.5 AND subject_baths + 0.5)
+  prefiltered AS (
+    SELECT cl.*
+    FROM cleaned_listings cl
+    WHERE cl.geom IS NOT NULL
+      AND cl.price IS NOT NULL
+      AND cl.is_building IS NOT TRUE
+      AND cl.home_type IS DISTINCT FROM 'SINGLE_FAMILY'
+      AND (p_home_type IS NULL OR cl.home_type = p_home_type)
       AND (
-        (p_neighborhood_ids IS NOT NULL AND ST_Within(
-            geom,
-            (SELECT ST_Union(geom) FROM neighborhoods WHERE id = ANY(p_neighborhood_ids))
-        ))
-        OR (p_neighborhood_ids IS NULL AND p_neighborhood_id IS NOT NULL AND ST_Within(
-            geom,
-            (SELECT geom FROM neighborhood_geom)
-        ))
-        OR (p_neighborhood_ids IS NULL AND p_neighborhood_id IS NULL AND p_subject_zip IS NOT NULL
-            AND address_zip = p_subject_zip)
-        OR (p_neighborhood_ids IS NULL AND p_neighborhood_id IS NULL AND p_subject_zip IS NULL AND ST_DWithin(
+        p_segment = 'both'
+        OR (p_segment = 'mid' AND cl.building_zpid IS NULL)
+        OR (p_segment = 'reit' AND cl.building_zpid IS NOT NULL)
+      )
+      AND (
+        (
+          p_neighborhood_ids IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM unnest(p_neighborhood_ids) AS nid(id)
+            JOIN neighborhoods n ON n.id = nid.id AND ST_Within(cl.geom, n.geom)
+          )
+        )
+        OR (
+          p_neighborhood_ids IS NULL
+          AND p_neighborhood_id IS NOT NULL
+          AND ST_Within(cl.geom, (SELECT geom FROM neighborhood_geom))
+        )
+        OR (
+          p_neighborhood_ids IS NULL
+          AND p_neighborhood_id IS NULL
+          AND p_subject_zip IS NOT NULL
+          AND cl.address_zip = p_subject_zip
+        )
+        OR (
+          p_neighborhood_ids IS NULL
+          AND p_neighborhood_id IS NULL
+          AND p_subject_zip IS NULL
+          AND ST_DWithin(
             ST_SetSRID(ST_Point(subject_lng, subject_lat), 4326)::geography,
-            geom::geography,
+            cl.geom::geography,
             radius_m
-        ))
+          )
+        )
       )
   ),
-  -- Deduplicate by zpid, keeping the most recently scraped row
   deduped AS (
     SELECT DISTINCT ON (zpid)
       id, address_raw, address_street, address_city, address_state, address_zip,
       price, beds, baths, area, building_zpid, geom, home_type, is_building
-    FROM candidates_raw
+    FROM prefiltered
     ORDER BY zpid, scraped_at DESC NULLS LAST
   ),
   candidates AS (
@@ -91,6 +102,8 @@ AS $function$
         cl.geom::geography
       ) AS distance_m
     FROM deduped cl
+    WHERE (subject_beds IS NULL OR COALESCE(cl.beds, 0) = subject_beds)
+      AND (subject_baths IS NULL OR cl.baths BETWEEN subject_baths - 0.5 AND subject_baths + 0.5)
   ),
   scored AS (
     SELECT
