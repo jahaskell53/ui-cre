@@ -1041,10 +1041,10 @@ function CompsContent() {
                                 ))}
                             </div>
                         </div>
-                        {/* Optional subject attributes */}
+                        {/* Subject attributes */}
                         <div>
                             <p className="text-xs text-gray-500 mb-2">
-                                Optional: add subject attributes to score by similarity, not just distance
+                                Tip: the more info you provide, the better your comps.
                             </p>
                             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                 <div>
@@ -1053,12 +1053,12 @@ function CompsContent() {
                                         onChange={(e) => setSubjectPrice(e.target.value)} className="h-8 text-xs" />
                                 </div>
                                 <div>
-                                    <Label className="text-xs mb-1 block">Beds</Label>
+                                    <Label className="text-xs mb-1 block">Beds <span className="text-red-500">*</span></Label>
                                     <Input type="number" placeholder="e.g. 3" value={subjectBeds}
                                         onChange={(e) => setSubjectBeds(e.target.value)} className="h-8 text-xs" />
                                 </div>
                                 <div>
-                                    <Label className="text-xs mb-1 block">Baths</Label>
+                                    <Label className="text-xs mb-1 block">Baths <span className="text-red-500">*</span></Label>
                                     <Input type="number" step="0.5" placeholder="e.g. 2" value={subjectBaths}
                                         onChange={(e) => setSubjectBaths(e.target.value)} className="h-8 text-xs" />
                                 </div>
@@ -1082,7 +1082,7 @@ function CompsContent() {
                                 </div>
                             </div>
                         </div>
-                        <Button onClick={findComps} disabled={loading || !address.trim()} className="w-full mt-2">
+                        <Button onClick={findComps} disabled={loading || !address.trim() || !subjectBeds.trim() || !subjectBaths.trim()} className="w-full mt-2">
                             {loading ? 'Searching...' : 'Find Comps'}
                         </Button>
                     </div>
