@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { searchArticlesWithGemini } from "@/lib/news/search";
+import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
     try {
@@ -20,10 +20,7 @@ export async function POST(request: NextRequest) {
         const { query, dateRange } = body;
 
         if (!query || query.trim() === "") {
-            return NextResponse.json(
-                { error: "Search query is required" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Search query is required" }, { status: 400 });
         }
 
         // Build date filter
@@ -73,7 +70,7 @@ export async function POST(request: NextRequest) {
         article_tags (
           tag
         )
-      `
+      `,
             )
             .eq("is_relevant", true)
             .order("date", { ascending: false })
@@ -87,10 +84,7 @@ export async function POST(request: NextRequest) {
 
         if (dbError) {
             console.error("Error fetching articles for search:", dbError);
-            return NextResponse.json(
-                { error: "Failed to fetch articles" },
-                { status: 500 }
-            );
+            return NextResponse.json({ error: "Failed to fetch articles" }, { status: 500 });
         }
 
         // Transform the data
@@ -117,9 +111,6 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error("Error in news search API:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

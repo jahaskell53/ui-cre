@@ -25,12 +25,7 @@ function buildProjection(currentIrr: number, years: number): IrrProjectionPoint[
 
 const PAD = { top: 8, right: 8, bottom: 24, left: 36 };
 
-export function IrrProjectionChart({
-    currentIrr,
-    years = 5,
-    className = "",
-    height = 160,
-}: IrrProjectionChartProps) {
+export function IrrProjectionChart({ currentIrr, years = 5, className = "", height = 160 }: IrrProjectionChartProps) {
     const data = buildProjection(currentIrr, years);
     const width = 280;
     const innerWidth = width - PAD.left - PAD.right;
@@ -45,19 +40,12 @@ export function IrrProjectionChart({
     const xScale = (year: number) => PAD.left + ((year - 1) / (years - 1 || 1)) * innerWidth;
     const yScale = (irr: number) => PAD.top + innerHeight - ((irr - yMin) / (yMax - yMin)) * innerHeight;
 
-    const pathD = data
-        .map((d, i) => `${i === 0 ? "M" : "L"} ${xScale(d.year)} ${yScale(d.irr)}`)
-        .join(" ");
+    const pathD = data.map((d, i) => `${i === 0 ? "M" : "L"} ${xScale(d.year)} ${yScale(d.irr)}`).join(" ");
 
     return (
         <div className={className}>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">IRR projection</p>
-            <svg
-                width={width}
-                height={height}
-                className="overflow-visible"
-                aria-label="IRR over time"
-            >
+            <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">IRR projection</p>
+            <svg width={width} height={height} className="overflow-visible" aria-label="IRR over time">
                 {/* Y axis labels */}
                 {[yMin, (yMin + yMax) / 2, yMax].map((v) => (
                     <text
@@ -66,20 +54,14 @@ export function IrrProjectionChart({
                         y={yScale(v)}
                         textAnchor="end"
                         dominantBaseline="middle"
-                        className="fill-gray-500 dark:fill-gray-400 text-[10px]"
+                        className="fill-gray-500 text-[10px] dark:fill-gray-400"
                     >
                         {v}%
                     </text>
                 ))}
                 {/* X axis labels */}
                 {data.map((d) => (
-                    <text
-                        key={d.year}
-                        x={xScale(d.year)}
-                        y={height - 6}
-                        textAnchor="middle"
-                        className="fill-gray-500 dark:fill-gray-400 text-[10px]"
-                    >
+                    <text key={d.year} x={xScale(d.year)} y={height - 6} textAnchor="middle" className="fill-gray-500 text-[10px] dark:fill-gray-400">
                         Y{d.year}
                     </text>
                 ))}
@@ -95,13 +77,7 @@ export function IrrProjectionChart({
                 />
                 {/* Dots at data points */}
                 {data.map((d) => (
-                    <circle
-                        key={d.year}
-                        cx={xScale(d.year)}
-                        cy={yScale(d.irr)}
-                        r={3}
-                        className="fill-blue-500 dark:fill-blue-400"
-                    />
+                    <circle key={d.year} cx={xScale(d.year)} cy={yScale(d.irr)} r={3} className="fill-blue-500 dark:fill-blue-400" />
                 ))}
             </svg>
         </div>

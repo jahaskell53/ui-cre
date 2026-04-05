@@ -1,8 +1,8 @@
 "use client";
 
-import { BookOpen, Check, Copy, Box, HelpCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BookOpen, Box, Check, Copy, HelpCircle } from "lucide-react";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
+import { Button } from "@/components/ui/button";
 import { useClipboard } from "@/hooks/use-clipboard";
 
 export const HomeScreen = () => {
@@ -26,54 +26,28 @@ export const HomeScreen = () => {
 
                     <hr className="h-10 w-px bg-border-secondary" />
 
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="mx-1 h-8 w-8"
-                        onClick={() => clipboard.copy("npx untitledui@latest add")}
-                    >
+                    <Button variant="ghost" size="icon" className="mx-1 h-8 w-8" onClick={() => clipboard.copy("npx untitledui@latest add")}>
                         {clipboard.copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                     </Button>
                 </div>
 
                 <div className="mt-6 flex items-center gap-3">
-                    <Button
-                        variant="link"
-                        asChild
-                    >
-                        <a
-                            href="https://www.untitledui.com/react/docs/introduction"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
+                    <Button variant="link" asChild>
+                        <a href="https://www.untitledui.com/react/docs/introduction" target="_blank" rel="noopener noreferrer">
                             <BookOpen className="size-4" />
                             Docs
                         </a>
                     </Button>
                     <div className="h-px w-4 bg-brand-solid" />
-                    <Button
-                        variant="link"
-                        asChild
-                    >
-                        <a
-                            href="https://www.untitledui.com/react/resources/icons"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
+                    <Button variant="link" asChild>
+                        <a href="https://www.untitledui.com/react/resources/icons" target="_blank" rel="noopener noreferrer">
                             <Box className="size-4" />
                             Icons
                         </a>
                     </Button>
                     <div className="h-px w-4 bg-brand-solid" />
-                    <Button
-                        variant="link"
-                        asChild
-                    >
-                        <a
-                            href="https://github.com/untitleduico/react/issues"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
+                    <Button variant="link" asChild>
+                        <a href="https://github.com/untitleduico/react/issues" target="_blank" rel="noopener noreferrer">
                             <HelpCircle className="size-4" />
                             Help
                         </a>

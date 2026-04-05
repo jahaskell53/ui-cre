@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { type ReactNode, useState } from "react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { UntitledLogoMinimal } from "@/components/foundations/logo/untitledui-logo-minimal";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn as cx } from "@/lib/utils";
 import { MobileNavigationHeader } from "../base-components/mobile-header";
 import { NavAccountCard } from "../base-components/nav-account-card";
@@ -69,10 +69,10 @@ export const SidebarNavigationSimple = ({
                 className,
             )}
         >
-            <div className="flex flex-col gap-5 px-4 lg:px-5 relative">
+            <div className="relative flex flex-col gap-5 px-4 lg:px-5">
                 <div className="flex items-center justify-between">
                     {isCollapsed ? (
-                        <div className="flex justify-center w-full">
+                        <div className="flex w-full justify-center">
                             <UntitledLogoMinimal className="size-8" />
                         </div>
                     ) : (
@@ -95,12 +95,7 @@ export const SidebarNavigationSimple = ({
                 </div>
                 {!isCollapsed && (
                     <div onClick={onSearchClick} className="cursor-pointer">
-                        <Input
-                            aria-label="Search"
-                            placeholder="Search"
-                            readOnly
-                            className="pointer-events-none"
-                        />
+                        <Input aria-label="Search" placeholder="Search" readOnly className="pointer-events-none" />
                     </div>
                 )}
             </div>
@@ -112,11 +107,11 @@ export const SidebarNavigationSimple = ({
                     <ul className="flex flex-col">
                         {footerItems.map((item) => (
                             <li key={item.label} className="py-0.5">
-                                <NavItemBase 
-                                    badge={item.badge} 
-                                    icon={item.icon} 
-                                    href={item.href} 
-                                    type="link" 
+                                <NavItemBase
+                                    badge={item.badge}
+                                    icon={item.icon}
+                                    href={item.href}
+                                    type="link"
                                     current={item.href === activeUrl}
                                     iconOnly={isCollapsed}
                                 >
@@ -147,7 +142,7 @@ export const SidebarNavigationSimple = ({
                 style={{
                     paddingLeft: isCollapsed ? COLLAPSED_SIDEBAR_WIDTH : MAIN_SIDEBAR_WIDTH,
                 }}
-                className="invisible hidden lg:sticky lg:top-0 lg:bottom-0 lg:left-0 lg:block transition-all duration-300"
+                className="invisible hidden transition-all duration-300 lg:sticky lg:top-0 lg:bottom-0 lg:left-0 lg:block"
             />
         </>
     );

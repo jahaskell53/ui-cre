@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { sendMessageNotificationEmail } from "@/utils/send-message-notification-email";
+import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user (for verification, but this could be called by system)
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -59,4 +62,3 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
-

@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { parseMentions } from "@/utils/parse-mentions";
 import { sendMentionNotificationEmail } from "@/utils/send-mention-notification-email";
+import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -26,11 +29,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify post exists
-        const { data: post, error: postError } = await supabase
-            .from("posts")
-            .select("id")
-            .eq("id", post_id)
-            .single();
+        const { data: post, error: postError } = await supabase.from("posts").select("id").eq("id", post_id).single();
 
         if (postError || !post) {
             return NextResponse.json({ error: "Post not found" }, { status: 404 });
@@ -56,20 +55,15 @@ export async function POST(request: NextRequest) {
         const mentionedNames = parseMentions(content);
         if (mentionedNames.length > 0) {
             // Look up profiles by full_name
-            const { data: mentionedProfiles, error: profilesError } = await supabase
-                .from("profiles")
-                .select("id, full_name")
-                .in("full_name", mentionedNames);
+            const { data: mentionedProfiles, error: profilesError } = await supabase.from("profiles").select("id, full_name").in("full_name", mentionedNames);
 
             if (!profilesError && mentionedProfiles) {
                 // Send email notifications to mentioned users (excluding the comment author)
-                const mentionedUserIds = mentionedProfiles
-                    .filter(profile => profile.id !== user.id)
-                    .map(profile => profile.id);
+                const mentionedUserIds = mentionedProfiles.filter((profile) => profile.id !== user.id).map((profile) => profile.id);
 
                 // Send emails asynchronously (don't wait for them)
-                mentionedUserIds.forEach(mentionedUserId => {
-                    sendMentionNotificationEmail(comment.id, mentionedUserId, post_id).catch(error => {
+                mentionedUserIds.forEach((mentionedUserId) => {
+                    sendMentionNotificationEmail(comment.id, mentionedUserId, post_id).catch((error) => {
                         console.error("Error sending mention notification email:", error);
                         // Don't fail the request if email fails
                     });
@@ -83,4 +77,3 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
-

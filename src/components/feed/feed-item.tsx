@@ -1,20 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Heart, MessageCircle, MoreVertical, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { LinkPreviewCard, LinkPreview } from "./link-preview";
-import { FileAttachment } from "./file-attachment";
-import { CommentSection } from "./comment-section";
+import { Heart, MessageCircle, MoreVertical, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CommentSection } from "./comment-section";
+import { FileAttachment } from "./file-attachment";
+import { LinkPreview, LinkPreviewCard } from "./link-preview";
 
 export interface Post {
     id: string;
@@ -33,12 +28,7 @@ export interface Post {
 }
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
-    return (
-        <Heart
-            className={className}
-            fill={isLiked ? "currentColor" : "none"}
-        />
-    );
+    return <Heart className={className} fill={isLiked ? "currentColor" : "none"} />;
 };
 
 interface FeedItemProps {
@@ -51,22 +41,22 @@ interface FeedItemProps {
     onDeleteComment: (commentId: string, postId: string) => void;
 }
 
-export const FeedItem = ({
-    post,
-    currentUserId,
-    currentUserProfile,
-    onLike,
-    onComment,
-    onDeletePost,
-    onDeleteComment,
-}: FeedItemProps) => {
+export const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: FeedItemProps) => {
     const router = useRouter();
     const [showComments, setShowComments] = useState(false);
     const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const isLink = post.type === "link";
     const authorName = post.profile?.full_name || "Anonymous User";
-    const initials = authorName === "Anonymous User" ? "AU" : authorName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U";
+    const initials =
+        authorName === "Anonymous User"
+            ? "AU"
+            : authorName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2) || "U";
 
     useEffect(() => {
         if (isLink && post.content) {
@@ -99,11 +89,11 @@ export const FeedItem = ({
     };
 
     return (
-        <article className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:shadow-sm transition-shadow overflow-hidden flex flex-col">
+        <article className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <div className="flex flex-col">
-                <div className="p-4 flex flex-col justify-between flex-1">
+                <div className="flex flex-1 flex-col justify-between p-4">
                     <div>
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="mb-3 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <span className="text-xs text-gray-500 dark:text-gray-400">
                                     {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
@@ -112,7 +102,7 @@ export const FeedItem = ({
                             {currentUserId === post.user_id && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <button className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                                        <button className="flex h-7 w-7 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
                                             <MoreVertical className="size-4" />
                                         </button>
                                     </DropdownMenuTrigger>
@@ -125,18 +115,14 @@ export const FeedItem = ({
                                             }}
                                             className="text-red-600"
                                         >
-                                            <Trash2 className="size-4 mr-2" />
+                                            <Trash2 className="mr-2 size-4" />
                                             Delete post
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             )}
                         </div>
-                        {!isLink && (
-                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed whitespace-pre-wrap">
-                                {post.content}
-                            </p>
-                        )}
+                        {!isLink && <p className="mb-4 text-sm leading-relaxed whitespace-pre-wrap text-gray-700 dark:text-gray-300">{post.content}</p>}
                         {post.file_url && (
                             <div className="mb-4">
                                 <FileAttachment fileUrl={post.file_url} />
@@ -144,46 +130,42 @@ export const FeedItem = ({
                         )}
                         {isLink && (
                             <div className="mb-4">
-                                <LinkPreviewCard
-                                    preview={linkPreview}
-                                    isLoading={isLoadingPreview}
-                                    fallbackUrl={post.content}
-                                />
+                                <LinkPreviewCard preview={linkPreview} isLoading={isLoadingPreview} fallbackUrl={post.content} />
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
+                    <div className="mt-auto flex items-center justify-between">
                         <div
-                            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                            className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
                             onClick={() => router.push(`/users/${post.user_id}`)}
                         >
                             <Avatar className="h-7 w-7">
                                 <AvatarImage src={post.profile?.avatar_url || undefined} />
-                                <AvatarFallback style={{ background: generateAuroraGradient(authorName) }} className="text-xs text-white font-medium">
+                                <AvatarFallback style={{ background: generateAuroraGradient(authorName) }} className="text-xs font-medium text-white">
                                     {initials}
                                 </AvatarFallback>
                             </Avatar>
                             <div>
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-tight">{authorName}</p>
+                                <p className="text-sm leading-tight font-medium text-gray-900 dark:text-gray-100">{authorName}</p>
                             </div>
                         </div>
                         <div className="flex gap-1">
                             <button
                                 onClick={() => onLike(post.id)}
-                                className={`flex items-center gap-1.5 px-2 py-1 text-sm font-medium rounded-md transition-colors ${
+                                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium transition-colors ${
                                     post.is_liked
-                                        ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                        : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                                 }`}
                             >
                                 <HeartIcon isLiked={post.is_liked || false} className="size-4" />
                             </button>
                             <button
                                 onClick={() => setShowComments(!showComments)}
-                                className={`flex items-center gap-1.5 px-2 py-1 text-sm font-medium rounded-md transition-colors ${
+                                className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium transition-colors ${
                                     showComments
-                                        ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                        ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+                                        : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                                 }`}
                             >
                                 <MessageCircle className="size-4" />

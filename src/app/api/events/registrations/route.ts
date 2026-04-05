@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
 
         // For public access (unauthenticated), use admin client to bypass RLS
         // For authenticated users, use regular client
@@ -41,10 +43,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Get registration count for this event (public)
-        const { count, error: countError } = await client
-            .from("event_registrations")
-            .select("*", { count: "exact", head: true })
-            .eq("event_id", eventId);
+        const { count, error: countError } = await client.from("event_registrations").select("*", { count: "exact", head: true }).eq("event_id", eventId);
 
         if (countError) {
             console.error("Error getting registration count:", countError);
@@ -67,17 +66,14 @@ export async function GET(request: NextRequest) {
 
                 // Fetch profiles for these users (use admin client for public access)
                 const profileClient = user ? supabase : createAdminClient();
-                const { data: profiles, error: profilesError } = await profileClient
-                    .from("profiles")
-                    .select("id, full_name, avatar_url")
-                    .in("id", userIds);
+                const { data: profiles, error: profilesError } = await profileClient.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
 
                 if (profilesError) {
                     console.error("Error fetching profiles:", profilesError);
                 } else {
                     // Create a map for quick lookup
                     const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
-                    
+
                     // Combine registration data with profile data
                     attendees = registrations.map((reg: any) => {
                         const profile = profileMap.get(reg.user_id);
@@ -109,7 +105,10 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -123,11 +122,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if event exists
-        const { data: event, error: eventError } = await supabase
-            .from("events")
-            .select("id, start_time")
-            .eq("id", event_id)
-            .single();
+        const { data: event, error: eventError } = await supabase.from("events").select("id, start_time").eq("id", event_id).single();
 
         if (eventError || !event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -162,7 +157,10 @@ export async function DELETE(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -175,11 +173,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        const { error } = await supabase
-            .from("event_registrations")
-            .delete()
-            .eq("event_id", eventId)
-            .eq("user_id", user.id);
+        const { error } = await supabase.from("event_registrations").delete().eq("event_id", eventId).eq("user_id", user.id);
 
         if (error) {
             console.error("Error unregistering from event:", error);

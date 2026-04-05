@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { ArrowLeft, ArrowUpRight, File, Heart, MessageCircle, MessageSquare } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/utils/supabase";
 import { useUser } from "@/hooks/use-user";
-import { ArrowLeft, Heart, MessageCircle, ArrowUpRight, File, MessageSquare } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { supabase } from "@/utils/supabase";
 
 interface UserProfile {
     id: string;
@@ -51,11 +51,7 @@ export default function UserProfilePage() {
     const loadProfile = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("id, full_name, avatar_url, website, roles")
-                .eq("id", userId)
-                .single();
+            const { data, error } = await supabase.from("profiles").select("id, full_name, avatar_url, website, roles").eq("id", userId).single();
 
             if (error) throw error;
             setProfile(data);
@@ -69,10 +65,7 @@ export default function UserProfilePage() {
 
     const loadPostsCount = async () => {
         try {
-            const { count, error } = await supabase
-                .from("posts")
-                .select("*", { count: "exact", head: true })
-                .eq("user_id", userId);
+            const { count, error } = await supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", userId);
 
             if (error) throw error;
             setPostsCount(count || 0);
@@ -94,32 +87,26 @@ export default function UserProfilePage() {
             if (error) throw error;
 
             if (postsData) {
-                const postIds = postsData.map(p => p.id);
+                const postIds = postsData.map((p) => p.id);
 
                 // Get likes count
-                const { data: likesData } = await supabase
-                    .from("likes")
-                    .select("post_id")
-                    .in("post_id", postIds);
+                const { data: likesData } = await supabase.from("likes").select("post_id").in("post_id", postIds);
 
                 // Get comments count
-                const { data: commentsData } = await supabase
-                    .from("comments")
-                    .select("post_id")
-                    .in("post_id", postIds);
+                const { data: commentsData } = await supabase.from("comments").select("post_id").in("post_id", postIds);
 
                 const likesCountMap = new Map<string, number>();
                 const commentsCountMap = new Map<string, number>();
 
-                likesData?.forEach(like => {
+                likesData?.forEach((like) => {
                     likesCountMap.set(like.post_id, (likesCountMap.get(like.post_id) || 0) + 1);
                 });
 
-                commentsData?.forEach(comment => {
+                commentsData?.forEach((comment) => {
                     commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
                 });
 
-                const postsWithCounts = postsData.map(post => ({
+                const postsWithCounts = postsData.map((post) => ({
                     ...post,
                     likes_count: likesCountMap.get(post.id) || 0,
                     comments_count: commentsCountMap.get(post.id) || 0,
@@ -147,11 +134,8 @@ export default function UserProfilePage() {
         return (
             <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
                 <div className="text-center">
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">User not found</div>
-                    <button
-                        onClick={() => router.back()}
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                    >
+                    <div className="mb-4 text-sm text-gray-500 dark:text-gray-400">User not found</div>
+                    <button onClick={() => router.back()} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
                         Back
                     </button>
                 </div>
@@ -162,7 +146,7 @@ export default function UserProfilePage() {
     const displayName = profile.full_name || "Unknown User";
     const initials = displayName
         .split(" ")
-        .map(n => n[0])
+        .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2);
@@ -170,14 +154,14 @@ export default function UserProfilePage() {
 
     return (
         <div className="flex h-screen bg-white dark:bg-gray-900">
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 {/* Top Header Bar */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
                     <button
                         onClick={() => router.back()}
-                        className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+                        className="-ml-1.5 rounded-md p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                     >
-                        <ArrowLeft className="w-5 h-5" />
+                        <ArrowLeft className="h-5 w-5" />
                     </button>
                 </div>
 
@@ -187,22 +171,19 @@ export default function UserProfilePage() {
                         <div className="flex items-center gap-4">
                             <Avatar className="h-16 w-16 md:h-20 md:w-20">
                                 <AvatarImage src={profile.avatar_url || undefined} />
-                                <AvatarFallback
-                                    className="text-white text-2xl font-medium"
-                                    style={{ background: generateAuroraGradient(displayName) }}
-                                >
+                                <AvatarFallback className="text-2xl font-medium text-white" style={{ background: generateAuroraGradient(displayName) }}>
                                     {initials}
                                 </AvatarFallback>
                             </Avatar>
                             <div>
                                 <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{displayName}</h1>
-                                <div className="flex items-center gap-2 mt-1">
+                                <div className="mt-1 flex items-center gap-2">
                                     {profile.roles && profile.roles.length > 0 && (
                                         <>
                                             {profile.roles.map((role) => (
                                                 <span
                                                     key={role}
-                                                    className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded"
+                                                    className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                                 >
                                                     {role}
                                                 </span>
@@ -215,21 +196,16 @@ export default function UserProfilePage() {
                                         href={profile.website}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mt-2"
+                                        className="mt-2 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                     >
-                                        <ArrowUpRight className="w-4 h-4" />
-                                        {profile.website.replace(/^https?:\/\//, '')}
+                                        <ArrowUpRight className="h-4 w-4" />
+                                        {profile.website.replace(/^https?:\/\//, "")}
                                     </a>
                                 )}
                             </div>
                         </div>
                         {isOwnProfile ? (
-                            <Button
-                                onClick={() => router.push("/profile")}
-                                variant="ghost"
-                                size="sm"
-                                className="text-gray-700 dark:text-gray-300"
-                            >
+                            <Button onClick={() => router.push("/profile")} variant="ghost" size="sm" className="text-gray-700 dark:text-gray-300">
                                 Edit Profile
                             </Button>
                         ) : (
@@ -239,7 +215,7 @@ export default function UserProfilePage() {
                                 size="sm"
                                 className="text-gray-700 dark:text-gray-300"
                             >
-                                <MessageSquare className="w-4 h-4 mr-2" />
+                                <MessageSquare className="mr-2 h-4 w-4" />
                                 Message
                             </Button>
                         )}
@@ -248,29 +224,29 @@ export default function UserProfilePage() {
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto">
-                    <div className="px-4 md:px-6 py-4">
+                    <div className="px-4 py-4 md:px-6">
                         {/* Stats */}
-                        <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+                        <div className="mb-8 border-b border-gray-200 pb-6 dark:border-gray-800">
                             <div className="flex items-center gap-8">
                                 <div>
                                     <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{postsCount}</div>
-                                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">Posts</div>
+                                    <div className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">Posts</div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Activity Section */}
                         <div>
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Activity</h2>
+                            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Activity</h2>
 
                             {loadingPosts ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
-                                    <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                                <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-400">
+                                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900" />
                                     <div className="text-sm">Loading activity...</div>
                                 </div>
                             ) : posts.length === 0 ? (
-                                <div className="text-center py-16">
-                                    <p className="text-gray-500 dark:text-gray-400 font-medium">No activity to show yet</p>
+                                <div className="py-16 text-center">
+                                    <p className="font-medium text-gray-500 dark:text-gray-400">No activity to show yet</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -279,26 +255,26 @@ export default function UserProfilePage() {
                                         return (
                                             <div
                                                 key={post.id}
-                                                className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-700 transition-colors"
+                                                className="rounded-lg border border-gray-200 p-4 transition-colors hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700"
                                             >
-                                                <div className="flex items-center justify-between mb-3">
+                                                <div className="mb-3 flex items-center justify-between">
                                                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                                                         {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                                                     </span>
                                                     <div className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                                                         <div className="flex items-center gap-1.5">
-                                                            <Heart className="w-3.5 h-3.5" />
+                                                            <Heart className="h-3.5 w-3.5" />
                                                             <span>{post.likes_count || 0}</span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
-                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                            <MessageCircle className="h-3.5 w-3.5" />
                                                             <span>{post.comments_count || 0}</span>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 {!isLink && (
-                                                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 whitespace-pre-wrap">
+                                                    <p className="mb-3 text-sm leading-relaxed whitespace-pre-wrap text-gray-700 dark:text-gray-300">
                                                         {post.content}
                                                     </p>
                                                 )}
@@ -308,11 +284,11 @@ export default function UserProfilePage() {
                                                         href={post.content}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="block border border-gray-200 dark:border-gray-800 rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group mb-3"
+                                                        className="group mb-3 block rounded-lg border border-gray-200 bg-gray-50 p-3 transition-colors hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-800/50 dark:hover:bg-gray-800"
                                                     >
-                                                        <div className="flex items-center gap-3 text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                            <div className="p-2 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
-                                                                <ArrowUpRight className="w-4 h-4" />
+                                                        <div className="flex items-center gap-3 text-gray-900 transition-colors group-hover:text-blue-600 dark:text-gray-100 dark:group-hover:text-blue-400">
+                                                            <div className="rounded border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-700">
+                                                                <ArrowUpRight className="h-4 w-4" />
                                                             </div>
                                                             <span className="truncate text-sm">{post.content}</span>
                                                         </div>
@@ -328,16 +304,18 @@ export default function UserProfilePage() {
                                                                 className="w-full rounded-lg border border-gray-200 dark:border-gray-800"
                                                             />
                                                         ) : (
-                                                            <div className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                                                                <div className="size-10 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-400">
-                                                                    <File className="w-4 h-4" />
+                                                            <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50">
+                                                                <div className="flex size-10 items-center justify-center rounded border border-gray-200 bg-white text-gray-400 dark:border-gray-600 dark:bg-gray-700">
+                                                                    <File className="h-4 w-4" />
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                                                        {decodeURIComponent(post.file_url.split('/').pop()?.split('-').slice(1).join('-') || "Attachment")}
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                        {decodeURIComponent(
+                                                                            post.file_url.split("/").pop()?.split("-").slice(1).join("-") || "Attachment",
+                                                                        )}
                                                                     </p>
-                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                                        {post.file_url.split('.').pop()?.toUpperCase()} File
+                                                                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                                                        {post.file_url.split(".").pop()?.toUpperCase()} File
                                                                     </p>
                                                                 </div>
                                                             </div>

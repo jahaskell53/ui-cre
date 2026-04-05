@@ -4,13 +4,13 @@ import { unsubscribe } from "@/lib/news/subscribers";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get("email");
+    try {
+        const { searchParams } = new URL(request.url);
+        const email = searchParams.get("email");
 
-    if (!email) {
-      return new NextResponse(
-        `<!DOCTYPE html>
+        if (!email) {
+            return new NextResponse(
+                `<!DOCTYPE html>
 <html>
 <head>
     <title>Unsubscribe Error</title>
@@ -24,18 +24,18 @@ export async function GET(request: NextRequest) {
     <p>Email address is required to unsubscribe.</p>
 </body>
 </html>`,
-        {
-          status: 400,
-          headers: { "Content-Type": "text/html" },
+                {
+                    status: 400,
+                    headers: { "Content-Type": "text/html" },
+                },
+            );
         }
-      );
-    }
 
-    const success = await unsubscribe(email);
+        const success = await unsubscribe(email);
 
-    if (success) {
-      return new NextResponse(
-        `<!DOCTYPE html>
+        if (success) {
+            return new NextResponse(
+                `<!DOCTYPE html>
 <html>
 <head>
     <title>Unsubscribed</title>
@@ -52,19 +52,19 @@ export async function GET(request: NextRequest) {
         <p>We're sorry to see you go!</p>
         <p style="margin-top: 20px; font-size: 14px; color: #666;">
             If you change your mind, you can always resubscribe at
-            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com'}/news/settings">our settings page</a>.
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://app.openmidmarket.com"}/news/settings">our settings page</a>.
         </p>
     </div>
 </body>
 </html>`,
-        {
-          status: 200,
-          headers: { "Content-Type": "text/html" },
-        }
-      );
-    } else {
-      return new NextResponse(
-        `<!DOCTYPE html>
+                {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                },
+            );
+        } else {
+            return new NextResponse(
+                `<!DOCTYPE html>
 <html>
 <head>
     <title>Unsubscribe Error</title>
@@ -82,16 +82,16 @@ export async function GET(request: NextRequest) {
     </div>
 </body>
 </html>`,
-        {
-          status: 404,
-          headers: { "Content-Type": "text/html" },
+                {
+                    status: 404,
+                    headers: { "Content-Type": "text/html" },
+                },
+            );
         }
-      );
-    }
-  } catch (error) {
-    console.error("Unsubscribe error:", error);
-    return new NextResponse(
-      `<!DOCTYPE html>
+    } catch (error) {
+        console.error("Unsubscribe error:", error);
+        return new NextResponse(
+            `<!DOCTYPE html>
 <html>
 <head>
     <title>Unsubscribe Error</title>
@@ -109,10 +109,10 @@ export async function GET(request: NextRequest) {
     </div>
 </body>
 </html>`,
-      {
-        status: 500,
-        headers: { "Content-Type": "text/html" },
-      }
-    );
-  }
+            {
+                status: 500,
+                headers: { "Content-Type": "text/html" },
+            },
+        );
+    }
 }

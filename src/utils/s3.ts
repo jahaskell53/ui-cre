@@ -12,4 +12,3 @@ export const s3Client = new S3Client({
 
 export const BUCKET_NAME = process.env.AWS_S3_BUCKET || "untitledui-profile-pics";
 export const S3_REGION = region;
-

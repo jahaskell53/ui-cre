@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { PropertyPopupContent } from './property-popup-content';
+import { useEffect, useRef } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import { createRoot } from "react-dom/client";
+import { PropertyPopupContent } from "./property-popup-content";
 
-mapboxgl.accessToken = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
+mapboxgl.accessToken = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
-export type ListingSource = 'loopnet' | 'zillow';
+export type ListingSource = "loopnet" | "zillow";
 
 export interface UnitMixRow {
     beds: number | null;
@@ -47,11 +47,21 @@ interface MapProps {
     onViewChange?: (lat: number, lng: number, zoom: number) => void;
 }
 
-const BOUNDARY_SOURCE = 'area-boundary';
-const BOUNDARY_FILL = 'area-boundary-fill';
-const BOUNDARY_LINE = 'area-boundary-line';
+const BOUNDARY_SOURCE = "area-boundary";
+const BOUNDARY_FILL = "area-boundary-fill";
+const BOUNDARY_LINE = "area-boundary-line";
 
-export const PropertyMap = ({ className, properties, selectedId, initialCenter, initialZoom, fitBoundsTarget, boundaryGeoJSON, onBoundsChange, onViewChange }: MapProps) => {
+export const PropertyMap = ({
+    className,
+    properties,
+    selectedId,
+    initialCenter,
+    initialZoom,
+    fitBoundsTarget,
+    boundaryGeoJSON,
+    onBoundsChange,
+    onViewChange,
+}: MapProps) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string | number]: mapboxgl.Marker }>({});
@@ -59,13 +69,23 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
     const onBoundsChangeRef = useRef(onBoundsChange);
     const onViewChangeRef = useRef(onViewChange);
 
-    useEffect(() => { onBoundsChangeRef.current = onBoundsChange; });
-    useEffect(() => { onViewChangeRef.current = onViewChange; });
+    useEffect(() => {
+        onBoundsChangeRef.current = onBoundsChange;
+    });
+    useEffect(() => {
+        onViewChangeRef.current = onViewChange;
+    });
 
     useEffect(() => {
         if (!fitBoundsTarget || !map.current) return;
         const { west, south, east, north } = fitBoundsTarget;
-        map.current.fitBounds([[west, south], [east, north]], { padding: 40, duration: 600 });
+        map.current.fitBounds(
+            [
+                [west, south],
+                [east, north],
+            ],
+            { padding: 40, duration: 600 },
+        );
     }, [fitBoundsTarget]);
 
     useEffect(() => {
@@ -79,29 +99,29 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
                 if (m.getSource(BOUNDARY_SOURCE)) m.removeSource(BOUNDARY_SOURCE);
                 return;
             }
-            const data: GeoJSON.Feature = { type: 'Feature', geometry: JSON.parse(boundaryGeoJSON), properties: {} };
+            const data: GeoJSON.Feature = { type: "Feature", geometry: JSON.parse(boundaryGeoJSON), properties: {} };
             if (m.getSource(BOUNDARY_SOURCE)) {
                 (m.getSource(BOUNDARY_SOURCE) as mapboxgl.GeoJSONSource).setData(data);
             } else {
-                m.addSource(BOUNDARY_SOURCE, { type: 'geojson', data });
+                m.addSource(BOUNDARY_SOURCE, { type: "geojson", data });
                 m.addLayer({
                     id: BOUNDARY_FILL,
-                    type: 'fill',
+                    type: "fill",
                     source: BOUNDARY_SOURCE,
-                    paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 },
+                    paint: { "fill-color": "#3b82f6", "fill-opacity": 0.08 },
                 });
                 m.addLayer({
                     id: BOUNDARY_LINE,
-                    type: 'line',
+                    type: "line",
                     source: BOUNDARY_SOURCE,
-                    paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-opacity': 0.6 },
+                    paint: { "line-color": "#3b82f6", "line-width": 2, "line-opacity": 0.6 },
                 });
             }
         };
         if (map.current.isStyleLoaded()) {
             apply();
         } else {
-            map.current.once('load', apply);
+            map.current.once("load", apply);
         }
     }, [boundaryGeoJSON]);
 
@@ -110,12 +130,12 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
-            style: 'mapbox://styles/mapbox/light-v11',
+            style: "mapbox://styles/mapbox/light-v11",
             center: initialCenter ?? [-122.4194, 37.7749],
             zoom: initialZoom ?? 10,
         });
 
-        map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
         const reportBounds = () => {
             if (!map.current) return;
@@ -130,8 +150,8 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
             onViewChangeRef.current?.(center.lat, center.lng, map.current.getZoom());
         };
 
-        map.current.on('moveend', reportBounds);
-        map.current.on('load', () => {
+        map.current.on("moveend", reportBounds);
+        map.current.on("load", () => {
             map.current?.resize();
             reportBounds();
         });
@@ -149,7 +169,7 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
         if (!map.current) return;
 
         // Clear existing markers
-        Object.values(markers.current).forEach(marker => marker.remove());
+        Object.values(markers.current).forEach((marker) => marker.remove());
         markers.current = {};
 
         // Cleanup previous roots
@@ -157,7 +177,7 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
         popupRoots.current = [];
 
         properties.forEach((property) => {
-            const popupContainer = document.createElement('div');
+            const popupContainer = document.createElement("div");
             const root = createRoot(popupContainer);
             popupRoots.current.push(root);
             root.render(
@@ -172,27 +192,24 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
                     isReit={property.isReit}
                     unitMix={property.unitMix}
                     href={`/analytics/listing/${property.id}`}
-                />
+                />,
             );
 
             const popup = new mapboxgl.Popup({
                 offset: 25,
-                className: 'property-popup',
+                className: "property-popup",
                 closeButton: false,
             }).setDOMContent(popupContainer);
 
-            const markerColor = property.listingSource === 'zillow' ? '#f97316' : '#0ea5e9';
-            const marker = new mapboxgl.Marker({ color: markerColor })
-                .setLngLat(property.coordinates)
-                .setPopup(popup)
-                .addTo(map.current!);
+            const markerColor = property.listingSource === "zillow" ? "#f97316" : "#0ea5e9";
+            const marker = new mapboxgl.Marker({ color: markerColor }).setLngLat(property.coordinates).setPopup(popup).addTo(map.current!);
 
             markers.current[property.id] = marker;
         });
 
         return () => {
             setTimeout(() => {
-                previousRoots.forEach(root => {
+                previousRoots.forEach((root) => {
                     try {
                         root.unmount();
                     } catch (e) {}
@@ -205,14 +222,14 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
     useEffect(() => {
         if (!map.current || !selectedId) return;
 
-        const property = properties.find(p => p.id === selectedId);
+        const property = properties.find((p) => p.id === selectedId);
         const marker = markers.current[selectedId];
 
         if (property && marker) {
             map.current.flyTo({
                 center: property.coordinates,
                 zoom: 14,
-                essential: true
+                essential: true,
             });
 
             const popup = marker.getPopup();
@@ -223,8 +240,8 @@ export const PropertyMap = ({ className, properties, selectedId, initialCenter, 
     }, [selectedId, properties]);
 
     return (
-        <div className={className} style={{ position: 'relative', width: '100%', height: '100%', minHeight: '400px' }}>
-            <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+        <div className={className} style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px" }}>
+            <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
         </div>
     );
 };

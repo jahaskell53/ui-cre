@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { sendMessageNotificationEmail } from "@/utils/send-message-notification-email";
+import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -29,11 +32,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify recipient exists
-        const { data: recipient, error: recipientError } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("id", recipient_id)
-            .single();
+        const { data: recipient, error: recipientError } = await supabase.from("profiles").select("id").eq("id", recipient_id).single();
 
         if (recipientError || !recipient) {
             return NextResponse.json({ error: "Recipient not found" }, { status: 404 });
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Send email notification asynchronously (don't wait for it)
-        sendMessageNotificationEmail(message.id).catch(error => {
+        sendMessageNotificationEmail(message.id).catch((error) => {
             console.error("Error sending email notification:", error);
             // Don't fail the request if email fails
         });
@@ -71,10 +70,13 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -89,14 +91,16 @@ export async function GET(request: NextRequest) {
         // Get messages between current user and other user
         const { data: messages, error } = await supabase
             .from("messages")
-            .select(`
+            .select(
+                `
                 id,
                 sender_id,
                 recipient_id,
                 content,
                 created_at,
                 read_at
-            `)
+            `,
+            )
             .or(`and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`)
             .order("created_at", { ascending: true });
 
@@ -106,16 +110,11 @@ export async function GET(request: NextRequest) {
         }
 
         // Mark messages as read if they were sent to current user
-        const unreadMessages = messages?.filter(
-            m => m.recipient_id === user.id && !m.read_at
-        ) || [];
+        const unreadMessages = messages?.filter((m) => m.recipient_id === user.id && !m.read_at) || [];
 
         if (unreadMessages.length > 0) {
-            const messageIds = unreadMessages.map(m => m.id);
-            await supabase
-                .from("messages")
-                .update({ read_at: new Date().toISOString() })
-                .in("id", messageIds);
+            const messageIds = unreadMessages.map((m) => m.id);
+            await supabase.from("messages").update({ read_at: new Date().toISOString() }).in("id", messageIds);
         }
 
         return NextResponse.json(messages || []);
@@ -124,4 +123,3 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
-

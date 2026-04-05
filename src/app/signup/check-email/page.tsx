@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/utils/supabase";
-import { CheckCircle2 } from "lucide-react";
 
 function CheckEmailContent() {
     const router = useRouter();
@@ -21,7 +21,9 @@ function CheckEmailContent() {
         let intervalId: NodeJS.Timeout;
 
         const checkAuthStatus = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
             if (session) {
                 // User has confirmed email and has a session
                 router.push(redirect || "/network/connect");
@@ -44,10 +46,13 @@ function CheckEmailContent() {
         });
 
         // Stop checking after 5 minutes to avoid infinite polling
-        const timeoutId = setTimeout(() => {
-            setIsChecking(false);
-            clearInterval(intervalId);
-        }, 5 * 60 * 1000);
+        const timeoutId = setTimeout(
+            () => {
+                setIsChecking(false);
+                clearInterval(intervalId);
+            },
+            5 * 60 * 1000,
+        );
 
         return () => {
             clearInterval(intervalId);
@@ -67,9 +72,7 @@ function CheckEmailContent() {
             type: "signup",
             email,
             options: {
-                emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-                    redirect || "/network/connect"
-                )}`,
+                emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect || "/network/connect")}`,
             },
         });
 
@@ -84,37 +87,31 @@ function CheckEmailContent() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-gray-900">
             <div className="w-full max-w-md space-y-6">
                 {/* Logo */}
-                <div className="flex flex-col items-center gap-4 mb-8">
-                    <div className="w-10 h-10 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
-                        <span className="text-white dark:text-gray-900 text-sm font-bold">OM</span>
+                <div className="mb-8 flex flex-col items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-900 dark:bg-gray-100">
+                        <span className="text-sm font-bold text-white dark:text-gray-900">OM</span>
                     </div>
                     <div className="text-center">
                         <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Check your email</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {email ? `We sent a confirmation link to ${email}` : "We sent a confirmation link to your email"}
                         </p>
                     </div>
                 </div>
 
                 {/* Success Message */}
-                <div className="w-full p-4 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-green-600 dark:text-green-400 text-sm">
-                        Check your email for a confirmation link!
-                    </p>
+                <div className="flex w-full items-start gap-3 rounded-md border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/20">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600 dark:text-green-400" />
+                    <p className="text-sm text-green-600 dark:text-green-400">Check your email for a confirmation link!</p>
                 </div>
 
                 {/* Instructions */}
                 <div className="space-y-4 text-sm text-gray-600 dark:text-gray-400">
-                    <p>
-                        Click the confirmation link in the email to verify your account and complete your signup.
-                    </p>
-                    <p>
-                        This page will automatically redirect you once you've confirmed your email.
-                    </p>
+                    <p>Click the confirmation link in the email to verify your account and complete your signup.</p>
+                    <p>This page will automatically redirect you once you've confirmed your email.</p>
                     {email && (
                         <div className="space-y-1">
                             <p className="text-xs text-gray-500 dark:text-gray-500">
@@ -123,28 +120,20 @@ function CheckEmailContent() {
                                     type="button"
                                     onClick={handleResend}
                                     disabled={isResending}
-                                    className="font-medium text-gray-900 dark:text-gray-100 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="font-medium text-gray-900 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-100"
                                 >
                                     {isResending ? "Resending..." : "Resend confirmation email"}
                                 </button>
                             </p>
-                            {resendError && (
-                                <p className="text-xs text-red-600 dark:text-red-400">
-                                    {resendError}
-                                </p>
-                            )}
-                            {resendSuccess && (
-                                <p className="text-xs text-green-600 dark:text-green-400">
-                                    We&apos;ve sent another confirmation email.
-                                </p>
-                            )}
+                            {resendError && <p className="text-xs text-red-600 dark:text-red-400">{resendError}</p>}
+                            {resendSuccess && <p className="text-xs text-green-600 dark:text-green-400">We&apos;ve sent another confirmation email.</p>}
                         </div>
                     )}
                 </div>
 
                 {/* Back to Sign Up Link */}
                 <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-                    <Link href="/signup" className="text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 font-medium">
+                    <Link href="/signup" className="font-medium text-gray-900 hover:text-gray-700 dark:text-gray-100 dark:hover:text-gray-300">
                         Back to sign up
                     </Link>
                 </div>
@@ -155,20 +144,22 @@ function CheckEmailContent() {
 
 export default function CheckEmailPage() {
     return (
-        <Suspense fallback={
-            <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4">
-                <div className="w-full max-w-md space-y-6">
-                    <div className="flex flex-col items-center gap-4 mb-8">
-                        <div className="w-10 h-10 bg-gray-900 dark:bg-gray-100 rounded flex items-center justify-center">
-                            <span className="text-white dark:text-gray-900 text-sm font-bold">OM</span>
-                        </div>
-                        <div className="text-center">
-                            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Check your email</h1>
+        <Suspense
+            fallback={
+                <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-gray-900">
+                    <div className="w-full max-w-md space-y-6">
+                        <div className="mb-8 flex flex-col items-center gap-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded bg-gray-900 dark:bg-gray-100">
+                                <span className="text-sm font-bold text-white dark:text-gray-900">OM</span>
+                            </div>
+                            <div className="text-center">
+                                <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Check your email</h1>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        }>
+            }
+        >
             <CheckEmailContent />
         </Suspense>
     );

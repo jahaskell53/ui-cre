@@ -1,16 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-    ResponsiveContainer,
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-} from "recharts";
-import { AreaSelection, ActivityRow, BED_KEYS, buildActivityComboData, getActivitySeriesList } from "./trends-utils";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ActivityRow, AreaSelection, BED_KEYS, buildActivityComboData, getActivitySeriesList } from "./trends-utils";
 
 interface Props {
     areas: AreaSelection[];
@@ -23,37 +15,38 @@ type View = "inventory" | "velocity";
 export function MarketActivitySection({ areas, areaResults, selectedBeds }: Props) {
     const [view, setView] = useState<View>("inventory");
 
-    const bedLabel = selectedBeds.length === 1
-        ? (BED_KEYS.find(b => b.beds === selectedBeds[0])?.label ?? "")
-        : selectedBeds.map(b => BED_KEYS.find(k => k.beds === b)?.label).join(" vs ");
+    const bedLabel =
+        selectedBeds.length === 1
+            ? (BED_KEYS.find((b) => b.beds === selectedBeds[0])?.label ?? "")
+            : selectedBeds.map((b) => BED_KEYS.find((k) => k.beds === b)?.label).join(" vs ");
 
     const series = getActivitySeriesList(areas, selectedBeds);
     const chartData = buildActivityComboData(areaResults, areas, selectedBeds);
     const weekCount = chartData.length;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">
                     {view === "inventory" ? "Inventory" : "Velocity"} — {bedLabel}
                 </h2>
-                <div className="flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-700 p-1">
+                <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
                     <button
                         onClick={() => setView("inventory")}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                        className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                             view === "inventory"
-                                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
-                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100"
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                         }`}
                     >
                         Inventory
                     </button>
                     <button
                         onClick={() => setView("velocity")}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                        className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                             view === "velocity"
-                                ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm"
-                                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100"
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                         }`}
                     >
                         Velocity
@@ -73,7 +66,7 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                                 labelFormatter={(label) => `Week of ${label}`}
                                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
                             />
-                            {series.map(s => (
+                            {series.map((s) => (
                                 <Line
                                     key={s.key}
                                     type="monotone"
@@ -104,7 +97,7 @@ export function MarketActivitySection({ areas, areaResults, selectedBeds }: Prop
                                 labelFormatter={(label) => `Week of ${label}`}
                                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
                             />
-                            {series.map(s => {
+                            {series.map((s) => {
                                 const prefix = series.length > 1 ? `${s.label} ` : "";
                                 return (
                                     <React.Fragment key={s.key}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ComponentPropsWithRef, type ReactNode, type RefAttributes } from "react";
+import { X } from "lucide-react";
 import type {
     DialogProps as AriaDialogProps,
     ModalOverlayProps as AriaModalOverlayProps,
@@ -8,7 +9,6 @@ import type {
 } from "react-aria-components";
 import { Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Modal as AriaModal, ModalOverlay as AriaModalOverlay } from "react-aria-components";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
 import { cn as cx } from "@/lib/utils";
 
 interface ModalOverlayProps extends AriaModalOverlayProps, RefAttributes<HTMLDivElement> {}

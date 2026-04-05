@@ -2,22 +2,19 @@
 
 import type { FC, HTMLAttributes } from "react";
 import { useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import type { Placement } from "@react-types/overlays";
 import { BookOpen as BookOpen01, ChevronsUpDown as ChevronSelectorVertical, LogOut as LogOut01, Settings as Settings01, User as User01 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useFocusManager } from "react-aria";
 import type { DialogProps as AriaDialogProps } from "react-aria-components";
 import { Button as AriaButton, Dialog as AriaDialog, DialogTrigger as AriaDialogTrigger, Popover as AriaPopover } from "react-aria-components";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 import { cn as cx } from "@/lib/utils";
+import { supabase } from "@/utils/supabase";
 
-export const NavAccountMenu = ({
-    className,
-    ...dialogProps
-}: AriaDialogProps & { className?: string }) => {
+export const NavAccountMenu = ({ className, ...dialogProps }: AriaDialogProps & { className?: string }) => {
     const router = useRouter();
     const focusManager = useFocusManager();
     const dialogRef = useRef<HTMLDivElement>(null);
@@ -62,29 +59,14 @@ export const NavAccountMenu = ({
         >
             <div className="rounded-xl bg-primary ring-1 ring-secondary">
                 <div className="flex flex-col gap-0.5 py-1.5">
-                    <NavAccountCardMenuItem 
-                        label="View profile" 
-                        icon={User01} 
-                        shortcut="⌘K->P"
-                        onClick={() => router.push("/profile")}
-                    />
-                    <NavAccountCardMenuItem 
-                        label="Account settings" 
-                        icon={Settings01} 
-                        shortcut="⌘S"
-                        onClick={() => router.push("/settings")}
-                    />
+                    <NavAccountCardMenuItem label="View profile" icon={User01} shortcut="⌘K->P" onClick={() => router.push("/profile")} />
+                    <NavAccountCardMenuItem label="Account settings" icon={Settings01} shortcut="⌘S" onClick={() => router.push("/settings")} />
                     <NavAccountCardMenuItem label="Documentation" icon={BookOpen01} />
                 </div>
             </div>
 
             <div className="pt-1 pb-1.5">
-                <NavAccountCardMenuItem 
-                    label="Sign out" 
-                    icon={LogOut01} 
-                    shortcut="⌥⇧Q"
-                    onClick={handleLogout}
-                />
+                <NavAccountCardMenuItem label="Sign out" icon={LogOut01} shortcut="⌥⇧Q" onClick={handleLogout} />
             </div>
         </AriaDialog>
     );
@@ -121,13 +103,7 @@ const NavAccountCardMenuItem = ({
     );
 };
 
-export const NavAccountCard = ({
-    popoverPlacement,
-    iconOnly = false,
-}: {
-    popoverPlacement?: Placement;
-    iconOnly?: boolean;
-}) => {
+export const NavAccountCard = ({ popoverPlacement, iconOnly = false }: { popoverPlacement?: Placement; iconOnly?: boolean }) => {
     const triggerRef = useRef<HTMLDivElement>(null);
     const isDesktop = useBreakpoint("lg");
     const { user, profile, loading } = useUser();
@@ -135,11 +111,11 @@ export const NavAccountCard = ({
     if (loading) {
         return (
             <div className={cx("flex items-center rounded-xl p-3 ring-1 ring-secondary ring-inset", iconOnly ? "justify-center" : "gap-3")}>
-                <div className="h-10 w-10 rounded-full bg-secondary animate-pulse" />
+                <div className="h-10 w-10 animate-pulse rounded-full bg-secondary" />
                 {!iconOnly && (
                     <div className="flex-1 space-y-2">
-                        <div className="h-4 w-24 rounded bg-secondary animate-pulse" />
-                        <div className="h-3 w-32 rounded bg-secondary animate-pulse" />
+                        <div className="h-4 w-24 animate-pulse rounded bg-secondary" />
+                        <div className="h-3 w-32 animate-pulse rounded bg-secondary" />
                     </div>
                 )}
             </div>
@@ -153,7 +129,7 @@ export const NavAccountCard = ({
     const displayName = profile?.full_name || user.email?.split("@")[0] || "User";
     const email = user.email || "";
     const avatarUrl = profile?.avatar_url || undefined;
-    
+
     // Get initials from display name
     const getInitials = (name: string) => {
         const parts = name.trim().split(/\s+/);
@@ -165,7 +141,10 @@ export const NavAccountCard = ({
     const initials = getInitials(displayName);
 
     return (
-        <div ref={triggerRef} className={cx("relative flex items-center rounded-xl p-3 ring-1 ring-secondary ring-inset", iconOnly ? "justify-center" : "gap-3")}>
+        <div
+            ref={triggerRef}
+            className={cx("relative flex items-center rounded-xl p-3 ring-1 ring-secondary ring-inset", iconOnly ? "justify-center" : "gap-3")}
+        >
             {iconOnly ? (
                 <AriaDialogTrigger>
                     <AriaButton className="flex cursor-pointer items-center justify-center rounded-md p-1.5 text-fg-quaternary outline-focus-ring transition duration-100 ease-linear hover:bg-primary_hover hover:text-fg-quaternary_hover focus-visible:outline-2 focus-visible:outline-offset-2 pressed:bg-primary_hover pressed:text-fg-quaternary_hover">
@@ -198,9 +177,9 @@ export const NavAccountCard = ({
                             <AvatarImage src={avatarUrl} alt={displayName} />
                             <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-secondary truncate">{displayName}</p>
-                            <p className="text-sm text-tertiary truncate">{email}</p>
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-secondary">{displayName}</p>
+                            <p className="truncate text-sm text-tertiary">{email}</p>
                         </div>
                     </div>
 

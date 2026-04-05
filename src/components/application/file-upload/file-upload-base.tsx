@@ -5,10 +5,10 @@ import { useId, useRef, useState } from "react";
 import { File as FileTypeIcon } from "lucide-react";
 import { CheckCircle, Trash as Trash01, UploadCloud as UploadCloud02, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Progress } from "@/components/ui/progress";
 import { FeaturedIcon } from "@/components/foundations/featured-icon/featured-icon";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn as cx } from "@/lib/utils";
 
 /**

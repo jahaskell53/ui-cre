@@ -1,24 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
-import Link from "next/link";
-import {
-    Building2,
-    ChevronLeft,
-    DollarSign,
-    MapPin,
-    Home,
-    ExternalLink,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
-import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
-import { supabase } from "@/utils/supabase";
-import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Building2, ChevronLeft, DollarSign, ExternalLink, Home, MapPin } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import Link from "next/link";
+import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
+import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/utils/supabase";
 
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA';
+const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
 interface ZillowListing {
     source: "zillow";
@@ -72,22 +65,22 @@ interface UnitRow {
 
 function LoadingSkeleton() {
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-auto">
-            <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
-                <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="mt-4 h-6 w-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="mt-2 h-3 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        <div className="flex h-full flex-col overflow-auto bg-gray-50 dark:bg-gray-900">
+            <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+                <div className="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="mt-4 h-6 w-64 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="mt-2 h-3 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
             </div>
-            <div className="aspect-[3/1] min-h-[160px] bg-gray-200 dark:bg-gray-700 animate-pulse" />
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+            <div className="aspect-[3/1] min-h-[160px] animate-pulse bg-gray-200 dark:bg-gray-700" />
+            <div className="grid max-w-4xl grid-cols-1 gap-6 p-6 md:grid-cols-2">
                 {[0, 1, 2].map((i) => (
-                    <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                        <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
+                    <div key={i} className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                        <div className="mb-4 h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
                         <div className="space-y-3">
                             {[0, 1, 2].map((j) => (
                                 <div key={j} className="flex justify-between">
-                                    <div className="h-3 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                                    <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                                    <div className="h-3 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                                    <div className="h-3 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
                                 </div>
                             ))}
                         </div>
@@ -100,21 +93,21 @@ function LoadingSkeleton() {
 
 function NotFound({ backHref }: { backHref?: string }) {
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+        <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
             <div className="p-6">
                 {backHref && (
                     <Link
                         href={backHref}
-                        className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 cursor-pointer"
+                        className="inline-flex cursor-pointer items-center gap-1 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
                     >
                         <ChevronLeft className="size-4" />
                         Back
                     </Link>
                 )}
-                <div className="mt-8 text-center py-12">
-                    <Building2 className="size-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <div className="mt-8 py-12 text-center">
+                    <Building2 className="mx-auto mb-4 size-12 text-gray-300 dark:text-gray-600" />
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Listing not found</h2>
-                    <p className="text-sm text-gray-500 mt-1">This listing may have been removed or the link is invalid.</p>
+                    <p className="mt-1 text-sm text-gray-500">This listing may have been removed or the link is invalid.</p>
                     {backHref && (
                         <Button variant="outline" className="mt-4" asChild>
                             <Link href={backHref}>Back</Link>
@@ -144,7 +137,9 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 const uuid = rawId.slice("zillow-".length);
                 const { data, error } = await supabase
                     .from("cleaned_listings")
-                    .select("id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid, home_type")
+                    .select(
+                        "id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid, home_type",
+                    )
                     .eq("id", uuid)
                     .single();
                 if (error || !data) {
@@ -153,15 +148,15 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 }
                 const row = data as Record<string, unknown>;
                 setListing({ source: "zillow", ...row } as ZillowListing);
-                const buildingZpid = row.is_building ? row.zpid as string | null : row.building_zpid as string | null;
+                const buildingZpid = row.is_building ? (row.zpid as string | null) : (row.building_zpid as string | null);
                 if (buildingZpid) {
                     const { data: unitData } = await supabase
-                        .from('cleaned_listings')
-                        .select('id, zpid, price, beds, baths, area')
-                        .eq('building_zpid', buildingZpid)
-                        .order('beds', { ascending: true })
-                        .order('baths', { ascending: true })
-                        .order('price', { ascending: true });
+                        .from("cleaned_listings")
+                        .select("id, zpid, price, beds, baths, area")
+                        .eq("building_zpid", buildingZpid)
+                        .order("beds", { ascending: true })
+                        .order("baths", { ascending: true })
+                        .order("price", { ascending: true });
                     setUnits(unitData ?? null);
                 }
             } else {
@@ -185,40 +180,30 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     useEffect(() => {
         if (!listing) return;
         async function checkOffMarket() {
-            if (listing!.source === 'zillow') {
+            if (listing!.source === "zillow") {
                 const zpid = (listing as ZillowListing).zpid;
                 if (!zpid) return;
-                const { data: latestRun } = await supabase
-                    .from('cleaned_listings')
-                    .select('run_id')
-                    .order('run_id', { ascending: false })
-                    .limit(1)
-                    .single();
+                const { data: latestRun } = await supabase.from("cleaned_listings").select("run_id").order("run_id", { ascending: false }).limit(1).single();
                 if (!latestRun?.run_id) return;
                 const { count } = await supabase
-                    .from('cleaned_listings')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('zpid', zpid)
-                    .eq('run_id', latestRun.run_id);
+                    .from("cleaned_listings")
+                    .select("id", { count: "exact", head: true })
+                    .eq("zpid", zpid)
+                    .eq("run_id", latestRun.run_id);
                 if (count === 0) {
                     const { data: lastSeen } = await supabase
-                        .from('cleaned_listings')
-                        .select('scraped_at')
-                        .eq('zpid', zpid)
-                        .order('scraped_at', { ascending: false })
+                        .from("cleaned_listings")
+                        .select("scraped_at")
+                        .eq("zpid", zpid)
+                        .order("scraped_at", { ascending: false })
                         .limit(1)
                         .single();
                     if (lastSeen?.scraped_at) setOffMarketDate(lastSeen.scraped_at);
                 }
             } else {
-                const { data: latestRun } = await supabase
-                    .from('loopnet_listings')
-                    .select('run_id')
-                    .order('run_id', { ascending: false })
-                    .limit(1)
-                    .single();
+                const { data: latestRun } = await supabase.from("loopnet_listings").select("run_id").order("run_id", { ascending: false }).limit(1).single();
                 if (!latestRun?.run_id) return;
-                if ((listing as LoopnetListing).source === 'loopnet') {
+                if ((listing as LoopnetListing).source === "loopnet") {
                     const listingRunId = (listing as unknown as Record<string, unknown>).run_id;
                     if (listingRunId != null && listingRunId !== latestRun.run_id) {
                         const createdAt = (listing as LoopnetListing).created_at;
@@ -282,7 +267,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
 
         const map = new mapboxgl.Map({
             container: mapContainerRef.current,
-            style: 'mapbox://styles/mapbox/light-v11',
+            style: "mapbox://styles/mapbox/light-v11",
             center: [lng, lat],
             zoom: 14,
             accessToken: MAPBOX_TOKEN,
@@ -290,35 +275,40 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             attributionControl: false,
         });
 
-        map.on('load', () => {
-            new mapboxgl.Marker({ color: '#3b82f6' }).setLngLat([lng, lat]).addTo(map);
+        map.on("load", () => {
+            new mapboxgl.Marker({ color: "#3b82f6" }).setLngLat([lng, lat]).addTo(map);
         });
 
         mapInstance.current = map;
-        return () => { mapInstance.current?.remove(); mapInstance.current = null; };
+        return () => {
+            mapInstance.current?.remove();
+            mapInstance.current = null;
+        };
     }, [listing]);
 
     const unitTypeSummary = useMemo(() => {
         if (!units || units.length === 0) return [];
         const groups = new Map<string, UnitRow[]>();
         for (const unit of units) {
-            const key = `${unit.beds ?? 0}|${unit.baths ?? 'null'}`;
+            const key = `${unit.beds ?? 0}|${unit.baths ?? "null"}`;
             if (!groups.has(key)) groups.set(key, []);
             groups.get(key)!.push(unit);
         }
-        return Array.from(groups.values()).map(rows => {
-            const prices = rows.filter(r => r.price != null).map(r => r.price!);
-            const areas = rows.filter(r => r.area != null).map(r => r.area!);
-            return {
-                beds: rows[0].beds ?? 0,
-                baths: rows[0].baths,
-                count: rows.length,
-                avgPrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null,
-                avgArea: areas.length > 0 ? areas.reduce((a, b) => a + b, 0) / areas.length : null,
-                minPrice: prices.length > 0 ? Math.min(...prices) : null,
-                maxPrice: prices.length > 0 ? Math.max(...prices) : null,
-            };
-        }).sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0));
+        return Array.from(groups.values())
+            .map((rows) => {
+                const prices = rows.filter((r) => r.price != null).map((r) => r.price!);
+                const areas = rows.filter((r) => r.area != null).map((r) => r.area!);
+                return {
+                    beds: rows[0].beds ?? 0,
+                    baths: rows[0].baths,
+                    count: rows.length,
+                    avgPrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null,
+                    avgArea: areas.length > 0 ? areas.reduce((a, b) => a + b, 0) / areas.length : null,
+                    minPrice: prices.length > 0 ? Math.min(...prices) : null,
+                    maxPrice: prices.length > 0 ? Math.max(...prices) : null,
+                };
+            })
+            .sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0));
     }, [units]);
 
     if (listing === undefined) return <LoadingSkeleton />;
@@ -338,52 +328,52 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300";
 
     const baseHeroFallback = (
-        <div className="aspect-[3/1] min-h-[160px] bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+        <div className="flex aspect-[3/1] min-h-[160px] items-center justify-center bg-gray-200 dark:bg-gray-700">
             <Building2 className="size-16 text-gray-400 dark:text-gray-500" />
         </div>
     );
 
     const hero =
-        listing.source === "loopnet"
-            ? (listing.thumbnail_url ? (
-                  <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
-                      <img src={listing.thumbnail_url} alt="" className="w-full h-full object-cover" />
-                  </div>
-              ) : (
-                  baseHeroFallback
-              ))
-            : listing.source === "zillow" && heroImages && heroImages.length > 0 ? (
-                  <div className="relative aspect-[3/1] min-h-[180px] overflow-hidden bg-black">
-                      <img src={heroImages[heroIndex]} alt="" className="w-full h-full object-cover" />
-                      {heroImages.length > 1 && (
-                          <>
-                              <button
-                                  type="button"
-                                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs cursor-pointer"
-                                  onClick={() => setHeroIndex((prev) => prev === 0 ? heroImages.length - 1 : prev - 1)}
-                              >
-                                  ‹
-                              </button>
-                              <button
-                                  type="button"
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/40 text-white px-2 py-1 text-xs cursor-pointer"
-                                  onClick={() => setHeroIndex((prev) => prev === heroImages.length - 1 ? 0 : prev + 1)}
-                              >
-                                  ›
-                              </button>
-                              <div className="absolute bottom-3 right-4 rounded-full bg-black/40 text-white text-xs px-2 py-1">
-                                  {heroIndex + 1} / {heroImages.length}
-                              </div>
-                          </>
-                      )}
-                  </div>
-              ) : listing.source === "zillow" && listing.img_src ? (
-                  <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
-                      <img src={listing.img_src} alt="" className="w-full h-full object-cover" />
-                  </div>
-              ) : (
-                  baseHeroFallback
-              );
+        listing.source === "loopnet" ? (
+            listing.thumbnail_url ? (
+                <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
+                    <img src={listing.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                </div>
+            ) : (
+                baseHeroFallback
+            )
+        ) : listing.source === "zillow" && heroImages && heroImages.length > 0 ? (
+            <div className="relative aspect-[3/1] min-h-[180px] overflow-hidden bg-black">
+                <img src={heroImages[heroIndex]} alt="" className="h-full w-full object-cover" />
+                {heroImages.length > 1 && (
+                    <>
+                        <button
+                            type="button"
+                            className="absolute top-1/2 left-3 -translate-y-1/2 cursor-pointer rounded-full bg-black/40 px-2 py-1 text-xs text-white"
+                            onClick={() => setHeroIndex((prev) => (prev === 0 ? heroImages.length - 1 : prev - 1))}
+                        >
+                            ‹
+                        </button>
+                        <button
+                            type="button"
+                            className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer rounded-full bg-black/40 px-2 py-1 text-xs text-white"
+                            onClick={() => setHeroIndex((prev) => (prev === heroImages.length - 1 ? 0 : prev + 1))}
+                        >
+                            ›
+                        </button>
+                        <div className="absolute right-4 bottom-3 rounded-full bg-black/40 px-2 py-1 text-xs text-white">
+                            {heroIndex + 1} / {heroImages.length}
+                        </div>
+                    </>
+                )}
+            </div>
+        ) : listing.source === "zillow" && listing.img_src ? (
+            <div className="aspect-[3/1] min-h-[180px] overflow-hidden">
+                <img src={listing.img_src} alt="" className="h-full w-full object-cover" />
+            </div>
+        ) : (
+            baseHeroFallback
+        );
 
     return (
         <PropertyDetailLayout
@@ -392,31 +382,27 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             subtitle={
                 <>
                     <MapPin className="size-3.5" />
-                    {listing.source === "zillow"
-                        ? [listing.address_city, listing.address_state].filter(Boolean).join(", ")
-                        : listing.location || ""}
+                    {listing.source === "zillow" ? [listing.address_city, listing.address_state].filter(Boolean).join(", ") : listing.location || ""}
                 </>
             }
             headerBadge={
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", sourceBadgeClass)}>
-                        {sourceLabel}
-                    </span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", sourceBadgeClass)}>{sourceLabel}</span>
                     {listing.source === "zillow" && (listing.detail_url || listing.zpid) && (
                         <a
                             href={listing.detail_url ?? `https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline dark:text-blue-400"
                         >
                             View on Zillow
                             <ExternalLink className="size-3.5" />
                         </a>
                     )}
                     {listing.source === "loopnet" && listing.cap_rate && (
-                        <div className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">
+                        <div className="rounded-lg bg-gray-100 px-3 py-1.5 dark:bg-gray-800">
                             <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{listing.cap_rate}</span>
-                            <span className="text-xs text-gray-500 ml-1">Cap Rate</span>
+                            <span className="ml-1 text-xs text-gray-500">Cap Rate</span>
                         </div>
                     )}
                 </div>
@@ -424,8 +410,8 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             hero={hero}
         >
             {/* Overview */}
-            <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
+            <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                     <Home className="size-4" />
                     Overview
                 </h3>
@@ -436,7 +422,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Units</dt>
                                     <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                        {unitTypeSummary.length} type{unitTypeSummary.length !== 1 ? 's' : ''} · {units.length} total
+                                        {unitTypeSummary.length} type{unitTypeSummary.length !== 1 ? "s" : ""} · {units.length} total
                                     </dd>
                                 </div>
                             ) : (
@@ -453,21 +439,17 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                             </div>
                             <div className="flex justify-between">
                                 <dt className="text-gray-500 dark:text-gray-400">Baths</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                    {listing.baths ? Number(listing.baths).toFixed(1) : "—"}
-                                </dd>
+                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.baths ? Number(listing.baths).toFixed(1) : "—"}</dd>
                             </div>
                             <div className="flex justify-between">
                                 <dt className="text-gray-500 dark:text-gray-400">Sq Ft</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                    {listing.area ? listing.area.toLocaleString() : "—"}
-                                </dd>
+                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.area ? listing.area.toLocaleString() : "—"}</dd>
                             </div>
                             {listing.home_type && (
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Home Type</dt>
                                     <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                        {listing.home_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                                        {listing.home_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                                     </dd>
                                 </div>
                             )}
@@ -549,10 +531,10 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
 
             {/* Map */}
             {listing.source === "zillow" && listing.latitude && listing.longitude && (
-                <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                    <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-700">
                         <MapPin className="size-4 text-gray-500" />
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Location</h3>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Location</h3>
                     </div>
                     <div ref={mapContainerRef} className="h-full min-h-48 w-full" />
                 </section>
@@ -560,105 +542,101 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
 
             {/* Unit Mix */}
             {listing.source === "zillow" && units && units.length > 0 && (
-                <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
+                <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                         <Building2 className="size-4" />
                         Unit Mix
-                        <span className="text-sm font-normal text-gray-500">({units.length} unit{units.length !== 1 ? 's' : ''})</span>
+                        <span className="text-sm font-normal text-gray-500">
+                            ({units.length} unit{units.length !== 1 ? "s" : ""})
+                        </span>
                     </h3>
-                    <div className="overflow-x-auto mb-6">
+                    <div className="mb-6 overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
-                                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Units</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg Rent</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Range</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg Sq Ft</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg $/sqft</th>
+                                <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
+                                    <th className="px-3 py-2 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase">Type</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Units</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg Rent</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Range</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg Sq Ft</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg $/sqft</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {unitTypeSummary.map((row) => (
                                     <tr key={`${row.beds}-${row.baths}`} className="border-b border-gray-50 dark:border-gray-700/50">
                                         <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
-                                            {row.beds} bd · {row.baths != null ? Number(row.baths).toFixed(1) : '?'} ba
+                                            {row.beds} bd · {row.baths != null ? Number(row.baths).toFixed(1) : "?"} ba
                                         </td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.count}</td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {row.avgPrice ? `$${Math.round(row.avgPrice).toLocaleString()}` : '—'}
+                                            {row.avgPrice ? `$${Math.round(row.avgPrice).toLocaleString()}` : "—"}
                                         </td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
                                             {row.minPrice != null && row.maxPrice != null
                                                 ? `$${Math.round(row.minPrice).toLocaleString()} – $${Math.round(row.maxPrice).toLocaleString()}`
-                                                : '—'}
+                                                : "—"}
                                         </td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {row.avgArea ? Math.round(row.avgArea).toLocaleString() : '—'}
+                                            {row.avgArea ? Math.round(row.avgArea).toLocaleString() : "—"}
                                         </td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {row.avgPrice && row.avgArea ? `$${(row.avgPrice / row.avgArea).toFixed(2)}` : '—'}
+                                            {row.avgPrice && row.avgArea ? `$${(row.avgPrice / row.avgArea).toFixed(2)}` : "—"}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">All Units</h4>
+                    <h4 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">All Units</h4>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rent/mo</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Beds</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baths</th>
-                                    <th className="text-right px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Sq Ft</th>
+                                <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Rent/mo</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Beds</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Baths</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Sq Ft</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {units.slice((unitsPage - 1) * 25, unitsPage * 25).map(unit => (
-                                    <tr key={unit.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                {units.slice((unitsPage - 1) * 25, unitsPage * 25).map((unit) => (
+                                    <tr
+                                        key={unit.id}
+                                        className="border-b border-gray-50 transition-colors hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30"
+                                    >
                                         <td className="px-3 py-2 text-right font-medium">
-                                            <Link href={`/analytics/listing/zillow-${unit.id}`} className="text-blue-600 dark:text-blue-400 hover:underline">
-                                                {unit.price ? `$${unit.price.toLocaleString()}` : '—'}
+                                            <Link href={`/analytics/listing/zillow-${unit.id}`} className="text-blue-600 hover:underline dark:text-blue-400">
+                                                {unit.price ? `$${unit.price.toLocaleString()}` : "—"}
                                             </Link>
                                         </td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.beds ?? 0}</td>
                                         <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {unit.baths != null ? Number(unit.baths).toFixed(1) : '—'}
+                                            {unit.baths != null ? Number(unit.baths).toFixed(1) : "—"}
                                         </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {unit.area?.toLocaleString() ?? '—'}
-                                        </td>
+                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.area?.toLocaleString() ?? "—"}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
                     {units.length > 25 && (
-                        <PaginationButtonGroup
-                            page={unitsPage}
-                            total={Math.ceil(units.length / 25)}
-                            onPageChange={setUnitsPage}
-                            align="center"
-                        />
+                        <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / 25)} onPageChange={setUnitsPage} align="center" />
                     )}
                 </section>
             )}
 
             {/* Listing Details (loopnet only) */}
             {listing.source === "loopnet" && (
-                <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
+                <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                         <DollarSign className="size-4" />
                         Listing Details
                     </h3>
                     <dl className="space-y-3 text-sm">
                         <div className="flex justify-between">
                             <dt className="text-gray-500 dark:text-gray-400">Headline</dt>
-                            <dd className="font-medium text-gray-900 dark:text-gray-100 text-right max-w-[180px]">
-                                {listing.headline || "—"}
-                            </dd>
+                            <dd className="max-w-[180px] text-right font-medium text-gray-900 dark:text-gray-100">{listing.headline || "—"}</dd>
                         </div>
                         <div className="flex justify-between">
                             <dt className="text-gray-500 dark:text-gray-400">Location</dt>
@@ -670,7 +648,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     href={listing.listing_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                                    className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline dark:text-blue-400"
                                 >
                                     View on LoopNet
                                     <ExternalLink className="size-3.5" />

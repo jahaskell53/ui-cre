@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { EmailService } from "@/utils/email-service";
 import { generateEventInviteEmail } from "@/utils/email-templates";
+import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,22 +24,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Fetch event details
-        const { data: event, error: eventError } = await supabase
-            .from("events")
-            .select("*")
-            .eq("id", event_id)
-            .single();
+        const { data: event, error: eventError } = await supabase.from("events").select("*").eq("id", event_id).single();
 
         if (eventError || !event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
         // Fetch host profile
-        const { data: hostProfile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", user.id)
-            .single();
+        const { data: hostProfile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
 
         const hostName = hostProfile?.full_name || "A friend";
         const emailService = new EmailService();
@@ -61,24 +56,19 @@ export async function POST(request: NextRequest) {
             eventTime,
             eventUrl,
             eventImageUrl: event.image_url,
-            message: message || "We'd love to see you there!"
+            message: message || "We'd love to see you there!",
         });
 
         // Send single email with all recipients in BCC
         // Use sender's email as "to" address (required by SMTP), all invite recipients in BCC
-        const trimmedEmails = emails.map(email => email.trim()).filter(email => email.length > 0);
+        const trimmedEmails = emails.map((email) => email.trim()).filter((email) => email.length > 0);
         if (trimmedEmails.length === 0) {
             return NextResponse.json({ error: "No valid email addresses provided." }, { status: 400 });
         }
 
         // Use sender's email as the "to" address, or fallback to first invitee if sender email unavailable
         const senderEmail = user.email || trimmedEmails[0];
-        const success = await emailService.sendEmail(
-            senderEmail,
-            emailContent,
-            undefined,
-            trimmedEmails
-        );
+        const success = await emailService.sendEmail(senderEmail, emailContent, undefined, trimmedEmails);
 
         if (success) {
             await supabase.from("event_invites").insert({
@@ -92,11 +82,10 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success,
-            message: success 
-                ? `Successfully sent invitation to ${trimmedEmails.length} recipient${trimmedEmails.length === 1 ? '' : 's'}.`
-                : "Failed to send invitations."
+            message: success
+                ? `Successfully sent invitation to ${trimmedEmails.length} recipient${trimmedEmails.length === 1 ? "" : "s"}.`
+                : "Failed to send invitations.",
         });
-
     } catch (error: any) {
         console.error("Error in POST /api/events/invite:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

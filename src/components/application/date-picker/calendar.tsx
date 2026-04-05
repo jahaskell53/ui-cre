@@ -41,12 +41,7 @@ const PresetButton = ({ value, children, ...props }: HTMLAttributes<HTMLButtonEl
     };
 
     return (
-        <Button
-            {...props}
-            size="default"
-            variant="secondary"
-            onClick={handleClick}
-        >
+        <Button {...props} size="default" variant="secondary" onClick={handleClick}>
             {children}
         </Button>
     );
