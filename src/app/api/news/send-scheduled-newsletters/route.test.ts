@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { mockGetSubscriberByEmail, mockSendNewsletterToSubscriber, mockFrom } = vi.hoisted(() => ({
+const { mockGetSubscriberByEmail, mockSendNewsletterToSubscriber, mockFrom, mockSendAlertEmail } = vi.hoisted(() => ({
   mockGetSubscriberByEmail: vi.fn(),
   mockSendNewsletterToSubscriber: vi.fn(),
   mockFrom: vi.fn(),
+  mockSendAlertEmail: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@/lib/news/alert', () => ({
+  sendAlertEmail: mockSendAlertEmail,
 }))
 
 vi.mock('@/lib/news/subscribers', () => ({
