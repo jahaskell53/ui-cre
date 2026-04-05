@@ -227,6 +227,7 @@ function CompsContent() {
 
     const runSearch = useCallback(async (p: SearchParams) => {
         if (!p.addr.trim()) return;
+        if (!p.beds.trim() || !p.baths.trim()) return;
         setLoading(true);
         setError(null);
         setComps(null);
