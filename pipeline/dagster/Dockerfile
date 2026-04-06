@@ -1,4 +1,4 @@
-FROM ghcr.io/jahaskell53/zillow-dagster-libpostal-base:latest
+FROM ghcr.io/jahaskell53/ui-cre-libpostal-base:latest
 
 WORKDIR /app
 
