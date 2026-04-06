@@ -1,7 +1,9 @@
 import re
-from typing import Optional
+from dataclasses import dataclass
+from typing import Callable, Optional
 
 from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy, asset
+from supabase import Client
 
 from zillow_pipeline.resources.supabase import SupabaseResource
 
@@ -43,54 +45,32 @@ def normalize_address(raw: str) -> dict:
     return {label: value for value, label in parts}
 
 
-class CleaningConfig(Config):
-    run_id: Optional[str] = None   # if None, cleans the latest run
-    limit: Optional[int] = None    # smoke test: cap total listings processed
+@dataclass(frozen=True)
+class CleaningRunResult:
+    inserted: int
+    failed: int
+    total_processed: int
+    raw_zip_rows: int
 
 
-@asset(
-    deps=["raw_zillow_scrapes"],
-    retry_policy=RetryPolicy(
-        max_retries=3,
-        delay=30,
-        backoff=Backoff.EXPONENTIAL,
-    )
-)
-def cleaned_listings(
-    context: AssetExecutionContext,
-    config: CleaningConfig,
-    supabase: SupabaseResource,
-) -> Output[int]:
-    client = supabase.get_client()
+def clean_listings_from_raw_rows(
+    client: Client,
+    run_id: str,
+    raw_rows: list,
+    *,
+    limit: Optional[int] = None,
+    log_info: Optional[Callable[[str], None]] = None,
+    log_error: Optional[Callable[[str], None]] = None,
+) -> CleaningRunResult:
+    """Parse listings from raw_zillow_scrapes rows and call insert_cleaned_listing for each (no Apify)."""
 
-    # Resolve run_id
-    if config.run_id:
-        run_id = config.run_id
-        scraped_at = None
-    else:
-        result = (
-            client.table("raw_zillow_scrapes")
-            .select("run_id, scraped_at")
-            .order("scraped_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if not result.data:
-            context.log.warning("No raw scrapes found.")
-            return Output(value=0, metadata={"inserted": 0})
-        run_id = result.data[0]["run_id"]
-        scraped_at = result.data[0]["scraped_at"]
+    def _info(msg: str) -> None:
+        if log_info:
+            log_info(msg)
 
-    context.log.info(f"Cleaning run_id: {run_id}")
-
-    raw_rows = (
-        client.table("raw_zillow_scrapes")
-        .select("id, zip_code, scraped_at, raw_json")
-        .eq("run_id", run_id)
-        .execute()
-    ).data
-
-    context.log.info(f"Found {len(raw_rows)} zip rows for run {run_id}")
+    def _error(msg: str) -> None:
+        if log_error:
+            log_error(msg)
 
     inserted = failed = total_processed = 0
 
@@ -101,7 +81,7 @@ def cleaned_listings(
         listings = raw_row["raw_json"] or []
 
         for listing in listings:
-            if config.limit and total_processed >= config.limit:
+            if limit is not None and total_processed >= limit:
                 break
 
             home_info = (listing.get("hdpData") or {}).get("homeInfo", {})
@@ -150,22 +130,86 @@ def cleaned_listings(
                 inserted += 1
 
             except Exception as e:
-                context.log.error(f"Failed zpid={listing.get('zpid')} in {zip_code}: {e}")
+                _error(f"Failed zpid={listing.get('zpid')} in {zip_code}: {e}")
                 failed += 1
 
-        if config.limit and total_processed >= config.limit:
-            context.log.info(f"Reached smoke test limit of {config.limit} listings.")
+        if limit is not None and total_processed >= limit:
+            _info(f"Reached smoke test limit of {limit} listings.")
             break
 
-    context.log.info(f"Done. inserted={inserted}, failed={failed}")
+    _info(f"Done. inserted={inserted}, failed={failed}")
+
+    return CleaningRunResult(
+        inserted=inserted,
+        failed=failed,
+        total_processed=total_processed,
+        raw_zip_rows=len(raw_rows),
+    )
+
+
+class CleaningConfig(Config):
+    run_id: Optional[str] = None   # if None, cleans the latest run
+    limit: Optional[int] = None    # smoke test: cap total listings processed
+
+
+@asset(
+    deps=["raw_zillow_scrapes"],
+    retry_policy=RetryPolicy(
+        max_retries=3,
+        delay=30,
+        backoff=Backoff.EXPONENTIAL,
+    )
+)
+def cleaned_listings(
+    context: AssetExecutionContext,
+    config: CleaningConfig,
+    supabase: SupabaseResource,
+) -> Output[int]:
+    client = supabase.get_client()
+
+    # Resolve run_id
+    if config.run_id:
+        run_id = config.run_id
+    else:
+        result = (
+            client.table("raw_zillow_scrapes")
+            .select("run_id, scraped_at")
+            .order("scraped_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            context.log.warning("No raw scrapes found.")
+            return Output(value=0, metadata={"inserted": 0})
+        run_id = result.data[0]["run_id"]
+
+    context.log.info(f"Cleaning run_id: {run_id}")
+
+    raw_rows = (
+        client.table("raw_zillow_scrapes")
+        .select("id, zip_code, scraped_at, raw_json")
+        .eq("run_id", run_id)
+        .execute()
+    ).data
+
+    context.log.info(f"Found {len(raw_rows)} zip rows for run {run_id}")
+
+    result = clean_listings_from_raw_rows(
+        client,
+        run_id,
+        raw_rows,
+        limit=config.limit,
+        log_info=context.log.info,
+        log_error=context.log.error,
+    )
 
     return Output(
-        value=inserted,
+        value=result.inserted,
         metadata={
             "run_id": run_id,
-            "raw_zip_rows": len(raw_rows),
-            "total_processed": total_processed,
-            "inserted": inserted,
-            "failed": failed,
+            "raw_zip_rows": result.raw_zip_rows,
+            "total_processed": result.total_processed,
+            "inserted": result.inserted,
+            "failed": result.failed,
         },
     )
