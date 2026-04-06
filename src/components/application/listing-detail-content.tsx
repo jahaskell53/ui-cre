@@ -395,6 +395,8 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     const showStatus = Boolean(statusText && statusText !== buildingName);
     const availabilityCount = listing.source === "zillow" ? zillowRawDetails?.availabilityCount : null;
     const formattedLaundry = listing.source === "zillow" ? formatLaundryLabel(listing.laundry) : null;
+    const zillowPropertySectionTitle =
+        listing.source === "zillow" && listing.building_zpid ? "Building Details" : "Property Details";
     const showZillowPropertySection =
         listing.source === "zillow" &&
         Boolean(
@@ -636,7 +638,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
                     <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
                         <Building2 className="size-4" />
-                        Property Details
+                        {zillowPropertySectionTitle}
                     </h3>
 
                     <div className="grid gap-6 md:grid-cols-2">
