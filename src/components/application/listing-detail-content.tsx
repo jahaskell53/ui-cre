@@ -7,6 +7,16 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import Link from "next/link";
 import { PaginationButtonGroup } from "@/components/application/pagination/pagination";
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
+import {
+    EMPTY_ZILLOW_RAW_DETAILS,
+    extractZillowBuildingDetails,
+    extractZillowRawDetails,
+    formatLaundryLabel,
+    formatScoreLabel,
+    formatZillowLabel,
+    hasZillowPropertyDetails,
+    type ZillowRawDetails,
+} from "@/components/application/zillow-detail-utils";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
@@ -17,6 +27,7 @@ interface ZillowListing {
     source: "zillow";
     id: string;
     zpid: string | null;
+    raw_scrape_id: string | null;
     img_src: string | null;
     detail_url: string | null;
     address_raw: string | null;
@@ -35,6 +46,7 @@ interface ZillowListing {
     is_building: boolean | null;
     building_zpid: string | null;
     home_type: string | null;
+    laundry: string | null;
 }
 
 interface LoopnetListing {
@@ -126,6 +138,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     const [heroImages, setHeroImages] = useState<string[] | null>(null);
     const [heroIndex, setHeroIndex] = useState(0);
     const [offMarketDate, setOffMarketDate] = useState<string | null>(null);
+    const [zillowRawDetails, setZillowRawDetails] = useState<ZillowRawDetails | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<mapboxgl.Map | null>(null);
 
@@ -138,7 +151,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 const { data, error } = await supabase
                     .from("cleaned_listings")
                     .select(
-                        "id, zpid, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid, home_type",
+                        "id, zpid, raw_scrape_id, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid, home_type, laundry",
                     )
                     .eq("id", uuid)
                     .single();
@@ -261,6 +274,57 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     }, [listing]);
 
     useEffect(() => {
+        if (!listing || listing.source !== "zillow") {
+            setZillowRawDetails(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        async function loadZillowRawDetails() {
+            const nextDetails: ZillowRawDetails = {
+                ...EMPTY_ZILLOW_RAW_DETAILS,
+            };
+
+            if (listing.raw_scrape_id) {
+                const { data } = await supabase.from("raw_zillow_scrapes").select("raw_json").eq("id", listing.raw_scrape_id).limit(1);
+                const raw = data?.[0] ? (data[0] as { raw_json?: unknown }).raw_json : null;
+                const targetZpid = listing.zpid ?? listing.building_zpid;
+                const rawItems = Array.isArray(raw) ? raw : raw ? [raw] : [];
+                const matchingItem = rawItems.find((item) => String((item as { zpid?: unknown })?.zpid ?? "") === String(targetZpid ?? ""));
+                if (matchingItem) {
+                    Object.assign(nextDetails, extractZillowRawDetails(matchingItem));
+                }
+            }
+
+            const buildingZpid = listing.is_building ? listing.zpid : listing.building_zpid;
+            if (buildingZpid) {
+                const { data } = await supabase
+                    .from("raw_building_details")
+                    .select("raw_json")
+                    .eq("building_zpid", buildingZpid)
+                    .order("scraped_at", { ascending: false })
+                    .limit(1);
+                const raw = data?.[0] ? (data[0] as { raw_json?: unknown }).raw_json : null;
+                const detailItem = Array.isArray(raw) ? raw[0] : raw;
+                if (detailItem) {
+                    Object.assign(nextDetails, extractZillowBuildingDetails(detailItem));
+                }
+            }
+
+            if (!cancelled) {
+                setZillowRawDetails(hasZillowPropertyDetails(nextDetails) ? nextDetails : null);
+            }
+        }
+
+        loadZillowRawDetails();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [listing]);
+
+    useEffect(() => {
         if (!listing || listing.source !== "zillow") return;
         const { latitude: lat, longitude: lng } = listing;
         if (!lat || !lng || !mapContainerRef.current || mapInstance.current) return;
@@ -326,6 +390,23 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
         listing.source === "zillow"
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
             : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300";
+    const buildingName = listing.source === "zillow" ? zillowRawDetails?.buildingName : null;
+    const statusText = listing.source === "zillow" ? zillowRawDetails?.statusText : null;
+    const showStatus = Boolean(statusText && statusText !== buildingName);
+    const availabilityCount = listing.source === "zillow" ? zillowRawDetails?.availabilityCount : null;
+    const formattedLaundry = listing.source === "zillow" ? formatLaundryLabel(listing.laundry) : null;
+    const showZillowPropertySection =
+        listing.source === "zillow" &&
+        Boolean(
+            zillowRawDetails?.neighborhood ||
+                zillowRawDetails?.county ||
+                zillowRawDetails?.walkScore ||
+                zillowRawDetails?.transitScore ||
+                zillowRawDetails?.bikeScore ||
+                zillowRawDetails?.specialOffer ||
+                zillowRawDetails?.commonUnitAmenities.length ||
+                zillowRawDetails?.description,
+        );
 
     const baseHeroFallback = (
         <div className="flex aspect-[3/1] min-h-[160px] items-center justify-center bg-gray-200 dark:bg-gray-700">
@@ -448,9 +529,31 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                             {listing.home_type && (
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Home Type</dt>
-                                    <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                        {listing.home_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                                    </dd>
+                                    <dd className="font-medium text-gray-900 dark:text-gray-100">{formatZillowLabel(listing.home_type)}</dd>
+                                </div>
+                            )}
+                            {buildingName && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Building</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{buildingName}</dd>
+                                </div>
+                            )}
+                            {showStatus && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Status</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{statusText}</dd>
+                                </div>
+                            )}
+                            {availabilityCount != null && (
+                                <div className="flex justify-between">
+                                    <dt className="text-gray-500 dark:text-gray-400">Available Units</dt>
+                                    <dd className="font-medium text-gray-900 dark:text-gray-100">{availabilityCount}</dd>
+                                </div>
+                            )}
+                            {formattedLaundry && (
+                                <div className="flex justify-between">
+                                    <dt className="text-gray-500 dark:text-gray-400">Laundry</dt>
+                                    <dd className="font-medium text-gray-900 dark:text-gray-100">{formattedLaundry}</dd>
                                 </div>
                             )}
                             {listing.availability_date && (
@@ -528,6 +631,88 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                     )}
                 </dl>
             </section>
+
+            {showZillowPropertySection && (
+                <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
+                        <Building2 className="size-4" />
+                        Property Details
+                    </h3>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <dl className="space-y-3 text-sm">
+                            {zillowRawDetails?.neighborhood && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Neighborhood</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{zillowRawDetails.neighborhood}</dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.county && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">County</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{zillowRawDetails.county}</dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.walkScore && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Walk Score</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">
+                                        {formatScoreLabel(zillowRawDetails.walkScore)}
+                                    </dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.transitScore && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Transit Score</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">
+                                        {formatScoreLabel(zillowRawDetails.transitScore)}
+                                    </dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.bikeScore && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Bike Score</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">
+                                        {formatScoreLabel(zillowRawDetails.bikeScore)}
+                                    </dd>
+                                </div>
+                            )}
+                        </dl>
+
+                        {zillowRawDetails?.commonUnitAmenities.length ? (
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Amenities</h4>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {zillowRawDetails.commonUnitAmenities.map((amenity) => (
+                                        <span
+                                            key={amenity}
+                                            className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700/50 dark:text-gray-200"
+                                        >
+                                            {amenity}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    {zillowRawDetails?.specialOffer && (
+                        <div className="mt-6 rounded-lg bg-blue-50 px-4 py-3 dark:bg-blue-900/20">
+                            <p className="text-xs font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-300">Special offer</p>
+                            <p className="mt-1 text-sm text-blue-900 dark:text-blue-100">{zillowRawDetails.specialOffer}</p>
+                        </div>
+                    )}
+
+                    {zillowRawDetails?.description && (
+                        <div className="mt-6 border-t border-gray-100 pt-4 dark:border-gray-700">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Description</h4>
+                            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                {zillowRawDetails.description}
+                            </p>
+                        </div>
+                    )}
+                </section>
+            )}
 
             {/* Map */}
             {listing.source === "zillow" && listing.latitude && listing.longitude && (
