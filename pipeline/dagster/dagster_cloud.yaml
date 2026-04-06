@@ -1,0 +1,6 @@
+locations:
+  - location_name: zillow_pipeline
+    code_source:
+      package_name: zillow_pipeline
+    build:
+      directory: .
