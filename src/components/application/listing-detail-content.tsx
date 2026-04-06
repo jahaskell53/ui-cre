@@ -395,8 +395,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     const showStatus = Boolean(statusText && statusText !== buildingName);
     const availabilityCount = listing.source === "zillow" ? zillowRawDetails?.availabilityCount : null;
     const formattedLaundry = listing.source === "zillow" ? formatLaundryLabel(listing.laundry) : null;
-    const zillowPropertySectionTitle =
-        listing.source === "zillow" && listing.building_zpid ? "Building Details" : "Property Details";
+    const zillowPropertySectionTitle = listing.source === "zillow" && listing.building_zpid ? "Building Details" : "Property Details";
     const showZillowPropertySection =
         listing.source === "zillow" &&
         Boolean(
