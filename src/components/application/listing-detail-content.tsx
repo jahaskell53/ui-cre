@@ -278,6 +278,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             setZillowRawDetails(null);
             return;
         }
+        const zillowListing = listing;
 
         let cancelled = false;
 
@@ -286,10 +287,10 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 ...EMPTY_ZILLOW_RAW_DETAILS,
             };
 
-            if (listing.raw_scrape_id) {
-                const { data } = await supabase.from("raw_zillow_scrapes").select("raw_json").eq("id", listing.raw_scrape_id).limit(1);
+            if (zillowListing.raw_scrape_id) {
+                const { data } = await supabase.from("raw_zillow_scrapes").select("raw_json").eq("id", zillowListing.raw_scrape_id).limit(1);
                 const raw = data?.[0] ? (data[0] as { raw_json?: unknown }).raw_json : null;
-                const targetZpid = listing.zpid ?? listing.building_zpid;
+                const targetZpid = zillowListing.zpid ?? zillowListing.building_zpid;
                 const rawItems = Array.isArray(raw) ? raw : raw ? [raw] : [];
                 const matchingItem = rawItems.find((item) => String((item as { zpid?: unknown })?.zpid ?? "") === String(targetZpid ?? ""));
                 if (matchingItem) {
@@ -297,7 +298,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 }
             }
 
-            const buildingZpid = listing.is_building ? listing.zpid : listing.building_zpid;
+            const buildingZpid = zillowListing.is_building ? zillowListing.zpid : zillowListing.building_zpid;
             if (buildingZpid) {
                 const { data } = await supabase
                     .from("raw_building_details")
