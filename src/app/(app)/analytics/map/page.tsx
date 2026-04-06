@@ -34,7 +34,8 @@ interface AreaFilter {
 type AreaSuggestion =
     | { kind: "neighborhood"; id: number; name: string; city: string; state: string }
     | { kind: "mapbox"; feature: MapboxFeature }
-    | { kind: "msa"; id: number; geoid: string; name: string; name_lsad: string };
+    | { kind: "msa"; id: number; geoid: string; name: string; name_lsad: string }
+    | { kind: "zip"; feature: MapboxFeature };
 
 interface MapboxFeature {
     id: string;
@@ -255,13 +256,24 @@ function MapPageInner() {
             return;
         }
 
-        if (areaFilter || areaInput.length < 2 || areaType === "zip") {
+        if (areaFilter || areaInput.length < 2) {
             setAreaSuggestions([]);
             setShowSuggestions(false);
             return;
         }
         suggestTimerRef.current = setTimeout(async () => {
-            if (areaType === "neighborhood") {
+            if (areaType === "zip") {
+                try {
+                    const res = await fetch(
+                        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(areaInput)}.json?access_token=${MAPBOX_TOKEN}&types=postcode&country=US&limit=6`,
+                    );
+                    const json = await res.json();
+                    setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "zip" as const, feature: f })));
+                    setShowSuggestions(true);
+                } catch {
+                    setAreaSuggestions([]);
+                }
+            } else if (areaType === "neighborhood") {
                 const { data } = await supabase.rpc("search_neighborhoods", { p_query: areaInput });
                 setAreaSuggestions(
                     ((data ?? []) as { id: number; name: string; city: string; state: string }[]).map((r) => ({ kind: "neighborhood" as const, ...r })),
@@ -313,7 +325,16 @@ function MapPageInner() {
         setShowSuggestions(false);
         setAreaSuggestions([]);
 
-        if (s.kind === "neighborhood") {
+        if (s.kind === "zip") {
+            const zip = s.feature.text;
+            const mb = s.feature.bbox;
+            const bbox: MapBounds | undefined = mb ? { west: mb[0], south: mb[1], east: mb[2], north: mb[3] } : undefined;
+            setAreaInput(zip);
+            setAreaFilter({ type: "zip", label: zip, zipCode: zip, bbox });
+            if (bbox) setFitBoundsTarget(bbox);
+            const { data } = await supabase.rpc("get_zip_boundary", { p_zip: zip });
+            if (data) setBoundaryGeoJSON(data as string);
+        } else if (s.kind === "neighborhood") {
             const [bboxRes, geojsonRes] = await Promise.all([
                 supabase.rpc("get_neighborhood_bbox", { p_neighborhood_id: s.id }),
                 supabase.rpc("get_neighborhood_geojson", { p_id: s.id }),
@@ -877,7 +898,9 @@ function MapPageInner() {
                                                 ? `${s.name} · ${s.city}, ${s.state}`
                                                 : s.kind === "msa"
                                                   ? s.name_lsad || s.name
-                                                  : s.feature.place_name;
+                                                  : s.kind === "zip"
+                                                    ? s.feature.place_name
+                                                    : s.feature.place_name;
                                         return (
                                             <li
                                                 key={i}
