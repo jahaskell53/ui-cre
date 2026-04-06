@@ -5,7 +5,7 @@
  *   Tests the existing approach: fetch raw rows, transform on the client.
  *   These remain the regression guard across the migration.
  *
- * Section 2: get_zillow_map_pins RPC
+ * Section 2: get_zillow_map_listings RPC
  *   Tests the new DB-side RPC that performs grouping in SQL and returns
  *   one row per map pin. The output contract must match Section 1.
  *
@@ -213,7 +213,7 @@ describe("LoopNet map listings — SF Bay Area bbox", () => {
     });
 });
 
-// ── get_zillow_map_pins RPC ───────────────────────────────────────────────────
+// ── get_zillow_map_listings RPC ───────────────────────────────────────────────────
 //
 // Contract: one row per map pin. REIT units sharing a building_zpid are
 // collapsed into a single row with unit_mix JSONB. Individual listings are
@@ -233,7 +233,7 @@ describe("LoopNet map listings — SF Bay Area bbox", () => {
 //   area          int | null
 //   total_count   bigint        — COUNT(*) OVER() = total pins returned
 
-interface ZillowMapPin {
+interface ZillowMapListing {
     id: string;
     address: string;
     longitude: number;
@@ -247,13 +247,13 @@ interface ZillowMapPin {
     total_count: number;
 }
 
-describe("get_zillow_map_pins RPC — ZIP 94610 (Oakland)", () => {
-    let pins: ZillowMapPin[] = [];
+describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
+    let pins: ZillowMapListing[] = [];
     let rpcError: { message: string } | null = null;
 
     beforeAll(async () => {
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_pins", {
+        const { data, error } = await client.rpc("get_zillow_map_listings", {
             p_zip: OAKLAND_ZIP,
             p_city: null,
             p_address_query: null,
@@ -272,7 +272,7 @@ describe("get_zillow_map_pins RPC — ZIP 94610 (Oakland)", () => {
             p_bounds_east: OAKLAND_BBOX.east,
         });
         rpcError = error;
-        pins = (data ?? []) as ZillowMapPin[];
+        pins = (data ?? []) as ZillowMapListing[];
     });
 
     it("RPC exists and returns without error", () => {
@@ -351,7 +351,7 @@ describe("get_zillow_map_pins RPC — ZIP 94610 (Oakland)", () => {
 
     it("p_property_type='reit' returns only REIT pins", async () => {
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_pins", {
+        const { data, error } = await client.rpc("get_zillow_map_listings", {
             p_zip: OAKLAND_ZIP,
             p_city: null,
             p_address_query: null,
@@ -370,14 +370,14 @@ describe("get_zillow_map_pins RPC — ZIP 94610 (Oakland)", () => {
             p_bounds_east: OAKLAND_BBOX.east,
         });
         expect(error).toBeNull();
-        const reitOnly = (data ?? []) as ZillowMapPin[];
+        const reitOnly = (data ?? []) as ZillowMapListing[];
         expect(reitOnly.length).toBeGreaterThan(0);
         expect(reitOnly.every((p) => p.is_reit)).toBe(true);
     });
 
     it("p_property_type='mid' returns only individual (non-REIT) pins", async () => {
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_pins", {
+        const { data, error } = await client.rpc("get_zillow_map_listings", {
             p_zip: OAKLAND_ZIP,
             p_city: null,
             p_address_query: null,
@@ -396,7 +396,7 @@ describe("get_zillow_map_pins RPC — ZIP 94610 (Oakland)", () => {
             p_bounds_east: OAKLAND_BBOX.east,
         });
         expect(error).toBeNull();
-        const midOnly = (data ?? []) as ZillowMapPin[];
+        const midOnly = (data ?? []) as ZillowMapListing[];
         expect(midOnly.length).toBeGreaterThan(0);
         expect(midOnly.every((p) => !p.is_reit)).toBe(true);
     });
@@ -404,7 +404,7 @@ describe("get_zillow_map_pins RPC — ZIP 94610 (Oakland)", () => {
     it("p_price_min filter excludes pins below the threshold", async () => {
         const threshold = 3000;
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_pins", {
+        const { data, error } = await client.rpc("get_zillow_map_listings", {
             p_zip: OAKLAND_ZIP,
             p_city: null,
             p_address_query: null,
@@ -423,7 +423,7 @@ describe("get_zillow_map_pins RPC — ZIP 94610 (Oakland)", () => {
             p_bounds_east: OAKLAND_BBOX.east,
         });
         expect(error).toBeNull();
-        const filtered = (data ?? []) as ZillowMapPin[];
+        const filtered = (data ?? []) as ZillowMapListing[];
         // All returned pins should NOT have a price below the threshold.
         // We can't directly inspect raw price from the label easily, but we
         // can confirm the filtered set is smaller than the unfiltered set.
