@@ -56,7 +56,7 @@ interface Filters {
     beds: number[];
     bathsMin: number | null;
     homeTypes: string[];
-    propertyType: "both" | "reit" | "mid-market";
+    propertyType: "both" | "reit" | "mid";
 }
 
 const defaultFilters: Filters = {
@@ -169,7 +169,7 @@ function MapPageInner() {
                 : [],
             bathsMin: bathsMin !== null ? parseFloat(bathsMin) || null : null,
             homeTypes: homeTypes ? homeTypes.split(",").filter(Boolean) : [],
-            propertyType: (["both", "reit", "mid-market"] as const).find((v) => v === propertyType) ?? "both",
+            propertyType: (["both", "reit", "mid"] as const).find((v) => v === propertyType) ?? "both",
         };
     });
     const [filtersOpen, setFiltersOpen] = useState(false);
@@ -626,7 +626,7 @@ function MapPageInner() {
                 }
                 if (currentFilters.propertyType === "reit") {
                     zillowQuery = zillowQuery.or("is_building.eq.true,building_zpid.not.is.null");
-                } else if (currentFilters.propertyType === "mid-market") {
+                } else if (currentFilters.propertyType === "mid") {
                     zillowQuery = zillowQuery.is("building_zpid", null).not("is_building", "eq", true);
                 }
                 if (effectiveBounds) {
@@ -1033,7 +1033,7 @@ function MapPageInner() {
                                                 [
                                                     ["both", "Both"],
                                                     ["reit", "REIT"],
-                                                    ["mid-market", "Mid-market"],
+                                                    ["mid", "Mid-market"],
                                                 ] as const
                                             ).map(([value, label]) => (
                                                 <button
