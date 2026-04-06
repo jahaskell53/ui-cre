@@ -90,7 +90,6 @@ const BATH_OPTIONS = [
 
 const HOME_TYPE_OPTIONS = [
     { label: "Apartment", value: "APARTMENT" },
-    { label: "Townhouse", value: "TOWNHOUSE" },
     { label: "Multi-family", value: "MULTI_FAMILY" },
 ];
 
