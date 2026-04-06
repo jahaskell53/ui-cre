@@ -4,7 +4,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { Building2, Filter, MapPin, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type MapBounds, type Property, PropertyMap, type UnitMixRow } from "@/components/application/map/property-map";
+import { type MapBounds, type Property, PropertyMap } from "@/components/application/map/property-map";
+import { mapCleanedListingRow, mapLoopnetRow, processZillowRows } from "@/lib/map-listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -390,113 +391,6 @@ function MapPageInner() {
             // Which bounds to use for geographic clipping
             const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
 
-            type RowWithDate = Property & { _createdAt?: string };
-            const mapLoopnet = (item: Record<string, unknown>): RowWithDate => ({
-                id: item.id as string | number,
-                name: (item.headline || item.address || "Building") as string,
-                address: (item.address || "Address not listed") as string,
-                location: (item.location as string) ?? undefined,
-                units: item.square_footage ? Math.floor(parseInt(String(item.square_footage).replace(/[^0-9]/g, "") || "0") / 500) || null : null,
-                price: (item.price as string) || "TBD",
-                coordinates: [item.longitude as number, item.latitude as number],
-                thumbnailUrl: (item.thumbnail_url as string | null) ?? undefined,
-                capRate: (item.cap_rate as string | null) ?? undefined,
-                squareFootage: (item.square_footage as string) ?? undefined,
-                listingSource: "loopnet",
-                _createdAt: (item.created_at as string) ?? "",
-            });
-
-            const mapCleanedListing = (item: Record<string, unknown>): RowWithDate => {
-                const city = (item.address_city as string) || "";
-                const fullAddress =
-                    (item.address_raw as string) ||
-                    [item.address_street, city, item.address_state, item.address_zip].filter(Boolean).join(", ") ||
-                    "Address not listed";
-                const priceVal = item.price as number | null;
-                return {
-                    id: `zillow-${item.id as string}`,
-                    name: fullAddress,
-                    address: fullAddress,
-                    location: city || undefined,
-                    units: null,
-                    price: priceVal ? `$${priceVal.toLocaleString()}` : "TBD",
-                    coordinates: [item.longitude as number, item.latitude as number],
-                    thumbnailUrl: (item.img_src as string | null) ?? undefined,
-                    capRate: undefined,
-                    squareFootage: item.area ? String(item.area) : undefined,
-                    listingSource: "zillow",
-                    _createdAt: (item.scraped_at as string) ?? "",
-                };
-            };
-
-            const groupReitRows = (reitRows: Record<string, unknown>[]): RowWithDate[] => {
-                const byBuilding: Record<string, Record<string, unknown>[]> = {};
-                for (const row of reitRows) {
-                    const bz = row.building_zpid as string;
-                    if (!byBuilding[bz]) byBuilding[bz] = [];
-                    byBuilding[bz].push(row);
-                }
-                return Object.entries(byBuilding).map(([, units]) => {
-                    const first = units[0];
-                    const city = (first.address_city as string) || "";
-                    const fullAddress =
-                        (first.address_raw as string) ||
-                        [first.address_street, city, first.address_state, first.address_zip].filter(Boolean).join(", ") ||
-                        "Address not listed";
-                    const mixMap: Record<string, { beds: number | null; baths: number | null; count: number; totalPrice: number; validPriceCount: number }> =
-                        {};
-                    for (const unit of units) {
-                        const key = `${unit.beds ?? 0}-${unit.baths ?? "null"}`;
-                        if (!mixMap[key]) {
-                            mixMap[key] = {
-                                beds: (unit.beds as number | null) ?? 0,
-                                baths: unit.baths as number | null,
-                                count: 0,
-                                totalPrice: 0,
-                                validPriceCount: 0,
-                            };
-                        }
-                        mixMap[key].count++;
-                        if (unit.price) {
-                            mixMap[key].totalPrice += unit.price as number;
-                            mixMap[key].validPriceCount++;
-                        }
-                    }
-                    const unitMix: UnitMixRow[] = Object.values(mixMap)
-                        .sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0))
-                        .map(({ beds, baths, count, totalPrice, validPriceCount }) => ({
-                            beds,
-                            baths,
-                            count,
-                            avgPrice: validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : null,
-                        }));
-                    const prices = units.map((u) => u.price as number | null).filter((p): p is number => p != null);
-                    const avgPrice = prices.length > 0 ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : null;
-                    return {
-                        id: `zillow-${first.id as string}`,
-                        name: fullAddress,
-                        address: fullAddress,
-                        location: city || undefined,
-                        units: units.length,
-                        price: avgPrice ? `$${avgPrice.toLocaleString()} avg` : "TBD",
-                        coordinates: [first.longitude as number, first.latitude as number],
-                        thumbnailUrl: (first.img_src as string | null) ?? undefined,
-                        capRate: undefined,
-                        squareFootage: undefined,
-                        listingSource: "zillow" as const,
-                        isReit: true,
-                        unitMix,
-                        _createdAt: (first.scraped_at as string) ?? "",
-                    };
-                });
-            };
-
-            const processZillowData = (data: Record<string, unknown>[]): RowWithDate[] => {
-                const nonReit = data.filter((r) => !r.building_zpid && !r.is_building);
-                const reitUnits = data.filter((r) => r.building_zpid != null);
-                return [...nonReit.map(mapCleanedListing), ...groupReitRows(reitUnits)];
-            };
-
             if (source === "loopnet") {
                 const { data: latestRun } = await supabase.from("loopnet_listings").select("run_id").order("run_id", { ascending: false }).limit(1).single();
                 let loopnetQuery = supabase
@@ -554,7 +448,7 @@ function MapPageInner() {
                 }
                 const { data, error, count } = await loopnetQuery;
                 if (error) console.error("Error fetching loopnet listings:", error);
-                const rows = (data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>));
+                const rows = (data ?? []).map((item) => mapLoopnetRow(item as Record<string, unknown>));
                 setProperties(rows.map(({ _createdAt: _, ...p }) => p));
                 setTotalCount(count ?? 0);
                 setLoading(false);
@@ -638,7 +532,7 @@ function MapPageInner() {
                 }
                 const { data, error, count } = await zillowQuery;
                 if (error) console.error("Error fetching cleaned listings:", error);
-                const rows = processZillowData((data ?? []) as Record<string, unknown>[]);
+                const rows = processZillowRows((data ?? []) as Record<string, unknown>[]);
                 setProperties(rows.map(({ _createdAt: _, ...p }) => p));
                 setTotalCount(count ?? 0);
                 setLoading(false);
