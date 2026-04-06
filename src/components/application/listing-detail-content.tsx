@@ -634,6 +634,17 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 </dl>
             </section>
 
+            {/* Map */}
+            {listing.source === "zillow" && listing.latitude && listing.longitude && (
+                <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                    <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-700">
+                        <MapPin className="size-4 text-gray-500" />
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Location</h3>
+                    </div>
+                    <div ref={mapContainerRef} className="h-full min-h-48 w-full" />
+                </section>
+            )}
+
             {showZillowPropertySection && (
                 <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
                     <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
@@ -707,17 +718,6 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                             <p className="mt-2 text-sm leading-6 whitespace-pre-line text-gray-600 dark:text-gray-300">{zillowRawDetails.description}</p>
                         </div>
                     )}
-                </section>
-            )}
-
-            {/* Map */}
-            {listing.source === "zillow" && listing.latitude && listing.longitude && (
-                <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                    <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-700">
-                        <MapPin className="size-4 text-gray-500" />
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Location</h3>
-                    </div>
-                    <div ref={mapContainerRef} className="h-full min-h-48 w-full" />
                 </section>
             )}
 
