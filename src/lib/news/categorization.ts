@@ -175,7 +175,7 @@ export async function checkArticleRelevance(articles: { title: string; descripti
     try {
         const prompt = `You are a content filter for a mid-market real estate news aggregator. This platform focuses on:
 - Commercial real estate (office, retail, industrial, hospitality)
-- Multifamily residential properties (apartments, condos, townhomes)
+- Multifamily residential properties (apartments, condos)
 - Real estate development, construction, and zoning
 - Property investment, acquisitions, sales, and financing
 - Real estate market trends, analysis, and data
