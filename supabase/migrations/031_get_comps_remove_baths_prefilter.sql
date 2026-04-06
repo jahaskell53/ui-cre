@@ -1,3 +1,5 @@
+-- Remove hard ±0.5 bath filter from get_comps candidates; baths still affect ranking via baths_score.
+
 CREATE OR REPLACE FUNCTION public.get_comps(
   subject_lng double precision,
   subject_lat double precision,
@@ -180,4 +182,6 @@ AS $function$
   SELECT * FROM reit_agg
   ORDER BY composite_score DESC
   LIMIT p_limit;
-$function$
+$function$;
+
+GRANT EXECUTE ON FUNCTION public.get_comps(double precision, double precision, double precision, integer, integer, numeric, integer, integer, text, integer, text, boolean, integer[], text) TO anon, authenticated;
