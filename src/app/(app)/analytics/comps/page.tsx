@@ -20,6 +20,9 @@ import { supabase } from "@/utils/supabase";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
+const USER_LOCATION_STORAGE_KEY = "userLocation";
+const LOCATION_DECLINED_STORAGE_KEY = "compsGeolocationDeclined";
+
 function makeCircle(center: [number, number], radiusM: number): GeoJSON.Feature<GeoJSON.Polygon> {
     const [lng, lat] = center;
     const dLat = radiusM / 111320;
@@ -159,7 +162,9 @@ function CompsContent() {
     const [subjectLabel, setSubjectLabel] = useState<string | null>(initAddress || null);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(() => {
         try {
-            const cached = localStorage.getItem("userLocation");
+            if (typeof window === "undefined") return null;
+            if (localStorage.getItem(LOCATION_DECLINED_STORAGE_KEY) === "1") return null;
+            const cached = localStorage.getItem(USER_LOCATION_STORAGE_KEY);
             return cached ? JSON.parse(cached) : null;
         } catch {
             return null;
@@ -182,15 +187,29 @@ function CompsContent() {
     const nhFittedRef = useRef(false);
 
     useEffect(() => {
-        navigator.geolocation?.getCurrentPosition(
+        if (typeof window === "undefined" || !navigator.geolocation) return;
+        try {
+            if (localStorage.getItem(LOCATION_DECLINED_STORAGE_KEY) === "1") return;
+            if (localStorage.getItem(USER_LOCATION_STORAGE_KEY)) return;
+        } catch {
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
             ({ coords }) => {
                 const loc: [number, number] = [coords.longitude, coords.latitude];
                 setUserLocation(loc);
                 try {
-                    localStorage.setItem("userLocation", JSON.stringify(loc));
+                    localStorage.setItem(USER_LOCATION_STORAGE_KEY, JSON.stringify(loc));
+                    localStorage.removeItem(LOCATION_DECLINED_STORAGE_KEY);
                 } catch {}
             },
-            () => {},
+            () => {
+                try {
+                    localStorage.setItem(LOCATION_DECLINED_STORAGE_KEY, "1");
+                    localStorage.removeItem(USER_LOCATION_STORAGE_KEY);
+                } catch {}
+            },
         );
     }, []);
 
