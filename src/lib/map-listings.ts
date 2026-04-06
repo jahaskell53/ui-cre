@@ -118,3 +118,46 @@ export function processZillowRows(rows: CleanedListingRow[]): PropertyWithDate[]
     const reitUnits = rows.filter((r) => r.building_zpid != null);
     return [...nonReit.map(mapCleanedListingRow), ...groupReitRows(reitUnits)];
 }
+
+/** A row returned by the get_zillow_map_listings RPC. */
+export interface ZillowMapListingRow {
+    id: string;
+    address: string;
+    longitude: number;
+    latitude: number;
+    price_label: string;
+    is_reit: boolean;
+    unit_count: number;
+    unit_mix: { beds: number | null; baths: number | null; count: number; avg_price: number | null }[];
+    img_src: string | null;
+    area: number | null;
+    scraped_at: string | null;
+    total_count: number;
+}
+
+/**
+ * Maps a single get_zillow_map_listings RPC row to a Property for the map.
+ * The RPC has already done all grouping server-side.
+ */
+export function mapZillowRpcRow(row: ZillowMapListingRow): PropertyWithDate {
+    return {
+        id: row.id,
+        name: row.address,
+        address: row.address,
+        coordinates: [row.longitude, row.latitude],
+        price: row.price_label,
+        listingSource: "zillow",
+        thumbnailUrl: row.img_src ?? undefined,
+        squareFootage: row.area != null ? String(row.area) : undefined,
+        isReit: row.is_reit,
+        units: row.is_reit ? row.unit_count : null,
+        unitMix: row.unit_mix.map((u) => ({
+            beds: u.beds,
+            baths: u.baths,
+            count: u.count,
+            avgPrice: u.avg_price,
+        })),
+        capRate: undefined,
+        _createdAt: row.scraped_at ?? "",
+    };
+}

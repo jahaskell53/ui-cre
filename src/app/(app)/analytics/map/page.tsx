@@ -5,7 +5,7 @@ import { Building2, Filter, MapPin, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type MapBounds, type Property, PropertyMap } from "@/components/application/map/property-map";
-import { mapCleanedListingRow, mapLoopnetRow, processZillowRows } from "@/lib/map-listings";
+import { mapLoopnetRow, mapZillowRpcRow, type ZillowMapListingRow } from "@/lib/map-listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -456,85 +456,28 @@ function MapPageInner() {
             }
 
             if (source === "zillow") {
-                const { data: latestZillowRun } = await supabase
-                    .from("cleaned_listings")
-                    .select("run_id")
-                    .order("run_id", { ascending: false })
-                    .limit(1)
-                    .single();
-                let zillowQuery = supabase
-                    .from("cleaned_listings")
-                    .select("*", { count: "exact" })
-                    .not("latitude", "is", null)
-                    .not("longitude", "is", null)
-                    .neq("home_type", "SINGLE_FAMILY")
-                    .order("scraped_at", { ascending: false });
-                if (latestOnly && latestZillowRun?.run_id != null) {
-                    zillowQuery = zillowQuery.eq("run_id", latestZillowRun.run_id);
-                }
-                // Area filter
-                if (activeAreaFilter?.zipCode) {
-                    zillowQuery = zillowQuery.eq("address_zip", activeAreaFilter.zipCode);
-                } else if (activeAreaFilter?.cityName) {
-                    zillowQuery = zillowQuery.ilike("address_city", `%${activeAreaFilter.cityName}%`);
-                } else if (activeAreaFilter?.addressQuery) {
-                    zillowQuery = zillowQuery.or(
-                        `address_raw.ilike.%${activeAreaFilter.addressQuery}%,address_city.ilike.%${activeAreaFilter.addressQuery}%,address_state.ilike.%${activeAreaFilter.addressQuery}%`,
-                    );
-                } else if (activeAreaFilter?.countyName) {
-                    // No dedicated county column — fall through to bbox filtering below
-                }
-                // Price / sqft / beds / property-type filters
-                if (currentFilters.priceMin) {
-                    const v = parseFloat(currentFilters.priceMin);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.gte("price", v);
-                }
-                if (currentFilters.priceMax) {
-                    const v = parseFloat(currentFilters.priceMax);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.lte("price", v);
-                }
-                if (currentFilters.sqftMin) {
-                    const v = parseFloat(currentFilters.sqftMin);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.gte("area", v);
-                }
-                if (currentFilters.sqftMax) {
-                    const v = parseFloat(currentFilters.sqftMax);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.lte("area", v);
-                }
-                if (currentFilters.beds.length > 0) {
-                    const exact = currentFilters.beds.filter((b) => b < 4);
-                    const hasPlus = currentFilters.beds.includes(4);
-                    if (exact.length > 0 && hasPlus) {
-                        zillowQuery = zillowQuery.or(`beds.in.(${exact.join(",")}),beds.gte.4`);
-                    } else if (hasPlus) {
-                        zillowQuery = zillowQuery.gte("beds", 4);
-                    } else {
-                        zillowQuery = zillowQuery.in("beds", exact);
-                    }
-                }
-                if (currentFilters.bathsMin !== null) {
-                    zillowQuery = zillowQuery.gte("baths", currentFilters.bathsMin);
-                }
-                if (currentFilters.homeTypes.length > 0) {
-                    zillowQuery = zillowQuery.in("home_type", currentFilters.homeTypes);
-                }
-                if (currentFilters.propertyType === "reit") {
-                    zillowQuery = zillowQuery.or("is_building.eq.true,building_zpid.not.is.null");
-                } else if (currentFilters.propertyType === "mid") {
-                    zillowQuery = zillowQuery.is("building_zpid", null).not("is_building", "eq", true);
-                }
-                if (effectiveBounds) {
-                    zillowQuery = zillowQuery
-                        .gte("latitude", effectiveBounds.south)
-                        .lte("latitude", effectiveBounds.north)
-                        .gte("longitude", effectiveBounds.west)
-                        .lte("longitude", effectiveBounds.east);
-                }
-                const { data, error, count } = await zillowQuery;
-                if (error) console.error("Error fetching cleaned listings:", error);
-                const rows = processZillowRows((data ?? []) as Record<string, unknown>[]);
-                setProperties(rows.map(({ _createdAt: _, ...p }) => p));
-                setTotalCount(count ?? 0);
+                const { data, error } = await supabase.rpc("get_zillow_map_listings", {
+                    p_zip: activeAreaFilter?.zipCode ?? null,
+                    p_city: activeAreaFilter?.cityName ?? null,
+                    p_address_query: activeAreaFilter?.addressQuery ?? null,
+                    p_latest_only: latestOnly,
+                    p_price_min: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                    p_price_max: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                    p_sqft_min: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                    p_sqft_max: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                    p_beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                    p_baths_min: currentFilters.bathsMin ?? null,
+                    p_home_types: currentFilters.homeTypes.length > 0 ? currentFilters.homeTypes : null,
+                    p_property_type: currentFilters.propertyType,
+                    p_bounds_south: effectiveBounds?.south ?? null,
+                    p_bounds_north: effectiveBounds?.north ?? null,
+                    p_bounds_west: effectiveBounds?.west ?? null,
+                    p_bounds_east: effectiveBounds?.east ?? null,
+                });
+                if (error) console.error("Error fetching zillow map listings:", error);
+                const rows = (data ?? []) as ZillowMapListingRow[];
+                setProperties(rows.map((row) => { const { _createdAt: _, ...p } = mapZillowRpcRow(row); return p; }));
+                setTotalCount(rows.length > 0 ? rows[0].total_count : 0);
                 setLoading(false);
                 return;
             }
