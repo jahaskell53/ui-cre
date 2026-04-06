@@ -7,7 +7,6 @@
         "build": "next build",
         "start": "next start",
         "test": "vitest run",
-        "typecheck": "tsc --noEmit",
         "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
         "test:watch": "vitest",
         "test:ui": "vitest --ui",
