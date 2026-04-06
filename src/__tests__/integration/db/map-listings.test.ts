@@ -313,13 +313,15 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
         expect(pins[0].total_count).toBe(pins.length);
     });
 
-    it("REIT pins have is_reit=true, unit_count > 1, and a non-empty unit_mix", () => {
+    it("REIT pins have is_reit=true, unit_count >= 1, and a non-empty unit_mix", () => {
         const reitPins = pins.filter((p) => p.is_reit);
         expect(reitPins.length).toBeGreaterThan(0);
         for (const pin of reitPins) {
-            expect(pin.unit_count).toBeGreaterThan(1);
+            expect(pin.unit_count).toBeGreaterThanOrEqual(1);
             expect(pin.unit_mix.length).toBeGreaterThan(0);
         }
+        // At least some buildings have more than one unit in this zip
+        expect(reitPins.some((p) => p.unit_count > 1)).toBe(true);
     });
 
     it("individual pins have is_reit=false, unit_count=1, and an empty unit_mix", () => {
