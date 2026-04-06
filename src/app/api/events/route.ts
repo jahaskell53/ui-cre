@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { createMeetLink } from "@/lib/google-meet";
+import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
 
         const searchParams = request.nextUrl.searchParams;
         const eventId = searchParams.get("id");
@@ -15,9 +17,7 @@ export async function GET(request: NextRequest) {
         // Use regular client - RLS policy allows everyone (authenticated and unauthenticated) to view all events
         const client = supabase;
 
-        let query = client
-            .from("events")
-            .select("*");
+        let query = client.from("events").select("*");
 
         if (eventId) {
             const { data, error } = await query.eq("id", eventId).single();
@@ -54,7 +54,10 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -117,7 +120,10 @@ export async function PUT(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -147,13 +153,7 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        const { data, error } = await supabase
-            .from("events")
-            .update(updateData)
-            .eq("id", eventId)
-            .eq("user_id", user.id)
-            .select()
-            .single();
+        const { data, error } = await supabase.from("events").update(updateData).eq("id", eventId).eq("user_id", user.id).select().single();
 
         if (error) {
             console.error("Error updating event:", error);
@@ -171,7 +171,10 @@ export async function DELETE(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -184,11 +187,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        const { error } = await supabase
-            .from("events")
-            .delete()
-            .eq("id", eventId)
-            .eq("user_id", user.id);
+        const { error } = await supabase.from("events").delete().eq("id", eventId).eq("user_id", user.id);
 
         if (error) {
             console.error("Error deleting event:", error);

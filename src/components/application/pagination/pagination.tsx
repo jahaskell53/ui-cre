@@ -44,12 +44,7 @@ interface MobilePaginationProps {
 const MobilePagination = ({ page = 1, total = 10, className, onPageChange }: MobilePaginationProps) => {
     return (
         <nav aria-label="Pagination" className={cx("flex items-center justify-between md:hidden", className)}>
-            <Button
-                aria-label="Go to previous page"
-                variant="secondary"
-                size="sm"
-                onClick={() => onPageChange?.(Math.max(0, page - 1))}
-            >
+            <Button aria-label="Go to previous page" variant="secondary" size="sm" onClick={() => onPageChange?.(Math.max(0, page - 1))}>
                 <ArrowLeft className="size-4" />
             </Button>
 
@@ -57,12 +52,7 @@ const MobilePagination = ({ page = 1, total = 10, className, onPageChange }: Mob
                 Page <span className="font-medium">{page}</span> of <span className="font-medium">{total}</span>
             </span>
 
-            <Button
-                aria-label="Go to next page"
-                variant="secondary"
-                size="sm"
-                onClick={() => onPageChange?.(Math.min(total, page + 1))}
-            >
+            <Button aria-label="Go to next page" variant="secondary" size="sm" onClick={() => onPageChange?.(Math.min(total, page + 1))}>
                 <ArrowRight className="size-4" />
             </Button>
         </nav>
@@ -317,8 +307,8 @@ export const PaginationButtonGroup = ({ align = "left", page = 1, total = 10, ..
                             {pages.map((page, index) =>
                                 page.type === "page" ? (
                                     <Pagination.Item key={index} {...page} asChild>
-                                        <Button 
-                                            variant={page.isCurrent ? "default" : "outline"} 
+                                        <Button
+                                            variant={page.isCurrent ? "default" : "outline"}
                                             size="default"
                                             className="size-10 items-center justify-center rounded-none"
                                         >
@@ -327,8 +317,8 @@ export const PaginationButtonGroup = ({ align = "left", page = 1, total = 10, ..
                                     </Pagination.Item>
                                 ) : (
                                     <Pagination.Ellipsis key={index}>
-                                        <Button 
-                                            variant="outline" 
+                                        <Button
+                                            variant="outline"
                                             size="default"
                                             className="pointer-events-none size-10 items-center justify-center rounded-none"
                                             disabled

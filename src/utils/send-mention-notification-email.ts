@@ -1,23 +1,15 @@
-import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
 import { EmailService } from "@/utils/email-service";
 import { generateMentionNotificationEmail } from "@/utils/email-templates";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/utils/supabase/server";
 
-export async function sendMentionNotificationEmail(
-    commentId: string,
-    mentionedUserId: string,
-    postId: string
-): Promise<boolean> {
+export async function sendMentionNotificationEmail(commentId: string, mentionedUserId: string, postId: string): Promise<boolean> {
     try {
         const supabase = await createClient();
         const adminSupabase = createAdminClient();
 
         // Get comment
-        const { data: comment, error: commentError } = await supabase
-            .from("comments")
-            .select("id, user_id, content, post_id")
-            .eq("id", commentId)
-            .single();
+        const { data: comment, error: commentError } = await supabase.from("comments").select("id, user_id, content, post_id").eq("id", commentId).single();
 
         if (commentError || !comment) {
             console.error("Error fetching comment for email:", commentError);
@@ -38,7 +30,7 @@ export async function sendMentionNotificationEmail(
 
         // Get mentioned user email from auth.users using admin client
         const { data: mentionedUser, error: userError } = await adminSupabase.auth.admin.getUserById(mentionedUserId);
-        
+
         if (userError || !mentionedUser?.user?.email) {
             console.error("Error fetching mentioned user email:", userError);
             return false;
@@ -48,8 +40,8 @@ export async function sendMentionNotificationEmail(
 
         // Generate email content
         const senderName = senderProfile?.full_name || "Someone";
-        const postUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}`;
-        
+        const postUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}`;
+
         const emailContent = generateMentionNotificationEmail({
             senderName,
             commentContent: comment.content,
@@ -66,4 +58,3 @@ export async function sendMentionNotificationEmail(
         return false;
     }
 }
-

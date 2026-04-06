@@ -37,6 +37,4 @@ export const Modal = (props: AriaModalOverlayProps) => (
     />
 );
 
-export const Dialog = (props: AriaDialogProps) => (
-    <AriaDialog {...props} className={cx("outline-hidden", props.className)} />
-);
+export const Dialog = (props: AriaDialogProps) => <AriaDialog {...props} className={cx("outline-hidden", props.className)} />;

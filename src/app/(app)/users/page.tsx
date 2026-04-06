@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { supabase } from "@/utils/supabase";
+import { Suspense, useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import { useUser } from "@/hooks/use-user";
+import { useRouter, useSearchParams } from "next/navigation";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { useUser } from "@/hooks/use-user";
+import { supabase } from "@/utils/supabase";
 
 interface UserProfile {
     id: string;
@@ -87,22 +87,22 @@ function UsersPageContent() {
     };
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-900">
-            <div className="flex flex-col overflow-auto h-full">
+        <div className="flex h-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+            <div className="flex h-full flex-col overflow-auto">
                 {/* Header */}
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
                     <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Search Users</h1>
                 </div>
 
                 {/* Search Input */}
-                <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="border-b border-gray-200 px-4 py-4 dark:border-gray-800">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 dark:text-gray-500" />
+                        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                         <Input
                             placeholder="Search by name..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 h-10 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                            className="h-10 border-gray-200 bg-white pl-10 text-gray-900 placeholder:text-gray-400 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500"
                             autoFocus
                         />
                     </div>
@@ -112,15 +112,15 @@ function UsersPageContent() {
                 <div className="flex-1 overflow-y-auto">
                     <div className="px-4 py-4">
                         {loading && (
-                            <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 gap-3">
-                                <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 dark:border-t-gray-100 rounded-full animate-spin" />
+                            <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-500 dark:text-gray-400">
+                                <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-900 dark:border-t-gray-100" />
                                 <div className="text-sm">Searching...</div>
                             </div>
                         )}
 
                         {!loading && searchQuery.trim() && users.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
-                                <Search className="size-8 mb-3 opacity-20" />
+                                <Search className="mb-3 size-8 opacity-20" />
                                 <div className="text-sm">No users found for &quot;{searchQuery}&quot;</div>
                             </div>
                         )}
@@ -131,7 +131,7 @@ function UsersPageContent() {
                                     const displayName = userProfile.full_name || "Unknown User";
                                     const initials = displayName
                                         .split(" ")
-                                        .map(n => n[0])
+                                        .map((n) => n[0])
                                         .join("")
                                         .toUpperCase()
                                         .slice(0, 2);
@@ -140,27 +140,25 @@ function UsersPageContent() {
                                         <div
                                             key={userProfile.id}
                                             onClick={() => handleUserClick(userProfile.id)}
-                                            className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-800 rounded-lg hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                                            className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-800 dark:hover:border-gray-700 dark:hover:bg-gray-800/50"
                                         >
                                             <Avatar className="h-10 w-10">
                                                 <AvatarImage src={userProfile.avatar_url || undefined} />
-                                                <AvatarFallback 
-                                                    style={{ background: generateAuroraGradient(displayName) }} 
+                                                <AvatarFallback
+                                                    style={{ background: generateAuroraGradient(displayName) }}
                                                     className="text-sm font-medium text-white"
                                                 >
                                                     {initials}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                                                    {displayName}
-                                                </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</div>
                                                 {userProfile.roles && userProfile.roles.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                    <div className="mt-1 flex flex-wrap gap-1">
                                                         {userProfile.roles.map((role) => (
                                                             <span
                                                                 key={role}
-                                                                className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded"
+                                                                className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                                             >
                                                                 {role}
                                                             </span>
@@ -169,7 +167,7 @@ function UsersPageContent() {
                                                 )}
                                             </div>
                                             <div className="text-gray-400 dark:text-gray-600">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </div>
@@ -181,11 +179,11 @@ function UsersPageContent() {
 
                         {!searchQuery.trim() && (
                             <div className="flex flex-col items-center justify-center py-24 text-gray-400 dark:text-gray-500">
-                                <div className="w-12 h-12 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
+                                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800">
                                     <Search className="size-5" />
                                 </div>
-                                <h3 className="text-gray-900 dark:text-gray-100 font-medium mb-1 text-sm">Search Directory</h3>
-                                <p className="text-xs max-w-xs text-center">Enter a name to find people in your network</p>
+                                <h3 className="mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">Search Directory</h3>
+                                <p className="max-w-xs text-center text-xs">Enter a name to find people in your network</p>
                             </div>
                         )}
                     </div>
@@ -197,11 +195,13 @@ function UsersPageContent() {
 
 export default function UsersPage() {
     return (
-        <Suspense fallback={
-            <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
-                <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
-            </div>
-        }>
+        <Suspense
+            fallback={
+                <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
+                </div>
+            }
+        >
             <UsersPageContent />
         </Suspense>
     );

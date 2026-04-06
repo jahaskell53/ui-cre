@@ -4,19 +4,19 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // Fetch board assignments for the current user
-        const { data, error } = await supabase
-            .from("people_board_assignments")
-            .select("person_id, column_id")
-            .eq("user_id", user.id);
+        const { data, error } = await supabase.from("people_board_assignments").select("person_id, column_id").eq("user_id", user.id);
 
         if (error) {
             console.error("Error fetching board assignments:", error);
@@ -42,10 +42,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -58,12 +61,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify person belongs to user
-        const { data: person, error: personError } = await supabase
-            .from("people")
-            .select("id")
-            .eq("id", personId)
-            .eq("user_id", user.id)
-            .single();
+        const { data: person, error: personError } = await supabase.from("people").select("id").eq("id", personId).eq("user_id", user.id).single();
 
         if (personError || !person) {
             return NextResponse.json({ error: "Person not found" }, { status: 404 });
@@ -72,13 +70,16 @@ export async function POST(request: NextRequest) {
         // Insert or update assignment (upsert)
         const { data, error } = await supabase
             .from("people_board_assignments")
-            .upsert({
-                user_id: user.id,
-                person_id: personId,
-                column_id: columnId,
-            }, {
-                onConflict: "user_id,person_id,column_id"
-            })
+            .upsert(
+                {
+                    user_id: user.id,
+                    person_id: personId,
+                    column_id: columnId,
+                },
+                {
+                    onConflict: "user_id,person_id,column_id",
+                },
+            )
             .select()
             .single();
 
@@ -97,10 +98,13 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -114,12 +118,7 @@ export async function DELETE(request: NextRequest) {
         }
 
         // Delete the assignment
-        const { error } = await supabase
-            .from("people_board_assignments")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("person_id", personId)
-            .eq("column_id", columnId);
+        const { error } = await supabase.from("people_board_assignments").delete().eq("user_id", user.id).eq("person_id", personId).eq("column_id", columnId);
 
         if (error) {
             console.error("Error deleting board assignment:", error);
@@ -136,10 +135,13 @@ export async function DELETE(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -186,4 +188,3 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
-

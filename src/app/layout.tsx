@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { cn as cx } from "@/lib/utils";
 import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
 import "@/styles/globals.css";
-import { cn as cx } from "@/lib/utils";
+
 const inter = Inter({
     subsets: ["latin"],
     display: "swap",
@@ -18,7 +19,8 @@ export const metadata: Metadata = {
     },
     openGraph: {
         title: "App | OpenMidmarket",
-        description: "OpenMidmarket is a platform for managing relationships, properties, and market intelligence in the commercial real estate midmarket space.",
+        description:
+            "OpenMidmarket is a platform for managing relationships, properties, and market intelligence in the commercial real estate midmarket space.",
         images: "/og-preview.jpeg",
     },
 };

@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { sanitizeImageUrl, getFirecrawlSources } from "@/lib/news/news-sources";
-import { getCountyIds } from "@/lib/news/counties";
 import pRetry from "p-retry";
+import { getCountyIds } from "@/lib/news/counties";
+import { getFirecrawlSources, sanitizeImageUrl } from "@/lib/news/news-sources";
+import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 // Helper function to safely convert date strings to ISO format
 function safeDateToISO(dateString?: string): string {
-  try {
-    return new Date(dateString || '').toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
+    try {
+        return new Date(dateString || "").toISOString();
+    } catch {
+        return new Date().toISOString();
+    }
 }
 
 interface ScrapedArticleRaw {
@@ -25,15 +25,15 @@ interface ScrapedArticleRaw {
 }
 
 interface ArticleItem {
-  title: string;
-  link: string;
-  source: string;
-  date: string;
-  imageUrl?: string;
-  description?: string;
-  counties?: string[];
-  cities?: string[];
-  tags?: string[];
+    title: string;
+    link: string;
+    source: string;
+    date: string;
+    imageUrl?: string;
+    description?: string;
+    counties?: string[];
+    cities?: string[];
+    tags?: string[];
 }
 
 function buildPayload(targetUrl: string, additionalProperties?: Record<string, unknown>) {
@@ -102,8 +102,8 @@ async function scrapeWithFirecrawl(targetUrl: string, sourceName: string, feedKe
             retries: 3,
             onFailedAttempt: (error) => {
                 console.log(`⚠️ Firecrawl request failed (attempt ${error.attemptNumber}/${error.retriesLeft + error.attemptNumber}):`, JSON.stringify(error));
-            }
-        }
+            },
+        },
     );
     const firecrawlTime = Date.now() - firecrawlStartTime;
     console.log(`⏱️ Firecrawl API call completed in ${firecrawlTime}ms`);
@@ -145,119 +145,111 @@ async function scrapeWithFirecrawl(targetUrl: string, sourceName: string, feedKe
 
 // Helper function to save articles to Supabase
 async function saveArticlesToDatabase(articles: ArticleItem[], sourceId: string, sourceName?: string, isCategorized: boolean = false): Promise<number> {
-  let saved = 0;
-  const supabase = await createClient();
+    let saved = 0;
+    const supabase = await createClient();
 
-  // Ensure source exists in sources table
-  await supabase
-    .from("sources")
-    .upsert({
-      source_id: sourceId,
-      source_name: sourceName || sourceId,
-    }, { onConflict: "source_id" });
+    // Ensure source exists in sources table
+    await supabase.from("sources").upsert(
+        {
+            source_id: sourceId,
+            source_name: sourceName || sourceId,
+        },
+        { onConflict: "source_id" },
+    );
 
-  for (const article of articles) {
-    try {
-      const articleSourceId = article.source || sourceId;
+    for (const article of articles) {
+        try {
+            const articleSourceId = article.source || sourceId;
 
-      // Ensure the article's source exists
-      if (articleSourceId !== sourceId) {
-        await supabase
-          .from("sources")
-          .upsert({
-            source_id: articleSourceId,
-            source_name: articleSourceId,
-          }, { onConflict: "source_id" });
-      }
+            // Ensure the article's source exists
+            if (articleSourceId !== sourceId) {
+                await supabase.from("sources").upsert(
+                    {
+                        source_id: articleSourceId,
+                        source_name: articleSourceId,
+                    },
+                    { onConflict: "source_id" },
+                );
+            }
 
-      // Upsert article (ON CONFLICT DO NOTHING pattern)
-      const { data: existingArticle } = await supabase
-        .from("articles")
-        .select("id")
-        .eq("link", article.link)
-        .single();
+            // Upsert article (ON CONFLICT DO NOTHING pattern)
+            const { data: existingArticle } = await supabase.from("articles").select("id").eq("link", article.link).single();
 
-      if (existingArticle) {
-        // Article already exists, skip
-        continue;
-      }
+            if (existingArticle) {
+                // Article already exists, skip
+                continue;
+            }
 
-      const { data: createdArticle, error: insertError } = await supabase
-        .from("articles")
-        .insert({
-          link: article.link,
-          title: article.title,
-          source_id: articleSourceId,
-          date: new Date(article.date).toISOString(),
-          image_url: article.imageUrl || null,
-          description: article.description || null,
-          is_categorized: isCategorized,
-        })
-        .select("id")
-        .single();
+            const { data: createdArticle, error: insertError } = await supabase
+                .from("articles")
+                .insert({
+                    link: article.link,
+                    title: article.title,
+                    source_id: articleSourceId,
+                    date: new Date(article.date).toISOString(),
+                    image_url: article.imageUrl || null,
+                    description: article.description || null,
+                    is_categorized: isCategorized,
+                })
+                .select("id")
+                .single();
 
-      if (insertError) {
-        // Unique constraint violation - article already exists
-        if (insertError.code === '23505') {
-          continue;
+            if (insertError) {
+                // Unique constraint violation - article already exists
+                if (insertError.code === "23505") {
+                    continue;
+                }
+                throw insertError;
+            }
+
+            if (!createdArticle) continue;
+
+            // Only insert counties, cities, and tags if article is categorized
+            if (isCategorized) {
+                // Insert counties
+                if (article.counties && article.counties.length > 0) {
+                    const countyIds = await getCountyIds(article.counties);
+                    if (countyIds.length > 0) {
+                        await supabase.from("article_counties").upsert(
+                            countyIds.map((countyId) => ({
+                                article_id: createdArticle.id,
+                                county_id: countyId,
+                            })),
+                            { onConflict: "article_id,county_id", ignoreDuplicates: true },
+                        );
+                    }
+                }
+
+                // Insert cities
+                if (article.cities && article.cities.length > 0) {
+                    await supabase.from("article_cities").upsert(
+                        article.cities.map((city) => ({
+                            article_id: createdArticle.id,
+                            city: city,
+                        })),
+                        { onConflict: "article_id,city", ignoreDuplicates: true },
+                    );
+                }
+
+                // Insert tags
+                if (article.tags && article.tags.length > 0) {
+                    await supabase.from("article_tags").upsert(
+                        article.tags.map((tag) => ({
+                            article_id: createdArticle.id,
+                            tag: tag,
+                        })),
+                        { onConflict: "article_id,tag", ignoreDuplicates: true },
+                    );
+                }
+            }
+
+            saved++;
+        } catch (error) {
+            console.error(`Error saving article ${article.link}:`, error);
         }
-        throw insertError;
-      }
-
-      if (!createdArticle) continue;
-
-      // Only insert counties, cities, and tags if article is categorized
-      if (isCategorized) {
-        // Insert counties
-        if (article.counties && article.counties.length > 0) {
-          const countyIds = await getCountyIds(article.counties);
-          if (countyIds.length > 0) {
-            await supabase
-              .from("article_counties")
-              .upsert(
-                countyIds.map(countyId => ({
-                  article_id: createdArticle.id,
-                  county_id: countyId
-                })),
-                { onConflict: "article_id,county_id", ignoreDuplicates: true }
-              );
-          }
-        }
-
-        // Insert cities
-        if (article.cities && article.cities.length > 0) {
-          await supabase
-            .from("article_cities")
-            .upsert(
-              article.cities.map(city => ({
-                article_id: createdArticle.id,
-                city: city
-              })),
-              { onConflict: "article_id,city", ignoreDuplicates: true }
-            );
-        }
-
-        // Insert tags
-        if (article.tags && article.tags.length > 0) {
-          await supabase
-            .from("article_tags")
-            .upsert(
-              article.tags.map(tag => ({
-                article_id: createdArticle.id,
-                tag: tag
-              })),
-              { onConflict: "article_id,tag", ignoreDuplicates: true }
-            );
-        }
-      }
-
-      saved++;
-    } catch (error) {
-      console.error(`Error saving article ${article.link}:`, error);
     }
-  }
 
-  return saved;
+    return saved;
 }
 
 export async function GET(request: Request) {
@@ -265,19 +257,19 @@ export async function GET(request: Request) {
     const timings: Record<string, number> = {};
 
     try {
-        console.log('🚀 CRON JOB STARTED - Firecrawl Processing');
-        console.log('⏰ Timestamp:', new Date().toISOString());
+        console.log("🚀 CRON JOB STARTED - Firecrawl Processing");
+        console.log("⏰ Timestamp:", new Date().toISOString());
 
         const authHeader = request.headers.get("authorization");
         if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            console.log('❌ UNAUTHORIZED: Invalid or missing auth header');
+            console.log("❌ UNAUTHORIZED: Invalid or missing auth header");
             return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
         }
-        console.log('✅ Authentication successful');
+        console.log("✅ Authentication successful");
 
         const results: Record<string, { loaded: number }> = {};
         const today = new Date().toISOString().split("T")[0];
-        console.log('📅 Processing date:', today);
+        console.log("📅 Processing date:", today);
 
         // Process Firecrawl sources in parallel
         const firecrawlStartTime = Date.now();
@@ -285,7 +277,7 @@ export async function GET(request: Request) {
         // Fetch Firecrawl sources from database
         const firecrawlSources = await getFirecrawlSources();
 
-        console.log('🔍 Starting Firecrawl processing for', firecrawlSources.length, 'sources');
+        console.log("🔍 Starting Firecrawl processing for", firecrawlSources.length, "sources");
         const firecrawlPromises = firecrawlSources.map(async (source) => {
             try {
                 if (!source.url) {
@@ -294,11 +286,7 @@ export async function GET(request: Request) {
                 }
 
                 console.log(`📰 Processing ${source.sourceId} (${source.sourceName})`);
-                const scraped = await scrapeWithFirecrawl(
-                    source.url,
-                    source.sourceName,
-                    source.sourceId
-                );
+                const scraped = await scrapeWithFirecrawl(source.url, source.sourceName, source.sourceId);
                 console.log(`✅ ${source.sourceId}: Found ${scraped.length} articles`);
                 const saved = await saveArticlesToDatabase(scraped, source.sourceId, source.sourceName);
                 console.log(`💾 Saved ${saved} articles to database for ${source.sourceId}`);
@@ -314,11 +302,11 @@ export async function GET(request: Request) {
         console.log(`⏱️ Firecrawl processing completed in ${timings.firecrawl}ms`);
 
         firecrawlResults.forEach((result: PromiseSettledResult<{ key: string; loaded: number }>, index: number) => {
-            if (result.status === 'fulfilled') {
+            if (result.status === "fulfilled") {
                 results[result.value.key] = { loaded: result.value.loaded };
             } else {
                 const source = firecrawlSources[index];
-                console.warn(`❌ ${source?.sourceId || 'unknown'} failed:`, result.reason);
+                console.warn(`❌ ${source?.sourceId || "unknown"} failed:`, result.reason);
                 if (source) {
                     results[source.sourceId] = { loaded: 0 };
                 }
@@ -328,11 +316,11 @@ export async function GET(request: Request) {
         const totalTime = Date.now() - startTime;
         timings.total = totalTime;
 
-        console.log('📊 FINAL RESULTS:', results);
-        console.log('⏱️ TIMING BREAKDOWN:');
+        console.log("📊 FINAL RESULTS:", results);
+        console.log("⏱️ TIMING BREAKDOWN:");
         console.log(`   🔍 Firecrawl: ${timings.firecrawl}ms`);
         console.log(`   🎯 Total: ${timings.total}ms`);
-        console.log('🎉 CRON JOB COMPLETED SUCCESSFULLY');
+        console.log("🎉 CRON JOB COMPLETED SUCCESSFULLY");
         return NextResponse.json({ ok: true, results, timings });
     } catch (error) {
         return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });

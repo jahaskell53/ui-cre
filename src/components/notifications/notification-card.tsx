@@ -1,5 +1,5 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface NotificationCardProps {
     notification: {
@@ -28,7 +28,7 @@ const getInitials = (sender: NotificationCardProps["notification"]["sender"]) =>
     const name = getDisplayName(sender);
     return name
         .split(" ")
-        .map(n => n[0])
+        .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2);
@@ -42,32 +42,23 @@ export function NotificationCard({ notification, onClick, clickable = false }: N
         return (
             <div
                 onClick={onClick}
-                className={`p-4 flex gap-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
+                className={`flex gap-3 border-b border-gray-100 p-4 last:border-b-0 dark:border-gray-800 ${
                     clickable ? "cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50" : ""
                 }`}
             >
-                <Avatar className="h-8 w-8 border border-gray-200 dark:border-gray-800 flex-shrink-0">
+                <Avatar className="h-8 w-8 flex-shrink-0 border border-gray-200 dark:border-gray-800">
                     <AvatarImage src={notification.sender.avatar_url || undefined} />
-                    <AvatarFallback className="text-xs font-bold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800">
-                        {initials}
-                    </AvatarFallback>
+                    <AvatarFallback className="bg-gray-100 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-400">{initials}</AvatarFallback>
                 </Avatar>
-                
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {displayName}
-                        </div>
+
+                <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center justify-between">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{displayName}</div>
                         <span className="text-xs text-gray-400 dark:text-gray-500">
-                            {formatDistanceToNow(
-                                new Date(notification.created_at),
-                                { addSuffix: true }
-                            )}
+                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                         </span>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                        {notification.content}
-                    </p>
+                    <p className="line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{notification.content}</p>
                 </div>
             </div>
         );
@@ -76,19 +67,13 @@ export function NotificationCard({ notification, onClick, clickable = false }: N
     return (
         <div
             onClick={onClick}
-            className={`p-4 flex gap-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
+            className={`flex gap-3 border-b border-gray-100 p-4 last:border-b-0 dark:border-gray-800 ${
                 clickable ? "cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50" : ""
             }`}
         >
-            <div className="flex-1 min-w-0">
-                {notification.title && (
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                        {notification.title}
-                    </div>
-                )}
-                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                    {notification.content}
-                </p>
+            <div className="min-w-0 flex-1">
+                {notification.title && <div className="mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">{notification.title}</div>}
+                <p className="line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{notification.content}</p>
             </div>
         </div>
     );

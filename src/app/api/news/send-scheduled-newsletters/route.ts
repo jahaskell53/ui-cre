@@ -1,32 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { getSubscriberByEmail } from "@/lib/news/subscribers";
+import { sendAlertEmail } from "@/lib/news/alert";
 import { EmailService } from "@/lib/news/newsletter-service";
 import { generateEmailContentFromArticles, splitArticlesIntoNationalAndLocal } from "@/lib/news/newsletter-utils";
-import { sendAlertEmail } from "@/lib/news/alert";
+import { getSubscriberByEmail } from "@/lib/news/subscribers";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minute timeout
 
 export async function GET(request: NextRequest) {
-  try {
-    console.log('Starting scheduled newsletter send process...');
+    try {
+        console.log("Starting scheduled newsletter send process...");
 
-    // Verify this is a legitimate cron request
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      console.log('UNAUTHORIZED: Invalid or missing auth header');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+        // Verify this is a legitimate cron request
+        const authHeader = request.headers.get("authorization");
+        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            console.log("UNAUTHORIZED: Invalid or missing auth header");
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
-    const supabase = await createClient();
-    const now = new Date();
-    console.log(`Current time: ${now.toISOString()}`);
+        const supabase = createAdminClient();
+        const now = new Date();
+        console.log(`Current time: ${now.toISOString()}`);
 
-    // Find all newsletters scheduled to be sent now or in the past
-    const { data: scheduledNewsletters, error: fetchError } = await supabase
-      .from("newsletters")
-      .select(`
+        // Find all newsletters scheduled to be sent now or in the past
+        const { data: scheduledNewsletters, error: fetchError } = await supabase
+            .from("newsletters")
+            .select(
+                `
         id,
         subscriber_email,
         scheduled_send_at,
@@ -49,154 +50,143 @@ export async function GET(request: NextRequest) {
             article_tags (tag)
           )
         )
-      `)
-      .eq("status", "scheduled")
-      .lte("scheduled_send_at", now.toISOString())
-      .order("scheduled_send_at", { ascending: true });
+      `,
+            )
+            .eq("status", "scheduled")
+            .lte("scheduled_send_at", now.toISOString())
+            .order("scheduled_send_at", { ascending: true });
 
-    if (fetchError) {
-      console.error("Error fetching scheduled newsletters:", fetchError);
-      return NextResponse.json({ error: fetchError.message }, { status: 500 });
-    }
-
-    console.log(`Found ${scheduledNewsletters?.length || 0} newsletters ready to send`);
-
-    if (!scheduledNewsletters || scheduledNewsletters.length === 0) {
-      return NextResponse.json({
-        message: 'No newsletters ready to send',
-        emailsSent: 0
-      });
-    }
-
-    const emailService = new EmailService();
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Process each scheduled newsletter
-    for (const newsletter of scheduledNewsletters) {
-      try {
-        console.log(`Processing newsletter ${newsletter.id} for ${newsletter.subscriber_email}`);
-
-        // Get subscriber
-        const subscriber = await getSubscriberByEmail(newsletter.subscriber_email);
-        if (!subscriber || !subscriber.isActive) {
-          console.log(`Subscriber ${newsletter.subscriber_email} not found or inactive, marking newsletter as failed`);
-          await supabase
-            .from("newsletters")
-            .update({ status: 'failed' })
-            .eq("id", newsletter.id);
-          errorCount++;
-          continue;
+        if (fetchError) {
+            console.error("Error fetching scheduled newsletters:", fetchError);
+            return NextResponse.json({ error: fetchError.message }, { status: 500 });
         }
 
-        // Convert newsletter articles to the format expected by email service
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const articles = (newsletter.newsletter_articles || []).map((na: any) => {
-          const article = na.articles;
-          if (!article) return null;
+        console.log(`Found ${scheduledNewsletters?.length || 0} newsletters ready to send`);
 
-          return {
-            title: article.title,
-            link: article.link,
-            description: article.description || '',
-            date: article.date,
-            source: article.sources?.source_name || article.source_id,
-            imageUrl: article.image_url || undefined,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            tags: (article.article_tags || []).map((t: any) => t.tag),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            counties: (article.article_counties || []).map((c: any) => c.counties?.name).filter((n: unknown): n is string => !!n),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            cities: (article.article_cities || []).map((c: any) => c.city),
-            isNational: article.sources?.is_national || false
-          };
-        }).filter((a: unknown) => a !== null);
-
-        // Split into national and local articles using shared function
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { nationalArticles, localArticles } = splitArticlesIntoNationalAndLocal(articles as any, subscriber.selectedCounties);
-
-        // Generate email content
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const emailContent = generateEmailContentFromArticles(nationalArticles as any, localArticles as any);
-
-        // Send email
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const success = await emailService.sendNewsletterToSubscriber(subscriber, emailContent, articles as any);
-
-        if (success) {
-          // Update newsletter status
-          await supabase
-            .from("newsletters")
-            .update({
-              status: 'sent',
-              sent_at: now.toISOString()
-            })
-            .eq("id", newsletter.id);
-
-          successCount++;
-          console.log(`Successfully sent newsletter ${newsletter.id} to ${subscriber.email}`);
-        } else {
-          // Mark as failed
-          await supabase
-            .from("newsletters")
-            .update({ status: 'failed' })
-            .eq("id", newsletter.id);
-          errorCount++;
-          console.error(`Failed to send newsletter ${newsletter.id} to ${subscriber.email}`);
+        if (!scheduledNewsletters || scheduledNewsletters.length === 0) {
+            return NextResponse.json({
+                message: "No newsletters ready to send",
+                emailsSent: 0,
+            });
         }
 
-        // Add a small delay to avoid overwhelming the email service
-        await new Promise(resolve => setTimeout(resolve, 100));
+        const emailService = new EmailService();
+        let successCount = 0;
+        let errorCount = 0;
 
-      } catch (error) {
-        console.error(`Error processing newsletter ${newsletter.id}:`, error);
+        // Process each scheduled newsletter
+        for (const newsletter of scheduledNewsletters) {
+            try {
+                console.log(`Processing newsletter ${newsletter.id} for ${newsletter.subscriber_email}`);
 
-        // Mark as failed
-        try {
-          await supabase
-            .from("newsletters")
-            .update({ status: 'failed' })
-            .eq("id", newsletter.id);
-        } catch (updateError) {
-          console.error(`Error updating newsletter ${newsletter.id} status:`, updateError);
+                // Get subscriber
+                const subscriber = await getSubscriberByEmail(newsletter.subscriber_email, supabase);
+                if (!subscriber || !subscriber.isActive) {
+                    console.log(`Subscriber ${newsletter.subscriber_email} not found or inactive, marking newsletter as failed`);
+                    await supabase.from("newsletters").update({ status: "failed" }).eq("id", newsletter.id);
+                    errorCount++;
+                    continue;
+                }
+
+                // Convert newsletter articles to the format expected by email service
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const articles = (newsletter.newsletter_articles || [])
+                    .map((na: any) => {
+                        const article = na.articles;
+                        if (!article) return null;
+
+                        return {
+                            title: article.title,
+                            link: article.link,
+                            description: article.description || "",
+                            date: article.date,
+                            source: article.sources?.source_name || article.source_id,
+                            imageUrl: article.image_url || undefined,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            tags: (article.article_tags || []).map((t: any) => t.tag),
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            counties: (article.article_counties || []).map((c: any) => c.counties?.name).filter((n: unknown): n is string => !!n),
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            cities: (article.article_cities || []).map((c: any) => c.city),
+                            isNational: article.sources?.is_national || false,
+                        };
+                    })
+                    .filter((a: unknown) => a !== null);
+
+                // Split into national and local articles using shared function
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const { nationalArticles, localArticles } = splitArticlesIntoNationalAndLocal(articles as any, subscriber.selectedCounties);
+
+                // Generate email content
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const emailContent = generateEmailContentFromArticles(nationalArticles as any, localArticles as any);
+
+                // Send email
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const success = await emailService.sendNewsletterToSubscriber(subscriber, emailContent, articles as any);
+
+                if (success) {
+                    // Update newsletter status
+                    await supabase
+                        .from("newsletters")
+                        .update({
+                            status: "sent",
+                            sent_at: now.toISOString(),
+                        })
+                        .eq("id", newsletter.id);
+
+                    successCount++;
+                    console.log(`Successfully sent newsletter ${newsletter.id} to ${subscriber.email}`);
+                } else {
+                    // Mark as failed
+                    await supabase.from("newsletters").update({ status: "failed" }).eq("id", newsletter.id);
+                    errorCount++;
+                    console.error(`Failed to send newsletter ${newsletter.id} to ${subscriber.email}`);
+                }
+
+                // Add a small delay to avoid overwhelming the email service
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            } catch (error) {
+                console.error(`Error processing newsletter ${newsletter.id}:`, error);
+
+                // Mark as failed
+                try {
+                    await supabase.from("newsletters").update({ status: "failed" }).eq("id", newsletter.id);
+                } catch (updateError) {
+                    console.error(`Error updating newsletter ${newsletter.id} status:`, updateError);
+                }
+
+                errorCount++;
+            }
         }
 
-        errorCount++;
-      }
+        const result = {
+            message: "Scheduled newsletter send process completed",
+            totalNewsletters: scheduledNewsletters.length,
+            emailsSent: successCount,
+            errors: errorCount,
+        };
+
+        console.log("Scheduled newsletter send process completed:", result);
+
+        if (errorCount > 0) {
+            await sendAlertEmail(
+                `⚠️ Newsletter send failures: ${errorCount}/${scheduledNewsletters.length}`,
+                `The send-scheduled-newsletters cron completed with errors.\n\n` +
+                    `Sent: ${successCount}\nFailed: ${errorCount}\nTotal: ${scheduledNewsletters.length}\n\n` +
+                    `Check Vercel logs for details.`,
+            );
+        }
+
+        return NextResponse.json(result);
+    } catch (error) {
+        console.error("Scheduled newsletter send error:", error);
+        await sendAlertEmail(
+            "🚨 Newsletter send cron crashed",
+            `The send-scheduled-newsletters cron threw an unexpected error.\n\n` +
+                `Error: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                `Check Vercel logs for the full stack trace.`,
+        );
+        return NextResponse.json({ error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
     }
-
-    const result = {
-      message: 'Scheduled newsletter send process completed',
-      totalNewsletters: scheduledNewsletters.length,
-      emailsSent: successCount,
-      errors: errorCount
-    };
-
-    console.log('Scheduled newsletter send process completed:', result);
-
-    if (errorCount > 0) {
-      await sendAlertEmail(
-        `⚠️ Newsletter send failures: ${errorCount}/${scheduledNewsletters.length}`,
-        `The send-scheduled-newsletters cron completed with errors.\n\n` +
-        `Sent: ${successCount}\nFailed: ${errorCount}\nTotal: ${scheduledNewsletters.length}\n\n` +
-        `Check Vercel logs for details.`
-      );
-    }
-
-    return NextResponse.json(result);
-
-  } catch (error) {
-    console.error('Scheduled newsletter send error:', error);
-    await sendAlertEmail(
-      '🚨 Newsletter send cron crashed',
-      `The send-scheduled-newsletters cron threw an unexpected error.\n\n` +
-      `Error: ${error instanceof Error ? error.message : String(error)}\n\n` +
-      `Check Vercel logs for the full stack trace.`
-    );
-    return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
 }

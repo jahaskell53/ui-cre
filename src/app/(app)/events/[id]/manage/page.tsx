@@ -1,38 +1,38 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter as useNextRouter, useParams as useNextParams } from "next/navigation";
-import { useUser } from "@/hooks/use-user";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-    MapPin,
-    Edit,
-    Trash2,
-    Check,
-    Users,
-    Calendar,
     ArrowLeft,
-    Share2,
-    ExternalLink,
-    Mail,
-    Eye,
-    ChevronRight,
-    Plus,
     BarChart3,
-    MoreHorizontal,
-    Video,
+    Calendar,
+    Check,
+    ChevronRight,
+    Edit,
+    ExternalLink,
+    Eye,
     Image as ImageIcon,
     Loader2,
-    X
+    Mail,
+    MapPin,
+    MoreHorizontal,
+    Plus,
+    Share2,
+    Trash2,
+    Users,
+    Video,
+    X,
 } from "lucide-react";
+import Link from "next/link";
+import { useParams as useNextParams, useRouter as useNextRouter } from "next/navigation";
 import { SiGooglemeet } from "react-icons/si";
+import { generateAuroraGradient, getInitials } from "@/app/(app)/network/utils";
+import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
+import { InviteGuestsModal } from "@/components/events/invite-guests-modal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Modal, ModalOverlay, Dialog } from "@/components/application/modals/modal";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { generateAuroraGradient, getInitials } from "@/app/(app)/network/utils";
-import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import { InviteGuestsModal } from "@/components/events/invite-guests-modal";
+import { useUser } from "@/hooks/use-user";
 
 interface Event {
     id: string;
@@ -155,7 +155,7 @@ export default function EventManageDashboard() {
                             id: hostData.id,
                             name: hostData.full_name || "Unknown",
                             email: hostData.email || "",
-                            avatar_url: hostData.avatar_url
+                            avatar_url: hostData.avatar_url,
                         });
                     }
                 } catch (err) {
@@ -321,35 +321,26 @@ export default function EventManageDashboard() {
         }
     };
 
-    if (isLoading) return (
-        <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-        </div>
-    );
+    if (isLoading)
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-white dark:bg-gray-900">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+            </div>
+        );
 
     if (isUnauthorized || !event) {
         return (
-            <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center px-4">
-                <div className="max-w-md w-full text-center">
-                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        Access Denied
-                    </h1>
-                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+            <div className="flex min-h-screen items-center justify-center bg-white px-4 dark:bg-gray-900">
+                <div className="w-full max-w-md text-center">
+                    <h1 className="mb-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">Access Denied</h1>
+                    <p className="mb-6 text-gray-500 dark:text-gray-400">
                         You don't have permission to manage this event. Only the event host can access this page.
                     </p>
-                    <div className="flex gap-3 justify-center">
-                        <Button
-                            variant="outline"
-                            onClick={() => router.push(`/events/${eventId}`)}
-                            className="rounded-md font-semibold"
-                        >
+                    <div className="flex justify-center gap-3">
+                        <Button variant="outline" onClick={() => router.push(`/events/${eventId}`)} className="rounded-md font-semibold">
                             View Event
                         </Button>
-                        <Button
-                            variant="secondary"
-                            onClick={() => router.push("/events")}
-                            className="rounded-md font-semibold"
-                        >
+                        <Button variant="secondary" onClick={() => router.push("/events")} className="rounded-md font-semibold">
                             Back to Calendar
                         </Button>
                     </div>
@@ -361,14 +352,14 @@ export default function EventManageDashboard() {
     const tabs = ["Overview", "Guests", "Blasts"];
 
     return (
-        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+        <div className="flex h-screen flex-col bg-white dark:bg-gray-900">
             {/* Top Header Bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
                 <button
                     onClick={() => router.push(`/events/${event.id}`)}
-                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                    className="-ml-1.5 rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
@@ -377,228 +368,347 @@ export default function EventManageDashboard() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 pb-20">
-                <div className="max-w-5xl mx-auto px-6 pt-12">
-
-                <div className="flex items-start justify-between mb-8">
-                    <div>
-                        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 leading-tight">
-                            {event.title}
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            variant="destructive"
-                            onClick={() => setShowDeleteModal(true)}
-                            disabled={isDeleting}
-                            className="rounded-md font-semibold"
-                        >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                        </Button>
-                        <Link href={`/events/${event.id}`}>
-                            <Button variant="outline" className="rounded-md font-semibold bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 gap-2">
-                                Event Page
-                                <ExternalLink className="w-4 h-4" />
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex items-center gap-8 border-b border-gray-200 dark:border-gray-800 mb-10 overflow-x-auto scrollbar-hide">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`pb-4 text-sm font-semibold transition-all relative ${activeTab === tab
-                                ? "text-gray-900 dark:text-gray-100"
-                                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                }`}
-                        >
-                            {tab}
-                            {activeTab === tab && (
-                                <motion.div
-                                    layoutId="activeTab"
-                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 dark:bg-gray-100"
-                                />
-                            )}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Quick Actions Card Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-                    <button
-                        onClick={() => setShowInviteModal(true)}
-                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm text-left group"
-                    >
-                        <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center text-blue-600">
-                            <Plus className="w-6 h-6" />
-                        </div>
+            <div className="flex-1 overflow-y-auto bg-white pb-20 dark:bg-gray-900">
+                <div className="mx-auto max-w-5xl px-6 pt-12">
+                    <div className="mb-8 flex items-start justify-between">
                         <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">Invite Guests</div>
+                            <h1 className="text-3xl leading-tight font-semibold text-gray-900 dark:text-gray-100">{event.title}</h1>
                         </div>
-                    </button>
-                    <Link href={`/events/${eventId}/send-blast`}>
-                        <button className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm text-left w-full">
-                            <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center text-purple-600">
-                                <Mail className="w-6 h-6" />
+                        <div className="flex items-center gap-3">
+                            <Button variant="destructive" onClick={() => setShowDeleteModal(true)} disabled={isDeleting} className="rounded-md font-semibold">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </Button>
+                            <Link href={`/events/${event.id}`}>
+                                <Button
+                                    variant="outline"
+                                    className="gap-2 rounded-md border-gray-200 bg-white font-semibold dark:border-gray-800 dark:bg-gray-900"
+                                >
+                                    Event Page
+                                    <ExternalLink className="h-4 w-4" />
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="mb-10 scrollbar-hide flex items-center gap-8 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`relative pb-4 text-sm font-semibold transition-all ${
+                                    activeTab === tab ? "text-gray-900 dark:text-gray-100" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                }`}
+                            >
+                                {tab}
+                                {activeTab === tab && (
+                                    <motion.div layoutId="activeTab" className="absolute right-0 bottom-0 left-0 h-0.5 bg-gray-900 dark:bg-gray-100" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Quick Actions Card Grid */}
+                    <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <button
+                            onClick={() => setShowInviteModal(true)}
+                            className="group flex items-center gap-4 rounded-md border border-gray-200 bg-white p-5 text-left transition-all hover:border-gray-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
+                        >
+                            <div className="flex h-12 w-12 items-center justify-center rounded-md border border-gray-200 bg-white text-blue-600 dark:border-gray-800 dark:bg-gray-900">
+                                <Plus className="h-6 w-6" />
                             </div>
                             <div>
-                                <div className="font-semibold text-gray-900 dark:text-white">Send a Blast</div>
+                                <div className="font-semibold text-gray-900 dark:text-white">Invite Guests</div>
                             </div>
                         </button>
-                    </Link>
-                    <button
-                        onClick={handleShare}
-                        className="flex items-center gap-4 p-5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md hover:border-gray-300 dark:hover:border-gray-700 transition-all hover:shadow-sm text-left"
-                    >
-                        <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex items-center justify-center text-pink-600">
-                            {isShared ? <Check className="w-6 h-6" /> : <Share2 className="w-6 h-6" />}
-                        </div>
-                        <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">
-                                {isShared ? "Link Copied!" : "Share Event"}
-                            </div>
-                        </div>
-                    </button>
-                </div>
-
-                {/* Main Content Area */}
-                <div>
-                    {activeTab === "Overview" && (
-                        <div className="space-y-8">
-                            {/* Summary Card */}
-                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-8 flex gap-8">
-                            <div className="w-48 h-48 shrink-0 rounded-md overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 relative group">
-                                {event.image_url ? (
-                                    <img src={event.image_url} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-white dark:bg-gray-900 text-gray-200">
-                                        <ImageIcon className="w-12 h-12" />
-                                    </div>
-                                )}
-                                {isUploading && (
-                                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center">
-                                        <Loader2 className="w-8 h-8 text-white animate-spin" />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex-1 space-y-6">
+                        <Link href={`/events/${eventId}/send-blast`}>
+                            <button className="flex w-full items-center gap-4 rounded-md border border-gray-200 bg-white p-5 text-left transition-all hover:border-gray-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-md border border-gray-200 bg-white text-purple-600 dark:border-gray-800 dark:bg-gray-900">
+                                    <Mail className="h-6 w-6" />
+                                </div>
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">When & Where</h3>
-                                    <div className="space-y-4">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 flex flex-col items-center justify-center border border-gray-200 dark:border-gray-800 shrink-0">
-                                                <div className="text-[10px] font-semibold uppercase text-gray-400 leading-none mb-0.5">JAN</div>
-                                                <div className="text-lg font-semibold text-gray-900 leading-none">24</div>
-                                            </div>
-                                            <div>
-                                                <div className="font-semibold text-gray-900 dark:text-white">{formatDate(event.start_time)}</div>
-                                                <div className="text-sm font-semibold text-gray-500">{formatTimeRange(event.start_time, event.end_time)}</div>
-                                            </div>
-                                        </div>
+                                    <div className="font-semibold text-gray-900 dark:text-white">Send a Blast</div>
+                                </div>
+                            </button>
+                        </Link>
+                        <button
+                            onClick={handleShare}
+                            className="flex items-center gap-4 rounded-md border border-gray-200 bg-white p-5 text-left transition-all hover:border-gray-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700"
+                        >
+                            <div className="flex h-12 w-12 items-center justify-center rounded-md border border-gray-200 bg-white text-pink-600 dark:border-gray-800 dark:bg-gray-900">
+                                {isShared ? <Check className="h-6 w-6" /> : <Share2 className="h-6 w-6" />}
+                            </div>
+                            <div>
+                                <div className="font-semibold text-gray-900 dark:text-white">{isShared ? "Link Copied!" : "Share Event"}</div>
+                            </div>
+                        </button>
+                    </div>
 
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-md bg-white dark:bg-gray-900 flex items-center justify-center border border-gray-200 dark:border-gray-800 shrink-0">
-                                                <Video className="w-5 h-5 text-gray-400" />
+                    {/* Main Content Area */}
+                    <div>
+                        {activeTab === "Overview" && (
+                            <div className="space-y-8">
+                                {/* Summary Card */}
+                                <div className="flex gap-8 rounded-md border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-900">
+                                    <div className="group relative h-48 w-48 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                                        {event.image_url ? (
+                                            <img src={event.image_url} alt="" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center bg-white text-gray-200 dark:bg-gray-900">
+                                                <ImageIcon className="h-12 w-12" />
                                             </div>
-                                            <div>
-                                                <div className="font-semibold text-gray-900 dark:text-white">Google Meet</div>
-                                                <div className="text-sm font-semibold text-blue-600 truncate max-w-[200px] cursor-pointer hover:underline">
-                                                    https://meet.google.com/qhn-fjrm-mos
+                                        )}
+                                        {isUploading && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+                                                <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex-1 space-y-6">
+                                        <div>
+                                            <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">When & Where</h3>
+                                            <div className="space-y-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                                                        <div className="mb-0.5 text-[10px] leading-none font-semibold text-gray-400 uppercase">JAN</div>
+                                                        <div className="text-lg leading-none font-semibold text-gray-900">24</div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-semibold text-gray-900 dark:text-white">{formatDate(event.start_time)}</div>
+                                                        <div className="text-sm font-semibold text-gray-500">
+                                                            {formatTimeRange(event.start_time, event.end_time)}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-start gap-4">
+                                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                                                        <Video className="h-5 w-5 text-gray-400" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-semibold text-gray-900 dark:text-white">Google Meet</div>
+                                                        <div className="max-w-[200px] cursor-pointer truncate text-sm font-semibold text-blue-600 hover:underline">
+                                                            https://meet.google.com/qhn-fjrm-mos
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <Link href={`/events/${event.id}/edit`}>
+                                                <Button variant="secondary" className="rounded-md px-6 font-semibold">
+                                                    Edit Event
+                                                </Button>
+                                            </Link>
+                                            <Button
+                                                variant="secondary"
+                                                className="rounded-md px-6 font-semibold"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={isUploading}
+                                            >
+                                                {isUploading ? "Uploading..." : "Change Photo"}
+                                            </Button>
+                                            <input type="file" ref={fileInputRef} onChange={handlePhotoChange} className="hidden" accept="image/*" />
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3">
-                                    <Link href={`/events/${event.id}/edit`}>
-                                        <Button variant="secondary" className="rounded-md font-semibold px-6">Edit Event</Button>
-                                    </Link>
-                                    <Button
-                                        variant="secondary"
-                                        className="rounded-md font-semibold px-6"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isUploading}
-                                    >
-                                        {isUploading ? "Uploading..." : "Change Photo"}
-                                    </Button>
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={handlePhotoChange}
-                                        className="hidden"
-                                        accept="image/*"
-                                    />
+                                {/* Hosts Section */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Hosts</h3>
+                                        <Button variant="secondary" size="sm" className="rounded-md bg-gray-100 font-semibold">
+                                            <Plus className="mr-1.5 h-4 w-4" />
+                                            Add Host
+                                        </Button>
+                                    </div>
+                                    <div className="rounded-md border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                                        {host && (
+                                            <div className="flex items-center justify-between p-2">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                                                        <AvatarImage src={host.avatar_url || ""} />
+                                                        <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                                                            {getInitials(host.name)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <div className="text-sm font-semibold text-gray-900 dark:text-white">{host.name}</div>
+                                                        <div className="text-xs font-semibold text-gray-400">Primary Host</div>
+                                                    </div>
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="rounded-md text-gray-400">
+                                                    <MoreHorizontal className="h-5 w-5" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Hosts Section */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Hosts</h3>
-                                <Button variant="secondary" size="sm" className="rounded-md font-semibold bg-gray-100">
-                                    <Plus className="w-4 h-4 mr-1.5" />
-                                    Add Host
-                                </Button>
-                            </div>
-                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-4">
-                                {host && (
-                                    <div className="flex items-center justify-between p-2">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
-                                                <AvatarImage src={host.avatar_url || ""} />
-                                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                                    {getInitials(host.name)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <div className="font-semibold text-sm text-gray-900 dark:text-white">{host.name}</div>
-                                                <div className="text-xs font-semibold text-gray-400">Primary Host</div>
+                        {activeTab === "Guests" && (
+                            <div className="space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Guests</h2>
+                                        <p className="mt-1 text-sm font-semibold text-gray-400">
+                                            {registrationCount} {registrationCount === 1 ? "guest" : "guests"} registered
+                                        </p>
+                                    </div>
+                                    <Button variant="secondary" className="rounded-md bg-gray-100 font-semibold" onClick={() => setShowInviteModal(true)}>
+                                        <Plus className="mr-1.5 h-4 w-4" />
+                                        Invite Guests
+                                    </Button>
+                                </div>
+
+                                {/* Invites sent - same card design as Overview */}
+                                {invites.length > 0 && (
+                                    <div className="space-y-3">
+                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Invites sent</h3>
+                                        <div className="overflow-hidden rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                                            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                                {invites.map((invite) => {
+                                                    const sentDate = new Date(invite.created_at);
+                                                    const formattedDate = sentDate.toLocaleDateString("en-US", {
+                                                        month: "short",
+                                                        day: "numeric",
+                                                        year: "numeric",
+                                                    });
+                                                    const formattedTime = sentDate.toLocaleTimeString("en-US", {
+                                                        hour: "numeric",
+                                                        minute: "2-digit",
+                                                    });
+                                                    const emails = invite.recipient_emails ?? [];
+                                                    return (
+                                                        <div
+                                                            key={invite.id}
+                                                            className="flex flex-col p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                                                        >
+                                                            <div className="min-w-0 flex-1">
+                                                                {emails.length > 0 ? (
+                                                                    <ul className="space-y-0.5 text-sm text-gray-900 dark:text-white">
+                                                                        {emails.map((email) => (
+                                                                            <li key={email} className="truncate">
+                                                                                {email}
+                                                                            </li>
+                                                                        ))}
+                                                                    </ul>
+                                                                ) : (
+                                                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                                        {invite.recipient_count} recipient{invite.recipient_count === 1 ? "" : "s"}
+                                                                    </div>
+                                                                )}
+                                                                {invite.message && (
+                                                                    <p className="mt-2 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
+                                                                        {invite.message}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <div className="mt-2 text-right text-sm font-semibold text-gray-400">
+                                                                {formattedDate} at {formattedTime}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
-                                        <Button variant="ghost" size="icon" className="rounded-md text-gray-400">
-                                            <MoreHorizontal className="w-5 h-5" />
+                                    </div>
+                                )}
+
+                                {isLoadingGuests ? (
+                                    <div className="flex items-center justify-center rounded-md border border-gray-200 bg-white p-12 dark:border-gray-800 dark:bg-gray-900">
+                                        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                                    </div>
+                                ) : attendees.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center rounded-md border border-gray-200 bg-white p-12 text-center dark:border-gray-800 dark:bg-gray-900">
+                                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                                            <Users className="h-8 w-8 text-gray-200" />
+                                        </div>
+                                        <div className="mb-1 font-semibold text-gray-900 dark:text-white">No Guests Yet</div>
+                                        <p className="mb-6 text-sm font-semibold text-gray-400">Invite people to your event to see them here.</p>
+                                        <Button variant="secondary" className="rounded-md font-semibold" onClick={() => setShowInviteModal(true)}>
+                                            <Plus className="mr-1.5 h-4 w-4" />
+                                            Invite Guests
                                         </Button>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-hidden rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                                        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                            {attendees.map((attendee) => (
+                                                <div
+                                                    key={attendee.user_id}
+                                                    className="flex items-center justify-between p-4 transition-colors hover:bg-white dark:hover:bg-gray-900"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <Link href={`/users/${attendee.user_id}`}>
+                                                            <Avatar className="h-12 w-12 cursor-pointer border-2 border-white shadow-sm transition-transform hover:scale-105 dark:border-gray-800">
+                                                                <AvatarImage src={attendee.avatar_url || ""} />
+                                                                <AvatarFallback
+                                                                    className="text-sm font-semibold text-white"
+                                                                    style={{ background: generateAuroraGradient(attendee.full_name || "Guest") }}
+                                                                >
+                                                                    {getInitials(attendee.full_name || "Guest")}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                        </Link>
+                                                        <div>
+                                                            <div className="font-semibold text-gray-900 dark:text-white">{attendee.full_name || "Guest"}</div>
+                                                            <div className="text-xs font-semibold text-gray-400">Registered</div>
+                                                        </div>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="rounded-md text-gray-400">
+                                                        <MoreHorizontal className="h-5 w-5" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    </div>
-                    )}
+                        )}
 
-                    {activeTab === "Guests" && (
-                        <div className="space-y-8">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Guests</h2>
-                                    <p className="text-sm font-semibold text-gray-400 mt-1">
-                                        {registrationCount} {registrationCount === 1 ? "guest" : "guests"} registered
-                                    </p>
+                        {activeTab === "Blasts" && (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Email Blasts</h2>
+                                        <p className="mt-1 text-sm font-semibold text-gray-400">Send messages to all registered attendees</p>
+                                    </div>
+                                    <Link href={`/events/${eventId}/send-blast`}>
+                                        <Button variant="secondary" className="rounded-md bg-gray-100 font-semibold">
+                                            <Mail className="mr-1.5 h-4 w-4" />
+                                            Send a Blast
+                                        </Button>
+                                    </Link>
                                 </div>
-                                <Button
-                                    variant="secondary"
-                                    className="rounded-md font-semibold bg-gray-100"
-                                    onClick={() => setShowInviteModal(true)}
-                                >
-                                    <Plus className="w-4 h-4 mr-1.5" />
-                                    Invite Guests
-                                </Button>
-                            </div>
 
-                            {/* Invites sent - same card design as Overview */}
-                            {invites.length > 0 && (
-                                <div className="space-y-3">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Invites sent</h3>
-                                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden">
+                                {isLoadingBlasts ? (
+                                    <div className="flex items-center justify-center rounded-md border border-gray-200 bg-white p-12 dark:border-gray-800 dark:bg-gray-900">
+                                        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                                    </div>
+                                ) : blasts.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center rounded-md border border-gray-200 bg-white p-12 text-center dark:border-gray-800 dark:bg-gray-900">
+                                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                                            <Mail className="h-8 w-8 text-gray-200" />
+                                        </div>
+                                        <div className="mb-1 font-semibold text-gray-900 dark:text-white">No Blasts Sent Yet</div>
+                                        <p className="mb-6 text-sm font-semibold text-gray-400">Send your first email blast to all registered attendees.</p>
+                                        <Link href={`/events/${eventId}/send-blast`}>
+                                            <Button variant="secondary" className="rounded-md font-semibold">
+                                                <Mail className="mr-1.5 h-4 w-4" />
+                                                Send a Blast
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-hidden rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
                                         <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                                            {invites.map((invite) => {
-                                                const sentDate = new Date(invite.created_at);
+                                            {blasts.map((blast) => {
+                                                const sentDate = new Date(blast.created_at);
                                                 const formattedDate = sentDate.toLocaleDateString("en-US", {
                                                     month: "short",
                                                     day: "numeric",
@@ -608,236 +718,60 @@ export default function EventManageDashboard() {
                                                     hour: "numeric",
                                                     minute: "2-digit",
                                                 });
-                                                const emails = invite.recipient_emails ?? [];
+
                                                 return (
-                                                    <div
-                                                        key={invite.id}
-                                                        className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors flex flex-col"
-                                                    >
-                                                        <div className="min-w-0 flex-1">
-                                                            {emails.length > 0 ? (
-                                                                <ul className="text-sm text-gray-900 dark:text-white space-y-0.5">
-                                                                    {emails.map((email) => (
-                                                                        <li key={email} className="truncate">
-                                                                            {email}
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            ) : (
-                                                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                                    {invite.recipient_count} recipient{invite.recipient_count === 1 ? "" : "s"}
+                                                    <div key={blast.id} className="p-6 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div className="flex-1 space-y-3">
+                                                                <div>
+                                                                    <h3 className="mb-1 text-lg font-semibold text-gray-900 dark:text-white">
+                                                                        {blast.subject}
+                                                                    </h3>
+                                                                    <p className="line-clamp-2 text-sm text-gray-500 dark:text-gray-400">{blast.message}</p>
                                                                 </div>
-                                                            )}
-                                                            {invite.message && (
-                                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2">
-                                                                    {invite.message}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                        <div className="text-sm font-semibold text-gray-400 mt-2 text-right">
-                                                            {formattedDate} at {formattedTime}
+                                                                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        <Mail className="h-3.5 w-3.5" />
+                                                                        {blast.sent_count} of {blast.recipient_count} sent
+                                                                    </span>
+                                                                    {blast.failed_count > 0 && (
+                                                                        <span className="text-red-500">{blast.failed_count} failed</span>
+                                                                    )}
+                                                                    <span>
+                                                                        {formattedDate} at {formattedTime}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
-                                </div>
-                            )}
-
-                            {isLoadingGuests ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex items-center justify-center">
-                                    <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
-                                </div>
-                            ) : attendees.length === 0 ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center">
-                                    <div className="w-16 h-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md flex items-center justify-center mb-4">
-                                        <Users className="w-8 h-8 text-gray-200" />
-                                    </div>
-                                    <div className="font-semibold text-gray-900 dark:text-white mb-1">No Guests Yet</div>
-                                    <p className="text-sm font-semibold text-gray-400 mb-6">Invite people to your event to see them here.</p>
-                                    <Button
-                                        variant="secondary"
-                                        className="rounded-md font-semibold"
-                                        onClick={() => setShowInviteModal(true)}
-                                    >
-                                        <Plus className="w-4 h-4 mr-1.5" />
-                                        Invite Guests
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden">
-                                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                                        {attendees.map((attendee) => (
-                                            <div
-                                                key={attendee.user_id}
-                                                className="flex items-center justify-between p-4 hover:bg-white dark:hover:bg-gray-900 transition-colors"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <Link href={`/users/${attendee.user_id}`}>
-                                                        <Avatar className="w-12 h-12 border-2 border-white dark:border-gray-800 shadow-sm cursor-pointer hover:scale-105 transition-transform">
-                                                            <AvatarImage src={attendee.avatar_url || ""} />
-                                                            <AvatarFallback
-                                                                className="text-white text-sm font-semibold"
-                                                                style={{ background: generateAuroraGradient(attendee.full_name || "Guest") }}
-                                                            >
-                                                                {getInitials(attendee.full_name || "Guest")}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                    </Link>
-                                                    <div>
-                                                        <div className="font-semibold text-gray-900 dark:text-white">
-                                                            {attendee.full_name || "Guest"}
-                                                        </div>
-                                                        <div className="text-xs font-semibold text-gray-400">Registered</div>
-                                                    </div>
-                                                </div>
-                                                <Button variant="ghost" size="icon" className="rounded-md text-gray-400">
-                                                    <MoreHorizontal className="w-5 h-5" />
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === "Blasts" && (
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Email Blasts</h2>
-                                    <p className="text-sm font-semibold text-gray-400 mt-1">
-                                        Send messages to all registered attendees
-                                    </p>
-                                </div>
-                                <Link href={`/events/${eventId}/send-blast`}>
-                                    <Button
-                                        variant="secondary"
-                                        className="rounded-md font-semibold bg-gray-100"
-                                    >
-                                        <Mail className="w-4 h-4 mr-1.5" />
-                                        Send a Blast
-                                    </Button>
-                                </Link>
+                                )}
                             </div>
-
-                            {isLoadingBlasts ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex items-center justify-center">
-                                    <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
-                                </div>
-                            ) : blasts.length === 0 ? (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md p-12 flex flex-col items-center justify-center text-center">
-                                    <div className="w-16 h-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md flex items-center justify-center mb-4">
-                                        <Mail className="w-8 h-8 text-gray-200" />
-                                    </div>
-                                    <div className="font-semibold text-gray-900 dark:text-white mb-1">No Blasts Sent Yet</div>
-                                    <p className="text-sm font-semibold text-gray-400 mb-6">Send your first email blast to all registered attendees.</p>
-                                    <Link href={`/events/${eventId}/send-blast`}>
-                                        <Button
-                                            variant="secondary"
-                                            className="rounded-md font-semibold"
-                                        >
-                                            <Mail className="w-4 h-4 mr-1.5" />
-                                            Send a Blast
-                                        </Button>
-                                    </Link>
-                                </div>
-                            ) : (
-                                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md overflow-hidden">
-                                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                                        {blasts.map((blast) => {
-                                            const sentDate = new Date(blast.created_at);
-                                            const formattedDate = sentDate.toLocaleDateString("en-US", {
-                                                month: "short",
-                                                day: "numeric",
-                                                year: "numeric",
-                                            });
-                                            const formattedTime = sentDate.toLocaleTimeString("en-US", {
-                                                hour: "numeric",
-                                                minute: "2-digit",
-                                            });
-
-                                            return (
-                                                <div
-                                                    key={blast.id}
-                                                    className="p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                                                >
-                                                    <div className="flex items-start justify-between gap-4">
-                                                        <div className="flex-1 space-y-3">
-                                                            <div>
-                                                                <h3 className="font-semibold text-gray-900 dark:text-white text-lg mb-1">
-                                                                    {blast.subject}
-                                                                </h3>
-                                                                <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                                                                    {blast.message}
-                                                                </p>
-                                                            </div>
-                                                            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Mail className="w-3.5 h-3.5" />
-                                                                    {blast.sent_count} of {blast.recipient_count} sent
-                                                                </span>
-                                                                {blast.failed_count > 0 && (
-                                                                    <span className="text-red-500">
-                                                                        {blast.failed_count} failed
-                                                                    </span>
-                                                                )}
-                                                                <span>
-                                                                    {formattedDate} at {formattedTime}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Invite Guests Modal */}
-            <InviteGuestsModal
-                isOpen={showInviteModal}
-                onClose={() => setShowInviteModal(false)}
-                eventId={eventId}
-                onSuccess={handleInviteSuccess}
-            />
+            <InviteGuestsModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} eventId={eventId} onSuccess={handleInviteSuccess} />
 
             {/* Delete Event Confirmation Modal */}
-            <ModalOverlay
-                isOpen={showDeleteModal}
-                onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}
-            >
-                <Modal className="max-w-md bg-white dark:bg-gray-900 shadow-xl rounded-xl border border-gray-200 dark:border-gray-800">
+            <ModalOverlay isOpen={showDeleteModal} onOpenChange={(isOpen) => !isOpen && setShowDeleteModal(false)}>
+                <Modal className="max-w-md rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
                     <Dialog className="p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                            Delete Event
-                        </h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            Are you sure you want to delete{" "}
-                            <span className="text-gray-900 dark:text-gray-100 font-semibold">"{event.title}"</span>? This
-                            action is permanent.
+                        <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Delete Event</h2>
+                        <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+                            Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-gray-100">"{event.title}"</span>? This action
+                            is permanent.
                         </p>
                         <div className="flex justify-end gap-3">
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowDeleteModal(false)}
-                                disabled={isDeleting}
-                            >
+                            <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={isDeleting}>
                                 Cancel
                             </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                            >
+                            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
                                 {isDeleting ? "Deleting..." : "Delete Event"}
                             </Button>
                         </div>

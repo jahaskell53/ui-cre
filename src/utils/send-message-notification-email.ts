@@ -1,7 +1,7 @@
-import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
 import { EmailService } from "@/utils/email-service";
 import { generateMessageNotificationEmail } from "@/utils/email-templates";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/utils/supabase/server";
 
 export async function sendMessageNotificationEmail(messageId: string): Promise<boolean> {
     try {
@@ -34,7 +34,7 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
 
         // Get recipient email from auth.users using admin client
         const { data: recipientUser, error: userError } = await adminSupabase.auth.admin.getUserById(message.recipient_id);
-        
+
         if (userError || !recipientUser?.user?.email) {
             console.error("Error fetching recipient email:", userError);
             return false;
@@ -44,8 +44,8 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
 
         // Generate email content
         const senderName = senderProfile?.full_name || "Someone";
-        const messageUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/messages?user_id=${message.sender_id}`;
-        
+        const messageUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/messages?user_id=${message.sender_id}`;
+
         const emailContent = generateMessageNotificationEmail({
             senderName,
             messageContent: message.content,
@@ -62,4 +62,3 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
         return false;
     }
 }
-

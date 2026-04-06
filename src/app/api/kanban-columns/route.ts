@@ -4,32 +4,25 @@ import { createClient } from "@/utils/supabase/server";
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // Fetch kanban columns for the current user
-        const { data, error } = await supabase
-            .from("kanban_columns")
-            .select("columns")
-            .eq("user_id", user.id)
-            .single();
+        const { data, error } = await supabase.from("kanban_columns").select("columns").eq("user_id", user.id).single();
 
         if (error) {
             // If no record exists, return default columns
             if (error.code === "PGRST116") {
                 return NextResponse.json({
-                    columns: [
-                        "Active Prospecting",
-                        "Offering Memorandum",
-                        "Underwriting",
-                        "Due Diligence",
-                        "Closed/Archive",
-                    ],
+                    columns: ["Active Prospecting", "Offering Memorandum", "Underwriting", "Due Diligence", "Closed/Archive"],
                 });
             }
             console.error("Error fetching kanban columns:", error);
@@ -46,10 +39,13 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         const supabase = await createClient();
-        
+
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
+
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -67,11 +63,7 @@ export async function PUT(request: NextRequest) {
         }
 
         // Check if record exists
-        const { data: existing } = await supabase
-            .from("kanban_columns")
-            .select("id")
-            .eq("user_id", user.id)
-            .single();
+        const { data: existing } = await supabase.from("kanban_columns").select("id").eq("user_id", user.id).single();
 
         let result;
         if (existing) {
@@ -112,4 +104,3 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
-

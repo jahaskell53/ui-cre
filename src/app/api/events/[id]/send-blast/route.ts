@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { createAdminClient } from "@/utils/supabase/admin";
 import { EmailService } from "@/utils/email-service";
+import { createAdminClient } from "@/utils/supabase/admin";
+import { createClient } from "@/utils/supabase/server";
 
-export async function POST(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const supabase = await createClient();
         const adminSupabase = createAdminClient();
 
         // Get authenticated user
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user },
+            error: authError,
+        } = await supabase.auth.getUser();
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,49 +23,30 @@ export async function POST(
         const { subject, message } = body;
 
         if (!subject || !message) {
-            return NextResponse.json(
-                { error: "Subject and message are required" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Subject and message are required" }, { status: 400 });
         }
 
         // Verify user owns the event
-        const { data: event, error: eventError } = await supabase
-            .from("events")
-            .select("id, title, user_id")
-            .eq("id", eventId)
-            .single();
+        const { data: event, error: eventError } = await supabase.from("events").select("id, title, user_id").eq("id", eventId).single();
 
         if (eventError || !event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
         if (event.user_id !== user.id) {
-            return NextResponse.json(
-                { error: "Only event owners can send blasts" },
-                { status: 403 }
-            );
+            return NextResponse.json({ error: "Only event owners can send blasts" }, { status: 403 });
         }
 
         // Get all registered attendees
-        const { data: registrations, error: registrationsError } = await supabase
-            .from("event_registrations")
-            .select("user_id")
-            .eq("event_id", eventId);
+        const { data: registrations, error: registrationsError } = await supabase.from("event_registrations").select("user_id").eq("event_id", eventId);
 
         if (registrationsError) {
             console.error("Error fetching registrations:", registrationsError);
-            return NextResponse.json(
-                { error: "Failed to fetch registrations" },
-                { status: 500 }
-            );
+            return NextResponse.json({ error: "Failed to fetch registrations" }, { status: 500 });
         }
 
         if (!registrations || registrations.length === 0) {
-            return NextResponse.json(
-                { error: "No registered attendees found" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "No registered attendees found" }, { status: 400 });
         }
 
         // Get email addresses for all attendees
@@ -74,8 +55,7 @@ export async function POST(
 
         for (const userId of userIds) {
             try {
-                const { data: userData, error: userError } =
-                    await adminSupabase.auth.admin.getUserById(userId);
+                const { data: userData, error: userError } = await adminSupabase.auth.admin.getUserById(userId);
 
                 if (!userError && userData?.user?.email) {
                     emailAddresses.push(userData.user.email);
@@ -86,10 +66,7 @@ export async function POST(
         }
 
         if (emailAddresses.length === 0) {
-            return NextResponse.json(
-                { error: "No valid email addresses found" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "No valid email addresses found" }, { status: 400 });
         }
 
         // Generate email content
@@ -109,7 +86,10 @@ export async function POST(
             ${event.title}
         </h1>
         <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-radius: 6px;">
-            ${message.split("\n").map((line: string) => `<p style="margin: 0 0 12px 0;">${line || "<br>"}</p>`).join("")}
+            ${message
+                .split("\n")
+                .map((line: string) => `<p style="margin: 0 0 12px 0;">${line || "<br>"}</p>`)
+                .join("")}
         </div>
         <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
             <a href="${eventUrl}" style="display: inline-block; padding: 12px 24px; background: #111827; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600;">
@@ -138,20 +118,15 @@ You're receiving this because you registered for this event.
         const emailService = new EmailService();
         const results = await Promise.allSettled(
             emailAddresses.map((email) =>
-                emailService.sendEmail(
-                    email,
-                    {
-                        subject,
-                        html: htmlContent,
-                        text: textContent,
-                    }
-                )
-            )
+                emailService.sendEmail(email, {
+                    subject,
+                    html: htmlContent,
+                    text: textContent,
+                }),
+            ),
         );
 
-        const successful = results.filter(
-            (r) => r.status === "fulfilled" && r.value === true
-        ).length;
+        const successful = results.filter((r) => r.status === "fulfilled" && r.value === true).length;
         const failed = results.length - successful;
 
         // Save the blast record
@@ -183,9 +158,6 @@ You're receiving this because you registered for this event.
         });
     } catch (error: any) {
         console.error("Error sending blast:", error);
-        return NextResponse.json(
-            { error: error.message || "Internal server error" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }

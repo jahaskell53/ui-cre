@@ -1,24 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePageTour } from "@/hooks/use-page-tour";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
-import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
-import { FeedItem, Post } from "@/components/feed/feed-item";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CreatePostInline } from "@/components/feed/create-post-inline";
+import { FeedItem, Post } from "@/components/feed/feed-item";
 import { NotificationCard } from "@/components/notifications/notification-card";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
+import { usePageTour } from "@/hooks/use-page-tour";
+import { useUser } from "@/hooks/use-user";
+import { supabase } from "@/utils/supabase";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
-    return (
-        <Heart
-            className={className}
-            fill={isLiked ? "currentColor" : "none"}
-        />
-    );
+    return <Heart className={className} fill={isLiked ? "currentColor" : "none"} />;
 };
 
 interface Notification {
@@ -81,10 +76,12 @@ export default function FeedPage() {
         setLoading(true);
         const { data: postsData, error } = await supabase
             .from("posts")
-            .select(`
+            .select(
+                `
                 *,
                 profile:profiles(full_name, avatar_url)
-            `)
+            `,
+            )
             .order("created_at", { ascending: false });
 
         if (error) {
@@ -94,36 +91,30 @@ export default function FeedPage() {
         }
 
         if (postsData) {
-            const postIds = postsData.map(p => p.id);
+            const postIds = postsData.map((p) => p.id);
 
             // Get likes count and check if current user liked
-            const { data: likesData } = await supabase
-                .from("likes")
-                .select("post_id, user_id")
-                .in("post_id", postIds);
+            const { data: likesData } = await supabase.from("likes").select("post_id, user_id").in("post_id", postIds);
 
             // Get comments count
-            const { data: commentsData } = await supabase
-                .from("comments")
-                .select("post_id")
-                .in("post_id", postIds);
+            const { data: commentsData } = await supabase.from("comments").select("post_id").in("post_id", postIds);
 
             const likesCountMap = new Map<string, number>();
             const userLikedMap = new Map<string, boolean>();
             const commentsCountMap = new Map<string, number>();
 
-            likesData?.forEach(like => {
+            likesData?.forEach((like) => {
                 likesCountMap.set(like.post_id, (likesCountMap.get(like.post_id) || 0) + 1);
                 if (like.user_id === user?.id) {
                     userLikedMap.set(like.post_id, true);
                 }
             });
 
-            commentsData?.forEach(comment => {
+            commentsData?.forEach((comment) => {
                 commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
             });
 
-            const postsWithCounts = postsData.map(post => ({
+            const postsWithCounts = postsData.map((post) => ({
                 ...post,
                 profile: (post as any).profile,
                 likes_count: likesCountMap.get(post.id) || 0,
@@ -142,60 +133,38 @@ export default function FeedPage() {
             return;
         }
 
-        const post = posts.find(p => p.id === postId);
+        const post = posts.find((p) => p.id === postId);
         if (!post) return;
 
         if (post.is_liked) {
             // Unlike
-            const { error } = await supabase
-                .from("likes")
-                .delete()
-                .eq("post_id", postId)
-                .eq("user_id", user.id);
+            const { error } = await supabase.from("likes").delete().eq("post_id", postId).eq("user_id", user.id);
 
             if (!error) {
-                setPosts(posts.map(p =>
-                    p.id === postId
-                        ? { ...p, is_liked: false, likes_count: (p.likes_count || 0) - 1 }
-                        : p
-                ));
+                setPosts(posts.map((p) => (p.id === postId ? { ...p, is_liked: false, likes_count: (p.likes_count || 0) - 1 } : p)));
             }
         } else {
             // Like
-            const { error } = await supabase
-                .from("likes")
-                .insert({
-                    post_id: postId,
-                    user_id: user.id
-                });
+            const { error } = await supabase.from("likes").insert({
+                post_id: postId,
+                user_id: user.id,
+            });
 
             if (!error) {
-                setPosts(posts.map(p =>
-                    p.id === postId
-                        ? { ...p, is_liked: true, likes_count: (p.likes_count || 0) + 1 }
-                        : p
-                ));
+                setPosts(posts.map((p) => (p.id === postId ? { ...p, is_liked: true, likes_count: (p.likes_count || 0) + 1 } : p)));
             }
         }
     };
 
     const handleComment = async (postId: string, content: string) => {
-        setPosts(posts.map(p =>
-            p.id === postId
-                ? { ...p, comments_count: (p.comments_count || 0) + 1 }
-                : p
-        ));
+        setPosts(posts.map((p) => (p.id === postId ? { ...p, comments_count: (p.comments_count || 0) + 1 } : p)));
     };
 
     const handleDeletePost = async (postId: string) => {
-        const { error } = await supabase
-            .from("posts")
-            .delete()
-            .eq("id", postId)
-            .eq("user_id", user?.id);
+        const { error } = await supabase.from("posts").delete().eq("id", postId).eq("user_id", user?.id);
 
         if (!error) {
-            setPosts(posts.filter(p => p.id !== postId));
+            setPosts(posts.filter((p) => p.id !== postId));
         } else {
             console.error("Error deleting post:", error.message);
             alert("Failed to delete post. Please try again.");
@@ -203,18 +172,10 @@ export default function FeedPage() {
     };
 
     const handleDeleteComment = async (commentId: string, postId: string) => {
-        const { error } = await supabase
-            .from("comments")
-            .delete()
-            .eq("id", commentId)
-            .eq("user_id", user?.id);
+        const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", user?.id);
 
         if (!error) {
-            setPosts(posts.map(p =>
-                p.id === postId
-                    ? { ...p, comments_count: Math.max(0, (p.comments_count || 0) - 1) }
-                    : p
-            ));
+            setPosts(posts.map((p) => (p.id === postId ? { ...p, comments_count: Math.max(0, (p.comments_count || 0) - 1) } : p)));
         } else {
             console.error("Error deleting comment:", error.message);
             alert("Failed to delete comment. Please try again.");
@@ -227,7 +188,7 @@ export default function FeedPage() {
 
     if (userLoading || loading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
+            <div className="flex min-h-[400px] items-center justify-center">
                 <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>
             </div>
         );
@@ -265,20 +226,18 @@ export default function FeedPage() {
     ];
 
     return (
-        <div className="relative flex flex-col gap-8 p-6 overflow-auto h-full">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-6">
-                    <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
-                        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">
-                            {showingLiked ? "Liked Posts" : "Posts"}
-                        </h2>
+        <div className="relative flex h-full flex-col gap-8 overflow-auto p-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
+                <div className="order-2 flex flex-col gap-6 lg:order-1 lg:col-span-3">
+                    <div className="flex items-baseline justify-between border-b border-gray-200 pb-4 dark:border-gray-800">
+                        <h2 className="text-base leading-none font-semibold text-gray-900 dark:text-gray-100">{showingLiked ? "Liked Posts" : "Posts"}</h2>
                         <button
                             data-tour="liked-filter"
                             onClick={() => setShowingLiked(!showingLiked)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                                 showingLiked
-                                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                                    ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                                    : "border border-gray-200 text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                             }`}
                         >
                             <HeartIcon isLiked={showingLiked} className="size-4" />
@@ -299,13 +258,13 @@ export default function FeedPage() {
                     )}
 
                     <div data-tour="posts-feed" className="grid gap-6">
-                        {posts.filter(p => !showingLiked || p.is_liked).length === 0 ? (
-                            <div className="text-center py-12 text-sm text-gray-500 dark:text-gray-400">
+                        {posts.filter((p) => !showingLiked || p.is_liked).length === 0 ? (
+                            <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                                 {showingLiked ? "You haven't liked any posts yet." : "No posts yet. Be the first to share something!"}
                             </div>
                         ) : (
                             posts
-                                .filter(p => !showingLiked || p.is_liked)
+                                .filter((p) => !showingLiked || p.is_liked)
                                 .map((post) => (
                                     <FeedItem
                                         key={post.id}
@@ -324,26 +283,23 @@ export default function FeedPage() {
 
                 <div className="order-1 lg:order-2 lg:col-span-1">
                     <div data-tour="notifications" className="flex flex-col gap-4">
-                        <div className="flex justify-between items-baseline border-b border-gray-200 dark:border-gray-800 pb-4">
-                            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-none">Notifications</h2>
+                        <div className="flex items-baseline justify-between border-b border-gray-200 pb-4 dark:border-gray-800">
+                            <h2 className="text-base leading-none font-semibold text-gray-900 dark:text-gray-100">Notifications</h2>
                             <Link
                                 href="/notifications"
-                                className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                                className="text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
                             >
                                 View all
                             </Link>
                         </div>
                         {notifications.length > 0 ? (
-                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
                                 {notifications.map((notification) => (
-                                    <NotificationCard
-                                        key={notification.id}
-                                        notification={notification}
-                                    />
+                                    <NotificationCard key={notification.id} notification={notification} />
                                 ))}
                             </div>
                         ) : (
-                            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-6 text-center">
+                            <div className="rounded-lg border border-gray-200 bg-white p-6 text-center dark:border-gray-800 dark:bg-gray-900">
                                 <p className="text-sm text-gray-500 dark:text-gray-400">No new notifications</p>
                             </div>
                         )}

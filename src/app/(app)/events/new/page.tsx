@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowLeft, Calendar, Clock, ImagePlus, MapPin, Video, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, MapPin, ArrowLeft, ImagePlus, X, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Switch } from "@/components/ui/switch";
-import Link from "next/link";
+import { Textarea } from "@/components/ui/textarea";
 
 // Generate time options in 30-minute intervals
 const generateTimeOptions = () => {
@@ -138,14 +138,14 @@ export default function NewEventPage() {
     const today = new Date();
 
     return (
-        <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
+        <div className="flex h-screen flex-col bg-white dark:bg-gray-900">
             {/* Top Header Bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
                 <button
                     onClick={() => router.push("/events")}
-                    className="p-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                    className="-ml-1.5 rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
@@ -155,176 +155,150 @@ export default function NewEventPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
-                <div className="flex flex-col gap-8 p-6 max-w-2xl mx-auto w-full">
-
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="title" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Event Title *
-                        </Label>
-                        <Input
-                            id="title"
-                            placeholder="Enter event title"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="h-11"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <Label htmlFor="description" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Description
-                        </Label>
-                        <Textarea
-                            id="description"
-                            placeholder="Add a description for your event"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={3}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1rem_auto] gap-2 md:gap-3">
-                        <DatePicker
-                            date={startDate}
-                            onDateChange={setStartDate}
-                            minDate={today}
-                            placeholder="Select date"
-                        />
-                        <Select value={startTime} onValueChange={setStartTime}>
-                            <SelectTrigger className="!h-11 w-full">
-                                <SelectValue placeholder="Start time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {timeOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <div className="hidden md:flex items-center justify-center">
-                            <span className="text-gray-500 dark:text-gray-400">—</span>
-                        </div>
-                        <Select value={endTime} onValueChange={setEndTime}>
-                            <SelectTrigger className="!h-11 w-full">
-                                <SelectValue placeholder="End time" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {timeOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-                        <div className="flex flex-col">
-                            <Label htmlFor="in-person" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                In Person
-                            </Label>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                Enable to add a physical location
-                            </p>
-                        </div>
-                        <Switch
-                            id="in-person"
-                            checked={isInPerson}
-                            onCheckedChange={setIsInPerson}
-                        />
-                    </div>
-
-                    {isInPerson && (
-                        <div className="flex flex-col gap-2">
-                            <Label htmlFor="location" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                <MapPin className="size-4" />
-                                Location
-                            </Label>
-                            <Input
-                                id="location"
-                                placeholder="Add a physical location"
-                                value={location}
-                                onChange={(e) => setLocation(e.target.value)}
-                                className="h-11"
-                            />
+                <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-6">
+                    {error && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                         </div>
                     )}
 
-                    {/* Google Meet Info */}
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                        <Video className="size-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                            A Google Meet link will be automatically created for this event.
-                        </p>
-                    </div>
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="title" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Event Title *
+                            </Label>
+                            <Input id="title" placeholder="Enter event title" value={title} onChange={(e) => setTitle(e.target.value)} className="h-11" />
+                        </div>
 
-                    <div className="flex flex-col gap-2">
-                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                            <ImagePlus className="size-4" />
-                            Cover Image
-                        </Label>
-                        {imageUrl ? (
-                            <div className="relative">
-                                <img
-                                    src={imageUrl}
-                                    alt="Event cover"
-                                    className="w-full h-48 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setImageUrl("")}
-                                    className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
-                                >
-                                    <X className="size-4" />
-                                </button>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="description" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Description
+                            </Label>
+                            <Textarea
+                                id="description"
+                                placeholder="Add a description for your event"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                rows={3}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_1rem_auto] md:gap-3">
+                            <DatePicker date={startDate} onDateChange={setStartDate} minDate={today} placeholder="Select date" />
+                            <Select value={startTime} onValueChange={setStartTime}>
+                                <SelectTrigger className="!h-11 w-full">
+                                    <SelectValue placeholder="Start time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {timeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="hidden items-center justify-center md:flex">
+                                <span className="text-gray-500 dark:text-gray-400">—</span>
                             </div>
-                        ) : (
-                            <label className="cursor-pointer">
-                                <input
-                                    type="file"
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                    disabled={isUploading}
-                                />
-                                <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-md hover:border-gray-400 dark:hover:border-gray-600 transition-colors bg-white dark:bg-gray-900">
-                                    {isUploading ? (
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">Uploading...</span>
-                                    ) : (
-                                        <>
-                                            <ImagePlus className="size-8 text-gray-400 dark:text-gray-500 mb-2" />
-                                            <span className="text-sm text-gray-500 dark:text-gray-400">Click to upload cover image</span>
-                                            <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG up to 10MB</span>
-                                        </>
-                                    )}
-                                </div>
-                            </label>
-                        )}
-                    </div>
+                            <Select value={endTime} onValueChange={setEndTime}>
+                                <SelectTrigger className="!h-11 w-full">
+                                    <SelectValue placeholder="End time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {timeOptions.map((option) => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                    <div className="flex gap-3 pt-4">
-                        <Link href="/events" className="flex-1">
-                            <Button type="button" variant="outline" className="w-full h-11">
-                                Cancel
+                        <div className="flex items-center justify-between rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                            <div className="flex flex-col">
+                                <Label htmlFor="in-person" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    In Person
+                                </Label>
+                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Enable to add a physical location</p>
+                            </div>
+                            <Switch id="in-person" checked={isInPerson} onCheckedChange={setIsInPerson} />
+                        </div>
+
+                        {isInPerson && (
+                            <div className="flex flex-col gap-2">
+                                <Label htmlFor="location" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <MapPin className="size-4" />
+                                    Location
+                                </Label>
+                                <Input
+                                    id="location"
+                                    placeholder="Add a physical location"
+                                    value={location}
+                                    onChange={(e) => setLocation(e.target.value)}
+                                    className="h-11"
+                                />
+                            </div>
+                        )}
+
+                        {/* Google Meet Info */}
+                        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                            <Video className="size-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                            <p className="text-sm text-blue-700 dark:text-blue-300">A Google Meet link will be automatically created for this event.</p>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <ImagePlus className="size-4" />
+                                Cover Image
+                            </Label>
+                            {imageUrl ? (
+                                <div className="relative">
+                                    <img
+                                        src={imageUrl}
+                                        alt="Event cover"
+                                        className="h-48 w-full rounded-lg border border-gray-200 object-cover dark:border-gray-700"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setImageUrl("")}
+                                        className="absolute top-2 right-2 rounded-full bg-black/50 p-1.5 text-white transition-colors hover:bg-black/70"
+                                    >
+                                        <X className="size-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="cursor-pointer">
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={isUploading} />
+                                    <div className="flex h-48 flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-300 bg-white transition-colors hover:border-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-gray-600">
+                                        {isUploading ? (
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">Uploading...</span>
+                                        ) : (
+                                            <>
+                                                <ImagePlus className="mb-2 size-8 text-gray-400 dark:text-gray-500" />
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">Click to upload cover image</span>
+                                                <span className="mt-1 text-xs text-gray-400 dark:text-gray-500">PNG, JPG up to 10MB</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </label>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                            <Link href="/events" className="flex-1">
+                                <Button type="button" variant="outline" className="h-11 w-full">
+                                    Cancel
+                                </Button>
+                            </Link>
+                            <Button
+                                type="submit"
+                                disabled={isLoading}
+                                className="h-11 flex-1 bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+                            >
+                                {isLoading ? "Creating..." : "Create Event"}
                             </Button>
-                        </Link>
-                        <Button
-                            type="submit"
-                            disabled={isLoading}
-                            className="flex-1 h-11 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200"
-                        >
-                            {isLoading ? "Creating..." : "Create Event"}
-                        </Button>
-                    </div>
-                </form>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

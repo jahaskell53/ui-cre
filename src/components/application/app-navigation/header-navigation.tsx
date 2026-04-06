@@ -3,10 +3,10 @@
 import type { FC, ReactNode } from "react";
 import { Bell as Bell01, LifeBuoy as LifeBuoy01, Search as SearchLg, Settings as Settings01 } from "lucide-react";
 import { Button as AriaButton, DialogTrigger, Popover } from "react-aria-components";
+import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
 import { useUser } from "@/hooks/use-user";
 import { cn as cx } from "@/lib/utils";
 import { MobileNavigationHeader } from "./base-components/mobile-header";
@@ -79,8 +79,8 @@ export const HeaderNavigationBase = ({
                                 href="#"
                                 icon={Settings01}
                                 badge={
-                                    <Badge className="bg-green-100 text-green-700 border-green-200">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-green-600 mr-1.5" />
+                                    <Badge className="border-green-200 bg-green-100 text-green-700">
+                                        <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-green-600" />
                                         Online
                                     </Badge>
                                 }
@@ -160,13 +160,8 @@ export const HeaderNavigationBase = ({
                                         }
                                     >
                                         <Avatar>
-                                            <AvatarImage 
-                                                src={profile?.avatar_url || undefined} 
-                                                alt={profile?.full_name || user.email || "User"}
-                                            />
-                                            <AvatarFallback>
-                                                {(profile?.full_name || user.email || "User").substring(0, 2).toUpperCase()}
-                                            </AvatarFallback>
+                                            <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.full_name || user.email || "User"} />
+                                            <AvatarFallback>{(profile?.full_name || user.email || "User").substring(0, 2).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                     </AriaButton>
                                     <Popover
@@ -176,9 +171,9 @@ export const HeaderNavigationBase = ({
                                             cx(
                                                 "will-change-transform",
                                                 isEntering &&
-                                                "duration-300 ease-out animate-in fade-in placement-right:slide-in-from-left-2 placement-top:slide-in-from-bottom-2 placement-bottom:slide-in-from-top-2",
+                                                    "duration-300 ease-out animate-in fade-in placement-right:slide-in-from-left-2 placement-top:slide-in-from-bottom-2 placement-bottom:slide-in-from-top-2",
                                                 isExiting &&
-                                                "duration-150 ease-in animate-out fade-out placement-right:slide-out-to-left-2 placement-top:slide-out-to-bottom-2 placement-bottom:slide-out-to-top-2",
+                                                    "duration-150 ease-in animate-out fade-out placement-right:slide-out-to-left-2 placement-top:slide-out-to-bottom-2 placement-bottom:slide-out-to-top-2",
                                             )
                                         }
                                     >

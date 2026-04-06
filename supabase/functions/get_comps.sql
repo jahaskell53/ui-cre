@@ -32,12 +32,52 @@ AS $function$
         ELSE (SELECT geom FROM neighborhoods WHERE id = p_neighborhood_id)
       END AS geom
   ),
-  -- Deduplicate by zpid, keeping the most recently scraped row
+  prefiltered AS (
+    SELECT cl.*
+    FROM cleaned_listings cl
+    WHERE cl.geom IS NOT NULL
+      AND cl.price IS NOT NULL
+      AND cl.is_building IS NOT TRUE
+      AND cl.home_type IS DISTINCT FROM 'SINGLE_FAMILY'
+      AND (p_home_type IS NULL OR cl.home_type = p_home_type)
+      AND (
+        p_segment = 'both'
+        OR (p_segment = 'mid' AND cl.building_zpid IS NULL)
+        OR (p_segment = 'reit' AND cl.building_zpid IS NOT NULL)
+      )
+      AND (
+        (
+          p_neighborhood_ids IS NOT NULL
+          AND ST_Within(cl.geom, (SELECT ST_Union(geom) FROM neighborhoods WHERE id = ANY(p_neighborhood_ids)))
+        )
+        OR (
+          p_neighborhood_ids IS NULL
+          AND p_neighborhood_id IS NOT NULL
+          AND ST_Within(cl.geom, (SELECT geom FROM neighborhood_geom))
+        )
+        OR (
+          p_neighborhood_ids IS NULL
+          AND p_neighborhood_id IS NULL
+          AND p_subject_zip IS NOT NULL
+          AND cl.address_zip = p_subject_zip
+        )
+        OR (
+          p_neighborhood_ids IS NULL
+          AND p_neighborhood_id IS NULL
+          AND p_subject_zip IS NULL
+          AND ST_DWithin(
+            ST_SetSRID(ST_Point(subject_lng, subject_lat), 4326)::geography,
+            cl.geom::geography,
+            radius_m
+          )
+        )
+      )
+  ),
   deduped AS (
     SELECT DISTINCT ON (zpid)
       id, address_raw, address_street, address_city, address_state, address_zip,
       price, beds, baths, area, building_zpid, geom, home_type, is_building
-    FROM cleaned_listings
+    FROM prefiltered
     ORDER BY zpid, scraped_at DESC NULLS LAST
   ),
   candidates AS (
@@ -58,31 +98,7 @@ AS $function$
         cl.geom::geography
       ) AS distance_m
     FROM deduped cl
-    WHERE cl.home_type IS DISTINCT FROM 'SINGLE_FAMILY'
-      AND (p_home_type IS NULL OR cl.home_type = p_home_type)
-      AND (p_segment = 'both' OR (p_segment = 'mid' AND cl.building_zpid IS NULL) OR (p_segment = 'reit' AND cl.building_zpid IS NOT NULL))
-      AND cl.is_building IS NOT TRUE
-      AND cl.geom  IS NOT NULL
-      AND cl.price IS NOT NULL
-      AND (
-        (p_neighborhood_ids IS NOT NULL AND ST_Within(
-            cl.geom,
-            (SELECT ST_Union(geom) FROM neighborhoods WHERE id = ANY(p_neighborhood_ids))
-        ))
-        OR (p_neighborhood_ids IS NULL AND p_neighborhood_id IS NOT NULL AND ST_Within(
-            cl.geom,
-            (SELECT geom FROM neighborhood_geom)
-        ))
-        OR (p_neighborhood_ids IS NULL AND p_neighborhood_id IS NULL AND p_subject_zip IS NOT NULL
-            AND cl.address_zip = p_subject_zip)
-        OR (p_neighborhood_ids IS NULL AND p_neighborhood_id IS NULL AND p_subject_zip IS NULL AND ST_DWithin(
-            ST_SetSRID(ST_Point(subject_lng, subject_lat), 4326)::geography,
-            cl.geom::geography,
-            radius_m
-        ))
-      )
-      AND (subject_beds  IS NULL OR COALESCE(cl.beds, 0) = subject_beds)
-      AND (subject_baths IS NULL OR cl.baths BETWEEN subject_baths - 0.5 AND subject_baths + 0.5)
+    WHERE (subject_beds IS NULL OR COALESCE(cl.beds, 0) = subject_beds)
   ),
   scored AS (
     SELECT

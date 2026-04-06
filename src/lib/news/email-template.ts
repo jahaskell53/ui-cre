@@ -1,38 +1,38 @@
 export interface NewsletterTemplateData {
-  subscriberName: string;
-  locations?: string;
-  interests?: string;
-  content: string;
-  unsubscribeUrl: string;
-  isPreview?: boolean;
-  title?: string;
-  subscriberEmail?: string;
+    subscriberName: string;
+    locations?: string;
+    interests?: string;
+    content: string;
+    unsubscribeUrl: string;
+    isPreview?: boolean;
+    title?: string;
+    subscriberEmail?: string;
 }
 
 export function formatInterests(interests: string | null | undefined): string {
-  if (!interests) return '';
+    if (!interests) return "";
 
-  try {
-    // Try to parse as JSON array
-    const parsed = JSON.parse(interests);
-    if (Array.isArray(parsed)) {
-      // Join items with a space (assuming each item already ends with a period)
-      return parsed.join(' ');
+    try {
+        // Try to parse as JSON array
+        const parsed = JSON.parse(interests);
+        if (Array.isArray(parsed)) {
+            // Join items with a space (assuming each item already ends with a period)
+            return parsed.join(" ");
+        }
+        // If not an array, return as is
+        return interests;
+    } catch {
+        // If parsing fails, return as is
+        return interests;
     }
-    // If not an array, return as is
-    return interests;
-  } catch {
-    // If parsing fails, return as is
-    return interests;
-  }
 }
 
 export function generateNewsletterHTML(data: NewsletterTemplateData): string {
-  const { content, unsubscribeUrl, interests, locations, subscriberEmail } = data;
-  const formattedInterests = formatInterests(interests);
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.openmidmarket.com';
+    const { content, unsubscribeUrl, interests, locations, subscriberEmail } = data;
+    const formattedInterests = formatInterests(interests);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.openmidmarket.com";
 
-  return `
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -61,24 +61,32 @@ export function generateNewsletterHTML(data: NewsletterTemplateData): string {
         ${content}
     </div>
 
-    ${formattedInterests ? `
+    ${
+        formattedInterests
+            ? `
     <div class="interests-section">
         <p><strong>Your interests:</strong> ${formattedInterests}</p>
     </div>
-    ` : `
+    `
+            : `
     <div class="interests-section">
         <p style="font-size: 12px; color: #666;">
             Want more personalized content?
             <a href="${baseUrl}/news/settings" style="color: #666; text-decoration: underline;">Add your interests here</a> to get articles tailored to your preferences.
         </p>
     </div>
-    `}
+    `
+    }
 
-    ${locations ? `
+    ${
+        locations
+            ? `
     <div class="interests-section">
         <p><strong>Your regions:</strong> ${locations}</p>
     </div>
-    ` : ''}
+    `
+            : ""
+    }
 
     <div class="interests-section">
         <p style="font-size: 12px; color: #666; margin-top: 8px;">

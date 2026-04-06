@@ -80,10 +80,7 @@ export const ContactMap = ({ className, locations, selectedId }: ContactMapProps
 
             const color = loc.addressLabel === "Home" ? "#0ea5e9" : "#7f56d9";
 
-            const marker = new mapboxgl.Marker({ color })
-                .setLngLat(loc.coordinates)
-                .setPopup(popup)
-                .addTo(map.current!);
+            const marker = new mapboxgl.Marker({ color }).setLngLat(loc.coordinates).setPopup(popup).addTo(map.current!);
 
             markers.current[loc.id] = marker;
         });
@@ -112,4 +109,3 @@ export const ContactMap = ({ className, locations, selectedId }: ContactMapProps
 
     return <div ref={mapContainer} className={className} style={{ width: "100%", height: "100%", minHeight: "400px" }} />;
 };
-

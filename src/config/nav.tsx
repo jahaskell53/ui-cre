@@ -1,4 +1,4 @@
-import { Calendar, Home, TrendingUp, Settings, User, Users, MessageSquare, Bell, Mail } from "lucide-react";
+import { Bell, Calendar, Home, Mail, MessageSquare, Settings, TrendingUp, User, Users } from "lucide-react";
 import type { NavItemType } from "@/components/application/app-navigation/config";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,7 +17,7 @@ export const APP_NAV_ITEMS: NavItemType[] = [
         label: "Events",
         icon: Calendar,
         href: "/events",
-        badge: <Badge className="ml-3 bg-orange-100 text-orange-700 border-orange-200">Coming Soon</Badge>,
+        badge: <Badge className="ml-3 border-orange-200 bg-orange-100 text-orange-700">Coming Soon</Badge>,
     },
     {
         label: "Users",
@@ -53,4 +53,3 @@ export const FOOTER_NAV_ITEMS: NavItemType[] = [
         href: "/profile",
     },
 ];
-

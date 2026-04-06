@@ -7,48 +7,41 @@ import { createClient } from "@/utils/supabase/server";
  * @returns Array of county IDs (UUIDs)
  */
 export async function getCountyIds(countyNames: string[]): Promise<string[]> {
-  if (countyNames.length === 0) {
-    return [];
-  }
+    if (countyNames.length === 0) {
+        return [];
+    }
 
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  // Look up all counties in a single query
-  const { data: counties, error } = await supabase
-    .from("counties")
-    .select("id, name")
-    .in("name", countyNames);
+    // Look up all counties in a single query
+    const { data: counties, error } = await supabase.from("counties").select("id, name").in("name", countyNames);
 
-  if (error) {
-    console.error("Error fetching counties:", error);
-    throw error;
-  }
+    if (error) {
+        console.error("Error fetching counties:", error);
+        throw error;
+    }
 
-  // Create a map of county name to ID
-  const countyMap = new Map<string, string>();
-  for (const county of counties || []) {
-    countyMap.set(county.name, county.id);
-  }
+    // Create a map of county name to ID
+    const countyMap = new Map<string, string>();
+    for (const county of counties || []) {
+        countyMap.set(county.name, county.id);
+    }
 
-  // Get the 'Other' county ID as fallback
-  const { data: otherCounty, error: otherError } = await supabase
-    .from("counties")
-    .select("id")
-    .eq("name", "Other")
-    .single();
+    // Get the 'Other' county ID as fallback
+    const { data: otherCounty, error: otherError } = await supabase.from("counties").select("id").eq("name", "Other").single();
 
-  if (otherError || !otherCounty) {
-    throw new Error("'Other' county not found in database");
-  }
+    if (otherError || !otherCounty) {
+        throw new Error("'Other' county not found in database");
+    }
 
-  const otherCountyId = otherCounty.id;
+    const otherCountyId = otherCounty.id;
 
-  // Map county names to IDs, using 'Other' as fallback for missing counties
-  const countyIds: string[] = [];
-  for (const countyName of countyNames) {
-    const countyId = countyMap.get(countyName) || otherCountyId;
-    countyIds.push(countyId);
-  }
+    // Map county names to IDs, using 'Other' as fallback for missing counties
+    const countyIds: string[] = [];
+    for (const countyName of countyNames) {
+        const countyId = countyMap.get(countyName) || otherCountyId;
+        countyIds.push(countyId);
+    }
 
-  return countyIds;
+    return countyIds;
 }
