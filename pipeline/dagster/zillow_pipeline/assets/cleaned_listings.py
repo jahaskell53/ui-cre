@@ -103,6 +103,12 @@ def cleaned_listings(
         for listing in listings:
             if config.limit and total_processed >= config.limit:
                 break
+
+            home_info = (listing.get("hdpData") or {}).get("homeInfo", {})
+            home_type = (home_info.get("homeType") or "").upper()
+            if home_type == "TOWNHOUSE":
+                continue
+
             total_processed += 1
 
             try:
@@ -111,7 +117,6 @@ def cleaned_listings(
                 parsed_addr = normalize_address(address_raw) if address_raw else {}
 
                 lat_long = listing.get("latLong") or {}
-                home_info = (listing.get("hdpData") or {}).get("homeInfo", {})
                 lat = lat_long.get("latitude") or home_info.get("latitude")
                 lng = lat_long.get("longitude") or home_info.get("longitude")
 
