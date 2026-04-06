@@ -39,7 +39,11 @@ function isJsonObject(value: unknown): value is JsonObject {
 
 function decodeBasicHtmlEntities(value: string | null | undefined): string | null {
     if (!value) return null;
-    return value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+    return value
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ");
 }
 
 function parseNumberish(value: unknown): number | null {
@@ -109,16 +113,16 @@ export function extractZillowBuildingDetails(rawItem: unknown): Partial<ZillowRa
 export function hasZillowPropertyDetails(details: ZillowRawDetails | null): boolean {
     return Boolean(
         details &&
-            (details.buildingName ||
-                details.statusText ||
-                details.availabilityCount != null ||
-                details.description ||
-                details.neighborhood ||
-                details.county ||
-                details.commonUnitAmenities.length > 0 ||
-                details.specialOffer ||
-                details.walkScore ||
-                details.transitScore ||
-                details.bikeScore),
+        (details.buildingName ||
+            details.statusText ||
+            details.availabilityCount != null ||
+            details.description ||
+            details.neighborhood ||
+            details.county ||
+            details.commonUnitAmenities.length > 0 ||
+            details.specialOffer ||
+            details.walkScore ||
+            details.transitScore ||
+            details.bikeScore),
     );
 }

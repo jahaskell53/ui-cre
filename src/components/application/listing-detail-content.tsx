@@ -9,13 +9,13 @@ import { PaginationButtonGroup } from "@/components/application/pagination/pagin
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
 import {
     EMPTY_ZILLOW_RAW_DETAILS,
+    type ZillowRawDetails,
     extractZillowBuildingDetails,
     extractZillowRawDetails,
     formatLaundryLabel,
     formatScoreLabel,
     formatZillowLabel,
     hasZillowPropertyDetails,
-    type ZillowRawDetails,
 } from "@/components/application/zillow-detail-utils";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -399,13 +399,13 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
         listing.source === "zillow" &&
         Boolean(
             zillowRawDetails?.neighborhood ||
-                zillowRawDetails?.county ||
-                zillowRawDetails?.walkScore ||
-                zillowRawDetails?.transitScore ||
-                zillowRawDetails?.bikeScore ||
-                zillowRawDetails?.specialOffer ||
-                zillowRawDetails?.commonUnitAmenities.length ||
-                zillowRawDetails?.description,
+            zillowRawDetails?.county ||
+            zillowRawDetails?.walkScore ||
+            zillowRawDetails?.transitScore ||
+            zillowRawDetails?.bikeScore ||
+            zillowRawDetails?.specialOffer ||
+            zillowRawDetails?.commonUnitAmenities.length ||
+            zillowRawDetails?.description,
         );
 
     const baseHeroFallback = (
@@ -656,9 +656,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                             {zillowRawDetails?.walkScore && (
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-gray-500 dark:text-gray-400">Walk Score</dt>
-                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">
-                                        {formatScoreLabel(zillowRawDetails.walkScore)}
-                                    </dd>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{formatScoreLabel(zillowRawDetails.walkScore)}</dd>
                                 </div>
                             )}
                             {zillowRawDetails?.transitScore && (
@@ -672,9 +670,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                             {zillowRawDetails?.bikeScore && (
                                 <div className="flex justify-between gap-4">
                                     <dt className="text-gray-500 dark:text-gray-400">Bike Score</dt>
-                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">
-                                        {formatScoreLabel(zillowRawDetails.bikeScore)}
-                                    </dd>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{formatScoreLabel(zillowRawDetails.bikeScore)}</dd>
                                 </div>
                             )}
                         </dl>
@@ -706,9 +702,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                     {zillowRawDetails?.description && (
                         <div className="mt-6 border-t border-gray-100 pt-4 dark:border-gray-700">
                             <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Description</h4>
-                            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                {zillowRawDetails.description}
-                            </p>
+                            <p className="mt-2 text-sm leading-6 whitespace-pre-line text-gray-600 dark:text-gray-300">{zillowRawDetails.description}</p>
                         </div>
                     )}
                 </section>
