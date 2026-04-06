@@ -34,7 +34,10 @@ BEGIN
         r->>'detail_url',
         (r->>'is_building')::boolean,
         NULLIF(r->>'building_zpid', ''),
-        NULLIF(r->>'home_type', '')
+        CASE
+            WHEN NULLIF(r->>'home_type', '') = 'MULTI_FAMILY' THEN 'APARTMENT'
+            ELSE NULLIF(r->>'home_type', '')
+        END
     FROM jsonb_array_elements(rows) AS r
     ON CONFLICT (zpid, run_id) DO UPDATE SET
         scraped_at        = EXCLUDED.scraped_at,

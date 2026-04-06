@@ -41,7 +41,11 @@ BEGIN
              ELSE NULL
         END,
         p_raw_scrape_id,
-        p_img_src, p_detail_url, p_is_building, p_building_zpid, p_home_type
+        p_img_src,
+        p_detail_url,
+        p_is_building,
+        p_building_zpid,
+        CASE WHEN p_home_type = 'MULTI_FAMILY' THEN 'APARTMENT' ELSE p_home_type END
     )
     ON CONFLICT (zpid, run_id) DO NOTHING;
 END;
