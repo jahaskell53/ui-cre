@@ -14,14 +14,14 @@ supabase/
 
 1. Create a new file in `migrations/` with the next number: `012_<description>.sql`
 2. Write your DDL (`CREATE TABLE`, `ALTER TABLE`, `CREATE INDEX`, etc.) using `IF NOT EXISTS` / `IF EXISTS` where possible so it's safe to re-run
-3. Apply it in the Supabase dashboard under **SQL Editor**, or via `supabase db push`
+3. Apply it to the **target database**: Supabase Dashboard **SQL Editor**, `supabase db push`, or (for Cursor agents with Supabase MCP) **`apply_migration`** on the hosted project that matches the app’s `NEXT_PUBLIC_SUPABASE_URL`. See **Hosted Supabase migrations** in the root `AGENTS.md`.
 4. Commit the migration file
 
 ## Making a function change
 
 1. Edit the relevant file in `functions/<function_name>.sql`
 2. Create a new migration in `migrations/` with the same `CREATE OR REPLACE FUNCTION` — this is what actually runs against the DB
-3. Apply the migration in Supabase
+3. Apply the migration to the hosted project (Dashboard, `supabase db push`, or Supabase MCP `apply_migration` — same as step 3 under *Making a schema change*; see `AGENTS.md`)
 4. Commit both files together
 
 The `functions/` files are the readable source of truth for what each function currently does. The `migrations/` files are the authoritative change history.
