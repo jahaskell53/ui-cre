@@ -573,7 +573,6 @@ function MapPageInner() {
                     .not("latitude", "is", null)
                     .not("longitude", "is", null)
                     .neq("home_type", "SINGLE_FAMILY")
-                    .neq("home_type", "TOWNHOUSE")
                     .order("scraped_at", { ascending: false });
                 if (latestOnly && latestZillowRun?.run_id != null) {
                     zillowQuery = zillowQuery.eq("run_id", latestZillowRun.run_id);
