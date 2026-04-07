@@ -1257,24 +1257,15 @@ function CompsContent() {
                                 </div>
                                 <div>
                                     <Label className="mb-1 block text-xs">Segment</Label>
-                                    <div className="flex overflow-hidden rounded-md border border-input">
-                                        {(["both", "mid", "reit"] as const).map((seg, i) => (
-                                            <button
-                                                key={seg}
-                                                type="button"
-                                                onClick={() => setRentSegment(seg)}
-                                                className={cn(
-                                                    "flex-1 py-1 text-xs transition-colors",
-                                                    i > 0 ? "border-l border-input" : "",
-                                                    rentSegment === seg
-                                                        ? "bg-blue-600 text-white"
-                                                        : "bg-background text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700",
-                                                )}
-                                            >
-                                                {seg === "both" ? "All" : seg === "mid" ? "Mid" : "REIT"}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <select
+                                        value={rentSegment}
+                                        onChange={(e) => setRentSegment(e.target.value as "mid" | "reit" | "both")}
+                                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+                                    >
+                                        <option value="both">All</option>
+                                        <option value="mid">Mid-market</option>
+                                        <option value="reit">REIT</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
