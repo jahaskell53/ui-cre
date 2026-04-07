@@ -110,7 +110,6 @@ export default function TrendsPage() {
         if (raw === "both" || raw === "reit") return raw;
         return "mid";
     });
-    const [selectedHomeType, setSelectedHomeType] = useState<string | null>(() => searchParams.get("homeType"));
     const [loading, setLoading] = useState(false);
 
     // Sync persisted state to URL (shallow push, no navigation)
@@ -120,10 +119,9 @@ export default function TrendsPage() {
         params.set("display", display);
         params.set("beds", selectedBeds.join(","));
         params.set("segment", selectedSegment);
-        if (selectedHomeType) params.set("homeType", selectedHomeType);
         if (selectedAreas.length > 0) params.set("areas", serializeAreas(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [areaType, display, selectedAreas, selectedBeds, selectedSegment, selectedHomeType]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [areaType, display, selectedAreas, selectedBeds, selectedSegment]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
@@ -245,7 +243,7 @@ export default function TrendsPage() {
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
-            const p = { p_beds: beds, p_reits_only: reitsOnly, p_home_type: selectedHomeType };
+            const p = { p_beds: beds, p_reits_only: reitsOnly, p_home_type: null };
             const call = isNh
                 ? getRentTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!], ...p })
                 : isCity
@@ -268,7 +266,7 @@ export default function TrendsPage() {
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
-            const ht = { p_home_type: selectedHomeType };
+            const ht = { p_home_type: null };
             const call = isNh
                 ? getMarketActivityByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly, ...ht })
                 : isCity
@@ -317,7 +315,7 @@ export default function TrendsPage() {
             }
             setAreaResults(next);
         });
-    }, [selectedAreas, selectedBeds, selectedSegment, selectedHomeType]);
+    }, [selectedAreas, selectedBeds, selectedSegment]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress("");
@@ -956,7 +954,7 @@ export default function TrendsPage() {
                     <div className="flex overflow-hidden rounded-lg border border-gray-200 text-sm dark:border-gray-600">
                         {(
                             [
-                                { label: "Both", value: "both" },
+                                { label: "All", value: "both" },
                                 { label: "Mid-market", value: "mid" },
                                 { label: "REIT", value: "reit" },
                             ] as { label: string; value: "both" | "mid" | "reit" }[]
@@ -966,28 +964,6 @@ export default function TrendsPage() {
                                 type="button"
                                 onClick={() => setSelectedSegment(value)}
                                 className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${selectedSegment === value ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700"}`}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Home Type */}
-                <div className="flex items-center gap-4">
-                    <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Home type</span>
-                    <div className="flex overflow-hidden rounded-lg border border-gray-200 text-sm dark:border-gray-600">
-                        {(
-                            [
-                                { label: "All", value: null },
-                                { label: "Apartment", value: "APARTMENT" },
-                            ] as { label: string; value: string | null }[]
-                        ).map(({ label, value }, i) => (
-                            <button
-                                key={label}
-                                type="button"
-                                onClick={() => setSelectedHomeType(value)}
-                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${selectedHomeType === value ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700"}`}
                             >
                                 {label}
                             </button>

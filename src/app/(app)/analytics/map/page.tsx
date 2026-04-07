@@ -68,7 +68,6 @@ interface Filters {
     sqftMax: string;
     beds: number[];
     bathsMin: number | null;
-    homeTypes: string[];
     propertyType: "both" | "reit" | "mid";
 }
 
@@ -81,7 +80,6 @@ const defaultFilters: Filters = {
     sqftMax: "",
     beds: [],
     bathsMin: null,
-    homeTypes: [],
     propertyType: "both",
 };
 
@@ -100,8 +98,6 @@ const BATH_OPTIONS = [
     { label: "3+", value: 3 },
     { label: "4+", value: 4 },
 ];
-
-const HOME_TYPE_OPTIONS = [{ label: "Apartment", value: "APARTMENT" }];
 
 const AREA_TYPE_LABELS: Record<AreaType, string> = {
     zip: "ZIP",
@@ -160,7 +156,6 @@ function MapPageInner() {
     const [totalCount, setTotalCount] = useState(0);
     const [filters, setFilters] = useState<Filters>(() => {
         const beds = searchParams.get("beds");
-        const homeTypes = searchParams.get("homeTypes");
         const bathsMin = searchParams.get("bathsMin");
         const propertyType = searchParams.get("propertyType");
         return {
@@ -177,7 +172,6 @@ function MapPageInner() {
                       .filter((n) => !isNaN(n))
                 : [],
             bathsMin: bathsMin !== null ? parseFloat(bathsMin) || null : null,
-            homeTypes: homeTypes ? homeTypes.split(",").filter(Boolean) : [],
             propertyType: (["both", "reit", "mid"] as const).find((v) => v === propertyType) ?? "both",
         };
     });
@@ -233,7 +227,6 @@ function MapPageInner() {
         if (filters.sqftMin || filters.sqftMax) count++;
         if (mapListingSource === "zillow" && filters.beds.length > 0) count++;
         if (mapListingSource === "zillow" && filters.bathsMin !== null) count++;
-        if (mapListingSource === "zillow" && filters.homeTypes.length > 0) count++;
         if (mapListingSource === "zillow" && filters.propertyType !== "both") count++;
         return count;
     }, [filters, mapListingSource]);
@@ -464,7 +457,7 @@ function MapPageInner() {
                         p_sqft_max: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
                         p_beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
                         p_baths_min: currentFilters.bathsMin ?? null,
-                        p_home_types: currentFilters.homeTypes.length > 0 ? currentFilters.homeTypes : null,
+                        p_home_types: null,
                         p_property_type: currentFilters.propertyType,
                         p_bounds_south: effectiveBounds?.south ?? null,
                         p_bounds_north: effectiveBounds?.north ?? null,
@@ -583,8 +576,6 @@ function MapPageInner() {
         else params.delete("beds");
         if (filters.bathsMin !== null) params.set("bathsMin", String(filters.bathsMin));
         else params.delete("bathsMin");
-        if (filters.homeTypes.length > 0) params.set("homeTypes", filters.homeTypes.join(","));
-        else params.delete("homeTypes");
         if (filters.propertyType !== "both") params.set("propertyType", filters.propertyType);
         else params.delete("propertyType");
 
@@ -839,39 +830,11 @@ function MapPageInner() {
                                 )}
                                 {mapListingSource === "zillow" && (
                                     <div>
-                                        <Label className="text-xs">Home Type</Label>
-                                        <div className="mt-1 flex flex-wrap gap-1.5">
-                                            {HOME_TYPE_OPTIONS.map(({ label, value }) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() =>
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            homeTypes: prev.homeTypes.includes(value)
-                                                                ? prev.homeTypes.filter((t) => t !== value)
-                                                                : [...prev.homeTypes, value],
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                                                        filters.homeTypes.includes(value)
-                                                            ? "border-blue-600 bg-blue-600 text-white"
-                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {mapListingSource === "zillow" && (
-                                    <div>
-                                        <Label className="text-xs">Property Type</Label>
+                                        <Label className="text-xs">Segment</Label>
                                         <div className="mt-1 flex gap-1.5">
                                             {(
                                                 [
-                                                    ["both", "Both"],
+                                                    ["both", "All"],
                                                     ["reit", "REIT"],
                                                     ["mid", "Mid-market"],
                                                 ] as const
