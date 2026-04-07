@@ -66,7 +66,9 @@ function noAuth() {
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/people/board", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -119,7 +121,9 @@ describe("GET /api/people/board", () => {
 // ─── POST ─────────────────────────────────────────────────────────────────────
 
 describe("POST /api/people/board", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -168,7 +172,9 @@ describe("POST /api/people/board", () => {
 // ─── PUT ──────────────────────────────────────────────────────────────────────
 
 describe("PUT /api/people/board", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -218,7 +224,9 @@ describe("PUT /api/people/board", () => {
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 
 describe("DELETE /api/people/board", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();

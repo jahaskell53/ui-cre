@@ -105,7 +105,9 @@ const personRow = {
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/people", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -167,8 +169,12 @@ describe("GET /api/people", () => {
 // ─── POST ─────────────────────────────────────────────────────────────────────
 
 describe("POST /api/people — auth & validation", () => {
-    beforeEach(() => vi.clearAllMocks());
-    afterEach(() => vi.unstubAllGlobals());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -190,8 +196,12 @@ describe("POST /api/people — auth & validation", () => {
 });
 
 describe("POST /api/people — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
-    afterEach(() => vi.unstubAllGlobals());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
 
     it("creates person without address (no geocoding)", async () => {
         authAs("user-1");
@@ -234,8 +244,12 @@ describe("POST /api/people — happy path", () => {
 // ─── PUT ──────────────────────────────────────────────────────────────────────
 
 describe("PUT /api/people", () => {
-    beforeEach(() => vi.clearAllMocks());
-    afterEach(() => vi.unstubAllGlobals());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -309,7 +323,9 @@ describe("PUT /api/people", () => {
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 
 describe("DELETE /api/people", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();

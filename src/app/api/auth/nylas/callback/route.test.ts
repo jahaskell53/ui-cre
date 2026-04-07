@@ -33,7 +33,9 @@ function makeGet(params: Record<string, string>) {
 }
 
 describe("GET /api/auth/nylas/callback", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("redirects to error page when OAuth error param is present", async () => {
         const res = await GET(makeGet({ error: "access_denied" }));

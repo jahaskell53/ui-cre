@@ -97,7 +97,9 @@ describe("GET /api/news/scrape-firecrawl — with sources", () => {
         process.env.CRON_SECRET = "secret";
     });
 
-    afterEach(() => vi.unstubAllGlobals());
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
 
     it("skips source with no URL", async () => {
         mockGetFirecrawlSources.mockResolvedValue([{ sourceId: "src-1", sourceName: "Source 1", url: null }]);

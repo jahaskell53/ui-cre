@@ -47,7 +47,9 @@ const DEFAULT_COLUMNS = ["Active Prospecting", "Offering Memorandum", "Underwrit
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/kanban-columns", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -96,7 +98,9 @@ describe("GET /api/kanban-columns", () => {
 // ─── PUT ──────────────────────────────────────────────────────────────────────
 
 describe("PUT /api/kanban-columns — validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -124,7 +128,9 @@ describe("PUT /api/kanban-columns — validation", () => {
 });
 
 describe("PUT /api/kanban-columns — upsert", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("updates existing record", async () => {
         authAs("user-1");

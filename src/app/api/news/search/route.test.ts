@@ -52,7 +52,9 @@ function setupArticlesFetchWithDate(articles: unknown[] = []) {
 }
 
 describe("POST /api/news/search — auth", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -62,7 +64,9 @@ describe("POST /api/news/search — auth", () => {
 });
 
 describe("POST /api/news/search — validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when query is missing", async () => {
         authAs();
@@ -78,7 +82,9 @@ describe("POST /api/news/search — validation", () => {
 });
 
 describe("POST /api/news/search — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns search results from LLM", async () => {
         authAs();

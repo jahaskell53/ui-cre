@@ -17,7 +17,9 @@ function makeRequest(params?: Record<string, string>) {
 }
 
 describe("GET /api/news/unsubscribe", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 HTML when email param is missing", async () => {
         const res = await GET(makeRequest());

@@ -44,7 +44,9 @@ function other() {
 // ─── getInteractionCount (tested via recalculate) ─────────────────────────────
 
 describe("interaction count", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("counts emails and meetings", async () => {
         const { mockSet } = makeDbWithPeople([makePerson("p1", [email(), email(), meeting()])]);
@@ -76,7 +78,9 @@ describe("interaction count", () => {
 // ─── network strength assignment ─────────────────────────────────────────────
 
 describe("network strength ranking", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("assigns LOW to person with zero interactions regardless of percentile", async () => {
         const updateCalls: Record<string, string> = {};
@@ -206,7 +210,9 @@ describe("network strength ranking", () => {
 // ─── early returns / error handling ───────────────────────────────────────────
 
 describe("recalculateNetworkStrengthForUser — error handling", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns early without updating when there are no people", async () => {
         const mockUpdateSet = vi.fn();

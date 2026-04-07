@@ -101,7 +101,9 @@ const eventRow = {
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/events", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns list of events", async () => {
         authAs();
@@ -156,7 +158,9 @@ describe("GET /api/events", () => {
 // ─── POST ─────────────────────────────────────────────────────────────────────
 
 describe("POST /api/events — auth & validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -184,7 +188,9 @@ describe("POST /api/events — auth & validation", () => {
 });
 
 describe("POST /api/events — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("creates event with meet link and returns it", async () => {
         authAs("user-1");
@@ -249,7 +255,9 @@ describe("POST /api/events — happy path", () => {
 // ─── PUT ──────────────────────────────────────────────────────────────────────
 
 describe("PUT /api/events", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -299,7 +307,9 @@ describe("PUT /api/events", () => {
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 
 describe("DELETE /api/events", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();

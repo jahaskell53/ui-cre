@@ -57,7 +57,9 @@ function noAuth() {
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/events/registrations — validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when event_id is missing", async () => {
         noAuth();
@@ -67,7 +69,9 @@ describe("GET /api/events/registrations — validation", () => {
 });
 
 describe("GET /api/events/registrations — unauthenticated", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns count without registration status for unauthenticated users", async () => {
         noAuth();
@@ -86,7 +90,9 @@ describe("GET /api/events/registrations — unauthenticated", () => {
 });
 
 describe("GET /api/events/registrations — authenticated", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns is_registered=true when user is registered", async () => {
         authAs("user-1");
@@ -136,7 +142,9 @@ describe("GET /api/events/registrations — authenticated", () => {
 // ─── POST ─────────────────────────────────────────────────────────────────────
 
 describe("POST /api/events/registrations — auth & validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -152,7 +160,9 @@ describe("POST /api/events/registrations — auth & validation", () => {
 });
 
 describe("POST /api/events/registrations — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("registers user and returns registration", async () => {
         authAs("user-1");
@@ -206,7 +216,9 @@ describe("POST /api/events/registrations — happy path", () => {
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 
 describe("DELETE /api/events/registrations", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();

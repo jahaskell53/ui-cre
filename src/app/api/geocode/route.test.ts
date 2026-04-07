@@ -18,7 +18,9 @@ function mockFetch(ok: boolean, data: unknown) {
     );
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
 
 describe("GET /api/geocode", () => {
     it("returns 400 when q param is missing", async () => {

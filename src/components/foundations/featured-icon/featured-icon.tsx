@@ -123,7 +123,7 @@ interface FeaturedIconProps {
     className?: string;
     icon?: FC<{ className?: string }> | ReactNode;
     size?: "sm" | "md" | "lg" | "xl";
-    color: "brand" | "gray" | "success" | "warning" | "error";
+    color?: "brand" | "gray" | "success" | "warning" | "error";
     theme?: "light" | "gradient" | "dark" | "outline" | "modern" | "modern-neue";
 }
 

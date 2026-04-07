@@ -51,7 +51,9 @@ const validBody = { subject: "Test Subject", message: "Hello attendees!" };
 // ─── Auth & validation ────────────────────────────────────────────────────────
 
 describe("POST /api/events/[id]/send-blast — auth & validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
@@ -75,7 +77,9 @@ describe("POST /api/events/[id]/send-blast — auth & validation", () => {
 // ─── Event ownership ──────────────────────────────────────────────────────────
 
 describe("POST /api/events/[id]/send-blast — event ownership", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 404 when event not found", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
@@ -101,7 +105,9 @@ describe("POST /api/events/[id]/send-blast — event ownership", () => {
 // ─── Registrations ────────────────────────────────────────────────────────────
 
 describe("POST /api/events/[id]/send-blast — registrations", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when no registered attendees", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
@@ -144,7 +150,9 @@ describe("POST /api/events/[id]/send-blast — registrations", () => {
 // ─── Happy path ───────────────────────────────────────────────────────────────
 
 describe("POST /api/events/[id]/send-blast — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("sends emails and returns counts", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });

@@ -43,7 +43,9 @@ function noAuth() {
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/news/preferences", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -127,7 +129,9 @@ describe("GET /api/news/preferences", () => {
 // ─── PUT ──────────────────────────────────────────────────────────────────────
 
 describe("PUT /api/news/preferences — auth", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -137,7 +141,9 @@ describe("PUT /api/news/preferences — auth", () => {
 });
 
 describe("PUT /api/news/preferences — existing subscriber", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("updates profile and subscriber when subscriber_id exists", async () => {
         authAs();
@@ -199,7 +205,9 @@ describe("PUT /api/news/preferences — existing subscriber", () => {
 });
 
 describe("PUT /api/news/preferences — new subscriber creation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("creates subscriber when enabling newsletter with no existing subscriber", async () => {
         authAs("user-1", "alice@example.com");
