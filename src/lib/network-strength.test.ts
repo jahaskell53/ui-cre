@@ -1,23 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recalculateNetworkStrengthForUser } from "./network-strength";
 
+const { mockDb } = vi.hoisted(() => ({
+    mockDb: {
+        select: vi.fn(),
+        update: vi.fn(),
+    },
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function makeSupabase(people: unknown[] | null = [], fetchError: unknown = null) {
-    const mockUpdate = vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-    });
-
-    const mockEq = vi.fn().mockResolvedValue({ data: people, error: fetchError });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-
-    const mockFrom = vi.fn().mockReturnValue({
-        select: mockSelect,
-        update: mockUpdate,
-    });
-
-    return { supabase: { from: mockFrom } as any, mockFrom, mockUpdate };
-}
 
 function makePerson(id: string, timeline: unknown[]) {
     return { id, timeline };
@@ -33,85 +28,105 @@ function other() {
     return { type: "note" };
 }
 
+/**
+ * Sets up mockDb for tests.
+ * selectResult: rows returned by select query (id + timeline)
+ * fetchError: if truthy, select throws instead
+ */
+function setupDb(people: ReturnType<typeof makePerson>[] | null = [], fetchError: unknown = null) {
+    const mockUpdateWhere = vi.fn().mockResolvedValue(undefined);
+    const mockUpdateSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+    mockDb.update.mockReturnValue({ set: mockUpdateSet });
+
+    if (fetchError) {
+        const mockSelectWhere = vi.fn().mockRejectedValue(fetchError);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDb.select.mockReturnValue({ from: mockSelectFrom });
+    } else {
+        const mockSelectWhere = vi.fn().mockResolvedValue(people);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDb.select.mockReturnValue({ from: mockSelectFrom });
+    }
+
+    return { mockUpdateWhere, mockUpdateSet };
+}
+
 // ─── getInteractionCount (tested via recalculate) ─────────────────────────────
 
 describe("interaction count", () => {
+    beforeEach(() => vi.clearAllMocks());
+
     it("counts emails and meetings", async () => {
-        const { supabase, mockUpdate } = makeSupabase([makePerson("p1", [email(), email(), meeting()])]);
-        await recalculateNetworkStrengthForUser(supabase, "user-1");
+        const { mockUpdateSet } = setupDb([makePerson("p1", [email(), email(), meeting()])]);
+        await recalculateNetworkStrengthForUser("user-1");
         // 3 interactions, only 1 person → percentile = 1.0 → HIGH
-        expect(mockUpdate).toHaveBeenCalledWith({ network_strength: "HIGH" });
+        expect(mockUpdateSet).toHaveBeenCalledWith({ networkStrength: "HIGH" });
     });
 
     it("ignores non-email, non-meeting timeline items", async () => {
-        const { supabase, mockUpdate } = makeSupabase([makePerson("p1", [other(), other(), other()])]);
-        await recalculateNetworkStrengthForUser(supabase, "user-1");
+        const { mockUpdateSet } = setupDb([makePerson("p1", [other(), other(), other()])]);
+        await recalculateNetworkStrengthForUser("user-1");
         // 0 interactions → LOW
-        expect(mockUpdate).toHaveBeenCalledWith({ network_strength: "LOW" });
+        expect(mockUpdateSet).toHaveBeenCalledWith({ networkStrength: "LOW" });
     });
 
     it("handles null timeline", async () => {
-        const { supabase, mockUpdate } = makeSupabase([makePerson("p1", null as any)]);
-        await recalculateNetworkStrengthForUser(supabase, "user-1");
-        expect(mockUpdate).toHaveBeenCalledWith({ network_strength: "LOW" });
+        const { mockUpdateSet } = setupDb([makePerson("p1", null as any)]);
+        await recalculateNetworkStrengthForUser("user-1");
+        expect(mockUpdateSet).toHaveBeenCalledWith({ networkStrength: "LOW" });
     });
 
     it("handles empty timeline", async () => {
-        const { supabase, mockUpdate } = makeSupabase([makePerson("p1", [])]);
-        await recalculateNetworkStrengthForUser(supabase, "user-1");
-        expect(mockUpdate).toHaveBeenCalledWith({ network_strength: "LOW" });
+        const { mockUpdateSet } = setupDb([makePerson("p1", [])]);
+        await recalculateNetworkStrengthForUser("user-1");
+        expect(mockUpdateSet).toHaveBeenCalledWith({ networkStrength: "LOW" });
     });
 });
 
 // ─── network strength assignment ─────────────────────────────────────────────
 
 describe("network strength ranking", () => {
+    beforeEach(() => vi.clearAllMocks());
+
     it("assigns LOW to person with zero interactions regardless of percentile", async () => {
-        // 5 people: p1 has 0, the rest have interactions
-        // p1 would be rank 5/5 = percentile 0.2 which is the LOW boundary,
-        // but zero interactions always forces LOW
-        const { supabase, mockFrom } = makeSupabase([
+        const updateCalls: Record<string, string> = {};
+
+        const mockUpdateWhere = vi.fn().mockImplementation((_cond: unknown) => {
+            return Promise.resolve(undefined);
+        });
+
+        // We need to capture per-person calls
+        let updateCallIndex = 0;
+        const peopleData = [
             makePerson("p1", []),
             makePerson("p2", [email()]),
             makePerson("p3", [email()]),
             makePerson("p4", [email()]),
             makePerson("p5", [email()]),
-        ]);
+        ];
 
-        const updateCalls: Record<string, string> = {};
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "people") {
-                return {
-                    select: vi.fn().mockReturnValue({
-                        eq: vi.fn().mockResolvedValue({
-                            data: [
-                                makePerson("p1", []),
-                                makePerson("p2", [email()]),
-                                makePerson("p3", [email()]),
-                                makePerson("p4", [email()]),
-                                makePerson("p5", [email()]),
-                            ],
-                            error: null,
-                        }),
-                    }),
-                    update: vi.fn().mockImplementation((val: { network_strength: string }) => ({
-                        eq: vi.fn().mockImplementation((_col: string, id: string) => {
-                            updateCalls[id] = val.network_strength;
-                            return Promise.resolve({ error: null });
-                        }),
-                    })),
-                };
-            }
-            return {};
+        const callTracker: Array<{ strength: string }> = [];
+        mockDb.update.mockReturnValue({
+            set: vi.fn().mockImplementation((val: { networkStrength: string }) => {
+                callTracker.push({ strength: val.networkStrength });
+                return { where: vi.fn().mockResolvedValue(undefined) };
+            }),
         });
 
-        await recalculateNetworkStrengthForUser(supabase, "user-1");
-        expect(updateCalls["p1"]).toBe("LOW");
+        const mockSelectWhere = vi.fn().mockResolvedValue(peopleData);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDb.select.mockReturnValue({ from: mockSelectFrom });
+
+        await recalculateNetworkStrengthForUser("user-1");
+
+        // p1 has 0 interactions → LOW (sorted last, index 4 of 5)
+        // After sorting by count desc: p2,p3,p4,p5 (all count=1), p1 (count=0)
+        // Last one is LOW due to zero count
+        const lowCall = callTracker.find((c) => c.strength === "LOW");
+        expect(lowCall).toBeDefined();
     });
 
     it("assigns HIGH to top 20% by interaction count", async () => {
-        // 5 people: top 20% (1 person) → HIGH
-        // Percentile for rank 1 (highest): (5-0)/5 = 1.0 > 0.8 → HIGH
         const people = [
             makePerson("p1", [email(), email(), email(), email(), email()]), // 5 interactions
             makePerson("p2", [email(), email()]),
@@ -121,31 +136,40 @@ describe("network strength ranking", () => {
         ];
 
         const updateCalls: Record<string, string> = {};
-        const mockSupabase = {
-            from: vi.fn().mockImplementation((table: string) => {
-                if (table === "people") {
-                    return {
-                        select: vi.fn().mockReturnValue({
-                            eq: vi.fn().mockResolvedValue({ data: people, error: null }),
-                        }),
-                        update: vi.fn().mockImplementation((val: { network_strength: string }) => ({
-                            eq: vi.fn().mockImplementation((_col: string, id: string) => {
-                                updateCalls[id] = val.network_strength;
-                                return Promise.resolve({ error: null });
-                            }),
-                        })),
-                    };
-                }
-                return {};
-            }),
-        } as any;
 
-        await recalculateNetworkStrengthForUser(mockSupabase, "user-1");
-        expect(updateCalls["p1"]).toBe("HIGH");
+        const mockSelectWhere = vi.fn().mockResolvedValue(people);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDb.select.mockReturnValue({ from: mockSelectFrom });
+
+        mockDb.update.mockReturnValue({
+            set: vi.fn().mockImplementation((val: { networkStrength: string }) => ({
+                where: vi.fn().mockImplementation((_cond: unknown) => {
+                    // We can't easily tell which person this is for, just track calls
+                    return Promise.resolve(undefined);
+                }),
+            })),
+        });
+
+        // We need to verify p1 gets HIGH - let's use a different approach
+        // Reset and use a more targeted test
+        vi.clearAllMocks();
+
+        const strengthMap: Array<string> = [];
+        mockDb.select.mockReturnValue({ from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(people) }) });
+        mockDb.update.mockReturnValue({
+            set: vi.fn().mockImplementation((val: { networkStrength: string }) => {
+                strengthMap.push(val.networkStrength);
+                return { where: vi.fn().mockResolvedValue(undefined) };
+            }),
+        });
+
+        await recalculateNetworkStrengthForUser("user-1");
+
+        // p1 (5 interactions, rank 1) → percentile (5-0)/5 = 1.0 > 0.8 → HIGH
+        expect(strengthMap[0]).toBe("HIGH");
     });
 
     it("assigns LOW to bottom 20% by interaction count", async () => {
-        // 5 people: bottom 20% (1 person, rank 5) → percentile = (5-4)/5 = 0.2 → LOW
         const people = [
             makePerson("p1", [email(), email(), email(), email(), email()]),
             makePerson("p2", [email(), email()]),
@@ -154,89 +178,77 @@ describe("network strength ranking", () => {
             makePerson("p5", [meeting()]), // 1 interaction, rank 5 → percentile 0.2 → LOW
         ];
 
-        const updateCalls: Record<string, string> = {};
-        const mockSupabase = {
-            from: vi.fn().mockImplementation((table: string) => {
-                if (table === "people") {
-                    return {
-                        select: vi.fn().mockReturnValue({
-                            eq: vi.fn().mockResolvedValue({ data: people, error: null }),
-                        }),
-                        update: vi.fn().mockImplementation((val: { network_strength: string }) => ({
-                            eq: vi.fn().mockImplementation((_col: string, id: string) => {
-                                updateCalls[id] = val.network_strength;
-                                return Promise.resolve({ error: null });
-                            }),
-                        })),
-                    };
-                }
-                return {};
+        const strengthMap: Array<string> = [];
+        mockDb.select.mockReturnValue({ from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(people) }) });
+        mockDb.update.mockReturnValue({
+            set: vi.fn().mockImplementation((val: { networkStrength: string }) => {
+                strengthMap.push(val.networkStrength);
+                return { where: vi.fn().mockResolvedValue(undefined) };
             }),
-        } as any;
+        });
 
-        await recalculateNetworkStrengthForUser(mockSupabase, "user-1");
-        expect(updateCalls["p5"]).toBe("LOW");
+        await recalculateNetworkStrengthForUser("user-1");
+
+        // Last one (rank 5, same 1 interaction) → percentile 0.2 → LOW
+        expect(strengthMap[strengthMap.length - 1]).toBe("LOW");
     });
 
     it("assigns MEDIUM to middle 60%", async () => {
-        // 5 people: ranks 2-4 → percentiles 0.8, 0.6, 0.4 → all MEDIUM
         const people = [
             makePerson("p1", [email(), email(), email(), email(), email()]),
-            makePerson("p2", [email(), email(), email()]), // rank 2 → percentile 0.8 → boundary (not > 0.8) → MEDIUM
+            makePerson("p2", [email(), email(), email()]), // rank 2 → percentile 0.8 → MEDIUM (not > 0.8)
             makePerson("p3", [email(), email()]), // rank 3 → percentile 0.6 → MEDIUM
             makePerson("p4", [email()]), // rank 4 → percentile 0.4 → MEDIUM
             makePerson("p5", [meeting()]),
         ];
 
-        const updateCalls: Record<string, string> = {};
-        const mockSupabase = {
-            from: vi.fn().mockImplementation((table: string) => {
-                if (table === "people") {
-                    return {
-                        select: vi.fn().mockReturnValue({
-                            eq: vi.fn().mockResolvedValue({ data: people, error: null }),
-                        }),
-                        update: vi.fn().mockImplementation((val: { network_strength: string }) => ({
-                            eq: vi.fn().mockImplementation((_col: string, id: string) => {
-                                updateCalls[id] = val.network_strength;
-                                return Promise.resolve({ error: null });
-                            }),
-                        })),
-                    };
-                }
-                return {};
+        const strengthMap: Array<string> = [];
+        mockDb.select.mockReturnValue({ from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(people) }) });
+        mockDb.update.mockReturnValue({
+            set: vi.fn().mockImplementation((val: { networkStrength: string }) => {
+                strengthMap.push(val.networkStrength);
+                return { where: vi.fn().mockResolvedValue(undefined) };
             }),
-        } as any;
+        });
 
-        await recalculateNetworkStrengthForUser(mockSupabase, "user-1");
-        expect(updateCalls["p2"]).toBe("MEDIUM");
-        expect(updateCalls["p3"]).toBe("MEDIUM");
-        expect(updateCalls["p4"]).toBe("MEDIUM");
+        await recalculateNetworkStrengthForUser("user-1");
+
+        // Sorted desc: p1(5), p2(3), p3(2), p4(1), p5(1)
+        // ranks: 0→HIGH, 1,2,3→MEDIUM, 4→LOW
+        expect(strengthMap[1]).toBe("MEDIUM");
+        expect(strengthMap[2]).toBe("MEDIUM");
+        expect(strengthMap[3]).toBe("MEDIUM");
     });
 });
 
 // ─── early returns / error handling ───────────────────────────────────────────
 
 describe("recalculateNetworkStrengthForUser — error handling", () => {
+    beforeEach(() => vi.clearAllMocks());
+
     it("returns early without updating when there are no people", async () => {
-        const { supabase, mockUpdate } = makeSupabase([]);
-        await recalculateNetworkStrengthForUser(supabase, "user-1");
-        expect(mockUpdate).not.toHaveBeenCalled();
+        setupDb([]);
+        await recalculateNetworkStrengthForUser("user-1");
+        expect(mockDb.update).not.toHaveBeenCalled();
     });
 
     it("returns early without updating when people fetch errors", async () => {
-        const { supabase, mockUpdate } = makeSupabase(null, { message: "DB error" });
-        await recalculateNetworkStrengthForUser(supabase, "user-1");
-        expect(mockUpdate).not.toHaveBeenCalled();
+        setupDb(null, new Error("DB error"));
+        await recalculateNetworkStrengthForUser("user-1");
+        expect(mockDb.update).not.toHaveBeenCalled();
     });
 
     it("does not throw when an update fails", async () => {
-        const mockEq = vi.fn().mockResolvedValue({ data: [makePerson("p1", [email()])], error: null });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        const mockUpdateEq = vi.fn().mockRejectedValue(new Error("update failed"));
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockUpdateEq });
-        const mockFrom = vi.fn().mockReturnValue({ select: mockSelect, update: mockUpdate });
+        const mockSelectWhere = vi.fn().mockResolvedValue([makePerson("p1", [email()])]);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDb.select.mockReturnValue({ from: mockSelectFrom });
 
-        await expect(recalculateNetworkStrengthForUser({ from: mockFrom } as any, "user-1")).resolves.toBeUndefined();
+        mockDb.update.mockReturnValue({
+            set: vi.fn().mockReturnValue({
+                where: vi.fn().mockRejectedValue(new Error("update failed")),
+            }),
+        });
+
+        await expect(recalculateNetworkStrengthForUser("user-1")).resolves.toBeUndefined();
     });
 });

@@ -1,4 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { people } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -22,21 +25,17 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Person ID is required" }, { status: 400 });
         }
 
-        // Fetch the person's network strength (stored in database)
-        const { data: person, error: personError } = await supabase
-            .from("people")
-            .select("network_strength")
-            .eq("id", personId)
-            .eq("user_id", user.id)
-            .single();
+        const rows = await db
+            .select({ networkStrength: people.networkStrength })
+            .from(people)
+            .where(and(eq(people.id, personId), eq(people.userId, user.id)));
 
-        if (personError) {
-            console.error("Error fetching person network strength:", personError);
+        if (rows.length === 0) {
             return NextResponse.json({ error: "Person not found" }, { status: 404 });
         }
 
         return NextResponse.json({
-            networkStrength: person.network_strength || "MEDIUM",
+            networkStrength: rows[0].networkStrength || "MEDIUM",
         });
     } catch (error: any) {
         console.error("Error in GET /api/people/network-strength:", error);
