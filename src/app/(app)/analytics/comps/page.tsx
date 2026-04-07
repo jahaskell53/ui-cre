@@ -112,7 +112,6 @@ interface SearchParams {
     segment: "mid" | "reit" | "both";
     filterMode: "radius" | "neighborhood";
     zip?: string | null;
-    homeType?: string;
 }
 
 function CompsContent() {
@@ -129,7 +128,6 @@ function CompsContent() {
     const initBeds = searchParams.get("beds") ?? "";
     const initBaths = searchParams.get("baths") ?? "";
     const initArea = searchParams.get("area") ?? "";
-    const initHomeType = searchParams.get("homeType") ?? "";
     const rawSegment = searchParams.get("segment");
     const initSegment: "mid" | "reit" | "both" = rawSegment === "mid" || rawSegment === "reit" || rawSegment === "both" ? rawSegment : "both";
     const initFilterMode = (searchParams.get("filterMode") ?? "radius") as "radius" | "neighborhood";
@@ -144,7 +142,6 @@ function CompsContent() {
     const [subjectBeds, setSubjectBeds] = useState(initBeds);
     const [subjectBaths, setSubjectBaths] = useState(initBaths);
     const [subjectArea, setSubjectArea] = useState(initArea);
-    const [subjectHomeType, setSubjectHomeType] = useState(initHomeType);
 
     const [rentSegment, setRentSegment] = useState<"mid" | "reit" | "both">(initSegment);
     const [filterMode, setFilterMode] = useState<"radius" | "neighborhood">(initFilterMode);
@@ -265,7 +262,6 @@ function CompsContent() {
             if (p.beds) url.set("beds", p.beds);
             if (p.baths) url.set("baths", p.baths);
             if (p.area) url.set("area", p.area);
-            if (p.homeType) url.set("homeType", p.homeType);
             url.set("segment", p.segment);
             if (p.filterMode !== "radius") url.set("filterMode", p.filterMode);
             if (p.zip) url.set("zip", p.zip);
@@ -387,7 +383,7 @@ function CompsContent() {
                         p_neighborhood_ids: p.filterMode === "neighborhood" ? nhIdsForSearch : null,
                         p_neighborhood_id: null,
                         p_subject_zip: p.filterMode === "neighborhood" && !nhIdsForSearch ? subjectZip : null,
-                        p_home_type: p.homeType || null,
+                        p_home_type: null,
                     })) as Omit<CompResult, "img_src" | "latitude" | "longitude">[];
                 } catch (rpcError) {
                     if (gen !== searchGenRef.current) return;
@@ -449,7 +445,7 @@ function CompsContent() {
             if (autoRunTimerRef.current) clearTimeout(autoRunTimerRef.current);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rentSegment, subjectPrice, subjectBeds, subjectBaths, subjectArea, subjectHomeType, radiusMiles, filterMode]);
+    }, [rentSegment, subjectPrice, subjectBeds, subjectBaths, subjectArea, radiusMiles, filterMode]);
 
     // Auto-run search on mount if URL has saved params
     useEffect(() => {
@@ -463,7 +459,6 @@ function CompsContent() {
             beds: initBeds,
             baths: initBaths,
             area: initArea,
-            homeType: initHomeType,
             segment: initSegment,
             filterMode: initFilterMode,
             zip: initZip,
@@ -485,7 +480,6 @@ function CompsContent() {
             beds: subjectBeds,
             baths: subjectBaths,
             area: subjectArea,
-            homeType: subjectHomeType,
             segment: rentSegment,
             zip: cachedZip,
         };
@@ -894,7 +888,6 @@ function CompsContent() {
             beds: subjectBeds,
             baths: subjectBaths,
             area: subjectArea,
-            homeType: subjectHomeType,
             segment: rentSegment,
             zip: zip ?? cachedZip,
         });
@@ -1213,26 +1206,6 @@ function CompsContent() {
                             </div>
                         )}
 
-                        <div className="flex items-center gap-2">
-                            <Label className="text-xs">Segment</Label>
-                            <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-gray-700">
-                                {(["both", "mid", "reit"] as const).map((seg) => (
-                                    <button
-                                        key={seg}
-                                        type="button"
-                                        onClick={() => setRentSegment(seg)}
-                                        className={cn(
-                                            "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                                            rentSegment === seg
-                                                ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100"
-                                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400",
-                                        )}
-                                    >
-                                        {seg === "both" ? "Both" : seg === "mid" ? "Mid-market" : "REIT"}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                         {/* Subject attributes */}
                         <div>
                             <p className="mb-2 text-xs text-gray-500">Tip: the more info you provide, the better your comps.</p>
@@ -1283,15 +1256,25 @@ function CompsContent() {
                                     />
                                 </div>
                                 <div>
-                                    <Label className="mb-1 block text-xs">Home Type</Label>
-                                    <select
-                                        value={subjectHomeType}
-                                        onChange={(e) => setSubjectHomeType(e.target.value)}
-                                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-                                    >
-                                        <option value="">Any</option>
-                                        <option value="APARTMENT">Apartment</option>
-                                    </select>
+                                    <Label className="mb-1 block text-xs">Segment</Label>
+                                    <div className="flex overflow-hidden rounded-md border border-input">
+                                        {(["both", "mid", "reit"] as const).map((seg, i) => (
+                                            <button
+                                                key={seg}
+                                                type="button"
+                                                onClick={() => setRentSegment(seg)}
+                                                className={cn(
+                                                    "flex-1 py-1 text-xs transition-colors",
+                                                    i > 0 ? "border-l border-input" : "",
+                                                    rentSegment === seg
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-background text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700",
+                                                )}
+                                            >
+                                                {seg === "both" ? "All" : seg === "mid" ? "Mid" : "REIT"}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
