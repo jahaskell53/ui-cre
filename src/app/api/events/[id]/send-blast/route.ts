@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { eventBlasts, eventRegistrations, events } from "@/db/schema";
 import { EmailService } from "@/utils/email-service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
@@ -8,7 +11,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         const supabase = await createClient();
         const adminSupabase = createAdminClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -26,31 +28,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             return NextResponse.json({ error: "Subject and message are required" }, { status: 400 });
         }
 
-        // Verify user owns the event
-        const { data: event, error: eventError } = await supabase.from("events").select("id, title, user_id").eq("id", eventId).single();
+        const eventRows = await db.select({ id: events.id, title: events.title, userId: events.userId }).from(events).where(eq(events.id, eventId));
 
-        if (eventError || !event) {
+        if (eventRows.length === 0) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        if (event.user_id !== user.id) {
+        const event = eventRows[0];
+
+        if (event.userId !== user.id) {
             return NextResponse.json({ error: "Only event owners can send blasts" }, { status: 403 });
         }
 
-        // Get all registered attendees
-        const { data: registrations, error: registrationsError } = await supabase.from("event_registrations").select("user_id").eq("event_id", eventId);
+        const registrations = await db.select({ userId: eventRegistrations.userId }).from(eventRegistrations).where(eq(eventRegistrations.eventId, eventId));
 
-        if (registrationsError) {
-            console.error("Error fetching registrations:", registrationsError);
-            return NextResponse.json({ error: "Failed to fetch registrations" }, { status: 500 });
-        }
-
-        if (!registrations || registrations.length === 0) {
+        if (registrations.length === 0) {
             return NextResponse.json({ error: "No registered attendees found" }, { status: 400 });
         }
 
-        // Get email addresses for all attendees
-        const userIds = registrations.map((reg) => reg.user_id);
+        const userIds = registrations.map((reg) => reg.userId);
         const emailAddresses: string[] = [];
 
         for (const userId of userIds) {
@@ -69,7 +65,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             return NextResponse.json({ error: "No valid email addresses found" }, { status: 400 });
         }
 
-        // Generate email content
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const eventUrl = `${baseUrl}/events/${eventId}`;
 
@@ -114,7 +109,6 @@ View Event: ${eventUrl}
 You're receiving this because you registered for this event.
         `.trim();
 
-        // Send emails
         const emailService = new EmailService();
         const results = await Promise.allSettled(
             emailAddresses.map((email) =>
@@ -129,25 +123,20 @@ You're receiving this because you registered for this event.
         const successful = results.filter((r) => r.status === "fulfilled" && r.value === true).length;
         const failed = results.length - successful;
 
-        // Save the blast record
-        const { data: blast, error: blastError } = await supabase
-            .from("event_blasts")
-            .insert({
-                event_id: eventId,
-                user_id: user.id,
+        const inserted = await db
+            .insert(eventBlasts)
+            .values({
+                eventId,
+                userId: user.id,
                 subject,
                 message,
-                recipient_count: emailAddresses.length,
-                sent_count: successful,
-                failed_count: failed,
+                recipientCount: emailAddresses.length,
+                sentCount: successful,
+                failedCount: failed,
             })
-            .select()
-            .single();
+            .returning();
 
-        if (blastError) {
-            console.error("Error saving blast record:", blastError);
-            // Continue even if saving fails - email was sent
-        }
+        const blast = inserted[0];
 
         return NextResponse.json({
             success: true,

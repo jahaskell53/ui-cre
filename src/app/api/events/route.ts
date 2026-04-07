@@ -1,4 +1,7 @@
+import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { events } from "@/db/schema";
 import { createMeetLink } from "@/lib/google-meet";
 import { createClient } from "@/utils/supabase/server";
 
@@ -14,36 +17,25 @@ export async function GET(request: NextRequest) {
         const startDate = searchParams.get("start");
         const endDate = searchParams.get("end");
 
-        // Use regular client - RLS policy allows everyone (authenticated and unauthenticated) to view all events
-        const client = supabase;
-
-        let query = client.from("events").select("*");
-
         if (eventId) {
-            const { data, error } = await query.eq("id", eventId).single();
-            if (error) {
-                console.error("Error fetching event:", error);
+            const rows = await db.select().from(events).where(eq(events.id, eventId));
+            if (rows.length === 0) {
                 return NextResponse.json({ error: "Event not found" }, { status: 404 });
             }
-            return NextResponse.json(data);
+            return NextResponse.json(toSnakeCase(rows[0]));
         }
 
-        // Filter by date range if provided
-        if (startDate) {
-            query = query.gte("start_time", startDate);
-        }
-        if (endDate) {
-            query = query.lte("start_time", endDate);
-        }
+        const conditions = [];
+        if (startDate) conditions.push(gte(events.startTime, startDate));
+        if (endDate) conditions.push(lte(events.startTime, endDate));
 
-        const { data, error } = await query.order("start_time", { ascending: true });
+        const rows = await db
+            .select()
+            .from(events)
+            .where(conditions.length > 0 ? and(...conditions) : undefined)
+            .orderBy(asc(events.startTime));
 
-        if (error) {
-            console.error("Error fetching events:", error);
-            return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 });
-        }
-
-        return NextResponse.json(data || []);
+        return NextResponse.json(rows.map(toSnakeCase));
     } catch (error: any) {
         console.error("Error in GET /api/events:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -74,7 +66,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Start and end times are required" }, { status: 400 });
         }
 
-        // Automatically create a Google Meet link for the event
         let meetLink: string | null = null;
         try {
             meetLink = await createMeetLink({
@@ -84,32 +75,29 @@ export async function POST(request: NextRequest) {
                 description: description?.trim(),
             });
         } catch (error) {
-            // Log but don't fail - Meet link creation is non-blocking
             console.error("Failed to create Meet link (non-blocking):", error);
         }
 
-        const { data, error } = await supabase
-            .from("events")
-            .insert({
-                user_id: user.id,
+        const inserted = await db
+            .insert(events)
+            .values({
+                userId: user.id,
                 title: title.trim(),
                 description: description?.trim() || null,
-                start_time,
-                end_time,
+                startTime: start_time,
+                endTime: end_time,
                 location: location?.trim() || null,
                 color: color || "blue",
-                image_url: image_url || null,
-                meet_link: meetLink,
+                imageUrl: image_url || null,
+                meetLink,
             })
-            .select()
-            .single();
+            .returning();
 
-        if (error) {
-            console.error("Error inserting event:", error);
+        if (inserted.length === 0) {
             return NextResponse.json({ error: "Failed to create event" }, { status: 500 });
         }
 
-        return NextResponse.json(data);
+        return NextResponse.json(toSnakeCase(inserted[0]));
     } catch (error: any) {
         console.error("Error in POST /api/events:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -139,28 +127,31 @@ export async function PUT(request: NextRequest) {
         const body = await request.json();
         const { title, description, start_time, end_time, location, color, image_url } = body;
 
-        const updateData: any = {};
+        const updateData: Partial<typeof events.$inferInsert> = {};
 
         if (title !== undefined) updateData.title = title.trim();
         if (description !== undefined) updateData.description = description?.trim() || null;
-        if (start_time !== undefined) updateData.start_time = start_time;
-        if (end_time !== undefined) updateData.end_time = end_time;
+        if (start_time !== undefined) updateData.startTime = start_time;
+        if (end_time !== undefined) updateData.endTime = end_time;
         if (location !== undefined) updateData.location = location?.trim() || null;
         if (color !== undefined) updateData.color = color;
-        if (image_url !== undefined) updateData.image_url = image_url || null;
+        if (image_url !== undefined) updateData.imageUrl = image_url || null;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        const { data, error } = await supabase.from("events").update(updateData).eq("id", eventId).eq("user_id", user.id).select().single();
+        const updated = await db
+            .update(events)
+            .set(updateData)
+            .where(and(eq(events.id, eventId), eq(events.userId, user.id)))
+            .returning();
 
-        if (error) {
-            console.error("Error updating event:", error);
+        if (updated.length === 0) {
             return NextResponse.json({ error: "Failed to update event" }, { status: 500 });
         }
 
-        return NextResponse.json(data);
+        return NextResponse.json(toSnakeCase(updated[0]));
     } catch (error: any) {
         console.error("Error in PUT /api/events:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -187,16 +178,28 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        const { error } = await supabase.from("events").delete().eq("id", eventId).eq("user_id", user.id);
-
-        if (error) {
-            console.error("Error deleting event:", error);
-            return NextResponse.json({ error: "Failed to delete event" }, { status: 500 });
-        }
+        await db.delete(events).where(and(eq(events.id, eventId), eq(events.userId, user.id)));
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("Error in DELETE /api/events:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
+}
+
+function toSnakeCase(row: typeof events.$inferSelect) {
+    return {
+        id: row.id,
+        user_id: row.userId,
+        title: row.title,
+        description: row.description,
+        start_time: row.startTime,
+        end_time: row.endTime,
+        location: row.location,
+        color: row.color,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+        image_url: row.imageUrl,
+        meet_link: row.meetLink,
+    };
 }

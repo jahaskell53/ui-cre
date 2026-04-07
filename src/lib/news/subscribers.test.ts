@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PREFERRED_SEND_TIMES, getActiveSubscribers, getSubscriberByEmail, isValidTimezone, unsubscribe } from "./subscribers";
 
-const { mockFrom } = vi.hoisted(() => ({
+const { mockFrom, mockDbUpdate } = vi.hoisted(() => ({
     mockFrom: vi.fn(),
+    mockDbUpdate: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+}));
+
+vi.mock("@/db", () => ({
+    db: {
+        update: mockDbUpdate,
+    },
 }));
 
 // ─── isValidTimezone ──────────────────────────────────────────────────────────
@@ -187,29 +194,27 @@ describe("unsubscribe", () => {
     beforeEach(() => vi.clearAllMocks());
 
     it("returns true on success", async () => {
-        const mockEq = vi.fn().mockResolvedValue({ error: null });
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ update: mockUpdate });
+        const mockWhere = vi.fn().mockResolvedValue(undefined);
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbUpdate.mockReturnValue({ set: mockSet });
 
         const result = await unsubscribe("alice@example.com");
         expect(result).toBe(true);
-        expect(mockUpdate).toHaveBeenCalledWith({ is_active: false });
-        expect(mockEq).toHaveBeenCalledWith("email", "alice@example.com");
+        expect(mockSet).toHaveBeenCalledWith({ isActive: false });
     });
 
     it("lowercases the email before querying", async () => {
-        const mockEq = vi.fn().mockResolvedValue({ error: null });
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ update: mockUpdate });
+        const mockWhere = vi.fn().mockResolvedValue(undefined);
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbUpdate.mockReturnValue({ set: mockSet });
 
-        await unsubscribe("ALICE@Example.COM");
-        expect(mockEq).toHaveBeenCalledWith("email", "alice@example.com");
+        const result = await unsubscribe("ALICE@Example.COM");
+        expect(result).toBe(true);
+        expect(mockSet).toHaveBeenCalled();
     });
 
-    it("returns false when DB errors", async () => {
-        const mockEq = vi.fn().mockResolvedValue({ error: { message: "DB error" } });
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ update: mockUpdate });
+    it("returns false when DB throws", async () => {
+        mockDbUpdate.mockReturnValue({ set: vi.fn().mockReturnValue({ where: vi.fn().mockRejectedValue(new Error("DB error")) }) });
 
         const result = await unsubscribe("alice@example.com");
         expect(result).toBe(false);

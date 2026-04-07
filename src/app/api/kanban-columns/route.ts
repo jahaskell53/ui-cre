@@ -1,11 +1,15 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { kanbanColumns } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
+
+const DEFAULT_COLUMNS = ["Active Prospecting", "Offering Memorandum", "Underwriting", "Due Diligence", "Closed/Archive"];
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -15,21 +19,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Fetch kanban columns for the current user
-        const { data, error } = await supabase.from("kanban_columns").select("columns").eq("user_id", user.id).single();
+        const rows = await db.select({ columns: kanbanColumns.columns }).from(kanbanColumns).where(eq(kanbanColumns.userId, user.id));
 
-        if (error) {
-            // If no record exists, return default columns
-            if (error.code === "PGRST116") {
-                return NextResponse.json({
-                    columns: ["Active Prospecting", "Offering Memorandum", "Underwriting", "Due Diligence", "Closed/Archive"],
-                });
-            }
-            console.error("Error fetching kanban columns:", error);
-            return NextResponse.json({ error: "Failed to fetch kanban columns" }, { status: 500 });
+        if (rows.length === 0) {
+            return NextResponse.json({ columns: DEFAULT_COLUMNS });
         }
 
-        return NextResponse.json({ columns: data.columns || [] });
+        return NextResponse.json({ columns: rows[0].columns || [] });
     } catch (error: any) {
         console.error("Error in GET /api/kanban-columns:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -40,7 +36,6 @@ export async function PUT(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -57,48 +52,37 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "Invalid request: columns array required" }, { status: 400 });
         }
 
-        // Validate all columns are strings
         if (!columns.every((col: any) => typeof col === "string" && col.trim().length > 0)) {
             return NextResponse.json({ error: "All columns must be non-empty strings" }, { status: 400 });
         }
 
-        // Check if record exists
-        const { data: existing } = await supabase.from("kanban_columns").select("id").eq("user_id", user.id).single();
+        const trimmedColumns = columns.map((col: string) => col.trim());
 
-        let result;
-        if (existing) {
-            // Update existing record
-            const { data, error } = await supabase
-                .from("kanban_columns")
-                .update({ columns: columns.map((col: string) => col.trim()) })
-                .eq("user_id", user.id)
-                .select()
-                .single();
+        const existing = await db.select({ id: kanbanColumns.id }).from(kanbanColumns).where(eq(kanbanColumns.userId, user.id));
 
-            if (error) {
-                console.error("Error updating kanban columns:", error);
+        let resultColumns: string[];
+
+        if (existing.length > 0) {
+            const updated = await db
+                .update(kanbanColumns)
+                .set({ columns: trimmedColumns })
+                .where(eq(kanbanColumns.userId, user.id))
+                .returning({ columns: kanbanColumns.columns });
+
+            if (updated.length === 0) {
                 return NextResponse.json({ error: "Failed to update kanban columns" }, { status: 500 });
             }
-            result = data;
+            resultColumns = updated[0].columns!;
         } else {
-            // Insert new record
-            const { data, error } = await supabase
-                .from("kanban_columns")
-                .insert({
-                    user_id: user.id,
-                    columns: columns.map((col: string) => col.trim()),
-                })
-                .select()
-                .single();
+            const inserted = await db.insert(kanbanColumns).values({ userId: user.id, columns: trimmedColumns }).returning({ columns: kanbanColumns.columns });
 
-            if (error) {
-                console.error("Error inserting kanban columns:", error);
+            if (inserted.length === 0) {
                 return NextResponse.json({ error: "Failed to save kanban columns" }, { status: 500 });
             }
-            result = data;
+            resultColumns = inserted[0].columns!;
         }
 
-        return NextResponse.json({ columns: result.columns });
+        return NextResponse.json({ columns: resultColumns });
     } catch (error: any) {
         console.error("Error in PUT /api/kanban-columns:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

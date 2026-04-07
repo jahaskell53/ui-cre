@@ -1,4 +1,7 @@
+import { eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { comments, posts, profiles } from "@/db/schema";
 import { parseMentions } from "@/utils/parse-mentions";
 import { sendMentionNotificationEmail } from "@/utils/send-mention-notification-email";
 import { createClient } from "@/utils/supabase/server";
@@ -7,7 +10,6 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -28,50 +30,54 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "content is required and cannot be empty" }, { status: 400 });
         }
 
-        // Verify post exists
-        const { data: post, error: postError } = await supabase.from("posts").select("id").eq("id", post_id).single();
+        const postRows = await db.select({ id: posts.id }).from(posts).where(eq(posts.id, post_id));
 
-        if (postError || !post) {
+        if (postRows.length === 0) {
             return NextResponse.json({ error: "Post not found" }, { status: 404 });
         }
 
-        // Insert comment
-        const { data: comment, error: insertError } = await supabase
-            .from("comments")
-            .insert({
-                post_id,
-                user_id: user.id,
+        const inserted = await db
+            .insert(comments)
+            .values({
+                postId: post_id,
+                userId: user.id,
                 content: content.trim(),
             })
-            .select()
-            .single();
+            .returning();
 
-        if (insertError) {
-            console.error("Error inserting comment:", insertError);
+        if (inserted.length === 0) {
             return NextResponse.json({ error: "Failed to create comment" }, { status: 500 });
         }
 
-        // Process mentions by full_name
+        const comment = inserted[0];
+
         const mentionedNames = parseMentions(content);
         if (mentionedNames.length > 0) {
-            // Look up profiles by full_name
-            const { data: mentionedProfiles, error: profilesError } = await supabase.from("profiles").select("id, full_name").in("full_name", mentionedNames);
+            const mentionedProfiles = await db
+                .select({ id: profiles.id, fullName: profiles.fullName })
+                .from(profiles)
+                .where(inArray(profiles.fullName, mentionedNames));
 
-            if (!profilesError && mentionedProfiles) {
-                // Send email notifications to mentioned users (excluding the comment author)
-                const mentionedUserIds = mentionedProfiles.filter((profile) => profile.id !== user.id).map((profile) => profile.id);
+            const mentionedUserIds = mentionedProfiles.filter((p) => p.id !== user.id).map((p) => p.id);
 
-                // Send emails asynchronously (don't wait for them)
-                mentionedUserIds.forEach((mentionedUserId) => {
-                    sendMentionNotificationEmail(comment.id, mentionedUserId, post_id).catch((error) => {
-                        console.error("Error sending mention notification email:", error);
-                        // Don't fail the request if email fails
-                    });
+            mentionedUserIds.forEach((mentionedUserId) => {
+                sendMentionNotificationEmail(comment.id, mentionedUserId, post_id).catch((error) => {
+                    console.error("Error sending mention notification email:", error);
                 });
-            }
+            });
         }
 
-        return NextResponse.json(comment, { status: 201 });
+        return NextResponse.json(
+            {
+                id: comment.id,
+                post_id: comment.postId,
+                user_id: comment.userId,
+                content: comment.content,
+                created_at: comment.createdAt,
+                updated_at: comment.updatedAt,
+            },
+            { status: 201 },
+        );
     } catch (error: any) {
         console.error("Error in POST /api/comments:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

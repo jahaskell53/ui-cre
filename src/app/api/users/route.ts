@@ -1,16 +1,13 @@
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { integrations } from "@/db/schema";
+import { integrations, profiles } from "@/db/schema";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
 
         const searchParams = request.nextUrl.searchParams;
         const userId = searchParams.get("id");
@@ -19,15 +16,17 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
-        // Use regular client - RLS policy allows everyone to view profiles
-        const { data, error } = await supabase.from("profiles").select("id, full_name, avatar_url, website, roles").eq("id", userId).single();
+        const rows = await db
+            .select({ id: profiles.id, fullName: profiles.fullName, avatarUrl: profiles.avatarUrl, website: profiles.website, roles: profiles.roles })
+            .from(profiles)
+            .where(eq(profiles.id, userId));
 
-        if (error) {
-            console.error("Error fetching profile:", error);
+        if (rows.length === 0) {
             return NextResponse.json({ error: "Profile not found" }, { status: 404 });
         }
 
-        return NextResponse.json(data);
+        const p = rows[0];
+        return NextResponse.json({ id: p.id, full_name: p.fullName, avatar_url: p.avatarUrl, website: p.website, roles: p.roles });
     } catch (error: any) {
         console.error("Error in GET /api/users:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

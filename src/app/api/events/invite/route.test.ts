@@ -2,17 +2,24 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
-const { mockGetUser, mockFrom, mockSendEmail } = vi.hoisted(() => ({
+const { mockGetUser, mockDbSelect, mockDbInsert, mockSendEmail } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDbSelect: vi.fn(),
+    mockDbInsert: vi.fn(),
     mockSendEmail: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
+}));
+
+vi.mock("@/db", () => ({
+    db: {
+        select: mockDbSelect,
+        insert: mockDbInsert,
+    },
 }));
 
 vi.mock("@/utils/email-service", () => ({
@@ -44,35 +51,30 @@ const validBody = {
     message: "Join us!",
 };
 
-const event = {
+const eventRow = {
     id: "evt-1",
+    userId: "user-1",
     title: "Kickoff",
-    start_time: "2024-06-01T10:00:00Z",
-    image_url: null,
-    user_id: "user-1",
+    startTime: "2024-06-01T10:00:00Z",
+    imageUrl: null,
 };
 
 function setupEventAndProfile() {
     let callCount = 0;
-    mockFrom.mockImplementation((table: string) => {
-        if (table === "events") {
-            const mockSingle = vi.fn().mockResolvedValue({ data: event, error: null });
-            const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-            const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-            return { select: mockSelect };
+    mockDbSelect.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+            // events query
+            const mockWhere = vi.fn().mockResolvedValue([eventRow]);
+            return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
         }
-        if (table === "profiles") {
-            const mockSingle = vi.fn().mockResolvedValue({ data: { full_name: "Alice Host" }, error: null });
-            const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-            const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-            return { select: mockSelect };
-        }
-        if (table === "event_invites") {
-            const mockInsert = vi.fn().mockResolvedValue({ error: null });
-            return { insert: mockInsert };
-        }
-        return {};
+        // profiles query
+        const mockWhere = vi.fn().mockResolvedValue([{ fullName: "Alice Host" }]);
+        return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
     });
+
+    const mockValues = vi.fn().mockResolvedValue(undefined);
+    mockDbInsert.mockReturnValue({ values: mockValues });
 }
 
 // ─── Auth & validation ────────────────────────────────────────────────────────
@@ -119,10 +121,9 @@ describe("POST /api/events/invite — event lookup", () => {
 
     it("returns 404 when event not found", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1", email: "host@example.com" } }, error: null });
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await POST(makeRequest(validBody));
         expect(res.status).toBe(404);

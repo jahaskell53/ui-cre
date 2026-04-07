@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { eventInvites, events, profiles } from "@/db/schema";
 import { EmailService } from "@/utils/email-service";
 import { generateEventInviteEmail } from "@/utils/email-templates";
 import { createClient } from "@/utils/supabase/server";
@@ -23,27 +26,26 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Invalid request. Event ID and emails are required." }, { status: 400 });
         }
 
-        // Fetch event details
-        const { data: event, error: eventError } = await supabase.from("events").select("*").eq("id", event_id).single();
+        const eventRows = await db.select().from(events).where(eq(events.id, event_id));
 
-        if (eventError || !event) {
+        if (eventRows.length === 0) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        // Fetch host profile
-        const { data: hostProfile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+        const event = eventRows[0];
 
-        const hostName = hostProfile?.full_name || "A friend";
+        const profileRows = await db.select({ fullName: profiles.fullName }).from(profiles).where(eq(profiles.id, user.id));
+        const hostName = profileRows[0]?.fullName || "A friend";
+
         const emailService = new EmailService();
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-        // Generate email content
-        const eventDate = new Date(event.start_time).toLocaleDateString("en-US", {
+        const eventDate = new Date(event.startTime).toLocaleDateString("en-US", {
             weekday: "long",
             month: "long",
             day: "numeric",
         });
-        const eventTime = new Date(event.start_time).toLocaleTimeString("en-US", {
+        const eventTime = new Date(event.startTime).toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
         });
@@ -55,28 +57,25 @@ export async function POST(request: NextRequest) {
             eventDate,
             eventTime,
             eventUrl,
-            eventImageUrl: event.image_url,
+            eventImageUrl: event.imageUrl,
             message: message || "We'd love to see you there!",
         });
 
-        // Send single email with all recipients in BCC
-        // Use sender's email as "to" address (required by SMTP), all invite recipients in BCC
-        const trimmedEmails = emails.map((email) => email.trim()).filter((email) => email.length > 0);
+        const trimmedEmails = emails.map((email: string) => email.trim()).filter((email: string) => email.length > 0);
         if (trimmedEmails.length === 0) {
             return NextResponse.json({ error: "No valid email addresses provided." }, { status: 400 });
         }
 
-        // Use sender's email as the "to" address, or fallback to first invitee if sender email unavailable
         const senderEmail = user.email || trimmedEmails[0];
         const success = await emailService.sendEmail(senderEmail, emailContent, undefined, trimmedEmails);
 
         if (success) {
-            await supabase.from("event_invites").insert({
-                event_id,
-                user_id: user.id,
+            await db.insert(eventInvites).values({
+                eventId: event_id,
+                userId: user.id,
                 message: message || null,
-                recipient_count: trimmedEmails.length,
-                recipient_emails: trimmedEmails,
+                recipientCount: trimmedEmails.length,
+                recipientEmails: trimmedEmails,
             });
         }
 

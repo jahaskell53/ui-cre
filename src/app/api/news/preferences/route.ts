@@ -1,4 +1,7 @@
+import { and, eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { cities, counties, profiles, subscriberCities, subscriberCounties, subscribers } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET() {
@@ -14,54 +17,58 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Get profile with newsletter preferences
-        const { data: profile, error } = await supabase
-            .from("profiles")
-            .select("newsletter_active, newsletter_interests, newsletter_timezone, newsletter_preferred_send_times, newsletter_subscribed_at, subscriber_id")
-            .eq("id", user.id)
-            .single();
+        const profileRows = await db
+            .select({
+                newsletterActive: profiles.newsletterActive,
+                newsletterInterests: profiles.newsletterInterests,
+                newsletterTimezone: profiles.newsletterTimezone,
+                newsletterPreferredSendTimes: profiles.newsletterPreferredSendTimes,
+                newsletterSubscribedAt: profiles.newsletterSubscribedAt,
+                subscriberId: profiles.subscriberId,
+            })
+            .from(profiles)
+            .where(eq(profiles.id, user.id));
 
-        if (error) {
-            console.error("Error fetching preferences:", error);
+        if (profileRows.length === 0) {
             return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
         }
 
-        // If there's a linked subscriber, fetch location preferences
-        let counties: string[] = [];
-        let cities: any[] = [];
+        const profile = profileRows[0];
 
-        if (profile?.subscriber_id) {
-            // Fetch counties
-            const { data: subscriberCounties } = await supabase
-                .from("subscriber_counties")
-                .select("county_id, counties(name)")
-                .eq("subscriber_id", profile.subscriber_id);
+        let countyNames: string[] = [];
+        let cityList: any[] = [];
 
-            if (subscriberCounties) {
-                counties = subscriberCounties.map((sc: any) => sc.counties?.name).filter(Boolean);
-            }
+        if (profile.subscriberId) {
+            const countyRows = await db
+                .select({ countyName: counties.name })
+                .from(subscriberCounties)
+                .innerJoin(counties, eq(subscriberCounties.countyId, counties.id))
+                .where(eq(subscriberCounties.subscriberId, profile.subscriberId));
 
-            // Fetch cities
-            const { data: subscriberCities } = await supabase
-                .from("subscriber_cities")
-                .select("city_id, cities(name, state, state_abbr)")
-                .eq("subscriber_id", profile.subscriber_id);
+            countyNames = countyRows.map((r) => r.countyName);
 
-            if (subscriberCities) {
-                cities = subscriberCities
-                    .map((sc: any) => ({
-                        name: sc.cities?.name,
-                        state: sc.cities?.state,
-                        stateAbbr: sc.cities?.state_abbr,
-                    }))
-                    .filter((c: any) => c.name);
-            }
+            const cityRows = await db
+                .select({ cityName: cities.name, cityState: cities.state, cityStateAbbr: cities.stateAbbr })
+                .from(subscriberCities)
+                .innerJoin(cities, eq(subscriberCities.cityId, cities.id))
+                .where(eq(subscriberCities.subscriberId, profile.subscriberId));
+
+            cityList = cityRows.map((r) => ({
+                name: r.cityName,
+                state: r.cityState,
+                stateAbbr: r.cityStateAbbr,
+            }));
         }
 
         return NextResponse.json({
-            ...profile,
-            counties,
-            cities,
+            newsletter_active: profile.newsletterActive,
+            newsletter_interests: profile.newsletterInterests,
+            newsletter_timezone: profile.newsletterTimezone,
+            newsletter_preferred_send_times: profile.newsletterPreferredSendTimes,
+            newsletter_subscribed_at: profile.newsletterSubscribedAt,
+            subscriber_id: profile.subscriberId,
+            counties: countyNames,
+            cities: cityList,
         });
     } catch (error) {
         console.error("Error in preferences API:", error);
@@ -85,132 +92,124 @@ export async function PUT(request: NextRequest) {
         const body = await request.json();
         const { newsletter_active, newsletter_interests, newsletter_timezone, newsletter_preferred_send_times, selected_counties, selected_cities } = body;
 
-        // First, get current profile to check for subscriber_id
-        const { data: currentProfile } = await supabase.from("profiles").select("subscriber_id, full_name").eq("id", user.id).single();
+        const currentProfileRows = await db
+            .select({ subscriberId: profiles.subscriberId, fullName: profiles.fullName })
+            .from(profiles)
+            .where(eq(profiles.id, user.id));
 
-        let subscriberId = currentProfile?.subscriber_id;
+        const currentProfile = currentProfileRows[0];
+        let subscriberId = currentProfile?.subscriberId;
 
-        // If enabling newsletter and no subscriber exists, create or find one
         if (newsletter_active && !subscriberId) {
-            // Check if a subscriber with this email already exists
-            const { data: existingSubscriber } = await supabase.from("subscribers").select("id").eq("email", user.email).single();
+            const existingSubscriberRows = await db.select({ id: subscribers.id }).from(subscribers).where(eq(subscribers.email, user.email!));
 
-            if (existingSubscriber) {
-                subscriberId = existingSubscriber.id;
+            if (existingSubscriberRows.length > 0) {
+                subscriberId = existingSubscriberRows[0].id;
             } else {
-                // Create new subscriber
-                const { data: newSubscriber, error: createError } = await supabase
-                    .from("subscribers")
-                    .insert({
-                        email: user.email,
-                        full_name: currentProfile?.full_name || user.email?.split("@")[0],
-                        is_active: true,
+                const newSubscriberRows = await db
+                    .insert(subscribers)
+                    .values({
+                        email: user.email!,
+                        fullName: currentProfile?.fullName || user.email!.split("@")[0],
+                        isActive: true,
                         interests: newsletter_interests,
                         timezone: newsletter_timezone,
-                        preferred_send_times: newsletter_preferred_send_times,
+                        preferredSendTimes: newsletter_preferred_send_times,
                     })
-                    .select("id")
-                    .single();
+                    .returning({ id: subscribers.id });
 
-                if (createError) {
-                    console.error("Error creating subscriber:", createError);
+                if (newSubscriberRows.length === 0) {
                     return NextResponse.json({ error: "Failed to create subscriber" }, { status: 500 });
                 }
-                subscriberId = newSubscriber?.id;
+                subscriberId = newSubscriberRows[0].id;
             }
         }
 
-        // Update profile with newsletter preferences
-        const updateData: Record<string, any> = {
-            subscriber_id: subscriberId,
+        const updateData: Partial<typeof profiles.$inferInsert> = {
+            subscriberId,
         };
 
         if (typeof newsletter_active === "boolean") {
-            updateData.newsletter_active = newsletter_active;
+            updateData.newsletterActive = newsletter_active;
             if (newsletter_active && !body.newsletter_subscribed_at) {
-                updateData.newsletter_subscribed_at = new Date().toISOString();
+                updateData.newsletterSubscribedAt = new Date().toISOString();
             }
         }
         if (newsletter_interests !== undefined) {
-            updateData.newsletter_interests = newsletter_interests;
+            updateData.newsletterInterests = newsletter_interests;
         }
         if (newsletter_timezone !== undefined) {
-            updateData.newsletter_timezone = newsletter_timezone;
+            updateData.newsletterTimezone = newsletter_timezone;
         }
         if (newsletter_preferred_send_times !== undefined) {
-            updateData.newsletter_preferred_send_times = newsletter_preferred_send_times;
+            updateData.newsletterPreferredSendTimes = newsletter_preferred_send_times;
         }
 
-        const { error: profileError } = await supabase.from("profiles").update(updateData).eq("id", user.id);
+        const updateResult = await db.update(profiles).set(updateData).where(eq(profiles.id, user.id));
 
-        if (profileError) {
-            console.error("Error updating profile:", profileError);
-            return NextResponse.json({ error: "Failed to update preferences" }, { status: 500 });
-        }
-
-        // Update subscriber record if it exists
         if (subscriberId) {
-            await supabase
-                .from("subscribers")
-                .update({
-                    is_active: newsletter_active,
+            await db
+                .update(subscribers)
+                .set({
+                    isActive: newsletter_active,
                     interests: newsletter_interests,
                     timezone: newsletter_timezone,
-                    preferred_send_times: newsletter_preferred_send_times,
+                    preferredSendTimes: newsletter_preferred_send_times,
                 })
-                .eq("id", subscriberId);
+                .where(eq(subscribers.id, subscriberId));
 
-            // Update county preferences
             if (selected_counties !== undefined) {
-                // Delete existing county links
-                await supabase.from("subscriber_counties").delete().eq("subscriber_id", subscriberId);
+                await db.delete(subscriberCounties).where(eq(subscriberCounties.subscriberId, subscriberId));
 
-                // Insert new county links
                 if (selected_counties.length > 0) {
-                    // Get county IDs from names
-                    const { data: counties } = await supabase.from("counties").select("id, name").in("name", selected_counties);
+                    const countyRows = await db
+                        .select({ id: counties.id, name: counties.name })
+                        .from(counties)
+                        .where(inArray(counties.name, selected_counties));
 
-                    if (counties && counties.length > 0) {
-                        const countyLinks = counties.map((county: any) => ({
-                            subscriber_id: subscriberId,
-                            county_id: county.id,
-                        }));
-
-                        await supabase.from("subscriber_counties").insert(countyLinks);
+                    if (countyRows.length > 0) {
+                        await db.insert(subscriberCounties).values(
+                            countyRows.map((county) => ({
+                                subscriberId,
+                                countyId: county.id,
+                            })),
+                        );
                     }
                 }
             }
 
-            // Update city preferences
             if (selected_cities !== undefined) {
-                // Delete existing city links
-                await supabase.from("subscriber_cities").delete().eq("subscriber_id", subscriberId);
+                await db.delete(subscriberCities).where(eq(subscriberCities.subscriberId, subscriberId));
 
-                // Insert new city links
                 if (selected_cities.length > 0) {
                     for (const city of selected_cities) {
-                        // Find or create city
-                        let { data: existingCity } = await supabase.from("cities").select("id").eq("name", city.name).eq("state_abbr", city.stateAbbr).single();
+                        const existingCityRows = await db
+                            .select({ id: cities.id })
+                            .from(cities)
+                            .where(and(eq(cities.name, city.name), eq(cities.stateAbbr, city.stateAbbr)));
 
-                        if (!existingCity) {
-                            const { data: newCity } = await supabase
-                                .from("cities")
-                                .insert({
+                        let cityId: string;
+
+                        if (existingCityRows.length > 0) {
+                            cityId = existingCityRows[0].id;
+                        } else {
+                            const newCityRows = await db
+                                .insert(cities)
+                                .values({
                                     name: city.name,
                                     state: city.state,
-                                    state_abbr: city.stateAbbr,
+                                    stateAbbr: city.stateAbbr,
                                 })
-                                .select("id")
-                                .single();
-                            existingCity = newCity;
+                                .returning({ id: cities.id });
+
+                            if (newCityRows.length === 0) continue;
+                            cityId = newCityRows[0].id;
                         }
 
-                        if (existingCity) {
-                            await supabase.from("subscriber_cities").insert({
-                                subscriber_id: subscriberId,
-                                city_id: existingCity.id,
-                            });
-                        }
+                        await db.insert(subscriberCities).values({
+                            subscriberId,
+                            cityId,
+                        });
                     }
                 }
             }
