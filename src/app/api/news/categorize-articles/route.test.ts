@@ -171,4 +171,25 @@ describe("GET /api/news/categorize-articles — happy path", () => {
         expect(body.timings).toBeDefined();
         expect(typeof body.timings.relevance).toBe("number");
     });
+
+    it("continues categorizing later articles when saving one article fails", async () => {
+        const articles = [
+            { id: "a1", title: "First CRE Deal", description: null, link: "http://example.com/1" },
+            { id: "a2", title: "Second CRE Deal", description: null, link: "http://example.com/2" },
+        ];
+        setupArticlesFetch(articles);
+        mockCheckRelevance.mockResolvedValue([true, true]);
+        mockGetCountyCategories.mockResolvedValue([["Suffolk"], ["Kings"]]);
+        mockGetCityCategories.mockResolvedValue([["Boston"], ["Brooklyn"]]);
+        mockGetArticleTags.mockResolvedValue([["office"], ["multifamily"]]);
+        mockGetCountyIds.mockRejectedValueOnce(new Error("county lookup failed")).mockResolvedValueOnce(["county-2"]);
+
+        const res = await GET(makeRequest("Bearer secret"));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.ok).toBe(true);
+        expect(body.results.relevant).toBe(2);
+        expect(body.results.categorized).toBe(1);
+    });
 });

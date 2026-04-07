@@ -243,4 +243,49 @@ describe("GET /api/news/send-scheduled-newsletters — error isolation", () => {
         expect(body.emailsSent).toBe(1);
         expect(body.errors).toBe(1);
     });
+
+    it("alerts when a newsletter fails and status update also throws", async () => {
+        const mockOrder = vi.fn().mockResolvedValue({ data: [makeNewsletter()], error: null });
+        const mockLte = vi.fn().mockReturnValue({ order: mockOrder });
+        const mockEq = vi.fn().mockReturnValue({ lte: mockLte });
+        const mockNewslettersSelect = vi.fn().mockReturnValue({ eq: mockEq });
+        const mockFailedUpdate = vi.fn().mockReturnValue({
+            eq: vi.fn().mockRejectedValue(new Error("status update failed")),
+        });
+
+        mockFrom.mockImplementation((table: string) => {
+            if (table === "newsletters") return { select: mockNewslettersSelect, update: mockFailedUpdate };
+            return {};
+        });
+
+        mockGetSubscriberByEmail.mockRejectedValue(new Error("unexpected crash"));
+
+        const res = await GET(makeRequest());
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.emailsSent).toBe(0);
+        expect(body.errors).toBe(1);
+        expect(mockSendAlertEmail).toHaveBeenCalledWith("⚠️ Newsletter send failures: 1/1", expect.stringContaining("Failed: 1"));
+    });
+});
+
+describe("GET /api/news/send-scheduled-newsletters — top-level error handling", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        delete process.env.CRON_SECRET;
+    });
+
+    it("sends an alert when the cron crashes before processing newsletters", async () => {
+        mockFrom.mockImplementation(() => {
+            throw new Error("query crashed");
+        });
+
+        const res = await GET(makeRequest());
+        const body = await res.json();
+
+        expect(res.status).toBe(500);
+        expect(body.error).toBe("Internal server error");
+        expect(mockSendAlertEmail).toHaveBeenCalledWith("🚨 Newsletter send cron crashed", expect.stringContaining("query crashed"));
+    });
 });
