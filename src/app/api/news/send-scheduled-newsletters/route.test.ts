@@ -2,10 +2,13 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockGetSubscriberByEmail, mockSendNewsletterToSubscriber, mockFrom, mockSendAlertEmail } = vi.hoisted(() => ({
+const { mockGetSubscriberByEmail, mockSendNewsletterToSubscriber, mockDb, mockSendAlertEmail } = vi.hoisted(() => ({
     mockGetSubscriberByEmail: vi.fn(),
     mockSendNewsletterToSubscriber: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        update: vi.fn(),
+    },
     mockSendAlertEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -28,8 +31,8 @@ vi.mock("@/lib/news/newsletter-utils", () => ({
     splitArticlesIntoNationalAndLocal: vi.fn().mockReturnValue({ nationalArticles: [], localArticles: [] }),
 }));
 
-vi.mock("@/utils/supabase/admin", () => ({
-    createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -61,28 +64,48 @@ function makeNewsletter(overrides = {}) {
         id: "nl-1",
         subscriber_email: "alice@example.com",
         scheduled_send_at: new Date(Date.now() - 1000).toISOString(),
-        newsletter_articles: [],
         ...overrides,
     };
 }
 
-// Sets up mockFrom to return a scheduled newsletters query result
-function setupNewslettersFetch(newsletters: unknown[], error: unknown = null) {
-    const mockOrder = vi.fn().mockResolvedValue({ data: newsletters, error });
-    const mockLte = vi.fn().mockReturnValue({ order: mockOrder });
-    const mockEq = vi.fn().mockReturnValue({ lte: mockLte });
-    const mockNewslettersSelect = vi.fn().mockReturnValue({ eq: mockEq });
+// Sets up mockDb to return a scheduled newsletters query result
+// newsletters select: .from().where().orderBy() → scheduledNewsletters
+// newsletter_articles select: .from().where() → naRows
+// articles select (with joins): .from().leftJoin().leftJoin().where() → articleRows
+// articleCounties, articleCities, articleTags: .from().leftJoin().where() or .from().where() → []
+function setupNewslettersFetch(scheduledNewsletters: unknown[], error: unknown = null) {
+    if (error) {
+        mockDb.select.mockImplementation(() => {
+            throw error;
+        });
+        const mockUpdateWhere = vi.fn().mockResolvedValue([]);
+        const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
+        return { mockUpdateWhere, mockSet };
+    }
 
-    const mockUpdate = vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
+    let callCount = 0;
+    mockDb.select.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+            // newsletters query: .from().where().orderBy()
+            const mockOrderBy = vi.fn().mockResolvedValue(scheduledNewsletters);
+            const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+            return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
+        }
+        // All subsequent select calls (newsletter_articles, articles, counties, cities, tags)
+        // return empty arrays
+        const mockWhere2 = vi.fn().mockResolvedValue([]);
+        const mockLeftJoin2 = vi.fn().mockReturnValue({ where: mockWhere2 });
+        const mockLeftJoin1 = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin2, where: mockWhere2 });
+        return { from: vi.fn().mockReturnValue({ where: mockWhere2, leftJoin: mockLeftJoin1 }) };
     });
 
-    mockFrom.mockImplementation((table: string) => {
-        if (table === "newsletters") return { select: mockNewslettersSelect, update: mockUpdate };
-        return {};
-    });
+    const mockUpdateWhere = vi.fn().mockResolvedValue([]);
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+    mockDb.update.mockReturnValue({ set: mockSet });
 
-    return { mockUpdate };
+    return { mockUpdateWhere, mockSet };
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -145,7 +168,7 @@ describe("GET /api/news/send-scheduled-newsletters — inactive subscriber", () 
     });
 
     it("marks newsletter as failed when subscriber is not found", async () => {
-        const { mockUpdate } = setupNewslettersFetch([makeNewsletter()]);
+        const { mockSet } = setupNewslettersFetch([makeNewsletter()]);
         mockGetSubscriberByEmail.mockResolvedValue(null);
 
         const res = await GET(makeRequest());
@@ -153,18 +176,18 @@ describe("GET /api/news/send-scheduled-newsletters — inactive subscriber", () 
 
         expect(body.errors).toBe(1);
         expect(body.emailsSent).toBe(0);
-        expect(mockUpdate).toHaveBeenCalledWith({ status: "failed" });
+        expect(mockSet).toHaveBeenCalledWith({ status: "failed" });
     });
 
     it("marks newsletter as failed when subscriber is inactive", async () => {
-        const { mockUpdate } = setupNewslettersFetch([makeNewsletter()]);
+        const { mockSet } = setupNewslettersFetch([makeNewsletter()]);
         mockGetSubscriberByEmail.mockResolvedValue(makeSubscriber({ isActive: false }));
 
         const res = await GET(makeRequest());
         const body = await res.json();
 
         expect(body.errors).toBe(1);
-        expect(mockUpdate).toHaveBeenCalledWith({ status: "failed" });
+        expect(mockSet).toHaveBeenCalledWith({ status: "failed" });
     });
 });
 
@@ -177,7 +200,7 @@ describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
     });
 
     it("sends email and marks newsletter as sent", async () => {
-        const { mockUpdate } = setupNewslettersFetch([makeNewsletter()]);
+        const { mockSet } = setupNewslettersFetch([makeNewsletter()]);
         mockGetSubscriberByEmail.mockResolvedValue(makeSubscriber());
         mockSendNewsletterToSubscriber.mockResolvedValue(true);
 
@@ -186,11 +209,11 @@ describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
 
         expect(body.emailsSent).toBe(1);
         expect(body.errors).toBe(0);
-        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "sent" }));
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: "sent" }));
     });
 
     it("marks newsletter as failed when email send returns false", async () => {
-        const { mockUpdate } = setupNewslettersFetch([makeNewsletter()]);
+        const { mockSet } = setupNewslettersFetch([makeNewsletter()]);
         mockGetSubscriberByEmail.mockResolvedValue(makeSubscriber());
         mockSendNewsletterToSubscriber.mockResolvedValue(false);
 
@@ -199,7 +222,7 @@ describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
 
         expect(body.errors).toBe(1);
         expect(body.emailsSent).toBe(0);
-        expect(mockUpdate).toHaveBeenCalledWith({ status: "failed" });
+        expect(mockSet).toHaveBeenCalledWith({ status: "failed" });
     });
 
     it("processes multiple newsletters and returns correct counts", async () => {
@@ -245,18 +268,19 @@ describe("GET /api/news/send-scheduled-newsletters — error isolation", () => {
     });
 
     it("alerts when a newsletter fails and status update also throws", async () => {
-        const mockOrder = vi.fn().mockResolvedValue({ data: [makeNewsletter()], error: null });
-        const mockLte = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockEq = vi.fn().mockReturnValue({ lte: mockLte });
-        const mockNewslettersSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        const mockFailedUpdate = vi.fn().mockReturnValue({
-            eq: vi.fn().mockRejectedValue(new Error("status update failed")),
-        });
+        setupNewslettersFetch([makeNewsletter()]);
 
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "newsletters") return { select: mockNewslettersSelect, update: mockFailedUpdate };
-            return {};
+        // Override update mock to throw on the second call (inside the catch block)
+        let updateCallCount = 0;
+        const mockUpdateWhere = vi.fn().mockImplementation(() => {
+            updateCallCount++;
+            if (updateCallCount >= 1) {
+                throw new Error("status update failed");
+            }
+            return Promise.resolve([]);
         });
+        const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         mockGetSubscriberByEmail.mockRejectedValue(new Error("unexpected crash"));
 
@@ -277,7 +301,7 @@ describe("GET /api/news/send-scheduled-newsletters — top-level error handling"
     });
 
     it("sends an alert when the cron crashes before processing newsletters", async () => {
-        mockFrom.mockImplementation(() => {
+        mockDb.select.mockImplementation(() => {
             throw new Error("query crashed");
         });
 

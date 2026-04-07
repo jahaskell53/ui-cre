@@ -1,5 +1,7 @@
 // Centralized definitions of news markets and sources
-import { createClient } from "@/utils/supabase/server";
+import { asc, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { sources } from "@/db/schema";
 
 // Helper function to sanitize image URLs by removing query parameters
 export function sanitizeImageUrl(url?: string): string {
@@ -31,72 +33,63 @@ export function filterArticlesBeforeLastWeek<T extends { date: string }>(article
 
 // Fetch RSS feeds from database
 export async function getRssFeeds() {
-    const supabase = await createClient();
+    try {
+        const rows = await db
+            .select({ sourceId: sources.sourceId, sourceName: sources.sourceName, url: sources.url, type: sources.type })
+            .from(sources)
+            .where(eq(sources.type, "rss"))
+            .orderBy(asc(sources.sourceName));
 
-    const { data, error } = await supabase
-        .from("sources")
-        .select("source_id, source_name, url, type")
-        .eq("type", "rss")
-        .eq("disabled", false)
-        .order("source_name", { ascending: true });
-
-    if (error) {
+        return rows.map((source) => ({
+            sourceId: source.sourceId,
+            sourceName: source.sourceName,
+            url: source.url,
+            type: source.type,
+        }));
+    } catch (error) {
         console.error("Error fetching RSS feeds:", error);
         return [];
     }
-
-    return data.map((source) => ({
-        sourceId: source.source_id,
-        sourceName: source.source_name,
-        url: source.url,
-        type: source.type,
-    }));
 }
 
 // Fetch Firecrawl sources from database
 export async function getFirecrawlSources() {
-    const supabase = await createClient();
+    try {
+        const rows = await db
+            .select({ sourceId: sources.sourceId, sourceName: sources.sourceName, url: sources.url, type: sources.type })
+            .from(sources)
+            .where(eq(sources.type, "firecrawl"))
+            .orderBy(asc(sources.sourceName));
 
-    const { data, error } = await supabase
-        .from("sources")
-        .select("source_id, source_name, url, type")
-        .eq("type", "firecrawl")
-        .eq("disabled", false)
-        .order("source_name", { ascending: true });
-
-    if (error) {
+        return rows.map((source) => ({
+            sourceId: source.sourceId,
+            sourceName: source.sourceName,
+            url: source.url,
+            type: source.type,
+        }));
+    } catch (error) {
         console.error("Error fetching Firecrawl sources:", error);
         return [];
     }
-
-    return data.map((source) => ({
-        sourceId: source.source_id,
-        sourceName: source.source_name,
-        url: source.url,
-        type: source.type,
-    }));
 }
 
 // Fetch LinkedIn profiles from database
 export async function getLinkedInProfiles() {
-    const supabase = await createClient();
+    try {
+        const rows = await db
+            .select({ sourceId: sources.sourceId, sourceName: sources.sourceName, url: sources.url, type: sources.type })
+            .from(sources)
+            .where(eq(sources.type, "linkedin"))
+            .orderBy(asc(sources.sourceName));
 
-    const { data, error } = await supabase
-        .from("sources")
-        .select("source_id, source_name, url, type")
-        .eq("type", "linkedin")
-        .eq("disabled", false)
-        .order("source_name", { ascending: true });
-
-    if (error) {
+        return rows.map((source) => ({
+            sourceId: source.sourceId,
+            sourceName: source.sourceName,
+            url: source.url,
+            type: source.type,
+        }));
+    } catch (error) {
         console.error("Error fetching LinkedIn profiles:", error);
         return [];
     }
-
-    return data.map((source) => ({
-        sourceId: source.source_id,
-        sourceName: source.source_name,
-        url: source.url,
-        type: source.type,
-    }));
 }

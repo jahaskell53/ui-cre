@@ -1,4 +1,7 @@
+import { desc, eq, inArray, or } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { messages, profiles } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -16,37 +19,30 @@ export async function GET(request: NextRequest) {
         }
 
         // Get all messages where user is sender or recipient
-        const { data: messages, error: messagesError } = await supabase
-            .from("messages")
-            .select(
-                `
-                id,
-                sender_id,
-                recipient_id,
-                content,
-                created_at,
-                read_at
-            `,
-            )
-            .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-            .order("created_at", { ascending: false });
-
-        if (messagesError) {
-            console.error("Error fetching messages:", messagesError);
-            return NextResponse.json({ error: "Failed to fetch conversations" }, { status: 500 });
-        }
+        const rows = await db
+            .select({
+                id: messages.id,
+                sender_id: messages.senderId,
+                recipient_id: messages.recipientId,
+                content: messages.content,
+                created_at: messages.createdAt,
+                read_at: messages.readAt,
+            })
+            .from(messages)
+            .where(or(eq(messages.senderId, user.id), eq(messages.recipientId, user.id)))
+            .orderBy(desc(messages.createdAt));
 
         // Group messages by conversation partner
         const conversationsMap = new Map<
             string,
             {
                 other_user_id: string;
-                last_message: any;
+                last_message: (typeof rows)[number];
                 unread_count: number;
             }
         >();
 
-        messages?.forEach((message) => {
+        rows.forEach((message) => {
             const otherUserId = message.sender_id === user.id ? message.recipient_id : message.sender_id;
 
             const existing = conversationsMap.get(otherUserId);
@@ -71,17 +67,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json([]);
         }
 
-        const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", otherUserIds);
-
-        if (profilesError) {
-            console.error("Error fetching profiles:", profilesError);
-            return NextResponse.json({ error: "Failed to fetch user profiles" }, { status: 500 });
-        }
+        const profileRows = await db
+            .select({ id: profiles.id, full_name: profiles.fullName, avatar_url: profiles.avatarUrl })
+            .from(profiles)
+            .where(inArray(profiles.id, otherUserIds));
 
         // Combine conversation data with profile data
         const conversations = Array.from(conversationsMap.values())
             .map((conv) => {
-                const profile = profiles?.find((p) => p.id === conv.other_user_id);
+                const profile = profileRows.find((p) => p.id === conv.other_user_id);
                 return {
                     other_user_id: conv.other_user_id,
                     other_user: profile

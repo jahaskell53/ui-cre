@@ -2,16 +2,21 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockDb } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+    },
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 function makeGet(params?: Record<string, string>) {
@@ -28,18 +33,6 @@ function noAuth() {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
 }
 
-const rawArticle = {
-    id: "art-1",
-    title: "Multifamily Sale",
-    link: "https://example.com/1",
-    description: "A deal",
-    image_url: null,
-    date: "2026-03-01",
-    sources: { source_name: "CRE News" },
-    article_counties: [{ counties: { name: "Suffolk" } }],
-    article_tags: [{ tag: "multifamily" }],
-};
-
 describe("GET /api/news/articles", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -53,19 +46,43 @@ describe("GET /api/news/articles", () => {
 
     it("returns transformed articles", async () => {
         authAs();
-        const mockRange = vi.fn().mockResolvedValue({ data: [rawArticle], error: null });
-        const mockOrder = vi.fn().mockReturnValue({ range: mockRange });
-        const mockEq = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        const mockProfileSingle = vi.fn().mockResolvedValue({ data: null });
-        const mockProfileEq = vi.fn().mockReturnValue({ single: mockProfileSingle });
-        const mockProfileSelect = vi.fn().mockReturnValue({ eq: mockProfileEq });
+
+        const articleRows = [
+            {
+                id: "art-1",
+                title: "Multifamily Sale",
+                link: "https://example.com/1",
+                description: "A deal",
+                image_url: null,
+                date: "2026-03-01",
+                source_name: "CRE News",
+            },
+        ];
+
+        const countyRows = [{ article_id: "art-1", county_name: "Suffolk" }];
+        const tagRows = [{ article_id: "art-1", tag: "multifamily" }];
 
         let callCount = 0;
-        mockFrom.mockImplementation(() => {
+        mockDb.select.mockImplementation(() => {
             callCount++;
-            if (callCount === 1) return { select: mockProfileSelect };
-            return { select: mockSelect };
+            if (callCount === 1) {
+                // articles query with joins
+                const mockOffset = vi.fn().mockResolvedValue(articleRows);
+                const mockLimit = vi.fn().mockReturnValue({ offset: mockOffset });
+                const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+                const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+                const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
+                return { from: vi.fn().mockReturnValue({ leftJoin: mockLeftJoin }) };
+            } else if (callCount === 2) {
+                // county rows
+                const mockWhere = vi.fn().mockResolvedValue(countyRows);
+                const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
+                return { from: vi.fn().mockReturnValue({ leftJoin: mockLeftJoin }) };
+            } else {
+                // tag rows
+                const mockWhere = vi.fn().mockResolvedValue(tagRows);
+                return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
+            }
         });
 
         const res = await GET(makeGet());
@@ -81,19 +98,9 @@ describe("GET /api/news/articles", () => {
 
     it("returns 500 on DB error", async () => {
         authAs();
-        const mockRange = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockOrder = vi.fn().mockReturnValue({ range: mockRange });
-        const mockEq = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        const mockProfileSingle = vi.fn().mockResolvedValue({ data: null });
-        const mockProfileEq = vi.fn().mockReturnValue({ single: mockProfileSingle });
-        const mockProfileSelect = vi.fn().mockReturnValue({ eq: mockProfileEq });
 
-        let callCount = 0;
-        mockFrom.mockImplementation(() => {
-            callCount++;
-            if (callCount === 1) return { select: mockProfileSelect };
-            return { select: mockSelect };
+        mockDb.select.mockImplementation(() => {
+            throw new Error("DB error");
         });
 
         const res = await GET(makeGet());
@@ -102,26 +109,27 @@ describe("GET /api/news/articles", () => {
 
     it("respects limit and offset params", async () => {
         authAs();
-        let capturedRange: [number, number] | null = null;
-        const mockRange = vi.fn().mockImplementation((from, to) => {
-            capturedRange = [from, to];
-            return Promise.resolve({ data: [], error: null });
-        });
-        const mockOrder = vi.fn().mockReturnValue({ range: mockRange });
-        const mockEq = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        const mockProfileSingle = vi.fn().mockResolvedValue({ data: null });
-        const mockProfileEq = vi.fn().mockReturnValue({ single: mockProfileSingle });
-        const mockProfileSelect = vi.fn().mockReturnValue({ eq: mockProfileEq });
 
-        let callCount = 0;
-        mockFrom.mockImplementation(() => {
-            callCount++;
-            if (callCount === 1) return { select: mockProfileSelect };
-            return { select: mockSelect };
+        let capturedLimit: number | null = null;
+        let capturedOffset: number | null = null;
+
+        mockDb.select.mockImplementation(() => {
+            const mockOffset = vi.fn().mockImplementation((off: number) => {
+                capturedOffset = off;
+                return Promise.resolve([]);
+            });
+            const mockLimit = vi.fn().mockImplementation((lim: number) => {
+                capturedLimit = lim;
+                return { offset: mockOffset };
+            });
+            const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+            const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+            const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
+            return { from: vi.fn().mockReturnValue({ leftJoin: mockLeftJoin }) };
         });
 
         await GET(makeGet({ limit: "10", offset: "20" }));
-        expect(capturedRange).toEqual([20, 29]);
+        expect(capturedLimit).toBe(10);
+        expect(capturedOffset).toBe(20);
     });
 });

@@ -2,16 +2,22 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "./route";
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockDb } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        update: vi.fn(),
+    },
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 function makePost(authHeader?: string) {
@@ -59,16 +65,18 @@ describe("POST /api/news/link-subscribers — processing", () => {
     });
 
     it("returns 500 when subscriber fetch fails", async () => {
-        const mockSelect = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        mockDb.select.mockImplementation(() => {
+            throw new Error("DB error");
+        });
 
         const res = await POST(makePost("Bearer secret"));
         expect(res.status).toBe(500);
     });
 
     it("returns counts with 0 when no subscribers", async () => {
-        const mockSelect = vi.fn().mockResolvedValue({ data: [], error: null });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        // db.select().from()  → []
+        const mockFrom = vi.fn().mockResolvedValue([]);
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await POST(makePost("Bearer secret"));
         const body = await res.json();
@@ -79,19 +87,20 @@ describe("POST /api/news/link-subscribers — processing", () => {
     });
 
     it("reports already_linked for subscribers with existing profile link", async () => {
-        const subscribers = [{ id: "sub-1", email: "alice@example.com" }];
+        const subscriberList = [
+            { id: "sub-1", email: "alice@example.com", fullName: "Alice", isActive: true, interests: null, timezone: null, preferredSendTimes: null },
+        ];
 
         let callCount = 0;
-        mockFrom.mockImplementation(() => {
+        mockDb.select.mockImplementation(() => {
             callCount++;
             if (callCount === 1) {
                 // get all subscribers
-                return { select: vi.fn().mockResolvedValue({ data: subscribers, error: null }) };
+                return { from: vi.fn().mockResolvedValue(subscriberList) };
             }
             // check existing link — found
-            const mockSingle = vi.fn().mockResolvedValue({ data: { id: "prof-1", subscriber_id: "sub-1" } });
-            const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-            return { select: vi.fn().mockReturnValue({ eq: mockEq }) };
+            const mockWhere = vi.fn().mockResolvedValue([{ id: "prof-1", subscriberId: "sub-1" }]);
+            return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
         });
 
         const res = await POST(makePost("Bearer secret"));
@@ -124,9 +133,8 @@ describe("GET /api/news/link-subscribers — already linked", () => {
 
     it("returns subscriberId when profile already has subscriber", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: { subscriber_id: "sub-1" }, error: null });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: mockEq }) });
+        const mockWhere = vi.fn().mockResolvedValue([{ subscriberId: "sub-1" }]);
+        mockDb.select.mockReturnValue({ from: vi.fn().mockReturnValue({ where: mockWhere }) });
 
         const res = await GET(makeGet());
         const body = await res.json();
@@ -137,9 +145,9 @@ describe("GET /api/news/link-subscribers — already linked", () => {
 
     it("returns 500 on profile fetch error", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        mockFrom.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: mockEq }) });
+        mockDb.select.mockImplementation(() => {
+            throw new Error("DB error");
+        });
 
         const res = await GET(makeGet());
         expect(res.status).toBe(500);
@@ -155,18 +163,16 @@ describe("GET /api/news/link-subscribers — linking", () => {
         authAs("user-1", "alice@example.com");
 
         let callCount = 0;
-        mockFrom.mockImplementation(() => {
+        mockDb.select.mockImplementation(() => {
             callCount++;
             if (callCount === 1) {
                 // profile — no subscriber_id
-                const mockSingle = vi.fn().mockResolvedValue({ data: { subscriber_id: null }, error: null });
-                const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-                return { select: vi.fn().mockReturnValue({ eq: mockEq }) };
+                const mockWhere = vi.fn().mockResolvedValue([{ subscriberId: null }]);
+                return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
             }
             // subscriber lookup — not found
-            const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
-            const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-            return { select: vi.fn().mockReturnValue({ eq: mockEq }) };
+            const mockWhere = vi.fn().mockResolvedValue([]);
+            return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
         });
 
         const res = await GET(makeGet());
@@ -180,31 +186,30 @@ describe("GET /api/news/link-subscribers — linking", () => {
         authAs("user-1", "alice@example.com");
         const subscriber = {
             id: "sub-1",
-            full_name: "Alice",
-            interests: ["multifamily"],
+            fullName: "Alice",
+            interests: "multifamily",
             timezone: "America/New_York",
-            preferred_send_times: ["08:00"],
-            is_active: true,
+            preferredSendTimes: [{ dayOfWeek: 1, hour: 8 }],
+            isActive: true,
         };
 
         let callCount = 0;
-        mockFrom.mockImplementation((table: string) => {
+        mockDb.select.mockImplementation(() => {
             callCount++;
             if (callCount === 1) {
                 // profile fetch
-                const mockSingle = vi.fn().mockResolvedValue({ data: { subscriber_id: null }, error: null });
-                const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-                return { select: vi.fn().mockReturnValue({ eq: mockEq }) };
+                const mockWhere = vi.fn().mockResolvedValue([{ subscriberId: null }]);
+                return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
             }
-            if (table === "subscribers") {
-                // subscriber lookup
-                const mockSingle = vi.fn().mockResolvedValue({ data: subscriber, error: null });
-                const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-                return { select: vi.fn().mockReturnValue({ eq: mockEq }) };
-            }
-            // profile update
-            return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }) };
+            // subscriber lookup
+            const mockWhere = vi.fn().mockResolvedValue([subscriber]);
+            return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
         });
+
+        // profile update
+        const mockUpdateWhere = vi.fn().mockResolvedValue([]);
+        const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         const res = await GET(makeGet());
         const body = await res.json();

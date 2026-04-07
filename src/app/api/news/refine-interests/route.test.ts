@@ -2,17 +2,24 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
-const { mockMakeGeminiCall, mockFrom } = vi.hoisted(() => ({
+const { mockMakeGeminiCall, mockDb } = vi.hoisted(() => ({
     mockMakeGeminiCall: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+    },
 }));
 
 vi.mock("@/lib/news/gemini", () => ({
     makeGeminiCall: mockMakeGeminiCall,
 }));
 
+vi.mock("@/db", () => ({
+    db: mockDb,
+}));
+
+// Keep the supabase/server mock since createClient is imported (but unused now for DB queries)
 vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+    createClient: vi.fn().mockResolvedValue({}),
 }));
 
 function makePost(body: Record<string, unknown>) {
@@ -125,12 +132,8 @@ describe("POST /api/news/refine-interests — determine-counties", () => {
     });
 
     it("returns counties array", async () => {
-        const mockEq = vi.fn().mockResolvedValue({ data: [{ name: "Suffolk" }, { name: "Middlesex" }], error: null });
-        const mockOrder = vi.fn().mockReturnValue({ ...vi.fn().mockResolvedValue({ data: [{ name: "Suffolk" }], error: null }) });
-        const mockSelectCounties = vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({ data: [{ name: "Suffolk" }, { name: "Middlesex" }], error: null }),
-        });
-        mockFrom.mockReturnValue({ select: mockSelectCounties });
+        const mockOrderBy = vi.fn().mockResolvedValue([{ name: "Suffolk" }, { name: "Middlesex" }]);
+        mockDb.select.mockReturnValue({ from: vi.fn().mockReturnValue({ orderBy: mockOrderBy }) });
 
         geminiReturns({ counties: ["Suffolk"] });
 
@@ -149,10 +152,8 @@ describe("POST /api/news/refine-interests — determine-counties", () => {
     });
 
     it("returns 500 when county DB fetch fails", async () => {
-        mockFrom.mockReturnValue({
-            select: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } }),
-            }),
+        mockDb.select.mockImplementation(() => {
+            throw new Error("DB error");
         });
 
         const res = await POST(

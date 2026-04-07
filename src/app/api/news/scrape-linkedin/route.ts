@@ -1,9 +1,11 @@
 import { ApifyClient } from "apify-client";
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { articleCities, articleCounties, articleTags, articles, sources } from "@/db/schema";
 import { generateArticleTitles, getArticleTags, getCityCategories, getCountyCategories } from "@/lib/news/categorization";
 import { getCountyIds } from "@/lib/news/counties";
 import { getLinkedInProfiles } from "@/lib/news/news-sources";
-import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -195,78 +197,68 @@ export async function GET(request: NextRequest) {
         const generatedContent = await generateArticleTitles(articleData);
         const countyCategories = await getCountyCategories(articleData);
         const cityCategories = await getCityCategories(articleData);
-        const articleTags = await getArticleTags(articleData);
+        const articleTags2 = await getArticleTags(articleData);
 
         const aiTime = Date.now() - aiStartTime;
         console.log(`⏱️ AI processing completed in ${aiTime}ms`);
 
         // Map to final article format with Gemini-generated titles, descriptions, and tags
-        const articles: ArticleItem[] = rawArticles.map((article, index) => ({
+        const articleItems: ArticleItem[] = rawArticles.map((article, index) => ({
             ...article,
             title: generatedContent.titles[index] || article.title,
             description: generatedContent.descriptions[index] || article.description,
             counties: countyCategories[index] || ["Other"],
             cities: cityCategories[index] || [],
-            tags: [...(articleTags[index] || []), "linkedin", "social-media"],
+            tags: [...(articleTags2[index] || []), "linkedin", "social-media"],
         }));
 
-        console.log(`✅ Processed ${articles.length} LinkedIn posts into articles`);
-
-        // Store results in database using Supabase
-        const supabase = await createClient();
+        console.log(`✅ Processed ${articleItems.length} LinkedIn posts into articles`);
 
         // Ensure LinkedIn source exists
-        await supabase.from("sources").upsert(
-            {
-                source_id: "linkedin",
-                source_name: "LinkedIn",
-            },
-            { onConflict: "source_id" },
-        );
+        await db
+            .insert(sources)
+            .values({
+                sourceId: "linkedin",
+                sourceName: "LinkedIn",
+            })
+            .onConflictDoNothing();
 
         let saved = 0;
-        for (const article of articles) {
+        for (const article of articleItems) {
             try {
                 const articleSourceId = article.source || "linkedin";
 
                 // Ensure article's source exists
                 if (articleSourceId !== "linkedin") {
-                    await supabase.from("sources").upsert(
-                        {
-                            source_id: articleSourceId,
-                            source_name: articleSourceId,
-                        },
-                        { onConflict: "source_id" },
-                    );
+                    await db
+                        .insert(sources)
+                        .values({
+                            sourceId: articleSourceId,
+                            sourceName: articleSourceId,
+                        })
+                        .onConflictDoNothing();
                 }
 
                 // Check if article already exists
-                const { data: existingArticle } = await supabase.from("articles").select("id").eq("link", article.link).single();
+                const [existingArticle] = await db.select({ id: articles.id }).from(articles).where(eq(articles.link, article.link));
 
                 if (existingArticle) {
                     continue;
                 }
 
-                const { data: createdArticle, error: insertError } = await supabase
-                    .from("articles")
-                    .insert({
+                const [createdArticle] = await db
+                    .insert(articles)
+                    .values({
                         link: article.link,
                         title: article.title,
-                        source_id: articleSourceId,
+                        sourceId: articleSourceId,
                         date: new Date(article.date).toISOString(),
-                        image_url: article.imageUrl || null,
+                        imageUrl: article.imageUrl || null,
                         description: article.description || null,
-                        is_categorized: true,
+                        isCategorized: true,
                     })
-                    .select("id")
-                    .single();
-
-                if (insertError) {
-                    if (insertError.code === "23505") {
-                        continue;
-                    }
-                    throw insertError;
-                }
+                    .returning({ id: articles.id })
+                    .onConflictDoNothing();
 
                 if (!createdArticle) continue;
 
@@ -274,36 +266,42 @@ export async function GET(request: NextRequest) {
                 if (article.counties && article.counties.length > 0) {
                     const countyIds = await getCountyIds(article.counties);
                     if (countyIds.length > 0) {
-                        await supabase.from("article_counties").upsert(
-                            countyIds.map((countyId) => ({
-                                article_id: createdArticle.id,
-                                county_id: countyId,
-                            })),
-                            { onConflict: "article_id,county_id", ignoreDuplicates: true },
-                        );
+                        await db
+                            .insert(articleCounties)
+                            .values(
+                                countyIds.map((countyId) => ({
+                                    articleId: createdArticle.id,
+                                    countyId: countyId,
+                                })),
+                            )
+                            .onConflictDoNothing();
                     }
                 }
 
                 // Insert cities
                 if (article.cities && article.cities.length > 0) {
-                    await supabase.from("article_cities").upsert(
-                        article.cities.map((city) => ({
-                            article_id: createdArticle.id,
-                            city: city,
-                        })),
-                        { onConflict: "article_id,city", ignoreDuplicates: true },
-                    );
+                    await db
+                        .insert(articleCities)
+                        .values(
+                            article.cities.map((city) => ({
+                                articleId: createdArticle.id,
+                                city: city,
+                            })),
+                        )
+                        .onConflictDoNothing();
                 }
 
                 // Insert tags
                 if (article.tags && article.tags.length > 0) {
-                    await supabase.from("article_tags").upsert(
-                        article.tags.map((tag) => ({
-                            article_id: createdArticle.id,
-                            tag: tag,
-                        })),
-                        { onConflict: "article_id,tag", ignoreDuplicates: true },
-                    );
+                    await db
+                        .insert(articleTags)
+                        .values(
+                            article.tags.map((tag) => ({
+                                articleId: createdArticle.id,
+                                tag: tag,
+                            })),
+                        )
+                        .onConflictDoNothing();
                 }
 
                 saved++;
@@ -318,7 +316,7 @@ export async function GET(request: NextRequest) {
             message: "LinkedIn scraping completed successfully",
             profilesScraped: linkedinProfiles.length,
             postsFound: items.length,
-            articlesProcessed: articles.length,
+            articlesProcessed: articleItems.length,
             articlesSaved: saved,
             runId: run.id,
         };

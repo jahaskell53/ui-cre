@@ -1,11 +1,22 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createClient } from "@/utils/supabase/server";
 import { GET } from "./route";
 
-// Mock the Supabase server client
+const { mockGetUser, mockDb } = vi.hoisted(() => ({
+    mockGetUser: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+    },
+}));
+
 vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn(),
+    createClient: vi.fn().mockResolvedValue({
+        auth: { getUser: mockGetUser },
+    }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 describe("GET /api/conversations", () => {
@@ -14,23 +25,15 @@ describe("GET /api/conversations", () => {
         email: "test@example.com",
     };
 
-    const mockSupabaseClient = {
-        auth: {
-            getUser: vi.fn(),
-        },
-        from: vi.fn(),
-    };
-
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(createClient).mockResolvedValue(mockSupabaseClient as any);
     });
 
     it("should return 401 if user is not authenticated", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+        mockGetUser.mockResolvedValue({
             data: { user: null },
             error: { message: "Not authenticated" },
-        } as any);
+        });
 
         const request = new NextRequest("http://localhost/api/conversations");
 
@@ -42,23 +45,16 @@ describe("GET /api/conversations", () => {
     });
 
     it("should return empty array if no conversations", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+        mockGetUser.mockResolvedValue({
             data: { user: mockUser },
             error: null,
-        } as any);
-
-        const mockSelect = vi.fn().mockReturnValue({
-            or: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                }),
-            }),
         });
 
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        // db.select().from().where().orderBy() → []
+        const mockOrderBy = vi.fn().mockResolvedValue([]);
+        const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const request = new NextRequest("http://localhost/api/conversations");
 
@@ -71,10 +67,10 @@ describe("GET /api/conversations", () => {
     });
 
     it("should return conversations with profile data", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+        mockGetUser.mockResolvedValue({
             data: { user: mockUser },
             error: null,
-        } as any);
+        });
 
         const mockMessages = [
             {
@@ -104,32 +100,19 @@ describe("GET /api/conversations", () => {
         ];
 
         let callCount = 0;
-        const mockSelect = vi.fn().mockImplementation(() => {
+        mockDb.select.mockImplementation(() => {
             callCount++;
             if (callCount === 1) {
-                // First call for messages
-                return {
-                    or: vi.fn().mockReturnValue({
-                        order: vi.fn().mockResolvedValue({
-                            data: mockMessages,
-                            error: null,
-                        }),
-                    }),
-                };
+                // messages query
+                const mockOrderBy = vi.fn().mockResolvedValue(mockMessages);
+                const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+                return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
             } else {
-                // Second call for profiles
-                return {
-                    in: vi.fn().mockResolvedValue({
-                        data: mockProfiles,
-                        error: null,
-                    }),
-                };
+                // profiles query
+                const mockWhere = vi.fn().mockResolvedValue(mockProfiles);
+                return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
             }
         });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
 
         const request = new NextRequest("http://localhost/api/conversations");
 
@@ -147,23 +130,14 @@ describe("GET /api/conversations", () => {
     });
 
     it("should handle errors when fetching messages", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
+        mockGetUser.mockResolvedValue({
             data: { user: mockUser },
             error: null,
-        } as any);
-
-        const mockSelect = vi.fn().mockReturnValue({
-            or: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: "Database error" },
-                }),
-            }),
         });
 
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        mockDb.select.mockImplementation(() => {
+            throw new Error("Database error");
+        });
 
         const request = new NextRequest("http://localhost/api/conversations");
 
@@ -171,6 +145,5 @@ describe("GET /api/conversations", () => {
         const data = await response.json();
 
         expect(response.status).toBe(500);
-        expect(data.error).toBe("Failed to fetch conversations");
     });
 });

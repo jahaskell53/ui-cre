@@ -1,4 +1,7 @@
+import { asc } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { counties } from "@/db/schema";
 import { makeGeminiCall } from "@/lib/news/gemini";
 import { createClient } from "@/utils/supabase/server";
 
@@ -125,17 +128,16 @@ Example:
                 return NextResponse.json({ error: "Missing or invalid preferences array" }, { status: 400 });
             }
 
-            const supabase = await createClient();
-
             // Fetch all available counties from database
-            const { data: counties, error: countiesError } = await supabase.from("counties").select("name").order("name", { ascending: true });
-
-            if (countiesError) {
-                console.error("Error fetching counties:", countiesError);
+            let countyRows: { name: string }[];
+            try {
+                countyRows = await db.select({ name: counties.name }).from(counties).orderBy(asc(counties.name));
+            } catch (error) {
+                console.error("Error fetching counties:", error);
                 return NextResponse.json({ error: "Failed to fetch counties" }, { status: 500 });
             }
 
-            const availableCounties = counties
+            const availableCounties = countyRows
                 .map((c) => c.name)
                 .filter((name) => name !== "Other")
                 .join(", ");
