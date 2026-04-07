@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ id: nameRows[0].id });
         }
 
+        // userId is guaranteed non-null here: the `!userId && !fullName` guard above
+        // returns 400, and the `if (fullName)` block above returns early.
         const rows = await db
             .select({
                 id: profiles.id,
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
                 tourVisitedPages: profiles.tourVisitedPages,
             })
             .from(profiles)
-            .where(eq(profiles.id, userId));
+            .where(eq(profiles.id, userId!));
 
         if (rows.length === 0) {
             return NextResponse.json({ error: "Profile not found" }, { status: 404 });
