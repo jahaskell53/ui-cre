@@ -39,6 +39,9 @@
   "exclude": [
     "node_modules",
     "vitest.config.ts",
-    "lambda/**/*"
+    "lambda/**/*",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/__tests__/**/*"
   ]
 }
