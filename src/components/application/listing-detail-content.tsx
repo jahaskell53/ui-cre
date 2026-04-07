@@ -18,62 +18,21 @@ import {
     hasZillowPropertyDetails,
 } from "@/components/application/zillow-detail-utils";
 import { Button } from "@/components/ui/button";
+import {
+    type Listing,
+    type LoopnetListing,
+    type UnitRow,
+    type ZillowListing,
+    buildUnitTypeSummary,
+    getHeroImageUrls,
+    getListingDisplayAddress,
+    getPropertyTypeLabel,
+    shouldShowZillowPropertySection,
+} from "@/lib/listings/listing-detail";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
-
-interface ZillowListing {
-    source: "zillow";
-    id: string;
-    zpid: string | null;
-    raw_scrape_id: string | null;
-    img_src: string | null;
-    detail_url: string | null;
-    address_raw: string | null;
-    address_street: string | null;
-    address_city: string | null;
-    address_state: string | null;
-    address_zip: string | null;
-    price: number | null;
-    beds: number | null;
-    baths: number | null;
-    area: number | null;
-    availability_date: string | null;
-    scraped_at: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    is_building: boolean | null;
-    building_zpid: string | null;
-    home_type: string | null;
-    laundry: string | null;
-}
-
-interface LoopnetListing {
-    source: "loopnet";
-    id: string;
-    address: string | null;
-    headline: string | null;
-    location: string | null;
-    price: string | null;
-    cap_rate: string | null;
-    building_category: string | null;
-    square_footage: string | null;
-    thumbnail_url: string | null;
-    listing_url: string | null;
-    created_at: string | null;
-}
-
-type Listing = ZillowListing | LoopnetListing;
-
-interface UnitRow {
-    id: string;
-    zpid: string | null;
-    price: number | null;
-    beds: number | null;
-    baths: number | null;
-    area: number | null;
-}
 
 function LoadingSkeleton() {
     return (
@@ -246,24 +205,8 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             const raw = (data[0] as any).raw_json;
             if (!raw) return;
 
-            const arr: any[] = Array.isArray(raw) ? raw : [raw];
             const targetZpid = listing.zpid ?? listing.building_zpid;
-            const match = arr.find((item) => String(item?.zpid ?? "") === String(targetZpid ?? ""));
-            if (!match) return;
-
-            const urls: string[] = [];
-            const carousel = match.carouselPhotosComposable;
-            if (carousel && typeof carousel.baseUrl === "string" && Array.isArray(carousel.photoData)) {
-                const base: string = carousel.baseUrl;
-                for (const p of carousel.photoData) {
-                    if (p && typeof p.photoKey === "string") {
-                        urls.push(base.replace("{photoKey}", p.photoKey));
-                    }
-                }
-            }
-            if (urls.length === 0 && typeof match.imgSrc === "string") {
-                urls.push(match.imgSrc);
-            }
+            const urls = getHeroImageUrls(raw, targetZpid);
             if (urls.length > 0) {
                 setHeroImages(urls);
                 setHeroIndex(0);
@@ -352,39 +295,13 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     }, [listing]);
 
     const unitTypeSummary = useMemo(() => {
-        if (!units || units.length === 0) return [];
-        const groups = new Map<string, UnitRow[]>();
-        for (const unit of units) {
-            const key = `${unit.beds ?? 0}|${unit.baths ?? "null"}`;
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key)!.push(unit);
-        }
-        return Array.from(groups.values())
-            .map((rows) => {
-                const prices = rows.filter((r) => r.price != null).map((r) => r.price!);
-                const areas = rows.filter((r) => r.area != null).map((r) => r.area!);
-                return {
-                    beds: rows[0].beds ?? 0,
-                    baths: rows[0].baths,
-                    count: rows.length,
-                    avgPrice: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null,
-                    avgArea: areas.length > 0 ? areas.reduce((a, b) => a + b, 0) / areas.length : null,
-                    minPrice: prices.length > 0 ? Math.min(...prices) : null,
-                    maxPrice: prices.length > 0 ? Math.max(...prices) : null,
-                };
-            })
-            .sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0));
+        return buildUnitTypeSummary(units ?? []);
     }, [units]);
 
     if (listing === undefined) return <LoadingSkeleton />;
     if (listing === null) return <NotFound backHref={backHref} />;
 
-    const displayAddress =
-        listing.source === "zillow"
-            ? listing.address_raw ||
-              [listing.address_street, listing.address_city, listing.address_state, listing.address_zip].filter(Boolean).join(", ") ||
-              "Address not listed"
-            : listing.address || listing.headline || "Address not listed";
+    const displayAddress = getListingDisplayAddress(listing);
 
     const sourceLabel = listing.source === "zillow" ? "Zillow Rental" : "LoopNet Sale";
     const sourceBadgeClass =
@@ -397,18 +314,8 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     const availabilityCount = listing.source === "zillow" ? zillowRawDetails?.availabilityCount : null;
     const formattedLaundry = listing.source === "zillow" ? formatLaundryLabel(listing.laundry) : null;
     const zillowPropertySectionTitle = listing.source === "zillow" && listing.building_zpid ? "Building Details" : "Property Details";
-    const showZillowPropertySection =
-        listing.source === "zillow" &&
-        Boolean(
-            zillowRawDetails?.neighborhood ||
-            zillowRawDetails?.county ||
-            zillowRawDetails?.walkScore ||
-            zillowRawDetails?.transitScore ||
-            zillowRawDetails?.bikeScore ||
-            zillowRawDetails?.specialOffer ||
-            zillowRawDetails?.commonUnitAmenities.length ||
-            zillowRawDetails?.description,
-        );
+    const showZillowPropertySection = listing.source === "zillow" && shouldShowZillowPropertySection(zillowRawDetails);
+    const propertyTypeLabel = listing.source === "zillow" ? getPropertyTypeLabel(listing.is_building, listing.building_zpid) : null;
 
     const baseHeroFallback = (
         <div className="flex aspect-[3/1] min-h-[160px] items-center justify-center bg-gray-200 dark:bg-gray-700">
@@ -570,12 +477,10 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     </dd>
                                 </div>
                             )}
-                            {(listing.is_building !== null || listing.building_zpid) && (
+                            {propertyTypeLabel && (
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Property Type</dt>
-                                    <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                        {listing.is_building ? "Whole Building" : listing.building_zpid ? "Unit in Building" : "Single Unit"}
-                                    </dd>
+                                    <dd className="font-medium text-gray-900 dark:text-gray-100">{propertyTypeLabel}</dd>
                                 </div>
                             )}
                             {listing.scraped_at && (

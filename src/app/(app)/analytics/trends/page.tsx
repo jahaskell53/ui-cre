@@ -20,6 +20,14 @@ import {
     searchMsas,
     searchNeighborhoods,
 } from "@/db/rpc";
+import {
+    MAX_TREND_AREAS,
+    buildDisplayAreaResults,
+    buildDisplayAreas,
+    getTrendsSearchPlaceholder,
+    parseSerializedAreas,
+    serializeAreasParam,
+} from "@/lib/analytics/trends-page";
 import { MarketActivitySection } from "./market-activity-section";
 import { RentTrendsSection } from "./rent-trends-section";
 import { TrendsTableSection } from "./trends-table-section";
@@ -53,24 +61,10 @@ const BED_OPTIONS = [
 const AREA_TYPES = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
 const MAP_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
-const MAX_AREAS = 4;
 
 interface AreaResult {
     trends: TrendRow[];
     activity: ActivityRow[];
-}
-
-function parseAreas(param: string | null): AreaSelection[] {
-    if (!param) return [];
-    try {
-        return JSON.parse(atob(param)) as AreaSelection[];
-    } catch {
-        return [];
-    }
-}
-
-function serializeAreas(areas: AreaSelection[]): string {
-    return btoa(JSON.stringify(areas));
 }
 
 export default function TrendsPage() {
@@ -92,7 +86,7 @@ export default function TrendsPage() {
     const lastAddressAreaIdRef = useRef<string | null>(null);
 
     const [display, setDisplay] = useState<"chart" | "table" | "map">((searchParams.get("display") as "chart" | "table" | "map") ?? "chart");
-    const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>(() => parseAreas(searchParams.get("areas")));
+    const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>(() => parseSerializedAreas(searchParams.get("areas")));
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
     const [showAddInput, setShowAddInput] = useState(false);
 
@@ -119,7 +113,7 @@ export default function TrendsPage() {
         params.set("display", display);
         params.set("beds", selectedBeds.join(","));
         params.set("segment", selectedSegment);
-        if (selectedAreas.length > 0) params.set("areas", serializeAreas(selectedAreas));
+        if (selectedAreas.length > 0) params.set("areas", serializeAreasParam(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
     }, [areaType, display, selectedAreas, selectedBeds, selectedSegment]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -336,7 +330,7 @@ export default function TrendsPage() {
             const stateCode = shortCode.replace("US-", "");
             const key = `county:${countyName}:${stateCode}`;
             if (selectedAreas.find((a) => a.id === key)) return;
-            if (selectedAreas.length >= MAX_AREAS) return;
+            if (selectedAreas.length >= MAX_TREND_AREAS) return;
             const label = stateCode ? `${countyName}, ${stateCode}` : countyName;
             const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
             setSelectedAreas((prev) => [...prev, { id: key, label, color, countyName, countyState: stateCode }]);
@@ -351,7 +345,7 @@ export default function TrendsPage() {
             const stateCode = shortCode.replace("US-", "");
             const key = `city:${cityName}:${stateCode}`;
             if (selectedAreas.find((a) => a.id === key)) return;
-            if (selectedAreas.length >= MAX_AREAS) return;
+            if (selectedAreas.length >= MAX_TREND_AREAS) return;
             const label = stateCode ? `${cityName}, ${stateCode}` : cityName;
             const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
             setSelectedAreas((prev) => [...prev, { id: key, label, color, cityName, cityState: stateCode }]);
@@ -364,7 +358,7 @@ export default function TrendsPage() {
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
         if (!zip) return;
         if (selectedAreas.find((a) => a.id === zip)) return;
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const placeCtx = feature.context?.find((c) => c.id.startsWith("place."))?.text;
         const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
@@ -414,7 +408,7 @@ export default function TrendsPage() {
             const postcodeCtx = feature.context?.find((c) => c.id.startsWith("postcode."))?.text;
             const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
             if (!zip) return;
-            if (!replaceId && (selectedAreas.find((a) => a.id === zip) || selectedAreas.length >= MAX_AREAS)) return;
+            if (!replaceId && (selectedAreas.find((a) => a.id === zip) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             const placeCtx = feature.context?.find((c) => c.id.startsWith("place."))?.text;
             const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
             applyArea(zip, { id: zip, label, color });
@@ -423,7 +417,7 @@ export default function TrendsPage() {
             const regionCtx = feature.context?.find((c) => c.id.startsWith("region."));
             const stateCode = ((regionCtx as typeof regionCtx & { short_code?: string })?.short_code ?? "").replace("US-", "");
             const key = `city:${cityName}:${stateCode}`;
-            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
+            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             const label = stateCode ? `${cityName}, ${stateCode}` : cityName;
             applyArea(key, { id: key, label, color, cityName, cityState: stateCode });
         } else if (granularity === "County") {
@@ -432,7 +426,7 @@ export default function TrendsPage() {
             const regionCtx = feature.context?.find((c) => c.id.startsWith("region."));
             const stateCode = ((regionCtx as typeof regionCtx & { short_code?: string })?.short_code ?? "").replace("US-", "");
             const key = `county:${countyName}:${stateCode}`;
-            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
+            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             const label = stateCode ? `${countyName}, ${stateCode}` : countyName;
             applyArea(key, { id: key, label, color, countyName, countyState: stateCode });
         } else if (granularity === "Neighborhood") {
@@ -441,7 +435,7 @@ export default function TrendsPage() {
             const nh = rows[0];
             if (!nh) return;
             const key = `nh:${nh.id}`;
-            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
+            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             applyArea(key, { id: key, label: `${nh.name} · ${nh.city}`, color, neighborhoodId: nh.id });
         } else if (granularity === "MSA") {
             const [lng, lat] = feature.center;
@@ -449,7 +443,7 @@ export default function TrendsPage() {
             const msa = msaRows[0];
             if (!msa) return;
             const key = `msa:${msa.geoid}`;
-            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
+            if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             applyArea(key, { id: key, label: msa.name, color, msaGeoid: msa.geoid });
         }
     };
@@ -460,7 +454,7 @@ export default function TrendsPage() {
         setShowSuggestions(false);
         const key = `nh:${nh.id}`;
         if (selectedAreas.find((a) => a.id === key)) return;
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const label = `${nh.name} · ${nh.city}`;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas((prev) => [...prev, { id: key, label, color, neighborhoodId: nh.id }]);
@@ -474,7 +468,7 @@ export default function TrendsPage() {
         setActiveSuggestionIndex(-1);
         const key = `msa:${msa.geoid}`;
         if (selectedAreas.find((a) => a.id === key)) return;
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas((prev) => [...prev, { id: key, label: msa.name, color, msaGeoid: msa.geoid }]);
         setShowAddInput(false);
@@ -485,7 +479,7 @@ export default function TrendsPage() {
             removeArea(zip);
             return;
         }
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas((prev) => [...prev, { id: zip, label: zip, color }]);
     };
@@ -496,7 +490,7 @@ export default function TrendsPage() {
             removeArea(key);
             return;
         }
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas((prev) => [...prev, { id: key, label: `${name} · ${city}`, color, neighborhoodId: id }]);
     };
@@ -507,7 +501,7 @@ export default function TrendsPage() {
             removeArea(key);
             return;
         }
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas((prev) => [...prev, { id: key, label: `${name}, ${state}`, color, countyName: name, countyState: state }]);
     };
@@ -518,7 +512,7 @@ export default function TrendsPage() {
             removeArea(key);
             return;
         }
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas((prev) => [...prev, { id: key, label: name, color, msaGeoid: geoid }]);
     };
@@ -529,7 +523,7 @@ export default function TrendsPage() {
             removeArea(key);
             return;
         }
-        if (selectedAreas.length >= MAX_AREAS) return;
+        if (selectedAreas.length >= MAX_TREND_AREAS) return;
         const color = AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
         setSelectedAreas((prev) => [...prev, { id: key, label: `${name}, ${state}`, color, cityName: name, cityState: state }]);
     };
@@ -545,28 +539,9 @@ export default function TrendsPage() {
         });
     };
 
-    const REIT_AREA_COLORS = ["#1d4ed8", "#c2410c", "#6d28d9", "#065f46", "#b91c1c"];
     const multiSource = selectedSegment === "both";
-
-    const displayAreas: AreaSelection[] = multiSource
-        ? selectedAreas.flatMap((area, i) =>
-              (["mid", "reit"] as const).map((src) => ({
-                  ...area,
-                  id: `${area.id}:${src}`,
-                  label: `${area.label} (${src === "reit" ? "REIT" : "Mid-market"})`,
-                  color: src === "reit" ? REIT_AREA_COLORS[i % REIT_AREA_COLORS.length] : AREA_COLORS[i % AREA_COLORS.length],
-              })),
-          )
-        : selectedAreas;
-
-    const displayRentResults: Record<string, TrendRow[]> = {};
-    const displayActivityResults: Record<string, ActivityRow[]> = {};
-    for (const area of displayAreas) {
-        if (areaResults[area.id]) {
-            displayRentResults[area.id] = areaResults[area.id].trends;
-            displayActivityResults[area.id] = areaResults[area.id].activity;
-        }
-    }
+    const displayAreas = buildDisplayAreas(selectedAreas, selectedSegment);
+    const { displayRentResults, displayActivityResults } = buildDisplayAreaResults(displayAreas, areaResults);
 
     const hasData = displayAreas.some((a) => (displayRentResults[a.id]?.length ?? 0) > 0);
     const hasActivity = displayAreas.some((a) => (displayActivityResults[a.id]?.length ?? 0) > 0);
@@ -585,17 +560,7 @@ export default function TrendsPage() {
         </button>
     );
 
-    const searchPlaceholder = addressMode
-        ? "Enter address…"
-        : areaType === "ZIP Code"
-          ? "Enter zip code…"
-          : areaType === "Neighborhood"
-            ? "Search neighborhood name…"
-            : areaType === "City"
-              ? "Search city…"
-              : areaType === "County"
-                ? "Search county…"
-                : "Search metro area…";
+    const searchPlaceholder = getTrendsSearchPlaceholder(areaType, addressMode);
 
     return (
         <div className="mx-auto w-full max-w-7xl flex-1 overflow-auto p-6">
@@ -702,7 +667,7 @@ export default function TrendsPage() {
                                         </button>
                                     </span>
                                 ))}
-                                {selectedAreas.length < MAX_AREAS && (
+                                {selectedAreas.length < MAX_TREND_AREAS && (
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -992,7 +957,7 @@ export default function TrendsPage() {
                 <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-16 text-center dark:border-gray-700 dark:bg-gray-800">
                     <TrendingUp className="mb-3 size-10 text-gray-300" />
                     <p className="text-gray-500 dark:text-gray-400">Search an address, zip code, or neighborhood above to see rent trends</p>
-                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Add up to {MAX_AREAS} areas to compare</p>
+                    <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Add up to {MAX_TREND_AREAS} areas to compare</p>
                 </div>
             )}
 

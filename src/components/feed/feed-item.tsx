@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getFeedInitials } from "@/lib/feed/create-post";
 import { CommentSection } from "./comment-section";
 import { FileAttachment } from "./file-attachment";
 import { LinkPreview, LinkPreviewCard } from "./link-preview";
@@ -48,15 +49,7 @@ export const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onCo
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const isLink = post.type === "link";
     const authorName = post.profile?.full_name || "Anonymous User";
-    const initials =
-        authorName === "Anonymous User"
-            ? "AU"
-            : authorName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2) || "U";
+    const initials = authorName === "Anonymous User" ? "AU" : getFeedInitials(authorName);
 
     useEffect(() => {
         if (isLink && post.content) {

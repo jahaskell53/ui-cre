@@ -5,7 +5,6 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Building2, MapPin, Search } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createRoot } from "react-dom/client";
 import { ListingDetailContent } from "@/components/application/listing-detail-content";
@@ -16,6 +15,16 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { findNeighborhood, getAdjacentNeighborhoodsBatch, getComps, getZipBoundary } from "@/db/rpc";
+import {
+    type CompSortColumn,
+    buildMarketStats,
+    getGeomBounds,
+    getScoreColor,
+    makeCircle,
+    metersToMiles,
+    sortCompResults,
+    titleCaseAddress,
+} from "@/lib/analytics/comps";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
 
@@ -23,54 +32,6 @@ const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW1
 
 const USER_LOCATION_STORAGE_KEY = "userLocation";
 const LOCATION_DECLINED_STORAGE_KEY = "compsGeolocationDeclined";
-
-function makeCircle(center: [number, number], radiusM: number): GeoJSON.Feature<GeoJSON.Polygon> {
-    const [lng, lat] = center;
-    const dLat = radiusM / 111320;
-    const dLng = dLat / Math.cos((lat * Math.PI) / 180);
-    const coords: [number, number][] = Array.from({ length: 65 }, (_, i) => {
-        const a = (i / 64) * 2 * Math.PI;
-        return [lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)];
-    });
-    return { type: "Feature", geometry: { type: "Polygon", coordinates: [coords] }, properties: {} };
-}
-
-function getGeomBounds(geojson: object): [[number, number], [number, number]] {
-    let minLng = Infinity,
-        minLat = Infinity,
-        maxLng = -Infinity,
-        maxLat = -Infinity;
-    const walkCoords = (c: unknown): void => {
-        if (!Array.isArray(c)) return;
-        if (typeof c[0] === "number") {
-            const [lng, lat] = c as [number, number];
-            if (lng < minLng) minLng = lng;
-            if (lng > maxLng) maxLng = lng;
-            if (lat < minLat) minLat = lat;
-            if (lat > maxLat) maxLat = lat;
-        } else {
-            c.forEach(walkCoords);
-        }
-    };
-    const g = geojson as { type: string; coordinates?: unknown; features?: Array<{ geometry: { coordinates: unknown } }> };
-    if (g.type === "FeatureCollection" && g.features) {
-        g.features.forEach((f) => walkCoords(f.geometry.coordinates));
-    } else if (g.coordinates) {
-        walkCoords(g.coordinates);
-    }
-    return [
-        [minLng, minLat],
-        [maxLng, maxLat],
-    ];
-}
-
-function titleCaseAddress(s: string | null | undefined): string {
-    if (s == null || s === "") return "";
-    return s
-        .trim()
-        .toLowerCase()
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 interface CompResult {
     id: string;
@@ -155,7 +116,7 @@ function CompsContent() {
     const [error, setError] = useState<string | null>(null);
     const [comps, setComps] = useState<CompResult[] | null>(null);
     const [compsPage, setCompsPage] = useState(1);
-    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortCol, setSortCol] = useState<CompSortColumn | null>(null);
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
     const [subjectLabel, setSubjectLabel] = useState<string | null>(initAddress || null);
     const [userLocation, setUserLocation] = useState<[number, number] | null>(() => {
@@ -926,7 +887,7 @@ function CompsContent() {
 
     // Rent estimate banner removed
 
-    const handleSort = (col: string) => {
+    const handleSort = (col: CompSortColumn) => {
         if (sortCol === col) {
             setSortDir((d) => (d === "asc" ? "desc" : "asc"));
         } else {
@@ -936,72 +897,18 @@ function CompsContent() {
         setCompsPage(1);
     };
 
-    const sortedComps = useMemo(() => {
-        if (!comps) return [];
-        if (!sortCol) return comps;
-        const subPrice = subjectPrice ? parseInt(subjectPrice) : null;
-        const subBeds = subjectBeds ? parseInt(subjectBeds) : null;
-        const subBaths = subjectBaths ? parseFloat(subjectBaths) : null;
-        const subAreaVal = subjectArea ? parseInt(subjectArea) : null;
-        const subPpsf = subPrice && subAreaVal ? subPrice / subAreaVal : null;
-        const getValue = (comp: CompResult): number => {
-            switch (sortCol) {
-                case "price":
-                    return subPrice != null && comp.price != null ? Math.abs(comp.price - subPrice) : (comp.price ?? Infinity);
-                case "beds":
-                    return subBeds != null && comp.beds != null ? Math.abs(comp.beds - subBeds) : (comp.beds ?? Infinity);
-                case "baths":
-                    return subBaths != null && comp.baths != null ? Math.abs(Number(comp.baths) - subBaths) : Number(comp.baths) || Infinity;
-                case "area":
-                    return subAreaVal != null && comp.area != null ? Math.abs(comp.area - subAreaVal) : (comp.area ?? Infinity);
-                case "ppsf": {
-                    const compPpsf = comp.price && comp.area ? comp.price / comp.area : null;
-                    return subPpsf != null && compPpsf != null ? Math.abs(compPpsf - subPpsf) : (compPpsf ?? Infinity);
-                }
-                case "distance":
-                    return comp.distance_m;
-                case "score":
-                    return comp.composite_score;
-                default:
-                    return 0;
-            }
-        };
-        const multiplier = sortDir === "asc" ? 1 : -1;
-        return [...comps].sort((a, b) => multiplier * (getValue(a) - getValue(b)));
-    }, [comps, sortCol, sortDir, subjectPrice, subjectBeds, subjectBaths, subjectArea]);
+    const sortedComps = useMemo(
+        () =>
+            sortCompResults(comps ?? [], sortCol, sortDir, {
+                price: subjectPrice,
+                beds: subjectBeds,
+                baths: subjectBaths,
+                area: subjectArea,
+            }),
+        [comps, sortCol, sortDir, subjectPrice, subjectBeds, subjectBaths, subjectArea],
+    );
 
-    const marketStats = useMemo(() => {
-        if (!sortedComps.length) return null;
-        const prices = sortedComps
-            .map((c) => c.price)
-            .filter((p): p is number => p != null)
-            .sort((a, b) => a - b);
-        if (prices.length === 0) return null;
-        const n = prices.length;
-        const pct = (p: number) => {
-            const idx = (p / 100) * (n - 1);
-            const lo = Math.floor(idx),
-                hi = Math.ceil(idx);
-            return lo === hi ? prices[lo] : prices[lo] + (prices[hi] - prices[lo]) * (idx - lo);
-        };
-        const min = prices[0];
-        const max = prices[n - 1];
-        const p25 = pct(25);
-        const median = pct(50);
-        const p75 = pct(75);
-        let subjectPercentile: number | null = null;
-        if (subjectPrice) {
-            const sp = parseInt(subjectPrice);
-            if (!isNaN(sp)) {
-                subjectPercentile = Math.round((prices.filter((p) => p < sp).length / n) * 100);
-            }
-        }
-        return { min, max, p25, median, p75, n, subjectPercentile };
-    }, [sortedComps, subjectPrice]);
-
-    const metersToMiles = (m: number) => (m / 1609.34).toFixed(2);
-    const scoreColor = (s: number) =>
-        s >= 0.75 ? "text-green-600 dark:text-green-400" : s >= 0.55 ? "text-yellow-600 dark:text-yellow-400" : "text-red-500 dark:text-red-400";
+    const marketStats = useMemo(() => buildMarketStats(sortedComps, subjectPrice), [sortedComps, subjectPrice]);
 
     return (
         <div className="flex-1 overflow-auto p-6">
@@ -1587,7 +1494,7 @@ function CompsContent() {
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-xs text-gray-500">{metersToMiles(comp.distance_m)} mi</td>
                                                     <td className="px-4 py-3 text-right">
-                                                        <span className={cn("text-sm font-semibold tabular-nums", scoreColor(comp.composite_score))}>
+                                                        <span className={cn("text-sm font-semibold tabular-nums", getScoreColor(comp.composite_score))}>
                                                             {Math.round(comp.composite_score * 100)}
                                                         </span>
                                                     </td>

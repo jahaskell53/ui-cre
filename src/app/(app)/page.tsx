@@ -10,6 +10,7 @@ import { NotificationCard } from "@/components/notifications/notification-card";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 import { usePageTour } from "@/hooks/use-page-tour";
 import { useUser } from "@/hooks/use-user";
+import { adjustFeedPostComments, enrichFeedPosts, getRecentNotifications, getVisibleFeedPosts, updateFeedPostLike } from "@/lib/feed/feed-page";
 import { supabase } from "@/utils/supabase";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
@@ -37,7 +38,6 @@ export default function FeedPage() {
     const [loading, setLoading] = useState(true);
     const [showingLiked, setShowingLiked] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [notificationsLoading, setNotificationsLoading] = useState(true);
     const [isTourOpen, setIsTourOpen] = useState(false);
 
     // Listen for tour trigger from sidebar
@@ -64,11 +64,9 @@ export default function FeedPage() {
                 throw new Error("Failed to load notifications");
             }
             const data = await response.json();
-            setNotifications(data.slice(0, 3));
+            setNotifications(getRecentNotifications(data, 3));
         } catch (error) {
             console.error("Error loading notifications:", error);
-        } finally {
-            setNotificationsLoading(false);
         }
     };
 
@@ -99,30 +97,12 @@ export default function FeedPage() {
             // Get comments count
             const { data: commentsData } = await supabase.from("comments").select("post_id").in("post_id", postIds);
 
-            const likesCountMap = new Map<string, number>();
-            const userLikedMap = new Map<string, boolean>();
-            const commentsCountMap = new Map<string, number>();
-
-            likesData?.forEach((like) => {
-                likesCountMap.set(like.post_id, (likesCountMap.get(like.post_id) || 0) + 1);
-                if (like.user_id === user?.id) {
-                    userLikedMap.set(like.post_id, true);
-                }
-            });
-
-            commentsData?.forEach((comment) => {
-                commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
-            });
-
-            const postsWithCounts = postsData.map((post) => ({
+            const normalizedPosts = postsData.map((post) => ({
                 ...post,
                 profile: (post as any).profile,
-                likes_count: likesCountMap.get(post.id) || 0,
-                is_liked: userLikedMap.get(post.id) || false,
-                comments_count: commentsCountMap.get(post.id) || 0,
             }));
 
-            setPosts(postsWithCounts);
+            setPosts(enrichFeedPosts(normalizedPosts, likesData, commentsData, user?.id));
         }
         setLoading(false);
     };
@@ -141,7 +121,7 @@ export default function FeedPage() {
             const { error } = await supabase.from("likes").delete().eq("post_id", postId).eq("user_id", user.id);
 
             if (!error) {
-                setPosts(posts.map((p) => (p.id === postId ? { ...p, is_liked: false, likes_count: (p.likes_count || 0) - 1 } : p)));
+                setPosts((currentPosts) => updateFeedPostLike(currentPosts, postId, false));
             }
         } else {
             // Like
@@ -151,13 +131,13 @@ export default function FeedPage() {
             });
 
             if (!error) {
-                setPosts(posts.map((p) => (p.id === postId ? { ...p, is_liked: true, likes_count: (p.likes_count || 0) + 1 } : p)));
+                setPosts((currentPosts) => updateFeedPostLike(currentPosts, postId, true));
             }
         }
     };
 
     const handleComment = async (postId: string, content: string) => {
-        setPosts(posts.map((p) => (p.id === postId ? { ...p, comments_count: (p.comments_count || 0) + 1 } : p)));
+        setPosts((currentPosts) => adjustFeedPostComments(currentPosts, postId, 1));
     };
 
     const handleDeletePost = async (postId: string) => {
@@ -175,7 +155,7 @@ export default function FeedPage() {
         const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", user?.id);
 
         if (!error) {
-            setPosts(posts.map((p) => (p.id === postId ? { ...p, comments_count: Math.max(0, (p.comments_count || 0) - 1) } : p)));
+            setPosts((currentPosts) => adjustFeedPostComments(currentPosts, postId, -1));
         } else {
             console.error("Error deleting comment:", error.message);
             alert("Failed to delete comment. Please try again.");
@@ -225,6 +205,8 @@ export default function FeedPage() {
         },
     ];
 
+    const visiblePosts = getVisibleFeedPosts(posts, showingLiked);
+
     return (
         <div className="relative flex h-full flex-col gap-8 overflow-auto p-6">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
@@ -258,25 +240,23 @@ export default function FeedPage() {
                     )}
 
                     <div data-tour="posts-feed" className="grid gap-6">
-                        {posts.filter((p) => !showingLiked || p.is_liked).length === 0 ? (
+                        {visiblePosts.length === 0 ? (
                             <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
                                 {showingLiked ? "You haven't liked any posts yet." : "No posts yet. Be the first to share something!"}
                             </div>
                         ) : (
-                            posts
-                                .filter((p) => !showingLiked || p.is_liked)
-                                .map((post) => (
-                                    <FeedItem
-                                        key={post.id}
-                                        post={post}
-                                        currentUserId={user?.id}
-                                        currentUserProfile={profile}
-                                        onLike={handleLike}
-                                        onComment={handleComment}
-                                        onDeletePost={handleDeletePost}
-                                        onDeleteComment={handleDeleteComment}
-                                    />
-                                ))
+                            visiblePosts.map((post) => (
+                                <FeedItem
+                                    key={post.id}
+                                    post={post}
+                                    currentUserId={user?.id}
+                                    currentUserProfile={profile}
+                                    onLike={handleLike}
+                                    onComment={handleComment}
+                                    onDeletePost={handleDeletePost}
+                                    onDeleteComment={handleDeleteComment}
+                                />
+                            ))
                         )}
                     </div>
                 </div>
