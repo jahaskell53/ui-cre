@@ -53,6 +53,20 @@ describe("GET /api/auth/nylas/callback", () => {
         expect(res.headers.get("location")).toContain("missing_params");
     });
 
+    it("redirects to callback_failed when grant response has no email", async () => {
+        mockExchangeCodeForGrant.mockResolvedValue({ grantId: "grant-abc", provider: "google", email: undefined, scope: [] });
+        const res = await GET(makeGet({ code: "auth-code", state: "user-1:12345" }));
+        expect(res.status).toBe(307);
+        expect(res.headers.get("location")).toContain("callback_failed");
+    });
+
+    it("redirects to callback_failed when grant response has no provider", async () => {
+        mockExchangeCodeForGrant.mockResolvedValue({ grantId: "grant-abc", provider: undefined, email: "user@example.com", scope: [] });
+        const res = await GET(makeGet({ code: "auth-code", state: "user-1:12345" }));
+        expect(res.status).toBe(307);
+        expect(res.headers.get("location")).toContain("callback_failed");
+    });
+
     it("stores integration and redirects to success on happy path", async () => {
         const grantResponse = {
             grantId: "grant-abc",

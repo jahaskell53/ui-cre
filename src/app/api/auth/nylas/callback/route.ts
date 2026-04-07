@@ -34,6 +34,10 @@ export async function GET(request: NextRequest) {
             throw new Error("Failed to exchange code for grant");
         }
 
+        if (!grantResponse.email || !grantResponse.provider) {
+            throw new Error("Grant response missing required fields (email or provider)");
+        }
+
         // Create Supabase client (still needed for auth cookie handling)
         const supabase = await createClient();
 
