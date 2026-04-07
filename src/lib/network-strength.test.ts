@@ -112,11 +112,20 @@ describe("network strength ranking", () => {
         expect(mockSet).toHaveBeenCalledWith({ networkStrength: "LOW" });
     });
 
+    it("passes { networkStrength } (camelCase) to db.update().set() — not network_strength", async () => {
+        const { mockSet } = makeDbWithPeople([makePerson("p1", [email()])]);
+        await recalculateNetworkStrengthForUser("user-1");
+        // Verify the exact object shape: camelCase key required by Drizzle schema
+        expect(mockSet).toHaveBeenCalledWith({ networkStrength: expect.stringMatching(/^HIGH|MEDIUM|LOW$/) });
+        // Negative: the snake_case key must not be present
+        expect(mockSet).not.toHaveBeenCalledWith(expect.objectContaining({ network_strength: expect.anything() }));
+    });
+
     it("assigns HIGH to the person with the most interactions (top 20%)", async () => {
-        const setArgs: string[] = [];
+        const setObjs: Array<{ networkStrength: string }> = [];
 
         const mockSet = vi.fn().mockImplementation((val: { networkStrength: string }) => {
-            setArgs.push(val.networkStrength);
+            setObjs.push(val);
             return { where: vi.fn().mockResolvedValue(undefined) };
         });
         mockDbUpdate.mockReturnValue({ set: mockSet });
@@ -135,15 +144,15 @@ describe("network strength ranking", () => {
 
         await recalculateNetworkStrengthForUser("user-1");
 
-        // First call (highest rank) should be HIGH
-        expect(setArgs[0]).toBe("HIGH");
+        // First call (highest rank) should be HIGH with camelCase key
+        expect(setObjs[0]).toEqual({ networkStrength: "HIGH" });
     });
 
     it("assigns LOW to the person with the fewest interactions (bottom 20%)", async () => {
-        const setArgs: string[] = [];
+        const setObjs: Array<{ networkStrength: string }> = [];
 
         const mockSet = vi.fn().mockImplementation((val: { networkStrength: string }) => {
-            setArgs.push(val.networkStrength);
+            setObjs.push(val);
             return { where: vi.fn().mockResolvedValue(undefined) };
         });
         mockDbUpdate.mockReturnValue({ set: mockSet });
@@ -161,15 +170,15 @@ describe("network strength ranking", () => {
 
         await recalculateNetworkStrengthForUser("user-1");
 
-        // Last call (lowest rank) should be LOW
-        expect(setArgs[setArgs.length - 1]).toBe("LOW");
+        // Last call (lowest rank) should be LOW with camelCase key
+        expect(setObjs[setObjs.length - 1]).toEqual({ networkStrength: "LOW" });
     });
 
     it("assigns MEDIUM to middle 60%", async () => {
-        const setArgs: string[] = [];
+        const setObjs: Array<{ networkStrength: string }> = [];
 
         const mockSet = vi.fn().mockImplementation((val: { networkStrength: string }) => {
-            setArgs.push(val.networkStrength);
+            setObjs.push(val);
             return { where: vi.fn().mockResolvedValue(undefined) };
         });
         mockDbUpdate.mockReturnValue({ set: mockSet });
@@ -187,10 +196,10 @@ describe("network strength ranking", () => {
 
         await recalculateNetworkStrengthForUser("user-1");
 
-        // Ranks 2, 3, 4 (indices 1, 2, 3) should be MEDIUM
-        expect(setArgs[1]).toBe("MEDIUM");
-        expect(setArgs[2]).toBe("MEDIUM");
-        expect(setArgs[3]).toBe("MEDIUM");
+        // Ranks 2, 3, 4 (indices 1, 2, 3) should be MEDIUM with camelCase key
+        expect(setObjs[1]).toEqual({ networkStrength: "MEDIUM" });
+        expect(setObjs[2]).toEqual({ networkStrength: "MEDIUM" });
+        expect(setObjs[3]).toEqual({ networkStrength: "MEDIUM" });
     });
 });
 
