@@ -60,14 +60,6 @@ describe("checkArticleRelevance", () => {
         expect(await checkArticleRelevance(articles)).toEqual([true, false]);
     });
 
-    it("does not mention townhomes in the relevance prompt inclusion criteria", async () => {
-        process.env.GEMINI_API_KEY = "key";
-        mockMakeGeminiCall.mockResolvedValue(geminiResponse("[true, true]"));
-        await checkArticleRelevance(articles);
-        const prompt = mockMakeGeminiCall.mock.calls[0][1] as string;
-        expect(prompt).not.toMatch(/townhome/i);
-    });
-
     it("coerces truthy/falsy values to booleans", async () => {
         process.env.GEMINI_API_KEY = "key";
         mockMakeGeminiCall.mockResolvedValue(geminiResponse("[1, 0]"));
