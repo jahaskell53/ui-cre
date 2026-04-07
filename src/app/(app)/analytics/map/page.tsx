@@ -4,11 +4,12 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { Building2, Filter, MapPin, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type MapBounds, type Property, PropertyMap, type UnitMixRow } from "@/components/application/map/property-map";
+import { type MapBounds, type Property, PropertyMap } from "@/components/application/map/property-map";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
 
@@ -389,113 +390,6 @@ function MapPageInner() {
             // Which bounds to use for geographic clipping
             const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
 
-            type RowWithDate = Property & { _createdAt?: string };
-            const mapLoopnet = (item: Record<string, unknown>): RowWithDate => ({
-                id: item.id as string | number,
-                name: (item.headline || item.address || "Building") as string,
-                address: (item.address || "Address not listed") as string,
-                location: (item.location as string) ?? undefined,
-                units: item.square_footage ? Math.floor(parseInt(String(item.square_footage).replace(/[^0-9]/g, "") || "0") / 500) || null : null,
-                price: (item.price as string) || "TBD",
-                coordinates: [item.longitude as number, item.latitude as number],
-                thumbnailUrl: (item.thumbnail_url as string | null) ?? undefined,
-                capRate: (item.cap_rate as string | null) ?? undefined,
-                squareFootage: (item.square_footage as string) ?? undefined,
-                listingSource: "loopnet",
-                _createdAt: (item.created_at as string) ?? "",
-            });
-
-            const mapCleanedListing = (item: Record<string, unknown>): RowWithDate => {
-                const city = (item.address_city as string) || "";
-                const fullAddress =
-                    (item.address_raw as string) ||
-                    [item.address_street, city, item.address_state, item.address_zip].filter(Boolean).join(", ") ||
-                    "Address not listed";
-                const priceVal = item.price as number | null;
-                return {
-                    id: `zillow-${item.id as string}`,
-                    name: fullAddress,
-                    address: fullAddress,
-                    location: city || undefined,
-                    units: null,
-                    price: priceVal ? `$${priceVal.toLocaleString()}` : "TBD",
-                    coordinates: [item.longitude as number, item.latitude as number],
-                    thumbnailUrl: (item.img_src as string | null) ?? undefined,
-                    capRate: undefined,
-                    squareFootage: item.area ? String(item.area) : undefined,
-                    listingSource: "zillow",
-                    _createdAt: (item.scraped_at as string) ?? "",
-                };
-            };
-
-            const groupReitRows = (reitRows: Record<string, unknown>[]): RowWithDate[] => {
-                const byBuilding: Record<string, Record<string, unknown>[]> = {};
-                for (const row of reitRows) {
-                    const bz = row.building_zpid as string;
-                    if (!byBuilding[bz]) byBuilding[bz] = [];
-                    byBuilding[bz].push(row);
-                }
-                return Object.entries(byBuilding).map(([, units]) => {
-                    const first = units[0];
-                    const city = (first.address_city as string) || "";
-                    const fullAddress =
-                        (first.address_raw as string) ||
-                        [first.address_street, city, first.address_state, first.address_zip].filter(Boolean).join(", ") ||
-                        "Address not listed";
-                    const mixMap: Record<string, { beds: number | null; baths: number | null; count: number; totalPrice: number; validPriceCount: number }> =
-                        {};
-                    for (const unit of units) {
-                        const key = `${unit.beds ?? 0}-${unit.baths ?? "null"}`;
-                        if (!mixMap[key]) {
-                            mixMap[key] = {
-                                beds: (unit.beds as number | null) ?? 0,
-                                baths: unit.baths as number | null,
-                                count: 0,
-                                totalPrice: 0,
-                                validPriceCount: 0,
-                            };
-                        }
-                        mixMap[key].count++;
-                        if (unit.price) {
-                            mixMap[key].totalPrice += unit.price as number;
-                            mixMap[key].validPriceCount++;
-                        }
-                    }
-                    const unitMix: UnitMixRow[] = Object.values(mixMap)
-                        .sort((a, b) => (a.beds ?? 0) - (b.beds ?? 0) || (a.baths ?? 0) - (b.baths ?? 0))
-                        .map(({ beds, baths, count, totalPrice, validPriceCount }) => ({
-                            beds,
-                            baths,
-                            count,
-                            avgPrice: validPriceCount > 0 ? Math.round(totalPrice / validPriceCount) : null,
-                        }));
-                    const prices = units.map((u) => u.price as number | null).filter((p): p is number => p != null);
-                    const avgPrice = prices.length > 0 ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : null;
-                    return {
-                        id: `zillow-${first.id as string}`,
-                        name: fullAddress,
-                        address: fullAddress,
-                        location: city || undefined,
-                        units: units.length,
-                        price: avgPrice ? `$${avgPrice.toLocaleString()} avg` : "TBD",
-                        coordinates: [first.longitude as number, first.latitude as number],
-                        thumbnailUrl: (first.img_src as string | null) ?? undefined,
-                        capRate: undefined,
-                        squareFootage: undefined,
-                        listingSource: "zillow" as const,
-                        isReit: true,
-                        unitMix,
-                        _createdAt: (first.scraped_at as string) ?? "",
-                    };
-                });
-            };
-
-            const processZillowData = (data: Record<string, unknown>[]): RowWithDate[] => {
-                const nonReit = data.filter((r) => !r.building_zpid && !r.is_building);
-                const reitUnits = data.filter((r) => r.building_zpid != null);
-                return [...nonReit.map(mapCleanedListing), ...groupReitRows(reitUnits)];
-            };
-
             if (source === "loopnet") {
                 const { data: latestRun } = await supabase.from("loopnet_listings").select("run_id").order("run_id", { ascending: false }).limit(1).single();
                 let loopnetQuery = supabase
@@ -553,7 +447,7 @@ function MapPageInner() {
                 }
                 const { data, error, count } = await loopnetQuery;
                 if (error) console.error("Error fetching loopnet listings:", error);
-                const rows = (data ?? []).map((item) => mapLoopnet(item as Record<string, unknown>));
+                const rows = (data ?? []).map((item) => mapLoopnetRow(item as Record<string, unknown>));
                 setProperties(rows.map(({ _createdAt: _, ...p }) => p));
                 setTotalCount(count ?? 0);
                 setLoading(false);
@@ -561,85 +455,33 @@ function MapPageInner() {
             }
 
             if (source === "zillow") {
-                const { data: latestZillowRun } = await supabase
-                    .from("cleaned_listings")
-                    .select("run_id")
-                    .order("run_id", { ascending: false })
-                    .limit(1)
-                    .single();
-                let zillowQuery = supabase
-                    .from("cleaned_listings")
-                    .select("*", { count: "exact" })
-                    .not("latitude", "is", null)
-                    .not("longitude", "is", null)
-                    .neq("home_type", "SINGLE_FAMILY")
-                    .order("scraped_at", { ascending: false });
-                if (latestOnly && latestZillowRun?.run_id != null) {
-                    zillowQuery = zillowQuery.eq("run_id", latestZillowRun.run_id);
-                }
-                // Area filter
-                if (activeAreaFilter?.zipCode) {
-                    zillowQuery = zillowQuery.eq("address_zip", activeAreaFilter.zipCode);
-                } else if (activeAreaFilter?.cityName) {
-                    zillowQuery = zillowQuery.ilike("address_city", `%${activeAreaFilter.cityName}%`);
-                } else if (activeAreaFilter?.addressQuery) {
-                    zillowQuery = zillowQuery.or(
-                        `address_raw.ilike.%${activeAreaFilter.addressQuery}%,address_city.ilike.%${activeAreaFilter.addressQuery}%,address_state.ilike.%${activeAreaFilter.addressQuery}%`,
-                    );
-                } else if (activeAreaFilter?.countyName) {
-                    // No dedicated county column — fall through to bbox filtering below
-                }
-                // Price / sqft / beds / property-type filters
-                if (currentFilters.priceMin) {
-                    const v = parseFloat(currentFilters.priceMin);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.gte("price", v);
-                }
-                if (currentFilters.priceMax) {
-                    const v = parseFloat(currentFilters.priceMax);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.lte("price", v);
-                }
-                if (currentFilters.sqftMin) {
-                    const v = parseFloat(currentFilters.sqftMin);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.gte("area", v);
-                }
-                if (currentFilters.sqftMax) {
-                    const v = parseFloat(currentFilters.sqftMax);
-                    if (!isNaN(v)) zillowQuery = zillowQuery.lte("area", v);
-                }
-                if (currentFilters.beds.length > 0) {
-                    const exact = currentFilters.beds.filter((b) => b < 4);
-                    const hasPlus = currentFilters.beds.includes(4);
-                    if (exact.length > 0 && hasPlus) {
-                        zillowQuery = zillowQuery.or(`beds.in.(${exact.join(",")}),beds.gte.4`);
-                    } else if (hasPlus) {
-                        zillowQuery = zillowQuery.gte("beds", 4);
-                    } else {
-                        zillowQuery = zillowQuery.in("beds", exact);
-                    }
-                }
-                if (currentFilters.bathsMin !== null) {
-                    zillowQuery = zillowQuery.gte("baths", currentFilters.bathsMin);
-                }
-                if (currentFilters.homeTypes.length > 0) {
-                    zillowQuery = zillowQuery.in("home_type", currentFilters.homeTypes);
-                }
-                if (currentFilters.propertyType === "reit") {
-                    zillowQuery = zillowQuery.or("is_building.eq.true,building_zpid.not.is.null");
-                } else if (currentFilters.propertyType === "mid") {
-                    zillowQuery = zillowQuery.is("building_zpid", null).not("is_building", "eq", true);
-                }
-                if (effectiveBounds) {
-                    zillowQuery = zillowQuery
-                        .gte("latitude", effectiveBounds.south)
-                        .lte("latitude", effectiveBounds.north)
-                        .gte("longitude", effectiveBounds.west)
-                        .lte("longitude", effectiveBounds.east);
-                }
-                const { data, error, count } = await zillowQuery;
-                if (error) console.error("Error fetching cleaned listings:", error);
-                const rows = processZillowData((data ?? []) as Record<string, unknown>[]);
-                setProperties(rows.map(({ _createdAt: _, ...p }) => p));
-                setTotalCount(count ?? 0);
+                const { data, error } = await supabase.rpc("get_zillow_map_listings", {
+                    p_zip: activeAreaFilter?.zipCode ?? null,
+                    p_city: activeAreaFilter?.cityName ?? null,
+                    p_address_query: activeAreaFilter?.addressQuery ?? null,
+                    p_latest_only: latestOnly,
+                    p_price_min: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                    p_price_max: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                    p_sqft_min: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                    p_sqft_max: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                    p_beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                    p_baths_min: currentFilters.bathsMin ?? null,
+                    p_home_types: currentFilters.homeTypes.length > 0 ? currentFilters.homeTypes : null,
+                    p_property_type: currentFilters.propertyType,
+                    p_bounds_south: effectiveBounds?.south ?? null,
+                    p_bounds_north: effectiveBounds?.north ?? null,
+                    p_bounds_west: effectiveBounds?.west ?? null,
+                    p_bounds_east: effectiveBounds?.east ?? null,
+                });
+                if (error) console.error("Error fetching zillow map listings:", error);
+                const rows = (data ?? []) as ZillowMapListingRow[];
+                setProperties(
+                    rows.map((row) => {
+                        const { _createdAt: _, ...p } = mapZillowRpcRow(row);
+                        return p;
+                    }),
+                );
+                setTotalCount(rows.length > 0 ? rows[0].total_count : 0);
                 setLoading(false);
                 return;
             }
