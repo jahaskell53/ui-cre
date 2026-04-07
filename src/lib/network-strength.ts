@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import type { NetworkStrength } from "@/app/(app)/network/types";
 import { db } from "@/db";
 import { people } from "@/db/schema";
 
@@ -34,7 +35,7 @@ export async function recalculateNetworkStrengthForUser(userId: string): Promise
         await Promise.all(
             peopleWithCounts.map(async (person, index) => {
                 const percentile = (totalPeople - index) / totalPeople;
-                let strength: "HIGH" | "MEDIUM" | "LOW";
+                let strength: NetworkStrength;
 
                 if (person.count === 0) {
                     strength = "LOW";
