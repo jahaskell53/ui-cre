@@ -1,4 +1,7 @@
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { messages, profiles } from "@/db/schema";
 import { sendMessageNotificationEmail } from "@/utils/send-message-notification-email";
 import { createClient } from "@/utils/supabase/server";
 
@@ -6,7 +9,6 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -32,35 +34,41 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify recipient exists
-        const { data: recipient, error: recipientError } = await supabase.from("profiles").select("id").eq("id", recipient_id).single();
+        const [recipient] = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.id, recipient_id));
 
-        if (recipientError || !recipient) {
+        if (!recipient) {
             return NextResponse.json({ error: "Recipient not found" }, { status: 404 });
         }
 
         // Insert message
-        const { data: message, error: insertError } = await supabase
-            .from("messages")
-            .insert({
-                sender_id: user.id,
-                recipient_id,
+        const [message] = await db
+            .insert(messages)
+            .values({
+                senderId: user.id,
+                recipientId: recipient_id,
                 content: content.trim(),
             })
-            .select()
-            .single();
+            .returning();
 
-        if (insertError) {
-            console.error("Error inserting message:", insertError);
+        if (!message) {
             return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
         }
+
+        const responseMessage = {
+            id: message.id,
+            sender_id: message.senderId,
+            recipient_id: message.recipientId,
+            content: message.content,
+            created_at: message.createdAt,
+            read_at: message.readAt,
+        };
 
         // Send email notification asynchronously (don't wait for it)
         sendMessageNotificationEmail(message.id).catch((error) => {
             console.error("Error sending email notification:", error);
-            // Don't fail the request if email fails
         });
 
-        return NextResponse.json(message, { status: 201 });
+        return NextResponse.json(responseMessage, { status: 201 });
     } catch (error: any) {
         console.error("Error in POST /api/messages:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -71,7 +79,6 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -89,35 +96,32 @@ export async function GET(request: NextRequest) {
         }
 
         // Get messages between current user and other user
-        const { data: messages, error } = await supabase
-            .from("messages")
-            .select(
-                `
-                id,
-                sender_id,
-                recipient_id,
-                content,
-                created_at,
-                read_at
-            `,
+        const rows = await db
+            .select({
+                id: messages.id,
+                sender_id: messages.senderId,
+                recipient_id: messages.recipientId,
+                content: messages.content,
+                created_at: messages.createdAt,
+                read_at: messages.readAt,
+            })
+            .from(messages)
+            .where(
+                or(
+                    and(eq(messages.senderId, user.id), eq(messages.recipientId, otherUserId)),
+                    and(eq(messages.senderId, otherUserId), eq(messages.recipientId, user.id)),
+                ),
             )
-            .or(`and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`)
-            .order("created_at", { ascending: true });
-
-        if (error) {
-            console.error("Error fetching messages:", error);
-            return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
-        }
+            .orderBy(asc(messages.createdAt));
 
         // Mark messages as read if they were sent to current user
-        const unreadMessages = messages?.filter((m) => m.recipient_id === user.id && !m.read_at) || [];
+        const unreadIds = rows.filter((m) => m.recipient_id === user.id && !m.read_at).map((m) => m.id);
 
-        if (unreadMessages.length > 0) {
-            const messageIds = unreadMessages.map((m) => m.id);
-            await supabase.from("messages").update({ read_at: new Date().toISOString() }).in("id", messageIds);
+        if (unreadIds.length > 0) {
+            await db.update(messages).set({ readAt: new Date().toISOString() }).where(inArray(messages.id, unreadIds));
         }
 
-        return NextResponse.json(messages || []);
+        return NextResponse.json(rows);
     } catch (error: any) {
         console.error("Error in GET /api/messages:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

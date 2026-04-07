@@ -1,11 +1,13 @@
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { notifications } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -16,13 +18,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
 
         const { id } = await params;
-        const notificationId = id;
 
         // Mark notification as read
-        const { error } = await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", notificationId).eq("user_id", user.id);
-
-        if (error) {
-            console.error("Error marking notification as read:", error);
+        try {
+            await db
+                .update(notifications)
+                .set({ readAt: new Date().toISOString() })
+                .where(and(eq(notifications.id, id), eq(notifications.userId, user.id)));
+        } catch (dbError) {
+            console.error("Error marking notification as read:", dbError);
             return NextResponse.json({ error: "Failed to mark notification as read" }, { status: 500 });
         }
 

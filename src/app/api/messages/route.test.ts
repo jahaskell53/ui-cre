@@ -1,48 +1,43 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createClient } from "@/utils/supabase/server";
 import { GET, POST } from "./route";
 
-// Mock the Supabase server client
-vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn(),
+const { mockGetUser, mockDb } = vi.hoisted(() => ({
+    mockGetUser: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        insert: vi.fn(),
+        update: vi.fn(),
+    },
 }));
 
-// Mock the email sending function
+vi.mock("@/utils/supabase/server", () => ({
+    createClient: vi.fn().mockResolvedValue({
+        auth: { getUser: mockGetUser },
+    }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
+}));
+
 vi.mock("@/utils/send-message-notification-email", () => ({
     sendMessageNotificationEmail: vi.fn().mockResolvedValue(true),
 }));
 
 describe("POST /api/messages", () => {
-    const mockUser = {
-        id: "user-123",
-        email: "test@example.com",
-    };
-
-    const mockSupabaseClient = {
-        auth: {
-            getUser: vi.fn(),
-        },
-        from: vi.fn(),
-    };
+    const mockUser = { id: "user-123", email: "test@example.com" };
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(createClient).mockResolvedValue(mockSupabaseClient as any);
     });
 
     it("should return 401 if user is not authenticated", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: null },
-            error: { message: "Not authenticated" },
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: "Not authenticated" } });
 
         const request = new NextRequest("http://localhost/api/messages", {
             method: "POST",
-            body: JSON.stringify({
-                recipient_id: "user-456",
-                content: "Hello",
-            }),
+            body: JSON.stringify({ recipient_id: "user-456", content: "Hello" }),
         });
 
         const response = await POST(request);
@@ -53,16 +48,11 @@ describe("POST /api/messages", () => {
     });
 
     it("should return 400 if recipient_id is missing", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
         const request = new NextRequest("http://localhost/api/messages", {
             method: "POST",
-            body: JSON.stringify({
-                content: "Hello",
-            }),
+            body: JSON.stringify({ content: "Hello" }),
         });
 
         const response = await POST(request);
@@ -73,17 +63,11 @@ describe("POST /api/messages", () => {
     });
 
     it("should return 400 if content is missing or empty", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
         const request = new NextRequest("http://localhost/api/messages", {
             method: "POST",
-            body: JSON.stringify({
-                recipient_id: "user-456",
-                content: "",
-            }),
+            body: JSON.stringify({ recipient_id: "user-456", content: "" }),
         });
 
         const response = await POST(request);
@@ -94,17 +78,11 @@ describe("POST /api/messages", () => {
     });
 
     it("should return 400 if trying to send message to self", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
         const request = new NextRequest("http://localhost/api/messages", {
             method: "POST",
-            body: JSON.stringify({
-                recipient_id: "user-123",
-                content: "Hello",
-            }),
+            body: JSON.stringify({ recipient_id: "user-123", content: "Hello" }),
         });
 
         const response = await POST(request);
@@ -115,30 +93,16 @@ describe("POST /api/messages", () => {
     });
 
     it("should return 404 if recipient does not exist", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: "Not found" },
-                }),
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        // select for recipient check returns empty array
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const request = new NextRequest("http://localhost/api/messages", {
             method: "POST",
-            body: JSON.stringify({
-                recipient_id: "user-456",
-                content: "Hello",
-            }),
+            body: JSON.stringify({ recipient_id: "user-456", content: "Hello" }),
         });
 
         const response = await POST(request);
@@ -149,53 +113,30 @@ describe("POST /api/messages", () => {
     });
 
     it("should send message successfully", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
         const mockMessage = {
             id: "msg-123",
-            sender_id: "user-123",
-            recipient_id: "user-456",
+            senderId: "user-123",
+            recipientId: "user-456",
             content: "Hello",
-            created_at: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            readAt: null,
         };
 
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: { id: "user-456" },
-                    error: null,
-                }),
-            }),
-        });
+        // select for recipient check
+        const mockSelectWhere = vi.fn().mockResolvedValue([{ id: "user-456" }]);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDb.select.mockReturnValue({ from: mockSelectFrom });
 
-        const mockInsert = vi.fn().mockReturnValue({
-            select: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: mockMessage,
-                    error: null,
-                }),
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
-            if (table === "profiles") {
-                return { select: mockSelect } as any;
-            }
-            if (table === "messages") {
-                return { insert: mockInsert } as any;
-            }
-            return {} as any;
-        });
+        // insert returning message
+        const mockReturning = vi.fn().mockResolvedValue([mockMessage]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDb.insert.mockReturnValue({ values: mockValues });
 
         const request = new NextRequest("http://localhost/api/messages", {
             method: "POST",
-            body: JSON.stringify({
-                recipient_id: "user-456",
-                content: "Hello",
-            }),
+            body: JSON.stringify({ recipient_id: "user-456", content: "Hello" }),
         });
 
         const response = await POST(request);
@@ -204,37 +145,25 @@ describe("POST /api/messages", () => {
         expect(response.status).toBe(201);
         expect(data.id).toBe("msg-123");
         expect(data.content).toBe("Hello");
-        expect(mockInsert).toHaveBeenCalledWith({
-            sender_id: "user-123",
-            recipient_id: "user-456",
-            content: "Hello",
-        });
+        expect(mockValues).toHaveBeenCalledWith(
+            expect.objectContaining({
+                senderId: "user-123",
+                recipientId: "user-456",
+                content: "Hello",
+            }),
+        );
     });
 });
 
 describe("GET /api/messages", () => {
-    const mockUser = {
-        id: "user-123",
-        email: "test@example.com",
-    };
-
-    const mockSupabaseClient = {
-        auth: {
-            getUser: vi.fn(),
-        },
-        from: vi.fn(),
-    };
+    const mockUser = { id: "user-123", email: "test@example.com" };
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(createClient).mockResolvedValue(mockSupabaseClient as any);
     });
 
     it("should return 401 if user is not authenticated", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: null },
-            error: { message: "Not authenticated" },
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: "Not authenticated" } });
 
         const request = new NextRequest("http://localhost/api/messages?user_id=user-456");
 
@@ -246,10 +175,7 @@ describe("GET /api/messages", () => {
     });
 
     it("should return 400 if user_id is missing", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
         const request = new NextRequest("http://localhost/api/messages");
 
@@ -261,10 +187,7 @@ describe("GET /api/messages", () => {
     });
 
     it("should fetch messages successfully", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
         const mockMessages = [
             {
@@ -285,31 +208,16 @@ describe("GET /api/messages", () => {
             },
         ];
 
-        const mockSelect = vi.fn().mockReturnValue({
-            or: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({
-                    data: mockMessages,
-                    error: null,
-                }),
-            }),
-        });
+        // select messages
+        const mockOrderBy = vi.fn().mockResolvedValue(mockMessages);
+        const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
-        const mockUpdate = vi.fn().mockReturnValue({
-            in: vi.fn().mockResolvedValue({
-                data: null,
-                error: null,
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockImplementation((table) => {
-            if (table === "messages") {
-                return {
-                    select: mockSelect,
-                    update: mockUpdate,
-                } as any;
-            }
-            return {} as any;
-        });
+        // update to mark as read (msg-2 is unread and sent to user-123)
+        const mockUpdateWhere = vi.fn().mockResolvedValue([]);
+        const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         const request = new NextRequest("http://localhost/api/messages?user_id=user-456");
 

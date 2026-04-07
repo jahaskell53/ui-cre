@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { messages, profiles } from "@/db/schema";
 import { EmailService } from "@/utils/email-service";
 import { generateMessageNotificationEmail } from "@/utils/email-templates";
 import { createAdminClient } from "@/utils/supabase/admin";
@@ -9,28 +12,30 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
         const adminSupabase = createAdminClient();
 
         // Get message
-        const { data: message, error: messageError } = await supabase
-            .from("messages")
-            .select("id, sender_id, recipient_id, content")
-            .eq("id", messageId)
-            .single();
+        const [message] = await db
+            .select({
+                id: messages.id,
+                sender_id: messages.senderId,
+                recipient_id: messages.recipientId,
+                content: messages.content,
+            })
+            .from(messages)
+            .where(eq(messages.id, messageId));
 
-        if (messageError || !message) {
-            console.error("Error fetching message for email:", messageError);
+        if (!message) {
+            console.error("Error fetching message for email: message not found");
             return false;
         }
 
-        // Get sender profile (sender_id references auth.users.id, and profiles.id = auth.users.id)
-        const { data: senderProfile, error: profileError } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .eq("id", message.sender_id)
-            .single();
-
-        if (profileError) {
-            console.error("Error fetching sender profile:", profileError);
-            // Continue anyway, we'll use fallback values
-        }
+        // Get sender profile
+        const [senderProfile] = await db
+            .select({
+                id: profiles.id,
+                full_name: profiles.fullName,
+                avatar_url: profiles.avatarUrl,
+            })
+            .from(profiles)
+            .where(eq(profiles.id, message.sender_id));
 
         // Get recipient email from auth.users using admin client
         const { data: recipientUser, error: userError } = await adminSupabase.auth.admin.getUserById(message.recipient_id);
@@ -42,7 +47,6 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
 
         const recipientEmail = recipientUser.user.email;
 
-        // Generate email content
         const senderName = senderProfile?.full_name || "Someone";
         const messageUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/messages?user_id=${message.sender_id}`;
 
@@ -52,7 +56,6 @@ export async function sendMessageNotificationEmail(messageId: string): Promise<b
             messageUrl,
         });
 
-        // Send email
         const emailService = new EmailService();
         const emailSent = await emailService.sendEmail(recipientEmail, emailContent);
 

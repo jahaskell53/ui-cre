@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { notifications } from "@/db/schema";
 import { sendMessageNotificationEmail } from "@/utils/send-message-notification-email";
 import { createClient } from "@/utils/supabase/server";
 
@@ -6,7 +9,6 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user (for verification, but this could be called by system)
         const {
             data: { user },
             error: authError,
@@ -28,22 +30,17 @@ export async function POST(request: NextRequest) {
         if (message_id) {
             messageId = message_id;
         } else if (notification_id) {
-            // Get notification and related message
-            const { data: notification, error: notificationError } = await supabase
-                .from("notifications")
-                .select("related_id")
-                .eq("id", notification_id)
-                .single();
+            const [notification] = await db.select({ relatedId: notifications.relatedId }).from(notifications).where(eq(notifications.id, notification_id));
 
-            if (notificationError || !notification) {
+            if (!notification) {
                 return NextResponse.json({ error: "Notification not found" }, { status: 404 });
             }
 
-            if (!notification.related_id) {
+            if (!notification.relatedId) {
                 return NextResponse.json({ error: "Notification has no related message" }, { status: 400 });
             }
 
-            messageId = notification.related_id;
+            messageId = notification.relatedId;
         }
 
         if (!messageId) {
