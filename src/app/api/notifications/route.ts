@@ -1,11 +1,13 @@
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { messages, notifications, profiles } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -16,71 +18,65 @@ export async function GET(request: NextRequest) {
         }
 
         // Get unread notifications
-        const { data: notifications, error: notificationsError } = await supabase
-            .from("notifications")
-            .select(
-                `
-                id,
-                type,
-                title,
-                content,
-                related_id,
-                created_at,
-                read_at
-            `,
-            )
-            .eq("user_id", user.id)
-            .is("read_at", null)
-            .order("created_at", { ascending: false })
-            .limit(50);
-
-        if (notificationsError) {
-            console.error("Error fetching notifications:", notificationsError);
+        let rows: Array<{
+            id: string;
+            type: string;
+            title: string | null;
+            content: string;
+            related_id: string | null;
+            created_at: string;
+            read_at: string | null;
+        }>;
+        try {
+            rows = await db
+                .select({
+                    id: notifications.id,
+                    type: notifications.type,
+                    title: notifications.title,
+                    content: notifications.content,
+                    related_id: notifications.relatedId,
+                    created_at: notifications.createdAt,
+                    read_at: notifications.readAt,
+                })
+                .from(notifications)
+                .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)))
+                .orderBy(desc(notifications.createdAt))
+                .limit(50);
+        } catch (dbError) {
+            console.error("Error fetching notifications:", dbError);
             return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 });
         }
 
         // For message notifications, get sender info from the related message
         const formattedNotifications = await Promise.all(
-            (notifications || []).map(async (notification) => {
+            rows.map(async (notification) => {
                 if (notification.type === "message" && notification.related_id) {
-                    // Get sender_id from the message
-                    const { data: message } = await supabase.from("messages").select("sender_id").eq("id", notification.related_id).single();
+                    const [message] = await db.select({ senderId: messages.senderId }).from(messages).where(eq(messages.id, notification.related_id));
 
-                    // Get sender profile (sender_id references auth.users.id, and profiles.id = auth.users.id)
-                    let senderProfile = null;
-                    if (message?.sender_id) {
-                        const { data: profile } = await supabase.from("profiles").select("id, full_name, avatar_url").eq("id", message.sender_id).single();
-                        senderProfile = profile;
+                    let sender = null;
+                    if (message?.senderId) {
+                        const [profile] = await db
+                            .select({
+                                id: profiles.id,
+                                full_name: profiles.fullName,
+                                avatar_url: profiles.avatarUrl,
+                            })
+                            .from(profiles)
+                            .where(eq(profiles.id, message.senderId));
+
+                        if (profile) {
+                            sender = {
+                                id: profile.id,
+                                full_name: profile.full_name,
+                                avatar_url: profile.avatar_url,
+                            };
+                        }
                     }
 
-                    return {
-                        id: notification.id,
-                        type: notification.type,
-                        title: notification.title,
-                        content: notification.content,
-                        related_id: notification.related_id,
-                        created_at: notification.created_at,
-                        read_at: notification.read_at,
-                        sender: senderProfile
-                            ? {
-                                  id: senderProfile.id,
-                                  full_name: senderProfile.full_name,
-                                  avatar_url: senderProfile.avatar_url,
-                              }
-                            : null,
-                    };
+                    return { ...notification, sender };
                 }
 
-                return {
-                    id: notification.id,
-                    type: notification.type,
-                    title: notification.title,
-                    content: notification.content,
-                    related_id: notification.related_id,
-                    created_at: notification.created_at,
-                    read_at: notification.read_at,
-                    sender: null,
-                };
+                return { ...notification, sender: null };
             }),
         );
 

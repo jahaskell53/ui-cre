@@ -1,11 +1,13 @@
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { notifications } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -16,14 +18,12 @@ export async function GET(request: NextRequest) {
         }
 
         // Count unread notifications for the user
-        const { count, error } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
+        const [result] = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(notifications)
+            .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)));
 
-        if (error) {
-            console.error("Error counting unread notifications:", error);
-            return NextResponse.json({ error: "Failed to count unread notifications" }, { status: 500 });
-        }
-
-        return NextResponse.json({ unread_count: count || 0 });
+        return NextResponse.json({ unread_count: result?.count ?? 0 });
     } catch (error: any) {
         console.error("Error in GET /api/messages/unread-count:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
