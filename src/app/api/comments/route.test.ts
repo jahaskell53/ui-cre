@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { POST } from "./route";
+import { DELETE, GET, POST } from "./route";
 
-const { mockGetUser, mockDbSelect, mockDbInsert, mockParseMentions, mockSendMentionNotificationEmail } = vi.hoisted(() => ({
+const { mockGetUser, mockDbSelect, mockDbInsert, mockDbDelete, mockParseMentions, mockSendMentionNotificationEmail } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
     mockDbSelect: vi.fn(),
     mockDbInsert: vi.fn(),
+    mockDbDelete: vi.fn(),
     mockParseMentions: vi.fn(),
     mockSendMentionNotificationEmail: vi.fn().mockResolvedValue(true),
 }));
@@ -20,6 +21,7 @@ vi.mock("@/db", () => ({
     db: {
         select: mockDbSelect,
         insert: mockDbInsert,
+        delete: mockDbDelete,
     },
 }));
 
@@ -206,5 +208,86 @@ describe("POST /api/comments", () => {
         const res = await POST(makeRequest({ post_id: "post-123", content: "Great post!" }));
         expect(res.status).toBe(500);
         expect((await res.json()).error).toBe("Failed to create comment");
+    });
+});
+
+// ─── GET ──────────────────────────────────────────────────────────────────────
+
+describe("GET /api/comments", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns 400 if post_id is missing", async () => {
+        const req = new NextRequest("http://localhost/api/comments");
+        const res = await GET(req);
+        expect(res.status).toBe(400);
+    });
+
+    it("returns comments for a post", async () => {
+        const mockOrderBy = vi
+            .fn()
+            .mockResolvedValue([{ id: "comment-1", content: "Great!", createdAt: "now", userId: "user-1", profile: { fullName: "Alice", avatarUrl: null } }]);
+        const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+        const mockLeftJoin = vi.fn().mockReturnValue({ where: mockWhere });
+        const mockFrom = vi.fn().mockReturnValue({ leftJoin: mockLeftJoin });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
+
+        const req = new NextRequest("http://localhost/api/comments?post_id=post-123");
+        const res = await GET(req);
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(body)).toBe(true);
+        expect(body[0].id).toBe("comment-1");
+    });
+});
+
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+
+describe("DELETE /api/comments", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns 401 if not authenticated", async () => {
+        mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: "Not authenticated" } });
+        const req = new NextRequest("http://localhost/api/comments?id=comment-1", { method: "DELETE" });
+        const res = await DELETE(req);
+        expect(res.status).toBe(401);
+    });
+
+    it("returns 400 if id is missing", async () => {
+        mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+        const req = new NextRequest("http://localhost/api/comments", { method: "DELETE" });
+        const res = await DELETE(req);
+        expect(res.status).toBe(400);
+    });
+
+    it("deletes comment and returns success", async () => {
+        mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+
+        const mockReturning = vi.fn().mockResolvedValue([{ id: "comment-1" }]);
+        const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDbDelete.mockReturnValue({ where: mockWhere });
+
+        const req = new NextRequest("http://localhost/api/comments?id=comment-1", { method: "DELETE" });
+        const res = await DELETE(req);
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.success).toBe(true);
+    });
+
+    it("returns 404 when comment not found or unauthorized", async () => {
+        mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+
+        const mockReturning = vi.fn().mockResolvedValue([]);
+        const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDbDelete.mockReturnValue({ where: mockWhere });
+
+        const req = new NextRequest("http://localhost/api/comments?id=nonexistent", { method: "DELETE" });
+        const res = await DELETE(req);
+        expect(res.status).toBe(404);
     });
 });

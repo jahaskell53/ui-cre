@@ -19,7 +19,6 @@ import {
     resolvePostAuthorId,
     uploadPostAttachment,
 } from "@/lib/feed/create-post";
-import { supabase } from "@/utils/supabase";
 
 interface CreatePostInlineProps {
     onSuccess: () => void;
@@ -83,16 +82,10 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
             isAdmin,
             postAsSystem,
             lookupSystemProfileId: async () => {
-                const { data: systemProfile, error: systemError } = await supabase
-                    .from("profiles")
-                    .select("id")
-                    .eq("full_name", "OpenMidmarket") // pragma: allowlist secret
-                    .single();
-                if (systemError || !systemProfile) {
-                    console.error("Error fetching system account:", systemError);
-                    return null;
-                }
-                return systemProfile.id;
+                const response = await fetch(`/api/users?full_name=${encodeURIComponent("OpenMidmarket")}`); // pragma: allowlist secret
+                if (!response.ok) return null;
+                const data = await response.json();
+                return data.id ?? null;
             },
         });
 
@@ -100,14 +93,19 @@ export const CreatePostInline = ({ onSuccess, userId, isAdmin, userAvatarUrl, us
             alert("Failed to find system account. Posting as yourself.");
         }
 
-        const { error } = await supabase.from("posts").insert({
-            user_id: userIdToUse,
-            type: postType,
-            content: getFeedPostContent(postType, postContent, postUrl),
-            file_url: attachedFileUrl,
+        const response = await fetch("/api/posts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+                user_id: userIdToUse,
+                type: postType,
+                content: getFeedPostContent(postType, postContent, postUrl),
+                file_url: attachedFileUrl,
+            }),
         });
 
-        if (!error) {
+        if (response.ok) {
             setPostContent(DEFAULT_FEED_POST_DRAFT.postContent);
             setPostUrl(DEFAULT_FEED_POST_DRAFT.postUrl);
             setAttachedFileUrl(DEFAULT_FEED_POST_DRAFT.attachedFileUrl);

@@ -1,16 +1,10 @@
 import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 import FeedPage from "./page";
 
 // Mock dependencies
 vi.mock("@/hooks/use-user");
-vi.mock("@/utils/supabase", () => ({
-    supabase: {
-        from: vi.fn(),
-    },
-}));
 vi.mock("next/navigation", () => ({
     useRouter: () => ({
         push: vi.fn(),
@@ -54,43 +48,26 @@ describe("FeedPage", () => {
     });
 
     it("should load posts on mount", async () => {
-        // Create a mock that supports the full method chain
-        const createMockQuery = (table: string) => {
-            const mockIn = vi.fn().mockResolvedValue({ data: [], error: null });
-            const mockEq = vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                    eq: vi.fn().mockResolvedValue({ data: null, error: null }),
-                }),
-                order: vi.fn().mockResolvedValue({ data: [], error: null }),
-            });
-            const mockSelect = vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                }),
-                eq: mockEq,
-                in: mockIn,
-            });
-            const mockDelete = vi.fn().mockReturnValue({
-                eq: mockEq,
-            });
-            const mockInsert = vi.fn().mockResolvedValue({ data: null, error: null });
-
-            return {
-                select: mockSelect,
-                delete: mockDelete,
-                insert: mockInsert,
-            };
-        };
-
-        vi.mocked(supabase.from).mockImplementation((table) => {
-            return createMockQuery(table) as any;
-        });
+        global.fetch = vi.fn().mockImplementation((url: string) => {
+            if (url.includes("/api/posts")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve([]),
+                });
+            }
+            if (url.includes("/api/notifications")) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve([]),
+                });
+            }
+            return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }) as any;
 
         render(<FeedPage />);
 
         await waitFor(() => {
-            expect(supabase.from).toHaveBeenCalledWith("posts");
+            expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/posts"), expect.anything());
         });
     });
 
@@ -102,8 +79,10 @@ describe("FeedPage", () => {
             refreshProfile: vi.fn(),
         });
 
+        global.fetch = vi.fn() as any;
+
         render(<FeedPage />);
-        // Component should handle loading state
-        expect(supabase.from).not.toHaveBeenCalled();
+        // Component should handle loading state - fetch should not be called while loading
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 });

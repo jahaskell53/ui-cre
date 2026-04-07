@@ -26,7 +26,6 @@ import {
     titleCaseAddress,
 } from "@/lib/analytics/comps";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/utils/supabase";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
@@ -356,7 +355,8 @@ function CompsContent() {
                 if (gen !== searchGenRef.current) return;
 
                 const ids = compsData.map((r) => r.id);
-                const { data: metaData } = await supabase.from("cleaned_listings").select("id, img_src, latitude, longitude").in("id", ids);
+                const metaResponse = await fetch(`/api/listings/cleaned?ids=${ids.map(encodeURIComponent).join(",")}`);
+                const metaData = metaResponse.ok ? await metaResponse.json() : [];
 
                 if (gen !== searchGenRef.current) return;
 

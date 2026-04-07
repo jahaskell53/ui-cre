@@ -11,7 +11,6 @@ import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 import { usePageTour } from "@/hooks/use-page-tour";
 import { useUser } from "@/hooks/use-user";
 import { adjustFeedPostComments, enrichFeedPosts, getRecentNotifications, getVisibleFeedPosts, updateFeedPostLike } from "@/lib/feed/feed-page";
-import { supabase } from "@/utils/supabase";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {
     return <Heart className={className} fill={isLiked ? "currentColor" : "none"} />;
@@ -72,37 +71,21 @@ export default function FeedPage() {
 
     const loadPosts = async () => {
         setLoading(true);
-        const { data: postsData, error } = await supabase
-            .from("posts")
-            .select(
-                `
-                *,
-                profile:profiles(full_name, avatar_url)
-            `,
-            )
-            .order("created_at", { ascending: false });
+        try {
+            const response = await fetch("/api/posts", { credentials: "include" });
+            if (!response.ok) {
+                console.error("Error loading posts:", response.statusText);
+                setLoading(false);
+                return;
+            }
+            const postsData = await response.json();
 
-        if (error) {
-            console.error("Error loading posts:", error.message, error.details, error.hint);
-            setLoading(false);
-            return;
-        }
+            const likesData = postsData.flatMap((p: any) => p.likes ?? []);
+            const commentsData = postsData.flatMap((p: any) => Array.from({ length: p.comments_count ?? 0 }, () => ({ post_id: p.id })));
 
-        if (postsData) {
-            const postIds = postsData.map((p) => p.id);
-
-            // Get likes count and check if current user liked
-            const { data: likesData } = await supabase.from("likes").select("post_id, user_id").in("post_id", postIds);
-
-            // Get comments count
-            const { data: commentsData } = await supabase.from("comments").select("post_id").in("post_id", postIds);
-
-            const normalizedPosts = postsData.map((post) => ({
-                ...post,
-                profile: (post as any).profile,
-            }));
-
-            setPosts(enrichFeedPosts(normalizedPosts, likesData, commentsData, user?.id));
+            setPosts(enrichFeedPosts(postsData, likesData, commentsData, user?.id));
+        } catch (error) {
+            console.error("Error loading posts:", error);
         }
         setLoading(false);
     };
@@ -117,20 +100,21 @@ export default function FeedPage() {
         if (!post) return;
 
         if (post.is_liked) {
-            // Unlike
-            const { error } = await supabase.from("likes").delete().eq("post_id", postId).eq("user_id", user.id);
-
-            if (!error) {
+            const response = await fetch(`/api/likes?post_id=${encodeURIComponent(postId)}`, {
+                method: "DELETE",
+                credentials: "include",
+            });
+            if (response.ok) {
                 setPosts((currentPosts) => updateFeedPostLike(currentPosts, postId, false));
             }
         } else {
-            // Like
-            const { error } = await supabase.from("likes").insert({
-                post_id: postId,
-                user_id: user.id,
+            const response = await fetch("/api/likes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ post_id: postId }),
             });
-
-            if (!error) {
+            if (response.ok) {
                 setPosts((currentPosts) => updateFeedPostLike(currentPosts, postId, true));
             }
         }
@@ -141,23 +125,31 @@ export default function FeedPage() {
     };
 
     const handleDeletePost = async (postId: string) => {
-        const { error } = await supabase.from("posts").delete().eq("id", postId).eq("user_id", user?.id);
+        const response = await fetch(`/api/posts?id=${encodeURIComponent(postId)}`, {
+            method: "DELETE",
+            credentials: "include",
+        });
 
-        if (!error) {
+        if (response.ok) {
             setPosts(posts.filter((p) => p.id !== postId));
         } else {
-            console.error("Error deleting post:", error.message);
+            const err = await response.json().catch(() => ({}));
+            console.error("Error deleting post:", err);
             alert("Failed to delete post. Please try again.");
         }
     };
 
     const handleDeleteComment = async (commentId: string, postId: string) => {
-        const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", user?.id);
+        const response = await fetch(`/api/comments?id=${encodeURIComponent(commentId)}`, {
+            method: "DELETE",
+            credentials: "include",
+        });
 
-        if (!error) {
+        if (response.ok) {
             setPosts((currentPosts) => adjustFeedPostComments(currentPosts, postId, -1));
         } else {
-            console.error("Error deleting comment:", error.message);
+            const err = await response.json().catch(() => ({}));
+            console.error("Error deleting comment:", err);
             alert("Failed to delete comment. Please try again.");
         }
     };

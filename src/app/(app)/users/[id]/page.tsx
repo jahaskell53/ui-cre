@@ -8,7 +8,6 @@ import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 
 interface UserProfile {
     id: string;
@@ -51,9 +50,9 @@ export default function UserProfilePage() {
     const loadProfile = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase.from("profiles").select("id, full_name, avatar_url, website, roles").eq("id", userId).single();
-
-            if (error) throw error;
+            const response = await fetch(`/api/users?id=${encodeURIComponent(userId)}`);
+            if (!response.ok) throw new Error("Profile not found");
+            const data = await response.json();
             setProfile(data);
         } catch (error) {
             console.error("Error loading profile:", error);
@@ -64,56 +63,28 @@ export default function UserProfilePage() {
     };
 
     const loadPostsCount = async () => {
-        try {
-            const { count, error } = await supabase.from("posts").select("*", { count: "exact", head: true }).eq("user_id", userId);
-
-            if (error) throw error;
-            setPostsCount(count || 0);
-        } catch (error) {
-            console.error("Error loading posts count:", error);
-        }
+        // count is derived from loadUserPosts, so this is a no-op
     };
 
     const loadUserPosts = async () => {
         setLoadingPosts(true);
         try {
-            const { data: postsData, error } = await supabase
-                .from("posts")
-                .select("id, type, content, file_url, created_at")
-                .eq("user_id", userId)
-                .order("created_at", { ascending: false })
-                .limit(10);
+            const response = await fetch(`/api/posts?user_id=${encodeURIComponent(userId)}`);
+            if (!response.ok) throw new Error("Failed to load posts");
+            const postsData = await response.json();
 
-            if (error) throw error;
+            const postsWithCounts = postsData.map((post: any) => ({
+                id: post.id,
+                type: post.type,
+                content: post.content,
+                file_url: post.file_url,
+                created_at: post.created_at,
+                likes_count: (post.likes ?? []).length,
+                comments_count: post.comments_count ?? 0,
+            }));
 
-            if (postsData) {
-                const postIds = postsData.map((p) => p.id);
-
-                // Get likes count
-                const { data: likesData } = await supabase.from("likes").select("post_id").in("post_id", postIds);
-
-                // Get comments count
-                const { data: commentsData } = await supabase.from("comments").select("post_id").in("post_id", postIds);
-
-                const likesCountMap = new Map<string, number>();
-                const commentsCountMap = new Map<string, number>();
-
-                likesData?.forEach((like) => {
-                    likesCountMap.set(like.post_id, (likesCountMap.get(like.post_id) || 0) + 1);
-                });
-
-                commentsData?.forEach((comment) => {
-                    commentsCountMap.set(comment.post_id, (commentsCountMap.get(comment.post_id) || 0) + 1);
-                });
-
-                const postsWithCounts = postsData.map((post) => ({
-                    ...post,
-                    likes_count: likesCountMap.get(post.id) || 0,
-                    comments_count: commentsCountMap.get(post.id) || 0,
-                }));
-
-                setPosts(postsWithCounts);
-            }
+            setPosts(postsWithCounts);
+            setPostsCount(postsWithCounts.length);
         } catch (error) {
             console.error("Error loading user posts:", error);
             setPosts([]);

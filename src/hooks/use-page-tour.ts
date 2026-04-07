@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 
 /**
  * Hook that automatically triggers a tour on first visit to a page,
@@ -33,27 +32,21 @@ export function usePageTour(onTourTrigger: () => void) {
         }
     }, [user, profile, userLoading]);
 
-    // Mark page as visited in Supabase
+    // Mark page as visited via API
     const markPageAsVisited = useCallback(
         async (path: string) => {
             if (!user || !pathname) return;
 
             try {
-                // Get current visited pages
-                const { data: currentProfile } = await supabase.from("profiles").select("tour_visited_pages").eq("id", user.id).single();
+                const response = await fetch("/api/profile/tour", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path }),
+                });
 
-                const currentPages = (currentProfile?.tour_visited_pages as string[]) || [];
-
-                // Add new path if not already present
-                if (!currentPages.includes(path)) {
-                    const updatedPages = [...currentPages, path];
-
-                    // Update in Supabase
-                    const { error } = await supabase.from("profiles").update({ tour_visited_pages: updatedPages }).eq("id", user.id);
-
-                    if (!error) {
-                        setVisitedPages(new Set(updatedPages));
-                    }
+                if (response.ok) {
+                    const data = await response.json();
+                    setVisitedPages(new Set(data.tour_visited_pages as string[]));
                 }
             } catch (error) {
                 console.error("Error marking page as visited:", error);

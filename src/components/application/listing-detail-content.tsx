@@ -30,7 +30,6 @@ import {
     shouldShowZillowPropertySection,
 } from "@/lib/listings/listing-detail";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/utils/supabase";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
@@ -107,41 +106,26 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
         async function load() {
             if (rawId.startsWith("zillow-")) {
                 const uuid = rawId.slice("zillow-".length);
-                const { data, error } = await supabase
-                    .from("cleaned_listings")
-                    .select(
-                        "id, zpid, raw_scrape_id, img_src, detail_url, address_raw, address_street, address_city, address_state, address_zip, price, beds, baths, area, availability_date, scraped_at, latitude, longitude, is_building, building_zpid, home_type, laundry",
-                    )
-                    .eq("id", uuid)
-                    .single();
-                if (error || !data) {
+                const res = await fetch(`/api/listings/cleaned?id=${encodeURIComponent(uuid)}`);
+                if (!res.ok) {
                     setListing(null);
                     return;
                 }
-                const row = data as Record<string, unknown>;
+                const row = await res.json();
                 setListing({ source: "zillow", ...row } as ZillowListing);
                 const buildingZpid = row.is_building ? (row.zpid as string | null) : (row.building_zpid as string | null);
                 if (buildingZpid) {
-                    const { data: unitData } = await supabase
-                        .from("cleaned_listings")
-                        .select("id, zpid, price, beds, baths, area")
-                        .eq("building_zpid", buildingZpid)
-                        .order("beds", { ascending: true })
-                        .order("baths", { ascending: true })
-                        .order("price", { ascending: true });
+                    const unitRes = await fetch(`/api/listings/cleaned?building_zpid=${encodeURIComponent(buildingZpid)}`);
+                    const unitData = unitRes.ok ? await unitRes.json() : null;
                     setUnits(unitData ?? null);
                 }
             } else {
-                const { data, error } = await supabase
-                    .from("loopnet_listings")
-                    .select("id, address, headline, location, price, cap_rate, building_category, square_footage, thumbnail_url, listing_url, created_at")
-                    .eq("id", rawId)
-                    .single();
-                if (error || !data) {
+                const res = await fetch(`/api/listings/loopnet?id=${encodeURIComponent(rawId)}`);
+                if (!res.ok) {
                     setListing(null);
                     return;
                 }
-                const row = data as Record<string, unknown>;
+                const row = await res.json();
                 setListing({ source: "loopnet", ...row } as LoopnetListing);
             }
         }
@@ -155,29 +139,28 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             if (listing!.source === "zillow") {
                 const zpid = (listing as ZillowListing).zpid;
                 if (!zpid) return;
-                const { data: latestRun } = await supabase.from("cleaned_listings").select("run_id").order("run_id", { ascending: false }).limit(1).single();
-                if (!latestRun?.run_id) return;
-                const { count } = await supabase
-                    .from("cleaned_listings")
-                    .select("id", { count: "exact", head: true })
-                    .eq("zpid", zpid)
-                    .eq("run_id", latestRun.run_id);
+                const latestRunRes = await fetch("/api/listings/cleaned?latest_run_id=1");
+                if (!latestRunRes.ok) return;
+                const { run_id: latestRunId } = await latestRunRes.json();
+                if (!latestRunId) return;
+                const countRes = await fetch(`/api/listings/cleaned?zpid=${encodeURIComponent(zpid)}&run_id=${encodeURIComponent(latestRunId)}&count_only=1`);
+                if (!countRes.ok) return;
+                const { count } = await countRes.json();
                 if (count === 0) {
-                    const { data: lastSeen } = await supabase
-                        .from("cleaned_listings")
-                        .select("scraped_at")
-                        .eq("zpid", zpid)
-                        .order("scraped_at", { ascending: false })
-                        .limit(1)
-                        .single();
-                    if (lastSeen?.scraped_at) setOffMarketDate(lastSeen.scraped_at);
+                    const lastSeenRes = await fetch(`/api/listings/cleaned?zpid=${encodeURIComponent(zpid)}&latest_scraped_at=1`);
+                    if (lastSeenRes.ok) {
+                        const { scraped_at } = await lastSeenRes.json();
+                        if (scraped_at) setOffMarketDate(scraped_at);
+                    }
                 }
             } else {
-                const { data: latestRun } = await supabase.from("loopnet_listings").select("run_id").order("run_id", { ascending: false }).limit(1).single();
-                if (!latestRun?.run_id) return;
+                const latestRunRes = await fetch("/api/listings/loopnet?latest_run_id=1");
+                if (!latestRunRes.ok) return;
+                const { run_id: latestRunId } = await latestRunRes.json();
+                if (!latestRunId) return;
                 if ((listing as LoopnetListing).source === "loopnet") {
                     const listingRunId = (listing as unknown as Record<string, unknown>).run_id;
-                    if (listingRunId != null && listingRunId !== latestRun.run_id) {
+                    if (listingRunId != null && listingRunId !== latestRunId) {
                         const createdAt = (listing as LoopnetListing).created_at;
                         if (createdAt) setOffMarketDate(createdAt);
                     }
@@ -193,14 +176,10 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             if (!listing.zpid && !listing.building_zpid) return;
             if (!listing.address_zip) return;
 
-            const { data, error } = await supabase
-                .from("raw_zillow_scrapes")
-                .select("raw_json")
-                .eq("zip_code", listing.address_zip)
-                .order("scraped_at", { ascending: false })
-                .limit(1);
-
-            if (error || !data || data.length === 0) return;
+            const res = await fetch(`/api/listings/raw-zillow-scrapes?zip_code=${encodeURIComponent(listing.address_zip)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data || data.length === 0) return;
 
             const raw = (data[0] as any).raw_json;
             if (!raw) return;
@@ -231,8 +210,9 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             };
 
             if (zillowListing.raw_scrape_id) {
-                const { data } = await supabase.from("raw_zillow_scrapes").select("raw_json").eq("id", zillowListing.raw_scrape_id).limit(1);
-                const raw = data?.[0] ? (data[0] as { raw_json?: unknown }).raw_json : null;
+                const res = await fetch(`/api/listings/raw-zillow-scrapes?id=${encodeURIComponent(zillowListing.raw_scrape_id)}`);
+                const json = res.ok ? await res.json() : null;
+                const raw = json?.raw_json ?? null;
                 const targetZpid = zillowListing.zpid ?? zillowListing.building_zpid;
                 const rawItems = Array.isArray(raw) ? raw : raw ? [raw] : [];
                 const matchingItem = rawItems.find((item) => String((item as { zpid?: unknown })?.zpid ?? "") === String(targetZpid ?? ""));
@@ -243,12 +223,8 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
 
             const buildingZpid = zillowListing.is_building ? zillowListing.zpid : zillowListing.building_zpid;
             if (buildingZpid) {
-                const { data } = await supabase
-                    .from("raw_building_details")
-                    .select("raw_json")
-                    .eq("building_zpid", buildingZpid)
-                    .order("scraped_at", { ascending: false })
-                    .limit(1);
+                const res = await fetch(`/api/listings/raw-building-details?building_zpid=${encodeURIComponent(buildingZpid)}`);
+                const data = res.ok ? await res.json() : [];
                 const raw = data?.[0] ? (data[0] as { raw_json?: unknown }).raw_json : null;
                 const detailItem = Array.isArray(raw) ? raw[0] : raw;
                 if (detailItem) {
