@@ -131,6 +131,26 @@ describe("GET /api/news/prepare-newsletters — subscriber scheduling", () => {
         expect(body.newslettersPrepared).toBe(0);
         expect(mockFetchArticlesForNewsletter).not.toHaveBeenCalled();
     });
+
+    it("matches a subscriber preference in the subscriber timezone", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2024-01-08T13:15:00Z")); // +1h = 09:15 in America/New_York on Monday
+
+        const subscriber = makeSubscriber({
+            timezone: "America/New_York",
+            preferredSendTimes: [{ dayOfWeek: 1, hour: 9 }],
+        });
+        mockGetActiveSubscribers.mockResolvedValue([subscriber]);
+
+        const res = await GET(makeRequest());
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.skipped).toBe(1);
+        expect(mockFetchArticlesForNewsletter).toHaveBeenCalledOnce();
+
+        vi.useRealTimers();
+    });
 });
 
 // ─── No articles ───────────────────────────────────────────────────────────────
@@ -230,6 +250,39 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
 
         vi.useRealTimers();
     });
+
+    it("continues to the next subscriber when preparing one subscriber throws", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2024-01-12T14:45:00Z"));
+
+        const subscribers = [makeSubscriber({ email: "a@example.com" }), makeSubscriber({ email: "b@example.com" })];
+        mockGetActiveSubscribers.mockResolvedValue(subscribers);
+        mockFetchArticlesForNewsletter.mockRejectedValueOnce(new Error("fetch failed")).mockResolvedValueOnce(withArticles);
+
+        const mockNewsletterSingle = vi.fn().mockResolvedValue({ data: { id: "nl-2" }, error: null });
+        const mockNewsletterSelectChain = vi.fn().mockReturnValue({ single: mockNewsletterSingle });
+        const mockNewsletterInsert = vi.fn().mockReturnValue({ select: mockNewsletterSelectChain });
+        const mockArticlesIn = vi.fn().mockResolvedValue({ data: [{ id: "art-1", link: "https://example.com/1" }] });
+        const mockArticlesSelect = vi.fn().mockReturnValue({ in: mockArticlesIn });
+        const mockNlArticlesInsert = vi.fn().mockResolvedValue({ error: null });
+
+        mockFrom.mockImplementation((table: string) => {
+            if (table === "newsletters") return { insert: mockNewsletterInsert };
+            if (table === "articles") return { select: mockArticlesSelect };
+            if (table === "newsletter_articles") return { insert: mockNlArticlesInsert };
+            return {};
+        });
+
+        const res = await GET(makeRequest());
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.totalSubscribers).toBe(2);
+        expect(body.newslettersPrepared).toBe(1);
+        expect(mockNewsletterInsert).toHaveBeenCalledTimes(1);
+
+        vi.useRealTimers();
+    });
 });
 
 // ─── Error handling ────────────────────────────────────────────────────────────
@@ -243,6 +296,7 @@ describe("GET /api/news/prepare-newsletters — error handling", () => {
     it("returns 500 when getActiveSubscribers throws", async () => {
         mockGetActiveSubscribers.mockRejectedValue(new Error("DB connection failed"));
         const res = await GET(makeRequest());
+        expect(mockSendAlertEmail).toHaveBeenCalledWith("🚨 Newsletter prepare cron crashed", expect.stringContaining("DB connection failed"));
         expect(res.status).toBe(500);
     });
 });
