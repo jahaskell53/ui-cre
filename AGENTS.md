@@ -16,6 +16,7 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 
 ### Testing
 
+- **Development approach**: Adopt test-driven development for code changes: add or update the smallest relevant failing test first, implement the minimal change to make it pass, then run the relevant tests again.
 - **Unit/integration tests**: `bun run test` (Vitest + jsdom, 63 test files / 539 tests). No external services needed — all deps are mocked.
 - **Formatting**: `npx prettier --check "src/**/*.{ts,tsx}"`. No ESLint config exists in the repo.
 
