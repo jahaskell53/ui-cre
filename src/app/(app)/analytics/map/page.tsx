@@ -5,11 +5,11 @@ import { Building2, Filter, MapPin, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type MapBounds, type Property, PropertyMap } from "@/components/application/map/property-map";
-import { mapLoopnetRow, mapZillowRpcRow, type ZillowMapListingRow } from "@/lib/map-listings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
 
@@ -476,7 +476,12 @@ function MapPageInner() {
                 });
                 if (error) console.error("Error fetching zillow map listings:", error);
                 const rows = (data ?? []) as ZillowMapListingRow[];
-                setProperties(rows.map((row) => { const { _createdAt: _, ...p } = mapZillowRpcRow(row); return p; }));
+                setProperties(
+                    rows.map((row) => {
+                        const { _createdAt: _, ...p } = mapZillowRpcRow(row);
+                        return p;
+                    }),
+                );
                 setTotalCount(rows.length > 0 ? rows[0].total_count : 0);
                 setLoading(false);
                 return;

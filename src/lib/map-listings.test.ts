@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapLoopnetRow, mapZillowRpcRow, type ZillowMapListingRow } from "./map-listings";
+import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "./map-listings";
 
 // ── mapLoopnetRow ─────────────────────────────────────────────────────────────
 

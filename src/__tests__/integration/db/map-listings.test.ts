@@ -12,9 +12,9 @@
  *
  * Requires SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.
  */
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient, createClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it } from "vitest";
-import { mapLoopnetRow, type LoopnetRow, type ZillowMapListingRow } from "@/lib/map-listings";
+import { type LoopnetRow, type ZillowMapListingRow, mapLoopnetRow } from "@/lib/map-listings";
 
 const OAKLAND_ZIP = "94610";
 const OAKLAND_BBOX = { south: 37.799458, north: 37.820213, west: -122.261055, east: -122.22394 };
