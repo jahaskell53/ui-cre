@@ -1,4 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { integrations } from "@/db/schema";
 import { enqueueEmailSync } from "@/utils/sqs";
 import { createClient } from "@/utils/supabase/server";
 
@@ -22,7 +25,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Update integration status to syncing
-        await supabase.from("integrations").update({ status: "syncing" }).eq("nylas_grant_id", grantId).eq("user_id", userId);
+        await db
+            .update(integrations)
+            .set({ status: "syncing" })
+            .where(and(eq(integrations.nylasGrantId, grantId), eq(integrations.userId, userId)));
 
         // Enqueue sync job to SQS for async processing
         await enqueueEmailSync(grantId, userId);
@@ -52,13 +58,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: integrations, error: intError } = await supabase.from("integrations").select("*").eq("user_id", user.id);
+        const userIntegrations = await db.select().from(integrations).where(eq(integrations.userId, user.id));
 
-        if (intError) {
-            throw intError;
-        }
-
-        return NextResponse.json({ integrations });
+        return NextResponse.json({ integrations: userIntegrations });
     } catch (error) {
         console.error("Error fetching integrations:", error);
         return NextResponse.json({ error: "Failed to fetch integrations" }, { status: 500 });

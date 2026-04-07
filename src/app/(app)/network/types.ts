@@ -13,6 +13,8 @@ export interface GeoAddress {
     longitude: number | null;
 }
 
+export type NetworkStrength = "HIGH" | "MEDIUM" | "LOW";
+
 // Person interface matching database schema
 export interface Person {
     id: string;
@@ -34,7 +36,7 @@ export interface Person {
     twitter_url: string | null;
     instagram_url: string | null;
     facebook_url: string | null;
-    network_strength?: "HIGH" | "MEDIUM" | "LOW";
+    network_strength?: NetworkStrength;
     created_at?: string;
     updated_at?: string;
 }

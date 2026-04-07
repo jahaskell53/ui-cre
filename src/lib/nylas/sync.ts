@@ -1,11 +1,10 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { people } from "@/db/schema";
+import { integrations, interactions, people } from "@/db/schema";
 import { recalculateNetworkStrengthForUser } from "@/lib/network-strength";
 import { makeGeminiCall } from "@/lib/news/gemini";
-import { createAdminClient } from "@/utils/supabase/admin";
 import { getLangfuseClient } from "../../../instrumentation";
-import { type NylasCalendarEvent, type NylasMessage, NylasRateLimitError, getCalendarEvents, getMessages } from "./client";
+import { type NylasMessage, NylasRateLimitError, getCalendarEvents, getMessages } from "./client";
 import { NYLAS_SYNC_CONFIG } from "./config";
 
 interface Contact {
@@ -428,11 +427,14 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
         const emailInteractions: EmailInteraction[] = [];
 
         // Get integration ID and user email for tracking
-        const supabase = createAdminClient();
-        const { data: integration } = await supabase.from("integrations").select("id, email_address").eq("nylas_grant_id", grantId).single();
+        const [integration] = await db
+            .select({ id: integrations.id, emailAddress: integrations.emailAddress })
+            .from(integrations)
+            .where(eq(integrations.nylasGrantId, grantId))
+            .limit(1);
 
         const integrationId = integration?.id;
-        const userEmail = integration?.email_address?.toLowerCase();
+        const userEmail = integration?.emailAddress?.toLowerCase();
 
         if (!userEmail) {
             console.error("No email address found for integration");
@@ -685,40 +687,21 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
         const interactionsToInsert = emailInteractions
             .filter((interaction) => emailToPerson.has(interaction.email))
             .map((interaction) => ({
-                user_id: userId,
-                person_id: emailToPerson.get(interaction.email),
-                integration_id: integrationId,
-                interaction_type: interaction.type,
+                userId,
+                personId: emailToPerson.get(interaction.email)!,
+                integrationId: integrationId ?? null,
+                interactionType: interaction.type,
                 subject: interaction.subject,
-                occurred_at: interaction.occurred_at,
+                occurredAt: interaction.occurred_at,
                 metadata: { message_id: interaction.message_id },
             }));
 
         let interactionCount = 0;
 
         if (interactionsToInsert.length > 0) {
-            // Batch insert using upsert with ignoreDuplicates
-            // The unique index on (user_id, person_id, metadata->>'message_id') handles duplicates
-            const { data: insertedInteractions, error } = await supabase
-                .from("interactions")
-                .upsert(interactionsToInsert, {
-                    onConflict: "user_id,person_id,metadata->>message_id",
-                    ignoreDuplicates: true,
-                })
-                .select("id");
-
-            if (error) {
-                // If upsert fails, fall back to insert (duplicates will be ignored by DB constraint)
-                console.log("Upsert not supported, using insert with ignore duplicates behavior");
-                const { error: insertError } = await supabase.from("interactions").insert(interactionsToInsert);
-
-                if (insertError && !insertError.message.includes("duplicate")) {
-                    console.error("Error batch inserting interactions:", insertError);
-                }
-                interactionCount = interactionsToInsert.length;
-            } else {
-                interactionCount = insertedInteractions?.length || interactionsToInsert.length;
-            }
+            // Insert with onConflictDoNothing — the unique index handles deduplication
+            const inserted = await db.insert(interactions).values(interactionsToInsert).onConflictDoNothing().returning({ id: interactions.id });
+            interactionCount = inserted.length;
         }
 
         // Batch timeline updates
@@ -745,8 +728,8 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
             // Batch update timelines using Promise.all
             if (peopleRows.length > 0) {
                 const timelineUpdates = peopleRows.map((person) => {
-                    const interactions = interactionsByPerson.get(person.id) || [];
-                    const newEntries = interactions.map((interaction) => ({
+                    const personInteractions = interactionsByPerson.get(person.id) || [];
+                    const newEntries = personInteractions.map((interaction) => ({
                         type: "email" as const,
                         text:
                             interaction.type === "email_sent"
@@ -916,11 +899,14 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         let eventsProcessed = 0;
 
         // Get integration ID and user email for tracking
-        const supabase = createAdminClient();
-        const { data: integration } = await supabase.from("integrations").select("id, email_address").eq("nylas_grant_id", grantId).single();
+        const [integration] = await db
+            .select({ id: integrations.id, emailAddress: integrations.emailAddress })
+            .from(integrations)
+            .where(eq(integrations.nylasGrantId, grantId))
+            .limit(1);
 
         const integrationId = integration?.id;
-        const userEmail = integration?.email_address?.toLowerCase();
+        const userEmail = integration?.emailAddress?.toLowerCase();
 
         // Log input events
         console.log(`[Calendar Filter] INPUT: ${events.length} events`);
@@ -1153,12 +1139,12 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         const interactionsToInsert = calendarInteractions
             .filter((interaction) => emailToPerson.has(interaction.email))
             .map((interaction) => ({
-                user_id: userId,
-                person_id: emailToPerson.get(interaction.email),
-                integration_id: integrationId,
-                interaction_type: "calendar_meeting",
+                userId,
+                personId: emailToPerson.get(interaction.email)!,
+                integrationId: integrationId ?? null,
+                interactionType: "calendar_meeting",
                 subject: interaction.subject,
-                occurred_at: interaction.occurred_at,
+                occurredAt: interaction.occurred_at,
                 metadata: {
                     event_id: interaction.event_id,
                     calendar_id: interaction.calendar_id,
@@ -1168,28 +1154,9 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         let interactionCount = 0;
 
         if (interactionsToInsert.length > 0) {
-            // Batch insert using upsert with ignoreDuplicates
-            // The unique index on (user_id, person_id, metadata->>'event_id') handles duplicates
-            const { data: insertedInteractions, error } = await supabase
-                .from("interactions")
-                .upsert(interactionsToInsert, {
-                    onConflict: "user_id,person_id,metadata->>event_id",
-                    ignoreDuplicates: true,
-                })
-                .select("id");
-
-            if (error) {
-                // If upsert fails, fall back to insert (duplicates will be ignored by DB constraint)
-                console.log("Upsert not supported, using insert with ignore duplicates behavior");
-                const { error: insertError } = await supabase.from("interactions").insert(interactionsToInsert);
-
-                if (insertError && !insertError.message.includes("duplicate")) {
-                    console.error("Error batch inserting calendar interactions:", insertError);
-                }
-                interactionCount = interactionsToInsert.length;
-            } else {
-                interactionCount = insertedInteractions?.length || interactionsToInsert.length;
-            }
+            // Insert with onConflictDoNothing — the unique index handles deduplication
+            const inserted = await db.insert(interactions).values(interactionsToInsert).onConflictDoNothing().returning({ id: interactions.id });
+            interactionCount = inserted.length;
         }
 
         // Batch timeline updates
@@ -1216,8 +1183,8 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
             // Batch update timelines using Promise.all
             if (calendarPeopleRows.length > 0) {
                 const timelineUpdates = calendarPeopleRows.map((person) => {
-                    const interactions = interactionsByPerson.get(person.id) || [];
-                    const newEntries = interactions.map((interaction) => ({
+                    const personInteractions = interactionsByPerson.get(person.id) || [];
+                    const newEntries = personInteractions.map((interaction) => ({
                         type: "meeting" as const,
                         text: `You met with ${person.name.split(" ")[0]} ${interaction.subject || "(no title)"}`,
                         date: new Date(interaction.occurred_at).toLocaleDateString("en-US", {
@@ -1282,13 +1249,15 @@ export interface SyncResult {
  * Handles rate limits gracefully by saving partial results and signaling for delayed retry
  */
 export async function syncAllContacts(grantId: string, userId: string): Promise<SyncResult> {
-    const supabase = createAdminClient();
-
     // Fetch integration to get last_sync_at for incremental sync
-    const { data: integration } = await supabase.from("integrations").select("first_sync_at, last_sync_at").eq("nylas_grant_id", grantId).single();
+    const [integration] = await db
+        .select({ firstSyncAt: integrations.firstSyncAt, lastSyncAt: integrations.lastSyncAt })
+        .from(integrations)
+        .where(eq(integrations.nylasGrantId, grantId))
+        .limit(1);
 
-    const lastSyncAt = integration?.last_sync_at ? new Date(integration.last_sync_at) : null;
-    const isFirstSync = !integration?.first_sync_at;
+    const lastSyncAt = integration?.lastSyncAt ? new Date(integration.lastSyncAt) : null;
+    const isFirstSync = !integration?.firstSyncAt;
 
     if (lastSyncAt) {
         const daysAgo = Math.round((Date.now() - lastSyncAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -1314,13 +1283,13 @@ export async function syncAllContacts(grantId: string, userId: string): Promise<
         } else {
             console.error("Error syncing email contacts:", error);
             // Update integration with error status
-            await supabase
-                .from("integrations")
-                .update({
+            await db
+                .update(integrations)
+                .set({
                     status: "error",
-                    sync_error: error instanceof Error ? error.message : "Unknown error",
+                    syncError: error instanceof Error ? error.message : "Unknown error",
                 })
-                .eq("nylas_grant_id", grantId);
+                .where(eq(integrations.nylasGrantId, grantId));
             throw error;
         }
     }
@@ -1336,13 +1305,13 @@ export async function syncAllContacts(grantId: string, userId: string): Promise<
         } else {
             console.error("Error syncing calendar contacts:", error);
             // Update integration with error status
-            await supabase
-                .from("integrations")
-                .update({
+            await db
+                .update(integrations)
+                .set({
                     status: "error",
-                    sync_error: error instanceof Error ? error.message : "Unknown error",
+                    syncError: error instanceof Error ? error.message : "Unknown error",
                 })
-                .eq("nylas_grant_id", grantId);
+                .where(eq(integrations.nylasGrantId, grantId));
             throw error;
         }
     }
@@ -1350,14 +1319,14 @@ export async function syncAllContacts(grantId: string, userId: string): Promise<
     // Update integration sync status
     if (rateLimited) {
         // Partial sync completed - mark as rate_limited so we can retry later
-        await supabase
-            .from("integrations")
-            .update({
+        await db
+            .update(integrations)
+            .set({
                 status: "rate_limited",
-                sync_error: `Rate limited. Retry after ${Math.round((retryAfterMs || 60000) / 1000)}s. Partial sync: ${emailCount} emails, ${calendarCount} calendar events.`,
-                // Don't update last_sync_at so next sync picks up where we left off
+                syncError: `Rate limited. Retry after ${Math.round((retryAfterMs || 60000) / 1000)}s. Partial sync: ${emailCount} emails, ${calendarCount} calendar events.`,
+                // Don't update lastSyncAt so next sync picks up where we left off
             })
-            .eq("nylas_grant_id", grantId);
+            .where(eq(integrations.nylasGrantId, grantId));
 
         console.log(
             `Partial sync completed: ${emailCount} emails, ${calendarCount} calendar events. Rate limited - retry after ${Math.round((retryAfterMs || 60000) / 1000)}s`,
@@ -1365,17 +1334,17 @@ export async function syncAllContacts(grantId: string, userId: string): Promise<
     } else {
         // Full sync completed successfully
         const updateData: Record<string, any> = {
-            last_sync_at: new Date().toISOString(),
+            lastSyncAt: new Date().toISOString(),
             status: "active",
-            sync_error: null,
+            syncError: null,
         };
 
-        // Only set first_sync_at on the first sync
+        // Only set firstSyncAt on the first sync
         if (isFirstSync) {
-            updateData.first_sync_at = new Date().toISOString();
+            updateData.firstSyncAt = new Date().toISOString();
         }
 
-        await supabase.from("integrations").update(updateData).eq("nylas_grant_id", grantId);
+        await db.update(integrations).set(updateData).where(eq(integrations.nylasGrantId, grantId));
 
         console.log(`Sync completed successfully: ${emailCount} emails, ${calendarCount} calendar events`);
     }

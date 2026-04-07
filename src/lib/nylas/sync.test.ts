@@ -2,16 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NylasRateLimitError } from "./client";
 import { syncAllContacts } from "./sync";
 
-const { mockGetMessages, mockGetCalendarEvents, mockFrom, mockRecalculateNetworkStrength, mockDb } = vi.hoisted(() => ({
+const { mockGetMessages, mockGetCalendarEvents, mockDbSelect, mockDbUpdate, mockDbInsert, mockRecalculateNetworkStrength } = vi.hoisted(() => ({
     mockGetMessages: vi.fn(),
     mockGetCalendarEvents: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDbSelect: vi.fn(),
+    mockDbUpdate: vi.fn(),
+    mockDbInsert: vi.fn(),
     mockRecalculateNetworkStrength: vi.fn().mockResolvedValue(undefined),
-    mockDb: {
-        select: vi.fn(),
-        insert: vi.fn(),
-        update: vi.fn(),
-    },
 }));
 
 vi.mock("./client", async (importOriginal) => {
@@ -27,12 +24,12 @@ vi.mock("./config", () => ({
     NYLAS_SYNC_CONFIG: { emailLimit: 100, calendarLimit: 100 },
 }));
 
-vi.mock("@/utils/supabase/admin", () => ({
-    createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
-}));
-
 vi.mock("@/db", () => ({
-    db: mockDb,
+    db: {
+        select: mockDbSelect,
+        update: mockDbUpdate,
+        insert: mockDbInsert,
+    },
 }));
 
 vi.mock("@/lib/news/gemini", () => ({
@@ -54,61 +51,60 @@ function makeRateLimitError(retryAfterMs = 60_000, itemsCollected = 0) {
 }
 
 /**
- * Sets up mockFrom for integration queries only (rate-limit/error tests where
- * syncEmailContacts/syncCalendarContacts throw before reaching their own DB calls).
+ * Sets up db mocks for the integration select and update calls used by syncAllContacts.
+ * The integration select returns the given record via the chained `.where().limit()` builder.
  */
-function setupIntegrationSupabase(
+function setupIntegrationDb(
     integration: Record<string, unknown> = {
         id: "int-1",
-        email_address: null,
-        first_sync_at: null,
-        last_sync_at: null,
+        emailAddress: null,
+        firstSyncAt: null,
+        lastSyncAt: null,
     },
 ) {
-    const mockSingle = vi.fn().mockResolvedValue({ data: integration, error: null });
-    const mockSelectEq = vi.fn().mockReturnValue({ single: mockSingle });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockSelectEq });
-    const mockUpdateEq = vi.fn().mockResolvedValue({ error: null });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+    const mockLimit = vi.fn().mockResolvedValue([integration]);
+    const mockWhere = vi.fn().mockReturnValue({ limit: mockLimit });
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
 
-    mockFrom.mockImplementation((table: string) => {
-        if (table === "integrations") return { select: mockSelect, update: mockUpdate };
-        return {};
-    });
+    const mockUpdateWhere = vi.fn().mockResolvedValue(undefined);
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
 
-    return { mockUpdate, mockUpdateEq, mockSelect, mockSingle };
+    mockDbSelect.mockReturnValue({ from: mockFrom });
+    mockDbUpdate.mockReturnValue({ set: mockSet });
+
+    return { mockSet, mockUpdateWhere };
 }
 
 /**
- * Sets up mockFrom for the full successful sync path (empty messages/events).
- * Also sets up mockDb for Drizzle people queries.
+ * Sets up db mocks for the full successful sync path (empty messages/events).
+ * syncEmailContacts returns 0 early because emailAddress is null.
+ * syncCalendarContacts fetches existing people (returns []).
  */
-function setupSuccessSupabase(
+function setupSuccessDb(
     integration: Record<string, unknown> = {
         id: "int-1",
-        email_address: null, // null → syncEmailContacts returns 0 via early return
-        first_sync_at: null,
-        last_sync_at: null,
+        emailAddress: null,
+        firstSyncAt: null,
+        lastSyncAt: null,
     },
 ) {
-    // Drizzle people table: returns empty arrays for all queries
-    const mockDbWhere = vi.fn().mockResolvedValue([]);
-    const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
-    mockDb.select.mockReturnValue({ from: mockDbFrom });
+    // People select: used by syncCalendarContacts when processing contacts
+    const mockPeopleWhere = vi.fn().mockResolvedValue([]);
+    const mockPeopleFrom = vi.fn().mockReturnValue({ where: mockPeopleWhere });
 
-    // integrations table: select and update
-    const mockSingle = vi.fn().mockResolvedValue({ data: integration, error: null });
-    const mockSelectEq = vi.fn().mockReturnValue({ single: mockSingle });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockSelectEq });
-    const mockUpdateEq = vi.fn().mockResolvedValue({ error: null });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+    // Integration select: used by syncAllContacts and syncEmailContacts/syncCalendarContacts
+    const mockLimit = vi.fn().mockResolvedValue([integration]);
+    const mockIntWhere = vi.fn().mockReturnValue({ limit: mockLimit });
+    const mockIntFrom = vi.fn().mockReturnValue({ where: mockIntWhere });
 
-    mockFrom.mockImplementation((table: string) => {
-        if (table === "integrations") return { select: mockSelect, update: mockUpdate };
-        return {};
-    });
+    const mockUpdateWhere = vi.fn().mockResolvedValue(undefined);
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
 
-    return { mockUpdate };
+    // Route all selects through the same mock — integration queries use .limit(), people use .where() only
+    mockDbSelect.mockImplementation(() => ({ from: mockIntFrom }));
+    mockDbUpdate.mockReturnValue({ set: mockSet });
+
+    return { mockSet };
 }
 
 // ─── Rate limit handling ──────────────────────────────────────────────────────
@@ -120,7 +116,7 @@ describe("syncAllContacts — rate limit handling", () => {
     });
 
     it("marks integration as rate_limited when email sync hits rate limit", async () => {
-        const { mockUpdate } = setupIntegrationSupabase();
+        const { mockSet } = setupIntegrationDb();
         mockGetMessages.mockRejectedValue(makeRateLimitError(30_000));
         mockGetCalendarEvents.mockRejectedValue(makeRateLimitError(30_000));
 
@@ -128,12 +124,12 @@ describe("syncAllContacts — rate limit handling", () => {
 
         expect(result.rateLimited).toBe(true);
         expect(result.retryAfterMs).toBe(30_000);
-        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "rate_limited" }));
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: "rate_limited" }));
     });
 
     it("marks integration as rate_limited when only calendar sync is rate limited", async () => {
-        setupIntegrationSupabase();
-        // Email sync succeeds (messages = [], returns 0 via early return since email_address is null)
+        setupIntegrationDb();
+        // Email sync succeeds (messages = [], returns 0 via early return since emailAddress is null)
         mockGetMessages.mockResolvedValue([]);
         mockGetCalendarEvents.mockRejectedValue(makeRateLimitError(45_000));
 
@@ -144,7 +140,7 @@ describe("syncAllContacts — rate limit handling", () => {
     });
 
     it("uses the longer retry delay when both email and calendar are rate limited", async () => {
-        setupIntegrationSupabase();
+        setupIntegrationDb();
         mockGetMessages.mockRejectedValue(makeRateLimitError(30_000));
         mockGetCalendarEvents.mockRejectedValue(makeRateLimitError(90_000));
 
@@ -163,21 +159,21 @@ describe("syncAllContacts — error propagation", () => {
     });
 
     it("marks integration as error and rethrows when email sync throws", async () => {
-        const { mockUpdate } = setupIntegrationSupabase();
+        const { mockSet } = setupIntegrationDb();
         const crash = new Error("Nylas API down");
         mockGetMessages.mockRejectedValue(crash);
 
         await expect(syncAllContacts("grant-1", "user-1")).rejects.toThrow("Nylas API down");
-        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }));
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }));
     });
 
     it("marks integration as error and rethrows when calendar sync throws", async () => {
-        const { mockUpdate } = setupIntegrationSupabase();
+        const { mockSet } = setupIntegrationDb();
         mockGetMessages.mockResolvedValue([]);
         mockGetCalendarEvents.mockRejectedValue(new Error("Calendar fetch failed"));
 
         await expect(syncAllContacts("grant-1", "user-1")).rejects.toThrow("Calendar fetch failed");
-        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }));
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: "error" }));
     });
 });
 
@@ -189,12 +185,12 @@ describe("syncAllContacts — successful sync", () => {
         mockRecalculateNetworkStrength.mockResolvedValue(undefined);
     });
 
-    it("updates integration to active with last_sync_at on success", async () => {
-        const { mockUpdate } = setupSuccessSupabase({
+    it("updates integration to active with lastSyncAt on success", async () => {
+        const { mockSet } = setupSuccessDb({
             id: "int-1",
-            email_address: null,
-            first_sync_at: "2024-01-01T00:00:00Z",
-            last_sync_at: "2024-01-10T00:00:00Z",
+            emailAddress: null,
+            firstSyncAt: "2024-01-01T00:00:00Z",
+            lastSyncAt: "2024-01-10T00:00:00Z",
         });
         mockGetMessages.mockResolvedValue([]);
         mockGetCalendarEvents.mockResolvedValue([]);
@@ -202,45 +198,45 @@ describe("syncAllContacts — successful sync", () => {
         const result = await syncAllContacts("grant-1", "user-1");
 
         expect(result.rateLimited).toBeFalsy();
-        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: "active", last_sync_at: expect.any(String), sync_error: null }));
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: "active", lastSyncAt: expect.any(String), syncError: null }));
     });
 
-    it("sets first_sync_at when this is the first sync", async () => {
-        const { mockUpdate } = setupSuccessSupabase({
+    it("sets firstSyncAt when this is the first sync", async () => {
+        const { mockSet } = setupSuccessDb({
             id: "int-1",
-            email_address: null,
-            first_sync_at: null,
-            last_sync_at: null,
+            emailAddress: null,
+            firstSyncAt: null,
+            lastSyncAt: null,
         });
         mockGetMessages.mockResolvedValue([]);
         mockGetCalendarEvents.mockResolvedValue([]);
 
         await syncAllContacts("grant-1", "user-1");
 
-        expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ first_sync_at: expect.any(String) }));
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ firstSyncAt: expect.any(String) }));
     });
 
-    it("does not overwrite first_sync_at on subsequent syncs", async () => {
-        const { mockUpdate } = setupSuccessSupabase({
+    it("does not overwrite firstSyncAt on subsequent syncs", async () => {
+        const { mockSet } = setupSuccessDb({
             id: "int-1",
-            email_address: null,
-            first_sync_at: "2024-01-01T00:00:00Z",
-            last_sync_at: "2024-01-10T00:00:00Z",
+            emailAddress: null,
+            firstSyncAt: "2024-01-01T00:00:00Z",
+            lastSyncAt: "2024-01-10T00:00:00Z",
         });
         mockGetMessages.mockResolvedValue([]);
         mockGetCalendarEvents.mockResolvedValue([]);
 
         await syncAllContacts("grant-1", "user-1");
 
-        expect(mockUpdate).toHaveBeenCalledWith(expect.not.objectContaining({ first_sync_at: expect.anything() }));
+        expect(mockSet).toHaveBeenCalledWith(expect.not.objectContaining({ firstSyncAt: expect.anything() }));
     });
 
-    it("returns isIncremental=true when last_sync_at is set", async () => {
-        setupSuccessSupabase({
+    it("returns isIncremental=true when lastSyncAt is set", async () => {
+        setupSuccessDb({
             id: "int-1",
-            email_address: null,
-            first_sync_at: "2024-01-01T00:00:00Z",
-            last_sync_at: "2024-01-10T00:00:00Z",
+            emailAddress: null,
+            firstSyncAt: "2024-01-01T00:00:00Z",
+            lastSyncAt: "2024-01-10T00:00:00Z",
         });
         mockGetMessages.mockResolvedValue([]);
         mockGetCalendarEvents.mockResolvedValue([]);
@@ -250,12 +246,12 @@ describe("syncAllContacts — successful sync", () => {
         expect(result.isIncremental).toBe(true);
     });
 
-    it("returns isIncremental=false when no last_sync_at", async () => {
-        setupSuccessSupabase({
+    it("returns isIncremental=false when no lastSyncAt", async () => {
+        setupSuccessDb({
             id: "int-1",
-            email_address: null,
-            first_sync_at: null,
-            last_sync_at: null,
+            emailAddress: null,
+            firstSyncAt: null,
+            lastSyncAt: null,
         });
         mockGetMessages.mockResolvedValue([]);
         mockGetCalendarEvents.mockResolvedValue([]);

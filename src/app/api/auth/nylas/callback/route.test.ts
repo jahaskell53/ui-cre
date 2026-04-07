@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockFrom, mockExchangeCodeForGrant, mockEnqueueEmailSync } = vi.hoisted(() => ({
-    mockFrom: vi.fn(),
+const { mockExchangeCodeForGrant, mockEnqueueEmailSync, mockDbInsert } = vi.hoisted(() => ({
     mockExchangeCodeForGrant: vi.fn(),
     mockEnqueueEmailSync: vi.fn(),
+    mockDbInsert: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+    createClient: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("@/lib/nylas/client", () => ({
@@ -18,6 +18,12 @@ vi.mock("@/lib/nylas/client", () => ({
 
 vi.mock("@/utils/sqs", () => ({
     enqueueEmailSync: mockEnqueueEmailSync,
+}));
+
+vi.mock("@/db", () => ({
+    db: {
+        insert: mockDbInsert,
+    },
 }));
 
 function makeGet(params: Record<string, string>) {
@@ -47,6 +53,20 @@ describe("GET /api/auth/nylas/callback", () => {
         expect(res.headers.get("location")).toContain("missing_params");
     });
 
+    it("redirects to callback_failed when grant response has no email", async () => {
+        mockExchangeCodeForGrant.mockResolvedValue({ grantId: "grant-abc", provider: "google", email: undefined, scope: [] });
+        const res = await GET(makeGet({ code: "auth-code", state: "user-1:12345" }));
+        expect(res.status).toBe(307);
+        expect(res.headers.get("location")).toContain("callback_failed");
+    });
+
+    it("redirects to callback_failed when grant response has no provider", async () => {
+        mockExchangeCodeForGrant.mockResolvedValue({ grantId: "grant-abc", provider: undefined, email: "user@example.com", scope: [] });
+        const res = await GET(makeGet({ code: "auth-code", state: "user-1:12345" }));
+        expect(res.status).toBe(307);
+        expect(res.headers.get("location")).toContain("callback_failed");
+    });
+
     it("stores integration and redirects to success on happy path", async () => {
         const grantResponse = {
             grantId: "grant-abc",
@@ -55,18 +75,20 @@ describe("GET /api/auth/nylas/callback", () => {
             scope: ["email", "calendar"],
         };
         mockExchangeCodeForGrant.mockResolvedValue(grantResponse);
-        const mockInsert = vi.fn().mockResolvedValue({ error: null });
-        mockFrom.mockReturnValue({ insert: mockInsert });
+
+        // db.insert(...).values(...) → resolves
+        const mockValues = vi.fn().mockResolvedValue(undefined);
+        mockDbInsert.mockReturnValue({ values: mockValues });
         mockEnqueueEmailSync.mockResolvedValue(undefined);
 
         const res = await GET(makeGet({ code: "auth-code", state: "user-1:12345" }));
 
         expect(res.status).toBe(307);
         expect(res.headers.get("location")).toContain("success=true");
-        expect(mockInsert).toHaveBeenCalledWith(
+        expect(mockValues).toHaveBeenCalledWith(
             expect.objectContaining({
-                user_id: "user-1",
-                nylas_grant_id: "grant-abc",
+                userId: "user-1",
+                nylasGrantId: "grant-abc",
             }),
         );
     });
@@ -78,7 +100,8 @@ describe("GET /api/auth/nylas/callback", () => {
             email: "user@example.com",
             scope: [],
         });
-        mockFrom.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+        const mockValues = vi.fn().mockResolvedValue(undefined);
+        mockDbInsert.mockReturnValue({ values: mockValues });
         mockEnqueueEmailSync.mockResolvedValue(undefined);
 
         await GET(makeGet({ code: "auth-code", state: "user-1:12345" }));
@@ -93,7 +116,8 @@ describe("GET /api/auth/nylas/callback", () => {
             email: "user@example.com",
             scope: [],
         });
-        mockFrom.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+        const mockValues = vi.fn().mockResolvedValue(undefined);
+        mockDbInsert.mockReturnValue({ values: mockValues });
         mockEnqueueEmailSync.mockResolvedValue(undefined);
 
         const state = `user-1:12345:${encodeURIComponent("/settings")}`;
@@ -109,7 +133,8 @@ describe("GET /api/auth/nylas/callback", () => {
             email: "user@example.com",
             scope: [],
         });
-        mockFrom.mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
+        const mockValues = vi.fn().mockResolvedValue(undefined);
+        mockDbInsert.mockReturnValue({ values: mockValues });
         mockEnqueueEmailSync.mockRejectedValue(new Error("SQS down"));
 
         const res = await GET(makeGet({ code: "auth-code", state: "user-1:12345" }));

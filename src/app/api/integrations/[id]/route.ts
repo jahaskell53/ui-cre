@@ -1,4 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { integrations } from "@/db/schema";
 import { revokeGrant } from "@/lib/nylas/client";
 import { createClient } from "@/utils/supabase/server";
 
@@ -16,21 +19,20 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         }
 
         // Get the integration to revoke
-        const { data: integration, error: fetchError } = await supabase.from("integrations").select("*").eq("id", id).eq("user_id", user.id).single();
+        const [integration] = await db
+            .select()
+            .from(integrations)
+            .where(and(eq(integrations.id, id), eq(integrations.userId, user.id)));
 
-        if (fetchError || !integration) {
+        if (!integration) {
             return NextResponse.json({ error: "Integration not found" }, { status: 404 });
         }
 
         // Revoke the grant with Nylas
-        await revokeGrant(integration.nylas_grant_id);
+        await revokeGrant(integration.nylasGrantId);
 
         // Delete the integration from our database
-        const { error: deleteError } = await supabase.from("integrations").delete().eq("id", id).eq("user_id", user.id);
-
-        if (deleteError) {
-            throw deleteError;
-        }
+        await db.delete(integrations).where(and(eq(integrations.id, id), eq(integrations.userId, user.id)));
 
         return NextResponse.json({ success: true });
     } catch (error) {
