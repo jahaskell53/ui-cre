@@ -28,7 +28,7 @@ function makeSubscriber(overrides: Partial<Subscriber> = {}): Subscriber {
         selectedCities: [],
         subscribedAt: null,
         isActive: true,
-        interests: null,
+        interests: undefined,
         timezone: "America/New_York",
         preferredSendTimes: [],
         ...overrides,
@@ -222,7 +222,7 @@ describe("EmailService.sendNewsletterToSubscriber", () => {
         vi.mocked(formatInterests).mockReturnValue("");
         const service = makeService();
         const spy = vi.spyOn(service, "sendEmail");
-        await service.sendNewsletterToSubscriber(makeSubscriber({ interests: null }), "");
+        await service.sendNewsletterToSubscriber(makeSubscriber({ interests: undefined }), "");
         const [, { text }] = spy.mock.calls[0];
         expect(text).not.toContain("Your Interests:");
     });

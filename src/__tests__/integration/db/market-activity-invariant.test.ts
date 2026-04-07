@@ -68,27 +68,18 @@ function assertCommonInvariants(rows: ActivityRow[], byBeds: Map<number, Activit
 
     // Invariant 2: new <= accumulated
     for (const row of rows) {
-        expect(toNum(row.new_listings)).toBeLessThanOrEqual(
-            toNum(row.accumulated_listings),
-            `${label} beds=${row.beds} week=${row.week_start}: new_listings exceeds accumulated_listings`,
-        );
+        expect(toNum(row.new_listings)).toBeLessThanOrEqual(toNum(row.accumulated_listings));
     }
 
     // Invariant 3: closed <= accumulated
     for (const row of rows) {
-        expect(toNum(row.closed_listings)).toBeLessThanOrEqual(
-            toNum(row.accumulated_listings),
-            `${label} beds=${row.beds} week=${row.week_start}: closed_listings exceeds accumulated_listings`,
-        );
+        expect(toNum(row.closed_listings)).toBeLessThanOrEqual(toNum(row.accumulated_listings));
     }
 
     // Invariant 4: first week new == accumulated
     for (const [beds, group] of byBeds) {
         const first = group[0];
-        expect(toNum(first.new_listings)).toBe(
-            toNum(first.accumulated_listings),
-            `${label} beds=${beds}: first week (${first.week_start}) new_listings should equal accumulated_listings`,
-        );
+        expect(toNum(first.new_listings)).toBe(toNum(first.accumulated_listings));
     }
 }
 
@@ -132,7 +123,7 @@ describe("get_market_activity (scrape-based, ZIP=94061) – inventory invariant"
     it("last week per bed type: closed_listings is zero", () => {
         for (const [beds, group] of byBeds) {
             const last = group[group.length - 1];
-            expect(toNum(last.closed_listings)).toBe(0, `beds=${beds}: last week (${last.week_start}) closed_listings should be 0`);
+            expect(toNum(last.closed_listings)).toBe(0);
         }
     });
 
@@ -145,11 +136,7 @@ describe("get_market_activity (scrape-based, ZIP=94061) – inventory invariant"
                 if (daysBetween(prev.week_start, cur.week_start) !== 7) continue;
 
                 const expected = toNum(prev.accumulated_listings) + toNum(cur.new_listings) - toNum(cur.closed_listings);
-                expect(toNum(cur.accumulated_listings)).toBe(
-                    expected,
-                    `beds=${beds}, week=${cur.week_start}: acc=${toNum(cur.accumulated_listings)} but ` +
-                        `prev_acc(${toNum(prev.accumulated_listings)}) + new(${toNum(cur.new_listings)}) - closed(${toNum(cur.closed_listings)}) = ${expected}`,
-                );
+                expect(toNum(cur.accumulated_listings)).toBe(expected);
                 checkedPairs++;
             }
         }
@@ -193,7 +180,7 @@ describe("get_market_activity_by_city (lifecycle-based, Redwood City CA) – inv
     it("accumulated_listings is always positive when any listings exist", () => {
         for (const row of rows) {
             if (toNum(row.new_listings) > 0 || toNum(row.accumulated_listings) > 0) {
-                expect(toNum(row.accumulated_listings)).toBeGreaterThan(0, `beds=${row.beds} week=${row.week_start}: accumulated should be positive`);
+                expect(toNum(row.accumulated_listings)).toBeGreaterThan(0);
             }
         }
     });

@@ -26,7 +26,9 @@ function makeGet(params?: Record<string, string>) {
 }
 
 describe("GET /api/auth/nylas/authorize", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when provider is missing", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });

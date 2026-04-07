@@ -30,7 +30,9 @@ function makeRequest() {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 describe("GET /api/events/[id]/blasts — auth", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
@@ -42,7 +44,9 @@ describe("GET /api/events/[id]/blasts — auth", () => {
 // ─── Event ownership ──────────────────────────────────────────────────────────
 
 describe("GET /api/events/[id]/blasts — event ownership", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 404 when event not found", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
@@ -68,7 +72,9 @@ describe("GET /api/events/[id]/blasts — event ownership", () => {
 // ─── Happy path ───────────────────────────────────────────────────────────────
 
 describe("GET /api/events/[id]/blasts — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns blasts for event owner", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });

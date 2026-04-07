@@ -29,7 +29,9 @@ function geminiReturns(json: unknown) {
 }
 
 describe("POST /api/news/refine-interests — validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when action is missing", async () => {
         const res = await POST(makePost({ interests: "multifamily" }));

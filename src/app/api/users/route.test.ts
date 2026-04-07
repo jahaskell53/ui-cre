@@ -51,7 +51,9 @@ function makeDelete() {
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/users", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when user id is missing", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null } });
@@ -84,7 +86,9 @@ describe("GET /api/users", () => {
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 
 describe("DELETE /api/users", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: null });

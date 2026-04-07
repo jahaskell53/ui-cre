@@ -43,7 +43,9 @@ function noAuth() {
 }
 
 describe("DELETE /api/integrations/[id]", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();

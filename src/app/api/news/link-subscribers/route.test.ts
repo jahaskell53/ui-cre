@@ -106,7 +106,9 @@ describe("POST /api/news/link-subscribers — processing", () => {
 // ─── GET (user) ────────────────────────────────────────────────────────────────
 
 describe("GET /api/news/link-subscribers — auth", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -116,7 +118,9 @@ describe("GET /api/news/link-subscribers — auth", () => {
 });
 
 describe("GET /api/news/link-subscribers — already linked", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns subscriberId when profile already has subscriber", async () => {
         authAs();
@@ -143,7 +147,9 @@ describe("GET /api/news/link-subscribers — already linked", () => {
 });
 
 describe("GET /api/news/link-subscribers — linking", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns linked:false when no subscriber found for email", async () => {
         authAs("user-1", "alice@example.com");

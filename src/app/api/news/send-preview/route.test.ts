@@ -32,7 +32,9 @@ function makePost(body: Record<string, unknown>) {
 }
 
 describe("POST /api/news/send-preview — validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when interests is missing", async () => {
         const res = await POST(makePost({ email: "user@example.com" }));

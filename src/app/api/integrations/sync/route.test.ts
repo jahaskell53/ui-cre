@@ -50,7 +50,9 @@ function setupUpdateChain() {
 // ─── POST — validation ────────────────────────────────────────────────────────
 
 describe("POST /api/integrations/sync — validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 400 when grantId is missing", async () => {
         const res = await POST(makePostRequest({ userId: "user-1" }));
@@ -71,7 +73,9 @@ describe("POST /api/integrations/sync — validation", () => {
 // ─── POST — auth ──────────────────────────────────────────────────────────────
 
 describe("POST /api/integrations/sync — auth", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when getUser errors", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: "Auth error" } });
@@ -95,7 +99,9 @@ describe("POST /api/integrations/sync — auth", () => {
 // ─── POST — happy path ────────────────────────────────────────────────────────
 
 describe("POST /api/integrations/sync — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("marks integration as syncing and enqueues job", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
@@ -124,7 +130,9 @@ describe("POST /api/integrations/sync — happy path", () => {
 // ─── GET — auth ───────────────────────────────────────────────────────────────
 
 describe("GET /api/integrations/sync — auth", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
@@ -142,7 +150,9 @@ describe("GET /api/integrations/sync — auth", () => {
 // ─── GET — happy path ─────────────────────────────────────────────────────────
 
 describe("GET /api/integrations/sync — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns integrations for authenticated user", async () => {
         const integrationRows = [{ id: "int-1", status: "active" }];

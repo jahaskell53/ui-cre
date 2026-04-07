@@ -39,7 +39,9 @@ function noAuth() {
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
 describe("GET /api/meet", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns configured:true when Google Meet is configured", async () => {
         mockIsGoogleMeetConfigured.mockReturnValue(true);
@@ -60,7 +62,9 @@ describe("GET /api/meet", () => {
 // ─── POST ─────────────────────────────────────────────────────────────────────
 
 describe("POST /api/meet — auth", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
@@ -70,7 +74,9 @@ describe("POST /api/meet — auth", () => {
 });
 
 describe("POST /api/meet — configuration", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 503 when Google Meet is not configured", async () => {
         authAs();

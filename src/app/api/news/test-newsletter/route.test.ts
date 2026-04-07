@@ -43,7 +43,9 @@ const activeSubscriber = {
 };
 
 describe("GET /api/news/test-newsletter", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 404 when subscriber not found", async () => {
         mockGetSubscriberByEmail.mockResolvedValue(null);

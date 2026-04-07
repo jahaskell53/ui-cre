@@ -23,7 +23,9 @@ function makeRequest() {
 }
 
 describe("POST /api/people/recalculate-network-strength", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: null });

@@ -80,7 +80,9 @@ function setupEventAndProfile() {
 // ─── Auth & validation ────────────────────────────────────────────────────────
 
 describe("POST /api/events/invite — auth & validation", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
@@ -117,7 +119,9 @@ describe("POST /api/events/invite — auth & validation", () => {
 // ─── Event not found ──────────────────────────────────────────────────────────
 
 describe("POST /api/events/invite — event lookup", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 404 when event not found", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1", email: "host@example.com" } }, error: null });
@@ -133,7 +137,9 @@ describe("POST /api/events/invite — event lookup", () => {
 // ─── Happy path ───────────────────────────────────────────────────────────────
 
 describe("POST /api/events/invite — happy path", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("sends invite email and returns success", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1", email: "host@example.com" } }, error: null });

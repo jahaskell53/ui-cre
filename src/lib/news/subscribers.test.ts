@@ -35,7 +35,9 @@ describe("isValidTimezone", () => {
 // ─── getActiveSubscribers ─────────────────────────────────────────────────────
 
 describe("getActiveSubscribers", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns empty array when DB errors", async () => {
         const mockEq = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
@@ -140,7 +142,9 @@ describe("getActiveSubscribers", () => {
 // ─── getSubscriberByEmail ─────────────────────────────────────────────────────
 
 describe("getSubscriberByEmail", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns null when subscriber not found", async () => {
         const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
@@ -191,7 +195,9 @@ describe("getSubscriberByEmail", () => {
 // ─── unsubscribe ──────────────────────────────────────────────────────────────
 
 describe("unsubscribe", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns true on success", async () => {
         const mockWhere = vi.fn().mockResolvedValue(undefined);

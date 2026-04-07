@@ -41,7 +41,9 @@ const rawArticle = {
 };
 
 describe("GET /api/news/articles", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it("returns 401 when not authenticated", async () => {
         noAuth();
