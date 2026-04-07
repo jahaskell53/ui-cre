@@ -1640,7 +1640,7 @@ function CompsContent() {
                     if (!open) setSelectedCompId(null);
                 }}
             >
-                <DialogContent className="flex h-[90vh] w-full !max-w-[40vw] flex-col overflow-hidden p-0 pr-14">
+                <DialogContent className="flex h-[90vh] w-full !max-w-[65vw] flex-col overflow-hidden p-0 pr-14">
                     <VisuallyHidden>
                         <DialogTitle>Property Detail</DialogTitle>
                     </VisuallyHidden>
