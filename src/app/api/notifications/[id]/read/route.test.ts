@@ -1,36 +1,33 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createClient } from "@/utils/supabase/server";
 import { POST } from "./route";
 
-// Mock the Supabase server client
+const { mockGetUser, mockDb } = vi.hoisted(() => ({
+    mockGetUser: vi.fn(),
+    mockDb: {
+        update: vi.fn(),
+    },
+}));
+
 vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn(),
+    createClient: vi.fn().mockResolvedValue({
+        auth: { getUser: mockGetUser },
+    }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 describe("POST /api/notifications/[id]/read", () => {
-    const mockUser = {
-        id: "user-123",
-        email: "test@example.com",
-    };
-
-    const mockSupabaseClient = {
-        auth: {
-            getUser: vi.fn(),
-        },
-        from: vi.fn(),
-    };
+    const mockUser = { id: "user-123", email: "test@example.com" };
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(createClient).mockResolvedValue(mockSupabaseClient as any);
     });
 
     it("should return 401 if user is not authenticated", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: null },
-            error: { message: "Not authenticated" },
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: "Not authenticated" } });
 
         const request = new NextRequest("http://localhost/api/notifications/notif-123/read", {
             method: "POST",
@@ -44,23 +41,11 @@ describe("POST /api/notifications/[id]/read", () => {
     });
 
     it("should mark notification as read", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
-        const mockUpdate = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: null,
-                }),
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            update: mockUpdate,
-        } as any);
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         const request = new NextRequest("http://localhost/api/notifications/notif-123/read", {
             method: "POST",
@@ -71,28 +56,16 @@ describe("POST /api/notifications/[id]/read", () => {
 
         expect(response.status).toBe(200);
         expect(data.success).toBe(true);
-        expect(mockUpdate).toHaveBeenCalled();
-        expect(mockSupabaseClient.from).toHaveBeenCalledWith("notifications");
+        expect(mockDb.update).toHaveBeenCalled();
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ readAt: expect.any(String) }));
     });
 
     it("should handle errors when marking notification as read", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
-        const mockUpdate = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: "Database error" },
-                }),
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            update: mockUpdate,
-        } as any);
+        const mockWhere = vi.fn().mockRejectedValue(new Error("Database error"));
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         const request = new NextRequest("http://localhost/api/notifications/notif-123/read", {
             method: "POST",

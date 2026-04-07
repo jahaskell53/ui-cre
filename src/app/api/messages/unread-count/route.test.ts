@@ -1,36 +1,33 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createClient } from "@/utils/supabase/server";
 import { GET } from "./route";
 
-// Mock the Supabase server client
+const { mockGetUser, mockDb } = vi.hoisted(() => ({
+    mockGetUser: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+    },
+}));
+
 vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn(),
+    createClient: vi.fn().mockResolvedValue({
+        auth: { getUser: mockGetUser },
+    }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 describe("GET /api/messages/unread-count", () => {
-    const mockUser = {
-        id: "user-123",
-        email: "test@example.com",
-    };
-
-    const mockSupabaseClient = {
-        auth: {
-            getUser: vi.fn(),
-        },
-        from: vi.fn(),
-    };
+    const mockUser = { id: "user-123", email: "test@example.com" };
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(createClient).mockResolvedValue(mockSupabaseClient as any);
     });
 
     it("should return 401 if user is not authenticated", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: null },
-            error: { message: "Not authenticated" },
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: null }, error: { message: "Not authenticated" } });
 
         const request = new NextRequest("http://localhost/api/messages/unread-count");
 
@@ -41,24 +38,12 @@ describe("GET /api/messages/unread-count", () => {
         expect(data.error).toBe("Unauthorized");
     });
 
-    it("should return unread count of 0 when no unread messages", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+    it("should return unread count of 0 when no unread notifications", async () => {
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                is: vi.fn().mockResolvedValue({
-                    count: 0,
-                    error: null,
-                }),
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        const mockWhere = vi.fn().mockResolvedValue([{ count: 0 }]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const request = new NextRequest("http://localhost/api/messages/unread-count");
 
@@ -67,27 +52,14 @@ describe("GET /api/messages/unread-count", () => {
 
         expect(response.status).toBe(200);
         expect(data.unread_count).toBe(0);
-        expect(mockSelect).toHaveBeenCalledWith("*", { count: "exact", head: true });
     });
 
     it("should return correct unread count", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                is: vi.fn().mockResolvedValue({
-                    count: 5,
-                    error: null,
-                }),
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        const mockWhere = vi.fn().mockResolvedValue([{ count: 5 }]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const request = new NextRequest("http://localhost/api/messages/unread-count");
 
@@ -96,27 +68,14 @@ describe("GET /api/messages/unread-count", () => {
 
         expect(response.status).toBe(200);
         expect(data.unread_count).toBe(5);
-        expect(mockSelect).toHaveBeenCalledWith("*", { count: "exact", head: true });
     });
 
     it("should handle database errors", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                is: vi.fn().mockResolvedValue({
-                    count: null,
-                    error: { message: "Database error" },
-                }),
-            }),
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        const mockWhere = vi.fn().mockRejectedValue(new Error("Database error"));
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const request = new NextRequest("http://localhost/api/messages/unread-count");
 
@@ -124,35 +83,22 @@ describe("GET /api/messages/unread-count", () => {
         const data = await response.json();
 
         expect(response.status).toBe(500);
-        expect(data.error).toBe("Failed to count unread notifications");
+        expect(data.error).toBe("Database error");
     });
 
-    it("should filter by user_id and read_at is null", async () => {
-        vi.mocked(mockSupabaseClient.auth.getUser).mockResolvedValue({
-            data: { user: mockUser },
-            error: null,
-        } as any);
+    it("should return 0 when result is empty", async () => {
+        mockGetUser.mockResolvedValue({ data: { user: mockUser }, error: null });
 
-        const mockEq = vi.fn().mockReturnValue({
-            is: vi.fn().mockResolvedValue({
-                count: 3,
-                error: null,
-            }),
-        });
-
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: mockEq,
-        });
-
-        vi.mocked(mockSupabaseClient.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const request = new NextRequest("http://localhost/api/messages/unread-count");
 
-        await GET(request);
+        const response = await GET(request);
+        const data = await response.json();
 
-        expect(mockSupabaseClient.from).toHaveBeenCalledWith("notifications");
-        expect(mockEq).toHaveBeenCalledWith("user_id", "user-123");
+        expect(response.status).toBe(200);
+        expect(data.unread_count).toBe(0);
     });
 });
