@@ -2,16 +2,25 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, PUT } from "./route";
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockDbSelect, mockDbInsert, mockDbUpdate } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDbSelect: vi.fn(),
+    mockDbInsert: vi.fn(),
+    mockDbUpdate: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
+}));
+
+vi.mock("@/db", () => ({
+    db: {
+        select: mockDbSelect,
+        insert: mockDbInsert,
+        update: mockDbUpdate,
+    },
 }));
 
 function makeGet() {
@@ -49,10 +58,9 @@ describe("GET /api/kanban-columns", () => {
     it("returns stored columns", async () => {
         authAs();
         const columns = ["Prospect", "Active", "Closed"];
-        const mockSingle = vi.fn().mockResolvedValue({ data: { columns }, error: null });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([{ columns }]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         const body = await res.json();
@@ -61,12 +69,11 @@ describe("GET /api/kanban-columns", () => {
         expect(body.columns).toEqual(columns);
     });
 
-    it("returns default columns when no record exists (PGRST116)", async () => {
+    it("returns default columns when no record exists", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { code: "PGRST116" } });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         const body = await res.json();
@@ -75,12 +82,11 @@ describe("GET /api/kanban-columns", () => {
         expect(body.columns).toEqual(DEFAULT_COLUMNS);
     });
 
-    it("returns 500 on unexpected DB error", async () => {
+    it("returns 500 on DB error", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { code: "XX000", message: "DB error" } });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockRejectedValue(new Error("DB error"));
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         expect(res.status).toBe(500);
@@ -124,23 +130,16 @@ describe("PUT /api/kanban-columns — upsert", () => {
         authAs("user-1");
         const newCols = ["Col A", "Col B"];
 
-        let callCount = 0;
-        mockFrom.mockImplementation(() => {
-            callCount++;
-            if (callCount === 1) {
-                // existence check
-                const mockSingle = vi.fn().mockResolvedValue({ data: { id: "kk-1" }, error: null });
-                const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-                const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-                return { select: mockSelect };
-            }
-            // update
-            const mockSingle = vi.fn().mockResolvedValue({ data: { columns: newCols }, error: null });
-            const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-            const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
-            const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
-            return { update: mockUpdate };
-        });
+        // existence check — found
+        const mockExistWhere = vi.fn().mockResolvedValue([{ id: "kk-1" }]);
+        const mockExistFrom = vi.fn().mockReturnValue({ where: mockExistWhere });
+        mockDbSelect.mockReturnValue({ from: mockExistFrom });
+
+        // update
+        const mockUpdateReturning = vi.fn().mockResolvedValue([{ columns: newCols }]);
+        const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockUpdateReturning });
+        const mockUpdateSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+        mockDbUpdate.mockReturnValue({ set: mockUpdateSet });
 
         const res = await PUT(makePut({ columns: newCols }));
         const body = await res.json();
@@ -153,22 +152,15 @@ describe("PUT /api/kanban-columns — upsert", () => {
         authAs("user-1");
         const newCols = ["Col A", "Col B"];
 
-        let callCount = 0;
-        mockFrom.mockImplementation(() => {
-            callCount++;
-            if (callCount === 1) {
-                // existence check returns null
-                const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { code: "PGRST116" } });
-                const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-                const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-                return { select: mockSelect };
-            }
-            // insert
-            const mockSingle = vi.fn().mockResolvedValue({ data: { columns: newCols }, error: null });
-            const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-            const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
-            return { insert: mockInsert };
-        });
+        // existence check — not found
+        const mockExistWhere = vi.fn().mockResolvedValue([]);
+        const mockExistFrom = vi.fn().mockReturnValue({ where: mockExistWhere });
+        mockDbSelect.mockReturnValue({ from: mockExistFrom });
+
+        // insert
+        const mockInsertReturning = vi.fn().mockResolvedValue([{ columns: newCols }]);
+        const mockInsertValues = vi.fn().mockReturnValue({ returning: mockInsertReturning });
+        mockDbInsert.mockReturnValue({ values: mockInsertValues });
 
         const res = await PUT(makePut({ columns: newCols }));
         const body = await res.json();
@@ -180,25 +172,18 @@ describe("PUT /api/kanban-columns — upsert", () => {
     it("trims whitespace from column names", async () => {
         authAs("user-1");
 
-        let callCount = 0;
-        let capturedColumns: string[] | null = null;
-        mockFrom.mockImplementation(() => {
-            callCount++;
-            if (callCount === 1) {
-                const mockSingle = vi.fn().mockResolvedValue({ data: { id: "kk-1" }, error: null });
-                const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-                const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-                return { select: mockSelect };
-            }
-            const mockSingle = vi.fn().mockResolvedValue({ data: { columns: ["Col A"] }, error: null });
-            const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-            const mockEq = vi.fn().mockReturnValue({ select: mockSelect });
-            const mockUpdate = vi.fn().mockImplementation((data) => {
-                capturedColumns = data.columns;
-                return { eq: mockEq };
-            });
-            return { update: mockUpdate };
+        const mockExistWhere = vi.fn().mockResolvedValue([{ id: "kk-1" }]);
+        const mockExistFrom = vi.fn().mockReturnValue({ where: mockExistWhere });
+        mockDbSelect.mockReturnValue({ from: mockExistFrom });
+
+        let capturedColumns: string[] | undefined;
+        const mockUpdateReturning = vi.fn().mockResolvedValue([{ columns: ["Col A"] }]);
+        const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockUpdateReturning });
+        const mockUpdateSet = vi.fn().mockImplementation((data) => {
+            capturedColumns = data.columns;
+            return { where: mockUpdateWhere };
         });
+        mockDbUpdate.mockReturnValue({ set: mockUpdateSet });
 
         await PUT(makePut({ columns: ["  Col A  "] }));
         expect(capturedColumns).toEqual(["Col A"]);

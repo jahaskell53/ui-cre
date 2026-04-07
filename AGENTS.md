@@ -15,6 +15,7 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 - Environment variables are injected automatically in Cursor Cloud Agent VMs. For local development, copy `.env.example` to `.env.local` and fill in values.
 - **Drizzle schema source of truth**: `src/db/schema.ts` is the canonical definition for table structures in application code.
 - **Drizzle migration workflow**: After schema changes, run `drizzle-kit generate` to create SQL, then apply it with `supabase db push`.
+- **ORM convention**: Server-side data access uses `db` from `src/db/index.ts` (Drizzle ORM). The `supabase` server client is for auth (`getUser`), realtime, and storage only. Client-side hooks (`use-user.ts`, `use-page-tour.ts`) and client components in `src/app/(app)/` still use the Supabase client directly for now (tracked in OPE-3e).
 
 ### Testing
 

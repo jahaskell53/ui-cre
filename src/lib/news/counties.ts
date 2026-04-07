@@ -1,4 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import { counties } from "@/db/schema";
 
 /**
  * Get county IDs for an array of county names.
@@ -11,32 +13,21 @@ export async function getCountyIds(countyNames: string[]): Promise<string[]> {
         return [];
     }
 
-    const supabase = await createClient();
+    const countyRows = await db.select({ id: counties.id, name: counties.name }).from(counties).where(inArray(counties.name, countyNames));
 
-    // Look up all counties in a single query
-    const { data: counties, error } = await supabase.from("counties").select("id, name").in("name", countyNames);
-
-    if (error) {
-        console.error("Error fetching counties:", error);
-        throw error;
-    }
-
-    // Create a map of county name to ID
     const countyMap = new Map<string, string>();
-    for (const county of counties || []) {
+    for (const county of countyRows) {
         countyMap.set(county.name, county.id);
     }
 
-    // Get the 'Other' county ID as fallback
-    const { data: otherCounty, error: otherError } = await supabase.from("counties").select("id").eq("name", "Other").single();
+    const otherCountyRows = await db.select({ id: counties.id }).from(counties).where(eq(counties.name, "Other"));
 
-    if (otherError || !otherCounty) {
+    if (otherCountyRows.length === 0) {
         throw new Error("'Other' county not found in database");
     }
 
-    const otherCountyId = otherCounty.id;
+    const otherCountyId = otherCountyRows[0].id;
 
-    // Map county names to IDs, using 'Other' as fallback for missing counties
     const countyIds: string[] = [];
     for (const countyName of countyNames) {
         const countyId = countyMap.get(countyName) || otherCountyId;

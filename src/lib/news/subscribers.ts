@@ -117,14 +117,11 @@ export async function getSubscriberByEmail(email: string, supabase?: SupabaseCli
 
 export async function unsubscribe(email: string): Promise<boolean> {
     try {
-        const supabase = await createClient();
+        const { eq } = await import("drizzle-orm");
+        const { db } = await import("@/db");
+        const { subscribers: subscribersTable } = await import("@/db/schema");
 
-        const { error } = await supabase.from("subscribers").update({ is_active: false }).eq("email", email.toLowerCase());
-
-        if (error) {
-            console.error("Error unsubscribing:", error);
-            return false;
-        }
+        await db.update(subscribersTable).set({ isActive: false }).where(eq(subscribersTable.email, email.toLowerCase()));
 
         return true;
     } catch (error) {

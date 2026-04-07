@@ -1,4 +1,7 @@
+import { desc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { eventInvites, events } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,28 +19,31 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
         const { id: eventId } = await params;
 
-        const { data: event, error: eventError } = await supabase.from("events").select("id, user_id").eq("id", eventId).single();
+        const eventRows = await db.select({ id: events.id, userId: events.userId }).from(events).where(eq(events.id, eventId));
 
-        if (eventError || !event) {
+        if (eventRows.length === 0) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        if (event.user_id !== user.id) {
+        const event = eventRows[0];
+
+        if (event.userId !== user.id) {
             return NextResponse.json({ error: "Only event owners can view invites" }, { status: 403 });
         }
 
-        const { data: invites, error: invitesError } = await supabase
-            .from("event_invites")
-            .select("*")
-            .eq("event_id", eventId)
-            .order("created_at", { ascending: false });
+        const invites = await db.select().from(eventInvites).where(eq(eventInvites.eventId, eventId)).orderBy(desc(eventInvites.createdAt));
 
-        if (invitesError) {
-            console.error("Error fetching invites:", invitesError);
-            return NextResponse.json({ error: "Failed to fetch invites" }, { status: 500 });
-        }
-
-        return NextResponse.json(invites || []);
+        return NextResponse.json(
+            invites.map((i) => ({
+                id: i.id,
+                event_id: i.eventId,
+                user_id: i.userId,
+                message: i.message,
+                recipient_count: i.recipientCount,
+                created_at: i.createdAt,
+                recipient_emails: i.recipientEmails,
+            })),
+        );
     } catch (error: any) {
         console.error("Error in GET /api/events/[id]/invites:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

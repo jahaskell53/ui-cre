@@ -8,7 +8,6 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -18,21 +17,17 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Fetch board assignments for the current user
-        const { data, error } = await supabase.from("people_board_assignments").select("person_id, column_id").eq("user_id", user.id);
+        const rows = await db
+            .select({ personId: peopleBoardAssignments.personId, columnId: peopleBoardAssignments.columnId })
+            .from(peopleBoardAssignments)
+            .where(eq(peopleBoardAssignments.userId, user.id));
 
-        if (error) {
-            console.error("Error fetching board assignments:", error);
-            return NextResponse.json({ error: "Failed to fetch board assignments" }, { status: 500 });
-        }
-
-        // Group by column_id
         const assignmentsByColumn: Record<string, string[]> = {};
-        data?.forEach((assignment) => {
-            if (!assignmentsByColumn[assignment.column_id]) {
-                assignmentsByColumn[assignment.column_id] = [];
+        rows.forEach((row) => {
+            if (!assignmentsByColumn[row.columnId]) {
+                assignmentsByColumn[row.columnId] = [];
             }
-            assignmentsByColumn[assignment.column_id].push(assignment.person_id);
+            assignmentsByColumn[row.columnId].push(row.personId);
         });
 
         return NextResponse.json(assignmentsByColumn);
@@ -46,7 +41,6 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -63,7 +57,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "personId and columnId are required" }, { status: 400 });
         }
 
-        // Verify person belongs to user
         const personRows = await db
             .select({ id: people.id })
             .from(people)
@@ -73,28 +66,24 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Person not found" }, { status: 404 });
         }
 
-        // Insert or update assignment (upsert)
-        const { data, error } = await supabase
-            .from("people_board_assignments")
-            .upsert(
-                {
-                    user_id: user.id,
-                    person_id: personId,
-                    column_id: columnId,
-                },
-                {
-                    onConflict: "user_id,person_id,column_id",
-                },
-            )
-            .select()
-            .single();
+        const inserted = await db
+            .insert(peopleBoardAssignments)
+            .values({
+                userId: user.id,
+                personId,
+                columnId,
+            })
+            .onConflictDoNothing()
+            .returning();
 
-        if (error) {
-            console.error("Error creating board assignment:", error);
-            return NextResponse.json({ error: "Failed to create board assignment" }, { status: 500 });
-        }
+        const assignment = inserted[0] ?? { userId: user.id, personId, columnId };
 
-        return NextResponse.json(data);
+        return NextResponse.json({
+            id: (assignment as any).id,
+            user_id: assignment.userId,
+            person_id: assignment.personId,
+            column_id: assignment.columnId,
+        });
     } catch (error: any) {
         console.error("Error in POST /api/people/board:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -105,7 +94,6 @@ export async function DELETE(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -123,13 +111,11 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "personId and columnId are required" }, { status: 400 });
         }
 
-        // Delete the assignment
-        const { error } = await supabase.from("people_board_assignments").delete().eq("user_id", user.id).eq("person_id", personId).eq("column_id", columnId);
-
-        if (error) {
-            console.error("Error deleting board assignment:", error);
-            return NextResponse.json({ error: "Failed to delete board assignment" }, { status: 500 });
-        }
+        await db
+            .delete(peopleBoardAssignments)
+            .where(
+                and(eq(peopleBoardAssignments.userId, user.id), eq(peopleBoardAssignments.personId, personId), eq(peopleBoardAssignments.columnId, columnId)),
+            );
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
@@ -142,7 +128,6 @@ export async function PUT(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        // Get authenticated user
         const {
             data: { user },
             error: authError,
@@ -159,36 +144,36 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: "personId, oldColumnId, and newColumnId are required" }, { status: 400 });
         }
 
-        // Delete old assignment
-        const { error: deleteError } = await supabase
-            .from("people_board_assignments")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("person_id", personId)
-            .eq("column_id", oldColumnId);
+        await db
+            .delete(peopleBoardAssignments)
+            .where(
+                and(
+                    eq(peopleBoardAssignments.userId, user.id),
+                    eq(peopleBoardAssignments.personId, personId),
+                    eq(peopleBoardAssignments.columnId, oldColumnId),
+                ),
+            );
 
-        if (deleteError) {
-            console.error("Error deleting old board assignment:", deleteError);
-            return NextResponse.json({ error: "Failed to update board assignment" }, { status: 500 });
-        }
-
-        // Create new assignment
-        const { data, error: insertError } = await supabase
-            .from("people_board_assignments")
-            .insert({
-                user_id: user.id,
-                person_id: personId,
-                column_id: newColumnId,
+        const inserted = await db
+            .insert(peopleBoardAssignments)
+            .values({
+                userId: user.id,
+                personId,
+                columnId: newColumnId,
             })
-            .select()
-            .single();
+            .returning();
 
-        if (insertError) {
-            console.error("Error creating new board assignment:", insertError);
+        if (inserted.length === 0) {
             return NextResponse.json({ error: "Failed to update board assignment" }, { status: 500 });
         }
 
-        return NextResponse.json(data);
+        const assignment = inserted[0];
+        return NextResponse.json({
+            id: assignment.id,
+            user_id: assignment.userId,
+            person_id: assignment.personId,
+            column_id: assignment.columnId,
+        });
     } catch (error: any) {
         console.error("Error in PUT /api/people/board:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

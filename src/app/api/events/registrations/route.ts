@@ -1,5 +1,7 @@
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/utils/supabase/admin";
+import { db } from "@/db";
+import { eventRegistrations, events, profiles } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -8,10 +10,6 @@ export async function GET(request: NextRequest) {
         const {
             data: { user },
         } = await supabase.auth.getUser();
-
-        // For public access (unauthenticated), use admin client to bypass RLS
-        // For authenticated users, use regular client
-        const client = user ? supabase : createAdminClient();
 
         const searchParams = request.nextUrl.searchParams;
         const eventId = searchParams.get("event_id");
@@ -24,66 +22,46 @@ export async function GET(request: NextRequest) {
         let registration = null;
         let isRegistered = false;
 
-        // Only check user registration if authenticated
         if (user) {
-            const { data: regData, error: regError } = await supabase
-                .from("event_registrations")
-                .select("id, created_at")
-                .eq("event_id", eventId)
-                .eq("user_id", user.id)
-                .maybeSingle();
+            const regRows = await db
+                .select({ id: eventRegistrations.id, createdAt: eventRegistrations.createdAt })
+                .from(eventRegistrations)
+                .where(and(eq(eventRegistrations.eventId, eventId), eq(eventRegistrations.userId, user.id)));
 
-            if (regError) {
-                console.error("Error checking registration:", regError);
-                return NextResponse.json({ error: "Failed to check registration" }, { status: 500 });
+            if (regRows.length > 0) {
+                registration = { id: regRows[0].id, created_at: regRows[0].createdAt };
+                isRegistered = true;
             }
-
-            registration = regData;
-            isRegistered = !!regData;
         }
 
-        // Get registration count for this event (public)
-        const { count, error: countError } = await client.from("event_registrations").select("*", { count: "exact", head: true }).eq("event_id", eventId);
-
-        if (countError) {
-            console.error("Error getting registration count:", countError);
-        }
+        const countResult = await db.select({ value: count() }).from(eventRegistrations).where(eq(eventRegistrations.eventId, eventId));
+        const registrationCount = countResult[0]?.value ?? 0;
 
         let attendees = null;
         if (includeAttendees) {
-            // Fetch registrations (public)
-            const { data: registrations, error: registrationsError } = await client
-                .from("event_registrations")
-                .select("user_id")
-                .eq("event_id", eventId)
-                .order("created_at", { ascending: true });
+            const registrations = await db
+                .select({ userId: eventRegistrations.userId })
+                .from(eventRegistrations)
+                .where(eq(eventRegistrations.eventId, eventId))
+                .orderBy(asc(eventRegistrations.createdAt));
 
-            if (registrationsError) {
-                console.error("Error fetching registrations:", registrationsError);
-            } else if (registrations && registrations.length > 0) {
-                // Get user IDs
-                const userIds = registrations.map((reg: any) => reg.user_id);
+            if (registrations.length > 0) {
+                const userIds = registrations.map((reg) => reg.userId);
+                const profileRows = await db
+                    .select({ id: profiles.id, fullName: profiles.fullName, avatarUrl: profiles.avatarUrl })
+                    .from(profiles)
+                    .where(inArray(profiles.id, userIds));
 
-                // Fetch profiles for these users (use admin client for public access)
-                const profileClient = user ? supabase : createAdminClient();
-                const { data: profiles, error: profilesError } = await profileClient.from("profiles").select("id, full_name, avatar_url").in("id", userIds);
+                const profileMap = new Map(profileRows.map((p) => [p.id, p]));
 
-                if (profilesError) {
-                    console.error("Error fetching profiles:", profilesError);
-                } else {
-                    // Create a map for quick lookup
-                    const profileMap = new Map(profiles?.map((p: any) => [p.id, p]) || []);
-
-                    // Combine registration data with profile data
-                    attendees = registrations.map((reg: any) => {
-                        const profile = profileMap.get(reg.user_id);
-                        return {
-                            user_id: reg.user_id,
-                            full_name: profile?.full_name || null,
-                            avatar_url: profile?.avatar_url || null,
-                        };
-                    });
-                }
+                attendees = registrations.map((reg) => {
+                    const profile = profileMap.get(reg.userId);
+                    return {
+                        user_id: reg.userId,
+                        full_name: profile?.fullName || null,
+                        avatar_url: profile?.avatarUrl || null,
+                    };
+                });
             } else {
                 attendees = [];
             }
@@ -91,9 +69,9 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
             is_registered: isRegistered,
-            registration: registration,
-            count: count || 0,
-            attendees: attendees,
+            registration,
+            count: registrationCount,
+            attendees,
         });
     } catch (error: any) {
         console.error("Error in GET /api/events/registrations:", error);
@@ -121,32 +99,38 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        // Check if event exists
-        const { data: event, error: eventError } = await supabase.from("events").select("id, start_time").eq("id", event_id).single();
+        const eventRows = await db.select({ id: events.id, startTime: events.startTime }).from(events).where(eq(events.id, event_id));
 
-        if (eventError || !event) {
+        if (eventRows.length === 0) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        // Register user for the event
-        const { data, error } = await supabase
-            .from("event_registrations")
-            .insert({
-                event_id,
-                user_id: user.id,
-            })
-            .select()
-            .single();
+        try {
+            const inserted = await db
+                .insert(eventRegistrations)
+                .values({
+                    eventId: event_id,
+                    userId: user.id,
+                })
+                .returning();
 
-        if (error) {
-            if (error.code === "23505") {
+            const reg = inserted[0];
+            return NextResponse.json({
+                success: true,
+                registration: {
+                    id: reg.id,
+                    event_id: reg.eventId,
+                    user_id: reg.userId,
+                    created_at: reg.createdAt,
+                },
+            });
+        } catch (err: any) {
+            if (err?.code === "23505") {
                 return NextResponse.json({ error: "Already registered for this event" }, { status: 409 });
             }
-            console.error("Error registering for event:", error);
+            console.error("Error registering for event:", err);
             return NextResponse.json({ error: "Failed to register" }, { status: 500 });
         }
-
-        return NextResponse.json({ success: true, registration: data });
     } catch (error: any) {
         console.error("Error in POST /api/events/registrations:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -173,12 +157,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        const { error } = await supabase.from("event_registrations").delete().eq("event_id", eventId).eq("user_id", user.id);
-
-        if (error) {
-            console.error("Error unregistering from event:", error);
-            return NextResponse.json({ error: "Failed to unregister" }, { status: 500 });
-        }
+        await db.delete(eventRegistrations).where(and(eq(eventRegistrations.eventId, eventId), eq(eventRegistrations.userId, user.id)));
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

@@ -2,23 +2,27 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST, PUT } from "./route";
 
-const { mockGetUser, mockFrom, mockDb } = vi.hoisted(() => ({
+const { mockGetUser, mockDbSelect, mockDbInsert, mockDbUpdate, mockDbDelete } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
-    mockDb: {
-        select: vi.fn(),
-    },
+    mockDbSelect: vi.fn(),
+    mockDbInsert: vi.fn(),
+    mockDbUpdate: vi.fn(),
+    mockDbDelete: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
 }));
 
 vi.mock("@/db", () => ({
-    db: mockDb,
+    db: {
+        select: mockDbSelect,
+        insert: mockDbInsert,
+        update: mockDbUpdate,
+        delete: mockDbDelete,
+    },
 }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -72,16 +76,13 @@ describe("GET /api/people/board", () => {
 
     it("returns assignments grouped by column", async () => {
         authAs();
-        const mockEq = vi.fn().mockResolvedValue({
-            data: [
-                { person_id: "p-1", column_id: "col-a" },
-                { person_id: "p-2", column_id: "col-a" },
-                { person_id: "p-3", column_id: "col-b" },
-            ],
-            error: null,
-        });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([
+            { personId: "p-1", columnId: "col-a" },
+            { personId: "p-2", columnId: "col-a" },
+            { personId: "p-3", columnId: "col-b" },
+        ]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         const body = await res.json();
@@ -93,9 +94,9 @@ describe("GET /api/people/board", () => {
 
     it("returns empty object when no assignments", async () => {
         authAs();
-        const mockEq = vi.fn().mockResolvedValue({ data: [], error: null });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         const body = await res.json();
@@ -106,9 +107,9 @@ describe("GET /api/people/board", () => {
 
     it("returns 500 when DB fetch fails", async () => {
         authAs();
-        const mockEq = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockRejectedValue(new Error("DB error"));
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         expect(res.status).toBe(500);
@@ -134,35 +135,33 @@ describe("POST /api/people/board", () => {
 
     it("returns 404 when person not found", async () => {
         authAs();
-        // Drizzle select returns empty array → person not found
         const mockWhere = vi.fn().mockResolvedValue([]);
-        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
-        mockDb.select.mockReturnValue({ from: mockFrom2 });
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await POST(makePost({ personId: "p-1", columnId: "col-a" }));
         expect(res.status).toBe(404);
     });
 
-    it("upserts assignment and returns it", async () => {
+    it("inserts assignment and returns it", async () => {
         authAs("user-1");
-        const assignment = { user_id: "user-1", person_id: "p-1", column_id: "col-a" };
+        const assignmentRow = { id: "asn-1", userId: "user-1", personId: "p-1", columnId: "col-a" };
 
-        // Drizzle select returns the person
         const mockWhere = vi.fn().mockResolvedValue([{ id: "p-1" }]);
-        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
-        mockDb.select.mockReturnValue({ from: mockFrom2 });
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
-        // Supabase upsert for board assignments
-        const mockSingle = vi.fn().mockResolvedValue({ data: assignment, error: null });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockUpsert = vi.fn().mockReturnValue({ select: mockSelect });
-        mockFrom.mockReturnValue({ upsert: mockUpsert });
+        const mockReturning = vi.fn().mockResolvedValue([assignmentRow]);
+        const mockOnConflict = vi.fn().mockReturnValue({ returning: mockReturning });
+        const mockValues = vi.fn().mockReturnValue({ onConflictDoNothing: mockOnConflict });
+        mockDbInsert.mockReturnValue({ values: mockValues });
 
         const res = await POST(makePost({ personId: "p-1", columnId: "col-a" }));
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toEqual(assignment);
+        expect(body.person_id).toBe("p-1");
+        expect(body.column_id).toBe("col-a");
     });
 });
 
@@ -185,26 +184,14 @@ describe("PUT /api/people/board", () => {
 
     it("moves person to new column", async () => {
         authAs("user-1");
-        const newAssignment = { user_id: "user-1", person_id: "p-1", column_id: "col-b" };
+        const newAssignmentRow = { id: "asn-1", userId: "user-1", personId: "p-1", columnId: "col-b" };
 
-        let deleteCallCount = 0;
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "people_board_assignments") {
-                if (deleteCallCount === 0) {
-                    deleteCallCount++;
-                    const mockEq3 = vi.fn().mockResolvedValue({ error: null });
-                    const mockEq2 = vi.fn().mockReturnValue({ eq: mockEq3 });
-                    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-                    const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
-                    return { delete: mockDelete };
-                }
-                const mockSingle = vi.fn().mockResolvedValue({ data: newAssignment, error: null });
-                const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-                const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
-                return { insert: mockInsert };
-            }
-            return {};
-        });
+        const mockDeleteWhere = vi.fn().mockResolvedValue(undefined);
+        mockDbDelete.mockReturnValue({ where: mockDeleteWhere });
+
+        const mockReturning = vi.fn().mockResolvedValue([newAssignmentRow]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDbInsert.mockReturnValue({ values: mockValues });
 
         const res = await PUT(makePut({ personId: "p-1", oldColumnId: "col-a", newColumnId: "col-b" }));
         const body = await res.json();
@@ -213,13 +200,15 @@ describe("PUT /api/people/board", () => {
         expect(body.column_id).toBe("col-b");
     });
 
-    it("returns 500 when delete fails", async () => {
+    it("returns 500 when insert returns empty", async () => {
         authAs("user-1");
-        const mockEq3 = vi.fn().mockResolvedValue({ error: { message: "DB error" } });
-        const mockEq2 = vi.fn().mockReturnValue({ eq: mockEq3 });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ delete: mockDelete });
+
+        const mockDeleteWhere = vi.fn().mockResolvedValue(undefined);
+        mockDbDelete.mockReturnValue({ where: mockDeleteWhere });
+
+        const mockReturning = vi.fn().mockResolvedValue([]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDbInsert.mockReturnValue({ values: mockValues });
 
         const res = await PUT(makePut({ personId: "p-1", oldColumnId: "col-a", newColumnId: "col-b" }));
         expect(res.status).toBe(500);
@@ -245,11 +234,8 @@ describe("DELETE /api/people/board", () => {
 
     it("deletes assignment and returns success", async () => {
         authAs("user-1");
-        const mockEq3 = vi.fn().mockResolvedValue({ error: null });
-        const mockEq2 = vi.fn().mockReturnValue({ eq: mockEq3 });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ delete: mockDelete });
+        const mockWhere = vi.fn().mockResolvedValue(undefined);
+        mockDbDelete.mockReturnValue({ where: mockWhere });
 
         const res = await DELETE(makeDelete({ personId: "p-1", columnId: "col-a" }));
         const body = await res.json();
@@ -258,13 +244,10 @@ describe("DELETE /api/people/board", () => {
         expect(body.success).toBe(true);
     });
 
-    it("returns 500 when DB delete fails", async () => {
+    it("returns 500 on DB delete error", async () => {
         authAs("user-1");
-        const mockEq3 = vi.fn().mockResolvedValue({ error: { message: "DB error" } });
-        const mockEq2 = vi.fn().mockReturnValue({ eq: mockEq3 });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ delete: mockDelete });
+        const mockWhere = vi.fn().mockRejectedValue(new Error("DB error"));
+        mockDbDelete.mockReturnValue({ where: mockWhere });
 
         const res = await DELETE(makeDelete({ personId: "p-1", columnId: "col-a" }));
         expect(res.status).toBe(500);

@@ -2,9 +2,8 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET } from "./route";
 
-const { mockGetUser, mockFrom, mockDeleteUser, mockRevokeGrant, mockDbSelect } = vi.hoisted(() => ({
+const { mockGetUser, mockDeleteUser, mockRevokeGrant, mockDbSelect } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
     mockDeleteUser: vi.fn(),
     mockRevokeGrant: vi.fn(),
     mockDbSelect: vi.fn(),
@@ -13,7 +12,6 @@ const { mockGetUser, mockFrom, mockDeleteUser, mockRevokeGrant, mockDbSelect } =
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
 }));
 
@@ -32,6 +30,13 @@ vi.mock("@/db", () => ({
         select: mockDbSelect,
     },
 }));
+
+// Helper to set up mockDbSelect for GET /api/users
+function setupProfileSelect(profileRow: unknown) {
+    const mockWhere = vi.fn().mockResolvedValue(profileRow ? [profileRow] : []);
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+    mockDbSelect.mockReturnValue({ from: mockFrom });
+}
 
 function makeGet(params?: Record<string, string>) {
     const u = new URL("http://localhost/api/users");
@@ -56,25 +61,20 @@ describe("GET /api/users", () => {
 
     it("returns profile for given user id", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null } });
-        const profile = { id: "user-1", full_name: "Alice", avatar_url: null, website: null, roles: [] };
-        const mockSingle = vi.fn().mockResolvedValue({ data: profile, error: null });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const profileRow = { id: "user-1", fullName: "Alice", avatarUrl: null, website: null, roles: [] };
+        setupProfileSelect(profileRow);
 
         const res = await GET(makeGet({ id: "user-1" }));
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toEqual(profile);
+        expect(body.id).toBe("user-1");
+        expect(body.full_name).toBe("Alice");
     });
 
     it("returns 404 when profile not found", async () => {
         mockGetUser.mockResolvedValue({ data: { user: null } });
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        setupProfileSelect(null);
 
         const res = await GET(makeGet({ id: "bad-id" }));
         expect(res.status).toBe(404);
