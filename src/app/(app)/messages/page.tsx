@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { usePageTour } from "@/hooks/use-page-tour";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 
 interface Conversation {
     other_user_id: string;
@@ -55,13 +54,10 @@ export default function MessagesPage() {
 
     const fetchUserProfile = useCallback(async (userId: string) => {
         try {
-            const { data, error } = await supabase.from("profiles").select("id, full_name, avatar_url, website, roles").eq("id", userId).single();
-
-            if (error) throw error;
-
-            if (data) {
-                setSelectedUserProfile(data);
-            }
+            const response = await fetch(`/api/users?id=${encodeURIComponent(userId)}`);
+            if (!response.ok) throw new Error("Failed to fetch user profile");
+            const data = await response.json();
+            setSelectedUserProfile(data);
         } catch (error) {
             console.error("Error fetching user profile:", error);
         }
@@ -301,15 +297,9 @@ export default function MessagesPage() {
 
         setSearchLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("id, full_name, avatar_url, website, roles")
-                .ilike("full_name", `%${query}%`)
-                .neq("id", user?.id || "")
-                .limit(20);
-
-            if (error) throw error;
-
+            const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error("Failed to search users");
+            const data = await response.json();
             setSearchResults(data || []);
         } catch (error) {
             console.error("Error searching users:", error);

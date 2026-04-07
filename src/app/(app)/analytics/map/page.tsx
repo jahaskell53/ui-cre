@@ -41,7 +41,6 @@ import {
 } from "@/lib/analytics/map-page";
 import { mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/utils/supabase";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
@@ -269,65 +268,33 @@ function MapPageInner() {
             const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
 
             if (source === "loopnet") {
-                const { data: latestRun } = await supabase.from("loopnet_listings").select("run_id").order("run_id", { ascending: false }).limit(1).single();
-                let loopnetQuery = supabase
-                    .from("loopnet_listings")
-                    .select("*", { count: "exact" })
-                    .not("latitude", "is", null)
-                    .not("longitude", "is", null)
-                    .order("created_at", { ascending: false });
-                if (latestOnly && latestRun?.run_id != null) {
-                    loopnetQuery = loopnetQuery.eq("run_id", latestRun.run_id);
-                }
-                // Area filter
-                if (activeAreaFilter?.zipCode) {
-                    loopnetQuery = loopnetQuery.or(`address.ilike.%${activeAreaFilter.zipCode}%,location.ilike.%${activeAreaFilter.zipCode}%`);
-                } else if (activeAreaFilter?.cityName) {
-                    loopnetQuery = loopnetQuery.ilike("location", `%${activeAreaFilter.cityName}%`);
-                } else if (activeAreaFilter?.countyName) {
-                    loopnetQuery = loopnetQuery.or(`address.ilike.%${activeAreaFilter.countyName}%,location.ilike.%${activeAreaFilter.countyName}%`);
-                } else if (activeAreaFilter?.addressQuery) {
-                    loopnetQuery = loopnetQuery.or(
-                        `headline.ilike.%${activeAreaFilter.addressQuery}%,address.ilike.%${activeAreaFilter.addressQuery}%,location.ilike.%${activeAreaFilter.addressQuery}%`,
-                    );
-                }
-                // Price / cap-rate / sqft filters
-                if (currentFilters.priceMin) {
-                    const v = parseFloat(currentFilters.priceMin);
-                    if (!isNaN(v)) loopnetQuery = loopnetQuery.gte("numeric_price", v);
-                }
-                if (currentFilters.priceMax) {
-                    const v = parseFloat(currentFilters.priceMax);
-                    if (!isNaN(v)) loopnetQuery = loopnetQuery.lte("numeric_price", v);
-                }
-                if (currentFilters.capRateMin) {
-                    const v = parseFloat(currentFilters.capRateMin);
-                    if (!isNaN(v)) loopnetQuery = loopnetQuery.gte("numeric_cap_rate", v);
-                }
-                if (currentFilters.capRateMax) {
-                    const v = parseFloat(currentFilters.capRateMax);
-                    if (!isNaN(v)) loopnetQuery = loopnetQuery.lte("numeric_cap_rate", v);
-                }
-                if (currentFilters.sqftMin) {
-                    const v = parseFloat(currentFilters.sqftMin);
-                    if (!isNaN(v)) loopnetQuery = loopnetQuery.gte("numeric_square_footage", v);
-                }
-                if (currentFilters.sqftMax) {
-                    const v = parseFloat(currentFilters.sqftMax);
-                    if (!isNaN(v)) loopnetQuery = loopnetQuery.lte("numeric_square_footage", v);
-                }
+                const params = new URLSearchParams();
+                if (latestOnly) params.set("latest_only", "1");
+                if (activeAreaFilter?.zipCode) params.set("zip", activeAreaFilter.zipCode);
+                else if (activeAreaFilter?.cityName) params.set("city", activeAreaFilter.cityName);
+                else if (activeAreaFilter?.countyName) params.set("county", activeAreaFilter.countyName);
+                else if (activeAreaFilter?.addressQuery) params.set("address_query", activeAreaFilter.addressQuery);
+                if (currentFilters.priceMin) params.set("price_min", currentFilters.priceMin);
+                if (currentFilters.priceMax) params.set("price_max", currentFilters.priceMax);
+                if (currentFilters.capRateMin) params.set("cap_rate_min", currentFilters.capRateMin);
+                if (currentFilters.capRateMax) params.set("cap_rate_max", currentFilters.capRateMax);
+                if (currentFilters.sqftMin) params.set("sqft_min", currentFilters.sqftMin);
+                if (currentFilters.sqftMax) params.set("sqft_max", currentFilters.sqftMax);
                 if (effectiveBounds) {
-                    loopnetQuery = loopnetQuery
-                        .gte("latitude", effectiveBounds.south)
-                        .lte("latitude", effectiveBounds.north)
-                        .gte("longitude", effectiveBounds.west)
-                        .lte("longitude", effectiveBounds.east);
+                    params.set("bounds_west", String(effectiveBounds.west));
+                    params.set("bounds_east", String(effectiveBounds.east));
+                    params.set("bounds_south", String(effectiveBounds.south));
+                    params.set("bounds_north", String(effectiveBounds.north));
                 }
-                const { data, error, count } = await loopnetQuery;
-                if (error) console.error("Error fetching loopnet listings:", error);
-                const rows = (data ?? []).map((item) => mapLoopnetRow(item as Record<string, unknown>));
-                setProperties(rows.map(({ _createdAt: _, ...p }) => p));
-                setTotalCount(count ?? 0);
+                try {
+                    const response = await fetch(`/api/listings/loopnet?${params.toString()}`);
+                    const json = response.ok ? await response.json() : { data: [], count: 0 };
+                    const rows = (json.data ?? []).map((item: Record<string, unknown>) => mapLoopnetRow(item));
+                    setProperties(rows.map(({ _createdAt: _, ...p }: any) => p));
+                    setTotalCount(json.count ?? 0);
+                } catch (err) {
+                    console.error("Error fetching loopnet listings:", err);
+                }
                 setLoading(false);
                 return;
             }

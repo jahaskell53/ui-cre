@@ -1,16 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 import UserProfilePage from "./page";
 
 // Mock dependencies
 vi.mock("@/hooks/use-user");
-vi.mock("@/utils/supabase", () => ({
-    supabase: {
-        from: vi.fn(),
-    },
-}));
 vi.mock("next/navigation", () => ({
     useRouter: () => ({
         push: vi.fn(),
@@ -38,6 +32,31 @@ const mockProfile = {
     roles: ["Property Owner", "Broker"],
 };
 
+function setupFetchMock(profile: typeof mockProfile | null, posts: any[] = []) {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes("/api/users")) {
+            if (profile === null) {
+                return Promise.resolve({
+                    ok: false,
+                    status: 404,
+                    json: () => Promise.resolve({ error: "Not found" }),
+                });
+            }
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve(profile),
+            });
+        }
+        if (url.includes("/api/posts")) {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve(posts),
+            });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    }) as any;
+}
+
 describe("UserProfilePage", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -50,58 +69,7 @@ describe("UserProfilePage", () => {
     });
 
     it("should load and display user profile", async () => {
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: mockProfile,
-                    error: null,
-                }),
-            }),
-        });
-
-        const mockCount = vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-                count: 5,
-                error: null,
-            }),
-        });
-
-        const mockPostsSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockResolvedValue({
-                        data: [],
-                        error: null,
-                    }),
-                }),
-            }),
-        });
-
-        const mockLikesSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        const mockCommentsSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        vi.mocked(supabase.from).mockImplementation((table) => {
-            if (table === "profiles") {
-                return { select: mockSelect } as any;
-            }
-            if (table === "posts") {
-                return { select: mockPostsSelect } as any;
-            }
-            if (table === "likes") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockLikesSelect()) }) } as any;
-            }
-            if (table === "comments") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockCommentsSelect()) }) } as any;
-            }
-            return { select: mockCount } as any;
-        });
+        setupFetchMock(mockProfile);
 
         render(<UserProfilePage />);
 
@@ -114,65 +82,17 @@ describe("UserProfilePage", () => {
     });
 
     it("should display posts count", async () => {
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: mockProfile,
-                    error: null,
-                }),
-            }),
-        });
+        const posts = Array.from({ length: 10 }, (_, i) => ({
+            id: `post-${i}`,
+            type: "post",
+            content: `Post ${i}`,
+            file_url: null,
+            created_at: new Date().toISOString(),
+            likes: [],
+            comments_count: 0,
+        }));
 
-        const mockCount = vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-                count: 10,
-                error: null,
-            }),
-        });
-
-        const mockPostsSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockResolvedValue({
-                        data: [],
-                        error: null,
-                    }),
-                }),
-            }),
-        });
-
-        const mockLikesSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        const mockCommentsSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        vi.mocked(supabase.from).mockImplementation((table) => {
-            if (table === "profiles") {
-                return { select: mockSelect } as any;
-            }
-            if (table === "posts") {
-                return {
-                    select: (args: any) => {
-                        if (args === "*") {
-                            return mockCount();
-                        }
-                        return mockPostsSelect();
-                    },
-                } as any;
-            }
-            if (table === "likes") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockLikesSelect()) }) } as any;
-            }
-            if (table === "comments") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockCommentsSelect()) }) } as any;
-            }
-            return {} as any;
-        });
+        setupFetchMock(mockProfile, posts);
 
         render(<UserProfilePage />);
 
@@ -189,65 +109,7 @@ describe("UserProfilePage", () => {
             refreshProfile: vi.fn(),
         });
 
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: mockProfile,
-                    error: null,
-                }),
-            }),
-        });
-
-        const mockCount = vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-                count: 0,
-                error: null,
-            }),
-        });
-
-        const mockPostsSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockResolvedValue({
-                        data: [],
-                        error: null,
-                    }),
-                }),
-            }),
-        });
-
-        const mockLikesSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        const mockCommentsSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        vi.mocked(supabase.from).mockImplementation((table) => {
-            if (table === "profiles") {
-                return { select: mockSelect } as any;
-            }
-            if (table === "posts") {
-                return {
-                    select: (args: any) => {
-                        if (args === "*") {
-                            return mockCount();
-                        }
-                        return mockPostsSelect();
-                    },
-                } as any;
-            }
-            if (table === "likes") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockLikesSelect()) }) } as any;
-            }
-            if (table === "comments") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockCommentsSelect()) }) } as any;
-            }
-            return {} as any;
-        });
+        setupFetchMock(mockProfile);
 
         render(<UserProfilePage />);
 
@@ -257,51 +119,7 @@ describe("UserProfilePage", () => {
     });
 
     it("should show user not found when profile does not exist", async () => {
-        const mockSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: "Not found" },
-                }),
-            }),
-        });
-
-        const mockPostsSelect = vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                    limit: vi.fn().mockResolvedValue({
-                        data: [],
-                        error: null,
-                    }),
-                }),
-            }),
-        });
-
-        const mockLikesSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        const mockCommentsSelect = vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-        });
-
-        vi.mocked(supabase.from).mockImplementation((table) => {
-            if (table === "profiles") {
-                return { select: mockSelect } as any;
-            }
-            if (table === "posts") {
-                return { select: mockPostsSelect } as any;
-            }
-            if (table === "likes") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockLikesSelect()) }) } as any;
-            }
-            if (table === "comments") {
-                return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue(mockCommentsSelect()) }) } as any;
-            }
-            return { select: mockSelect } as any;
-        });
+        setupFetchMock(null);
 
         render(<UserProfilePage />);
 

@@ -11,13 +11,34 @@ export async function GET(request: NextRequest) {
 
         const searchParams = request.nextUrl.searchParams;
         const userId = searchParams.get("id");
+        const fullName = searchParams.get("full_name");
 
-        if (!userId) {
+        if (!userId && !fullName) {
             return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
+        if (fullName) {
+            const nameRows = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.fullName, fullName)).limit(1);
+
+            if (nameRows.length === 0) {
+                return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+            }
+
+            return NextResponse.json({ id: nameRows[0].id });
+        }
+
         const rows = await db
-            .select({ id: profiles.id, fullName: profiles.fullName, avatarUrl: profiles.avatarUrl, website: profiles.website, roles: profiles.roles })
+            .select({
+                id: profiles.id,
+                fullName: profiles.fullName,
+                avatarUrl: profiles.avatarUrl,
+                website: profiles.website,
+                roles: profiles.roles,
+                isAdmin: profiles.isAdmin,
+                themePreference: profiles.themePreference,
+                updatedAt: profiles.updatedAt,
+                tourVisitedPages: profiles.tourVisitedPages,
+            })
             .from(profiles)
             .where(eq(profiles.id, userId));
 
@@ -26,7 +47,17 @@ export async function GET(request: NextRequest) {
         }
 
         const p = rows[0];
-        return NextResponse.json({ id: p.id, full_name: p.fullName, avatar_url: p.avatarUrl, website: p.website, roles: p.roles });
+        return NextResponse.json({
+            id: p.id,
+            full_name: p.fullName,
+            avatar_url: p.avatarUrl,
+            website: p.website,
+            roles: p.roles,
+            is_admin: p.isAdmin,
+            theme_preference: p.themePreference,
+            updated_at: p.updatedAt,
+            tour_visited_pages: p.tourVisitedPages,
+        });
     } catch (error: any) {
         console.error("Error in GET /api/users:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });

@@ -50,9 +50,9 @@ export function useUser() {
 
     async function fetchProfile(userId: string) {
         try {
-            const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
-
-            if (error) throw error;
+            const response = await fetch(`/api/users?id=${encodeURIComponent(userId)}`);
+            if (!response.ok) throw new Error("Failed to fetch profile");
+            const data = await response.json();
             setProfile(data);
         } catch (error) {
             console.error("Error fetching profile:", error);

@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { applyMention, getMentionMatch } from "@/lib/feed/comments";
 import { getFeedInitials } from "@/lib/feed/create-post";
-import { supabase } from "@/utils/supabase";
 import { MentionDropdown, UserSuggestion } from "./mention-dropdown";
 
 interface Comment {
@@ -73,26 +72,16 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
     }, [showMentionDropdown]);
 
     const loadComments = async () => {
-        const { data, error } = await supabase
-            .from("comments")
-            .select(
-                `
-                *,
-                profile:profiles(full_name, avatar_url)
-            `,
-            )
-            .eq("post_id", postId)
-            .order("created_at", { ascending: true });
-
-        if (!error && data) {
-            setComments(
-                data.map((c) => ({
-                    ...c,
-                    profile: (c as any).profile,
-                })),
-            );
-        } else if (error) {
-            console.error("Error loading comments:", error.message);
+        try {
+            const response = await fetch(`/api/comments?post_id=${encodeURIComponent(postId)}`);
+            if (!response.ok) {
+                console.error("Error loading comments:", response.statusText);
+                return;
+            }
+            const data = await response.json();
+            setComments(data);
+        } catch (error) {
+            console.error("Error loading comments:", error);
         }
     };
 
@@ -105,17 +94,16 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
             }
 
             try {
-                const { data, error } = await supabase
-                    .from("profiles")
-                    .select("id, full_name, avatar_url")
-                    .ilike("full_name", `%${query}%`)
-                    .neq("id", currentUserId || "")
-                    .limit(10);
-
-                if (error) throw error;
-
-                setMentionSuggestions(data || []);
-                setShowMentionDropdown((data || []).length > 0);
+                const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+                if (!response.ok) throw new Error("Failed to search users");
+                const data = await response.json();
+                const suggestions = (data || []).map((u: any) => ({
+                    id: u.id,
+                    full_name: u.full_name,
+                    avatar_url: u.avatar_url,
+                }));
+                setMentionSuggestions(suggestions);
+                setShowMentionDropdown(suggestions.length > 0);
                 setSelectedMentionIndex(-1);
             } catch (error) {
                 console.error("Error searching users for mention:", error);
@@ -260,13 +248,17 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", currentUserId);
+        const response = await fetch(`/api/comments?id=${encodeURIComponent(commentId)}`, {
+            method: "DELETE",
+            credentials: "include",
+        });
 
-        if (!error) {
+        if (response.ok) {
             loadComments();
             onCommentDeleted(commentId);
         } else {
-            console.error("Error deleting comment:", error.message);
+            const err = await response.json().catch(() => ({}));
+            console.error("Error deleting comment:", err);
             alert("Failed to delete comment. Please try again.");
         }
     };
