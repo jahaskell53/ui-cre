@@ -17,7 +17,7 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 ### Testing
 
 - **Development approach**: Adopt test-driven development for code changes: add or update the smallest relevant failing test first, implement the minimal change to make it pass, then run the relevant tests again.
-- **Unit/integration tests**: `bun run test` (Vitest + jsdom, 63 test files / 539 tests). No external services needed — all deps are mocked.
+- **Unit/integration tests**: `bun run test` (Vitest + jsdom, 65 test files / 565 tests). No external services needed — all deps are mocked.
 - **Formatting**: `npx prettier --check "src/**/*.{ts,tsx}"`. No ESLint config exists in the repo.
 
 ### Known caveats
@@ -26,3 +26,10 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 - **Local Supabase**: `supabase/config.toml` and migrations live under `supabase/`. Use `bun run supabase:start` when you want a local stack instead of the hosted project.
 - The `.env.local` file is gitignored and must be created per-environment. All secret names are listed in `.env.example`.
 - There is no ESLint configuration — Prettier is the only code style tool.
+
+### Dagster pipeline (pipeline/dagster/)
+
+- **Runtime**: Python 3.12 + uv. Both `uv` and a uv-managed Python are installed via the update script; `~/.local/bin` and the uv Python bin directory are on PATH.
+- **Install deps**: `cd pipeline/dagster && uv pip install dagster dagster-webserver dagster-cloud supabase apify-client python-dotenv pytest && uv pip install --no-deps -e .` — the `postal` C extension is excluded because libpostal is not available in Cloud VMs. Tests mock `normalize_address` so they pass without it.
+- **Run tests**: `cd pipeline/dagster && .venv/bin/pytest` (56 tests, all mocked, no external services needed).
+- **Run dev server**: `cd pipeline/dagster && uv run dagster dev` (requires Supabase + Apify env vars; see `pipeline/dagster/.env.example`).
