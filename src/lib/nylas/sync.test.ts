@@ -2,11 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NylasRateLimitError } from "./client";
 import { syncAllContacts } from "./sync";
 
-const { mockGetMessages, mockGetCalendarEvents, mockFrom, mockRecalculateNetworkStrength } = vi.hoisted(() => ({
+const { mockGetMessages, mockGetCalendarEvents, mockFrom, mockRecalculateNetworkStrength, mockDb } = vi.hoisted(() => ({
     mockGetMessages: vi.fn(),
     mockGetCalendarEvents: vi.fn(),
     mockFrom: vi.fn(),
     mockRecalculateNetworkStrength: vi.fn().mockResolvedValue(undefined),
+    mockDb: {
+        select: vi.fn(),
+        insert: vi.fn(),
+        update: vi.fn(),
+    },
 }));
 
 vi.mock("./client", async (importOriginal) => {
@@ -24,6 +29,10 @@ vi.mock("./config", () => ({
 
 vi.mock("@/utils/supabase/admin", () => ({
     createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 vi.mock("@/lib/news/gemini", () => ({
@@ -72,7 +81,7 @@ function setupIntegrationSupabase(
 
 /**
  * Sets up mockFrom for the full successful sync path (empty messages/events).
- * Handles the 'people' table query inside syncCalendarContacts.
+ * Also sets up mockDb for Drizzle people queries.
  */
 function setupSuccessSupabase(
     integration: Record<string, unknown> = {
@@ -82,10 +91,10 @@ function setupSuccessSupabase(
         last_sync_at: null,
     },
 ) {
-    // people table: syncCalendarContacts always fetches existing people
-    const mockPeopleIn = vi.fn().mockResolvedValue({ data: [], error: null });
-    const mockPeopleEq = vi.fn().mockReturnValue({ in: mockPeopleIn });
-    const mockPeopleSelect = vi.fn().mockReturnValue({ eq: mockPeopleEq });
+    // Drizzle people table: returns empty arrays for all queries
+    const mockDbWhere = vi.fn().mockResolvedValue([]);
+    const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+    mockDb.select.mockReturnValue({ from: mockDbFrom });
 
     // integrations table: select and update
     const mockSingle = vi.fn().mockResolvedValue({ data: integration, error: null });
@@ -96,7 +105,6 @@ function setupSuccessSupabase(
 
     mockFrom.mockImplementation((table: string) => {
         if (table === "integrations") return { select: mockSelect, update: mockUpdate };
-        if (table === "people") return { select: mockPeopleSelect };
         return {};
     });
 

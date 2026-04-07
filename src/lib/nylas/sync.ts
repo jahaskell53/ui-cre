@@ -1,3 +1,6 @@
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import { people } from "@/db/schema";
 import { recalculateNetworkStrengthForUser } from "@/lib/network-strength";
 import { makeGeminiCall } from "@/lib/news/gemini";
 import { createAdminClient } from "@/utils/supabase/admin";
@@ -620,18 +623,22 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
         // Batch fetch existing contacts
         const contactEmails = contacts.map((c) => c.email_address);
-        const { data: existingPeople } = await supabase.from("people").select("id, email").eq("user_id", userId).in("email", contactEmails);
+        const existingPeople =
+            contactEmails.length > 0
+                ? await db
+                      .select({ id: people.id, email: people.email })
+                      .from(people)
+                      .where(and(eq(people.userId, userId), inArray(people.email, contactEmails)))
+                : [];
 
         const existingEmailToId = new Map<string, string>();
-        if (existingPeople) {
-            for (const person of existingPeople) {
-                existingEmailToId.set(person.email.toLowerCase(), person.id);
-            }
+        for (const person of existingPeople) {
+            if (person.email) existingEmailToId.set(person.email.toLowerCase(), person.id);
         }
 
         // Separate contacts into updates and inserts
         const contactsToUpdate: Array<{ id: string; name: string }> = [];
-        const contactsToInsert: Array<{ user_id: string; name: string; email: string; starred: boolean; signal: boolean }> = [];
+        const contactsToInsert: Array<{ userId: string; name: string; email: string; starred: boolean; signal: boolean }> = [];
 
         for (const contact of contacts) {
             const existingId = existingEmailToId.get(contact.email_address.toLowerCase());
@@ -642,7 +649,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
                 emailToPerson.set(contact.email_address, existingId);
             } else {
                 contactsToInsert.push({
-                    user_id: userId,
+                    userId,
                     name,
                     email: contact.email_address,
                     starred: false,
@@ -656,7 +663,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
             console.log(`  Updating ${contactsToUpdate.length} existing contacts...`);
             await Promise.all(
                 contactsToUpdate.map((contact) =>
-                    supabase.from("people").update({ name: contact.name, updated_at: new Date().toISOString() }).eq("id", contact.id),
+                    db.update(people).set({ name: contact.name, updatedAt: new Date().toISOString() }).where(eq(people.id, contact.id)),
                 ),
             );
         }
@@ -664,12 +671,10 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
         // Batch insert new contacts
         if (contactsToInsert.length > 0) {
             console.log(`  Inserting ${contactsToInsert.length} new contacts...`);
-            const { data: newPeople } = await supabase.from("people").insert(contactsToInsert).select("id, email");
+            const newPeople = await db.insert(people).values(contactsToInsert).returning({ id: people.id, email: people.email });
 
-            if (newPeople) {
-                for (const person of newPeople) {
-                    emailToPerson.set(person.email, person.id);
-                }
+            for (const person of newPeople) {
+                if (person.email) emailToPerson.set(person.email, person.id);
             }
         }
 
@@ -732,11 +737,14 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
         // Fetch all people at once
         const personIds = Array.from(interactionsByPerson.keys());
         if (personIds.length > 0) {
-            const { data: people } = await supabase.from("people").select("id, timeline, name").in("id", personIds);
+            const peopleRows = await db
+                .select({ id: people.id, timeline: people.timeline, name: people.name })
+                .from(people)
+                .where(inArray(people.id, personIds));
 
             // Batch update timelines using Promise.all
-            if (people && people.length > 0) {
-                const timelineUpdates = people.map((person) => {
+            if (peopleRows.length > 0) {
+                const timelineUpdates = peopleRows.map((person) => {
                     const interactions = interactionsByPerson.get(person.id) || [];
                     const newEntries = interactions.map((interaction) => ({
                         type: "email" as const,
@@ -755,18 +763,18 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
 
                     return {
                         id: person.id,
-                        timeline: [...newEntries, ...(person.timeline || [])],
+                        timeline: [...newEntries, ...((person.timeline as any[]) || [])],
                     };
                 });
 
                 console.log(`Batch updating timelines for ${timelineUpdates.length} people`);
-                await Promise.all(timelineUpdates.map((update) => supabase.from("people").update({ timeline: update.timeline }).eq("id", update.id)));
+                await Promise.all(timelineUpdates.map((update) => db.update(people).set({ timeline: update.timeline }).where(eq(people.id, update.id))));
             }
         }
 
         // Recalculate network strength for all people after timeline updates
         console.log("Recalculating network strength...");
-        await recalculateNetworkStrengthForUser(supabase, userId);
+        await recalculateNetworkStrengthForUser(userId);
 
         // Update trace with final results
         const automatedCount = Array.from(automatedResults.values()).filter((v) => v).length;
@@ -1085,18 +1093,22 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 
         // Batch fetch existing contacts
         const contactEmails = contacts.map((c) => c.email_address);
-        const { data: existingPeople } = await supabase.from("people").select("id, email").eq("user_id", userId).in("email", contactEmails);
+        const existingPeopleRows =
+            contactEmails.length > 0
+                ? await db
+                      .select({ id: people.id, email: people.email })
+                      .from(people)
+                      .where(and(eq(people.userId, userId), inArray(people.email, contactEmails)))
+                : [];
 
         const existingEmailToId = new Map<string, string>();
-        if (existingPeople) {
-            for (const person of existingPeople) {
-                existingEmailToId.set(person.email.toLowerCase(), person.id);
-            }
+        for (const person of existingPeopleRows) {
+            if (person.email) existingEmailToId.set(person.email.toLowerCase(), person.id);
         }
 
         // Separate contacts into updates and inserts
         const contactsToUpdate: Array<{ id: string; name: string }> = [];
-        const contactsToInsert: Array<{ user_id: string; name: string; email: string; starred: boolean; signal: boolean }> = [];
+        const contactsToInsert: Array<{ userId: string; name: string; email: string; starred: boolean; signal: boolean }> = [];
 
         for (const contact of contacts) {
             const existingId = existingEmailToId.get(contact.email_address.toLowerCase());
@@ -1107,7 +1119,7 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
                 emailToPerson.set(contact.email_address, existingId);
             } else {
                 contactsToInsert.push({
-                    user_id: userId,
+                    userId,
                     name,
                     email: contact.email_address,
                     starred: false,
@@ -1120,19 +1132,17 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         if (contactsToUpdate.length > 0) {
             await Promise.all(
                 contactsToUpdate.map((contact) =>
-                    supabase.from("people").update({ name: contact.name, updated_at: new Date().toISOString() }).eq("id", contact.id),
+                    db.update(people).set({ name: contact.name, updatedAt: new Date().toISOString() }).where(eq(people.id, contact.id)),
                 ),
             );
         }
 
         // Batch insert new contacts
         if (contactsToInsert.length > 0) {
-            const { data: newPeople } = await supabase.from("people").insert(contactsToInsert).select("id, email");
+            const newPeople = await db.insert(people).values(contactsToInsert).returning({ id: people.id, email: people.email });
 
-            if (newPeople) {
-                for (const person of newPeople) {
-                    emailToPerson.set(person.email, person.id);
-                }
+            for (const person of newPeople) {
+                if (person.email) emailToPerson.set(person.email, person.id);
             }
         }
 
@@ -1198,11 +1208,14 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         // Fetch all people at once
         const personIds = Array.from(interactionsByPerson.keys());
         if (personIds.length > 0) {
-            const { data: people } = await supabase.from("people").select("id, timeline, name").in("id", personIds);
+            const calendarPeopleRows = await db
+                .select({ id: people.id, timeline: people.timeline, name: people.name })
+                .from(people)
+                .where(inArray(people.id, personIds));
 
             // Batch update timelines using Promise.all
-            if (people && people.length > 0) {
-                const timelineUpdates = people.map((person) => {
+            if (calendarPeopleRows.length > 0) {
+                const timelineUpdates = calendarPeopleRows.map((person) => {
                     const interactions = interactionsByPerson.get(person.id) || [];
                     const newEntries = interactions.map((interaction) => ({
                         type: "meeting" as const,
@@ -1218,17 +1231,17 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 
                     return {
                         id: person.id,
-                        timeline: [...newEntries, ...(person.timeline || [])],
+                        timeline: [...newEntries, ...((person.timeline as any[]) || [])],
                     };
                 });
 
                 console.log(`Batch updating timelines for ${timelineUpdates.length} people`);
-                await Promise.all(timelineUpdates.map((update) => supabase.from("people").update({ timeline: update.timeline }).eq("id", update.id)));
+                await Promise.all(timelineUpdates.map((update) => db.update(people).set({ timeline: update.timeline }).where(eq(people.id, update.id))));
             }
         }
 
         // Recalculate network strength for all people after timeline updates
-        await recalculateNetworkStrengthForUser(supabase, userId);
+        await recalculateNetworkStrengthForUser(userId);
 
         // Update trace with final results
         trace?.update({

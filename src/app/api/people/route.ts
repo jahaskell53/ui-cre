@@ -1,4 +1,7 @@
+import { and, desc, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { people } from "@/db/schema";
 import { recalculateNetworkStrengthForUser } from "@/lib/network-strength";
 import { createClient } from "@/utils/supabase/server";
 
@@ -48,6 +51,35 @@ async function geocodeAddresses(addresses: string[]): Promise<Array<{ address: s
     return results;
 }
 
+// Map Drizzle camelCase result to snake_case for API response
+function toSnakeCase(row: typeof people.$inferSelect) {
+    return {
+        id: row.id,
+        user_id: row.userId,
+        name: row.name,
+        starred: row.starred,
+        signal: row.signal,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+        email: row.email,
+        timeline: row.timeline,
+        address: row.address,
+        owned_addresses: row.ownedAddresses,
+        phone: row.phone,
+        category: row.category,
+        address_latitude: row.addressLatitude,
+        address_longitude: row.addressLongitude,
+        owned_addresses_geo: row.ownedAddressesGeo,
+        bio: row.bio,
+        birthday: row.birthday,
+        linkedin_url: row.linkedinUrl,
+        twitter_url: row.twitterUrl,
+        instagram_url: row.instagramUrl,
+        facebook_url: row.facebookUrl,
+        network_strength: row.networkStrength,
+    };
+}
+
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
@@ -65,26 +97,21 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const personId = searchParams.get("id");
 
-        // Fetch people for the current user
-        let query = supabase.from("people").select("*").eq("user_id", user.id);
-
         if (personId) {
-            const { data, error } = await query.eq("id", personId).single();
-            if (error) {
-                console.error("Error fetching person:", error);
+            const rows = await db
+                .select()
+                .from(people)
+                .where(and(eq(people.userId, user.id), eq(people.id, personId)));
+
+            if (rows.length === 0) {
                 return NextResponse.json({ error: "Person not found" }, { status: 404 });
             }
-            return NextResponse.json(data);
+            return NextResponse.json(toSnakeCase(rows[0]));
         }
 
-        const { data, error } = await query.order("created_at", { ascending: false });
+        const rows = await db.select().from(people).where(eq(people.userId, user.id)).orderBy(desc(people.createdAt));
 
-        if (error) {
-            console.error("Error fetching people:", error);
-            return NextResponse.json({ error: "Failed to fetch people" }, { status: 500 });
-        }
-
-        return NextResponse.json(data || []);
+        return NextResponse.json(rows.map(toSnakeCase));
     } catch (error: any) {
         console.error("Error in GET /api/people:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -135,11 +162,10 @@ export async function POST(request: NextRequest) {
         const ownedAddressesList = owned_addresses || [];
         const ownedAddressesGeo = ownedAddressesList.length > 0 ? await geocodeAddresses(ownedAddressesList) : [];
 
-        // Insert person
-        const { data, error } = await supabase
-            .from("people")
-            .insert({
-                user_id: user.id,
+        const rows = await db
+            .insert(people)
+            .values({
+                userId: user.id,
                 name: name.trim(),
                 starred: starred ?? false,
                 email: email?.trim() || null,
@@ -147,27 +173,25 @@ export async function POST(request: NextRequest) {
                 category: category || null,
                 signal: signal ?? false,
                 address: addressTrimmed,
-                address_latitude: homeGeo.latitude,
-                address_longitude: homeGeo.longitude,
-                owned_addresses: ownedAddressesList,
-                owned_addresses_geo: ownedAddressesGeo,
+                addressLatitude: homeGeo.latitude != null ? String(homeGeo.latitude) : null,
+                addressLongitude: homeGeo.longitude != null ? String(homeGeo.longitude) : null,
+                ownedAddresses: ownedAddressesList,
+                ownedAddressesGeo: ownedAddressesGeo,
                 timeline: timeline || [],
                 bio: bio?.trim() || null,
                 birthday: birthday || null,
-                linkedin_url: linkedin_url?.trim() || null,
-                twitter_url: twitter_url?.trim() || null,
-                instagram_url: instagram_url?.trim() || null,
-                facebook_url: facebook_url?.trim() || null,
+                linkedinUrl: linkedin_url?.trim() || null,
+                twitterUrl: twitter_url?.trim() || null,
+                instagramUrl: instagram_url?.trim() || null,
+                facebookUrl: facebook_url?.trim() || null,
             })
-            .select()
-            .single();
+            .returning();
 
-        if (error) {
-            console.error("Error inserting person:", error);
+        if (rows.length === 0) {
             return NextResponse.json({ error: "Failed to create person" }, { status: 500 });
         }
 
-        return NextResponse.json(data);
+        return NextResponse.json(toSnakeCase(rows[0]));
     } catch (error: any) {
         console.error("Error in POST /api/people:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -215,7 +239,7 @@ export async function PUT(request: NextRequest) {
         } = body;
 
         // Build update object - only include fields that are provided
-        const updateData: any = {};
+        const updateData: Partial<typeof people.$inferInsert> = {};
 
         if (name !== undefined) updateData.name = name.trim();
         if (starred !== undefined) updateData.starred = starred;
@@ -226,52 +250,52 @@ export async function PUT(request: NextRequest) {
         if (address !== undefined) {
             const addressTrimmed = address?.trim() || null;
             updateData.address = addressTrimmed;
-            // Geocode the address if provided
             if (addressTrimmed) {
                 const homeGeo = await geocodeAddress(addressTrimmed);
-                updateData.address_latitude = homeGeo.latitude;
-                updateData.address_longitude = homeGeo.longitude;
+                updateData.addressLatitude = homeGeo.latitude != null ? String(homeGeo.latitude) : null;
+                updateData.addressLongitude = homeGeo.longitude != null ? String(homeGeo.longitude) : null;
             } else {
-                updateData.address_latitude = null;
-                updateData.address_longitude = null;
+                updateData.addressLatitude = null;
+                updateData.addressLongitude = null;
             }
         }
         if (owned_addresses !== undefined) {
             const ownedAddressesList = owned_addresses || [];
-            updateData.owned_addresses = ownedAddressesList;
-            // Geocode owned addresses if provided
+            updateData.ownedAddresses = ownedAddressesList;
             if (ownedAddressesList.length > 0) {
-                updateData.owned_addresses_geo = await geocodeAddresses(ownedAddressesList);
+                updateData.ownedAddressesGeo = await geocodeAddresses(ownedAddressesList);
             } else {
-                updateData.owned_addresses_geo = [];
+                updateData.ownedAddressesGeo = [];
             }
         }
         if (timeline !== undefined) updateData.timeline = timeline;
         if (bio !== undefined) updateData.bio = bio?.trim() || null;
         if (birthday !== undefined) updateData.birthday = birthday || null;
-        if (linkedin_url !== undefined) updateData.linkedin_url = linkedin_url?.trim() || null;
-        if (twitter_url !== undefined) updateData.twitter_url = twitter_url?.trim() || null;
-        if (instagram_url !== undefined) updateData.instagram_url = instagram_url?.trim() || null;
-        if (facebook_url !== undefined) updateData.facebook_url = facebook_url?.trim() || null;
+        if (linkedin_url !== undefined) updateData.linkedinUrl = linkedin_url?.trim() || null;
+        if (twitter_url !== undefined) updateData.twitterUrl = twitter_url?.trim() || null;
+        if (instagram_url !== undefined) updateData.instagramUrl = instagram_url?.trim() || null;
+        if (facebook_url !== undefined) updateData.facebookUrl = facebook_url?.trim() || null;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        // Update the person (RLS will ensure user can only update their own people)
-        const { data, error } = await supabase.from("people").update(updateData).eq("id", personId).eq("user_id", user.id).select().single();
+        const rows = await db
+            .update(people)
+            .set(updateData)
+            .where(and(eq(people.id, personId), eq(people.userId, user.id)))
+            .returning();
 
-        if (error) {
-            console.error("Error updating person:", error);
+        if (rows.length === 0) {
             return NextResponse.json({ error: "Failed to update person" }, { status: 500 });
         }
 
         // Recalculate network strength if timeline was updated
         if (timeline !== undefined) {
-            await recalculateNetworkStrengthForUser(supabase, user.id);
+            await recalculateNetworkStrengthForUser(user.id);
         }
 
-        return NextResponse.json(data);
+        return NextResponse.json(toSnakeCase(rows[0]));
     } catch (error: any) {
         console.error("Error in PUT /api/people:", error);
         return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
@@ -299,13 +323,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Person ID is required" }, { status: 400 });
         }
 
-        // Delete the person (RLS will ensure user can only delete their own people)
-        const { error } = await supabase.from("people").delete().eq("id", personId).eq("user_id", user.id);
-
-        if (error) {
-            console.error("Error deleting person:", error);
-            return NextResponse.json({ error: "Failed to delete person" }, { status: 500 });
-        }
+        await db.delete(people).where(and(eq(people.id, personId), eq(people.userId, user.id)));
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Recalculate network strength for the current user
-        await recalculateNetworkStrengthForUser(supabase, user.id);
+        await recalculateNetworkStrengthForUser(user.id);
 
         return NextResponse.json({
             success: true,

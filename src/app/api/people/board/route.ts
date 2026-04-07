@@ -1,4 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { people, peopleBoardAssignments } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -61,9 +64,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify person belongs to user
-        const { data: person, error: personError } = await supabase.from("people").select("id").eq("id", personId).eq("user_id", user.id).single();
+        const personRows = await db
+            .select({ id: people.id })
+            .from(people)
+            .where(and(eq(people.id, personId), eq(people.userId, user.id)));
 
-        if (personError || !person) {
+        if (personRows.length === 0) {
             return NextResponse.json({ error: "Person not found" }, { status: 404 });
         }
 
