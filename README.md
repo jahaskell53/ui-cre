@@ -134,6 +134,7 @@ cp .env.example .env
 
 Configure the following environment variables:
 - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
+- `DATABASE_URL`: Supabase Postgres connection string (use the transaction pooler URL from Project Settings → Database → Connection string)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anon key
 - `SUPABASE_SERVICE_ROLE_KEY`: Your Supabase service role key
 - `NYLAS_API_KEY`: Your Nylas API key
