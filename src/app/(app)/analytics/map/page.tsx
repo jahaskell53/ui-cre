@@ -89,10 +89,7 @@ const BATH_OPTIONS = [
     { label: "4+", value: 4 },
 ];
 
-const HOME_TYPE_OPTIONS = [
-    { label: "Apartment", value: "APARTMENT" },
-    { label: "Multi-family", value: "MULTI_FAMILY" },
-];
+const HOME_TYPE_OPTIONS = [{ label: "Apartment", value: "APARTMENT" }];
 
 const AREA_TYPE_LABELS: Record<AreaType, string> = {
     zip: "ZIP",

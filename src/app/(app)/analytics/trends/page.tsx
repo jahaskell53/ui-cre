@@ -968,7 +968,6 @@ export default function TrendsPage() {
                             [
                                 { label: "All", value: null },
                                 { label: "Apartment", value: "APARTMENT" },
-                                { label: "Multi-family", value: "MULTI_FAMILY" },
                             ] as { label: string; value: string | null }[]
                         ).map(({ label, value }, i) => (
                             <button
