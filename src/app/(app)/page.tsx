@@ -67,7 +67,6 @@ export default function FeedPage() {
             setNotifications(getRecentNotifications(data, 3));
         } catch (error) {
             console.error("Error loading notifications:", error);
-        } finally {
         }
     };
 
