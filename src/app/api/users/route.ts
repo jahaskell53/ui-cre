@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { integrations } from "@/db/schema";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { createClient } from "@/utils/supabase/server";
 
@@ -46,15 +49,15 @@ export async function DELETE(request: NextRequest) {
         const adminSupabase = createAdminClient();
 
         // Delete user integrations first (to revoke grants)
-        const { data: integrations } = await adminSupabase.from("integrations").select("nylas_grant_id").eq("user_id", user.id);
+        const userIntegrations = await db.select({ nylasGrantId: integrations.nylasGrantId }).from(integrations).where(eq(integrations.userId, user.id));
 
-        if (integrations && integrations.length > 0) {
+        if (userIntegrations.length > 0) {
             // Import revokeGrant dynamically to avoid issues
             const { revokeGrant } = await import("@/lib/nylas/client");
-            for (const integration of integrations) {
-                if (integration.nylas_grant_id) {
+            for (const integration of userIntegrations) {
+                if (integration.nylasGrantId) {
                     try {
-                        await revokeGrant(integration.nylas_grant_id);
+                        await revokeGrant(integration.nylasGrantId);
                         // eslint-disable-next-line no-empty
                     } catch (err) {
                         // Continue even if revoke fails

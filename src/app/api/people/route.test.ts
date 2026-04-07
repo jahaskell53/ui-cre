@@ -255,7 +255,7 @@ describe("PUT /api/people", () => {
 
         await PUT(makePut({ timeline: [] }, { id: "p-1" }));
 
-        expect(mockRecalculate).toHaveBeenCalledWith(expect.anything(), "user-1");
+        expect(mockRecalculate).toHaveBeenCalledWith("user-1");
     });
 
     it("does not recalculate network strength when timeline is not in the update", async () => {

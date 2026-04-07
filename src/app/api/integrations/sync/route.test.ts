@@ -2,21 +2,29 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "./route";
 
-const { mockGetUser, mockFrom, mockEnqueueEmailSync } = vi.hoisted(() => ({
+const { mockGetUser, mockEnqueueEmailSync, mockDbUpdate, mockDbSelect } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
     mockEnqueueEmailSync: vi.fn(),
+    mockDbUpdate: vi.fn(),
+    mockDbSelect: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
 }));
 
 vi.mock("@/utils/sqs", () => ({
     enqueueEmailSync: mockEnqueueEmailSync,
+}));
+
+// Mock the db module — returns a chainable builder that resolves to an array
+vi.mock("@/db", () => ({
+    db: {
+        update: mockDbUpdate,
+        select: mockDbSelect,
+    },
 }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -32,16 +40,11 @@ function makeGetRequest() {
     return new NextRequest("http://localhost/api/integrations/sync");
 }
 
-function setupAuth(userId = "user-1") {
-    mockGetUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
-
-    const mockEq2 = vi.fn().mockResolvedValue({ error: null });
-    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-    const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
-
-    mockFrom.mockImplementation(() => ({ update: mockUpdate }));
-
-    return { mockUpdate };
+function setupUpdateChain() {
+    const mockWhere = vi.fn().mockResolvedValue(undefined);
+    const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+    mockDbUpdate.mockReturnValue({ set: mockSet });
+    return { mockSet, mockWhere };
 }
 
 // ─── POST — validation ────────────────────────────────────────────────────────
@@ -95,7 +98,8 @@ describe("POST /api/integrations/sync — happy path", () => {
     beforeEach(() => vi.clearAllMocks());
 
     it("marks integration as syncing and enqueues job", async () => {
-        const { mockUpdate } = setupAuth("user-1");
+        mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+        const { mockSet } = setupUpdateChain();
         mockEnqueueEmailSync.mockResolvedValue(undefined);
 
         const res = await POST(makePostRequest({ grantId: "grant-1", userId: "user-1" }));
@@ -103,12 +107,13 @@ describe("POST /api/integrations/sync — happy path", () => {
 
         expect(res.status).toBe(200);
         expect(body.success).toBe(true);
-        expect(mockUpdate).toHaveBeenCalledWith({ status: "syncing" });
+        expect(mockSet).toHaveBeenCalledWith({ status: "syncing" });
         expect(mockEnqueueEmailSync).toHaveBeenCalledWith("grant-1", "user-1");
     });
 
     it("returns 500 when enqueueEmailSync throws", async () => {
-        setupAuth("user-1");
+        mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+        setupUpdateChain();
         mockEnqueueEmailSync.mockRejectedValue(new Error("SQS unavailable"));
 
         const res = await POST(makePostRequest({ grantId: "grant-1", userId: "user-1" }));
@@ -140,26 +145,26 @@ describe("GET /api/integrations/sync — happy path", () => {
     beforeEach(() => vi.clearAllMocks());
 
     it("returns integrations for authenticated user", async () => {
-        const integrations = [{ id: "int-1", status: "active" }];
+        const integrationRows = [{ id: "int-1", status: "active" }];
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
 
-        const mockEq = vi.fn().mockResolvedValue({ data: integrations, error: null });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue(integrationRows);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGetRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body.integrations).toEqual(integrations);
+        expect(body.integrations).toEqual(integrationRows);
     });
 
-    it("returns 500 when DB fetch fails", async () => {
+    it("returns 500 when DB fetch throws", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
 
-        const mockEq = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockRejectedValue(new Error("DB error"));
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGetRequest());
         expect(res.status).toBe(500);

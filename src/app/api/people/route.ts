@@ -268,7 +268,7 @@ export async function PUT(request: NextRequest) {
 
         // Recalculate network strength if timeline was updated
         if (timeline !== undefined) {
-            await recalculateNetworkStrengthForUser(supabase, user.id);
+            await recalculateNetworkStrengthForUser(user.id);
         }
 
         return NextResponse.json(data);

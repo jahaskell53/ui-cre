@@ -2,21 +2,28 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE } from "./route";
 
-const { mockGetUser, mockFrom, mockRevokeGrant } = vi.hoisted(() => ({
+const { mockGetUser, mockRevokeGrant, mockDbSelect, mockDbDelete } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
     mockRevokeGrant: vi.fn(),
+    mockDbSelect: vi.fn(),
+    mockDbDelete: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
 }));
 
 vi.mock("@/lib/nylas/client", () => ({
     revokeGrant: mockRevokeGrant,
+}));
+
+vi.mock("@/db", () => ({
+    db: {
+        select: mockDbSelect,
+        delete: mockDbDelete,
+    },
 }));
 
 function makeDelete(id: string) {
@@ -46,11 +53,10 @@ describe("DELETE /api/integrations/[id]", () => {
 
     it("returns 404 when integration not found", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        // select returns empty array → no integration found
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await DELETE(makeDelete("bad-id"), params("bad-id"));
         expect(res.status).toBe(404);
@@ -58,22 +64,17 @@ describe("DELETE /api/integrations/[id]", () => {
 
     it("revokes grant and deletes integration on success", async () => {
         authAs();
-        const integration = { id: "integ-1", nylas_grant_id: "grant-abc", user_id: "user-1" };
-        const mockSingle = vi.fn().mockResolvedValue({ data: integration, error: null });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
+        const integration = { id: "integ-1", nylasGrantId: "grant-abc", userId: "user-1" };
 
-        const mockDeleteEq2 = vi.fn().mockResolvedValue({ error: null });
-        const mockDeleteEq1 = vi.fn().mockReturnValue({ eq: mockDeleteEq2 });
-        const mockDelete = vi.fn().mockReturnValue({ eq: mockDeleteEq1 });
+        // select returns integration
+        const mockSelectWhere = vi.fn().mockResolvedValue([integration]);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDbSelect.mockReturnValue({ from: mockSelectFrom });
 
-        let callCount = 0;
-        mockFrom.mockImplementation(() => {
-            callCount++;
-            if (callCount === 1) return { select: mockSelect };
-            return { delete: mockDelete };
-        });
+        // delete chain
+        const mockDeleteWhere = vi.fn().mockResolvedValue(undefined);
+        mockDbDelete.mockReturnValue({ where: mockDeleteWhere });
+
         mockRevokeGrant.mockResolvedValue(undefined);
 
         const res = await DELETE(makeDelete("integ-1"), params("integ-1"));
@@ -82,26 +83,20 @@ describe("DELETE /api/integrations/[id]", () => {
         expect(res.status).toBe(200);
         expect(body.success).toBe(true);
         expect(mockRevokeGrant).toHaveBeenCalledWith("grant-abc");
+        expect(mockDbDelete).toHaveBeenCalled();
     });
 
-    it("returns 500 when delete fails", async () => {
+    it("returns 500 when delete throws", async () => {
         authAs();
-        const integration = { id: "integ-1", nylas_grant_id: "grant-abc", user_id: "user-1" };
-        const mockSingle = vi.fn().mockResolvedValue({ data: integration, error: null });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
+        const integration = { id: "integ-1", nylasGrantId: "grant-abc", userId: "user-1" };
 
-        const mockDeleteEq2 = vi.fn().mockResolvedValue({ error: { message: "delete failed" } });
-        const mockDeleteEq1 = vi.fn().mockReturnValue({ eq: mockDeleteEq2 });
-        const mockDelete = vi.fn().mockReturnValue({ eq: mockDeleteEq1 });
+        const mockSelectWhere = vi.fn().mockResolvedValue([integration]);
+        const mockSelectFrom = vi.fn().mockReturnValue({ where: mockSelectWhere });
+        mockDbSelect.mockReturnValue({ from: mockSelectFrom });
 
-        let callCount = 0;
-        mockFrom.mockImplementation(() => {
-            callCount++;
-            if (callCount === 1) return { select: mockSelect };
-            return { delete: mockDelete };
-        });
+        const mockDeleteWhere = vi.fn().mockRejectedValue(new Error("delete failed"));
+        mockDbDelete.mockReturnValue({ where: mockDeleteWhere });
+
         mockRevokeGrant.mockResolvedValue(undefined);
 
         const res = await DELETE(makeDelete("integ-1"), params("integ-1"));

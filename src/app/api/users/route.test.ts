@@ -2,12 +2,12 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET } from "./route";
 
-const { mockGetUser, mockFrom, mockAdminFrom, mockDeleteUser, mockRevokeGrant } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockDeleteUser, mockRevokeGrant, mockDbSelect } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
     mockFrom: vi.fn(),
-    mockAdminFrom: vi.fn(),
     mockDeleteUser: vi.fn(),
     mockRevokeGrant: vi.fn(),
+    mockDbSelect: vi.fn(),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
@@ -19,13 +19,18 @@ vi.mock("@/utils/supabase/server", () => ({
 
 vi.mock("@/utils/supabase/admin", () => ({
     createAdminClient: vi.fn().mockReturnValue({
-        from: mockAdminFrom,
         auth: { admin: { deleteUser: mockDeleteUser } },
     }),
 }));
 
 vi.mock("@/lib/nylas/client", () => ({
     revokeGrant: mockRevokeGrant,
+}));
+
+vi.mock("@/db", () => ({
+    db: {
+        select: mockDbSelect,
+    },
 }));
 
 function makeGet(params?: Record<string, string>) {
@@ -89,9 +94,12 @@ describe("DELETE /api/users", () => {
 
     it("deletes user with no integrations", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-        const mockEq = vi.fn().mockResolvedValue({ data: [], error: null });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockAdminFrom.mockReturnValue({ select: mockSelect });
+
+        // Drizzle select chain returns empty array
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom2 });
+
         mockDeleteUser.mockResolvedValue({ error: null });
 
         const res = await DELETE(makeDelete());
@@ -104,12 +112,11 @@ describe("DELETE /api/users", () => {
 
     it("revokes Nylas grants before deleting user", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-        const mockEq = vi.fn().mockResolvedValue({
-            data: [{ nylas_grant_id: "grant-abc" }],
-            error: null,
-        });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockAdminFrom.mockReturnValue({ select: mockSelect });
+
+        const mockWhere = vi.fn().mockResolvedValue([{ nylasGrantId: "grant-abc" }]);
+        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom2 });
+
         mockRevokeGrant.mockResolvedValue(undefined);
         mockDeleteUser.mockResolvedValue({ error: null });
 
@@ -120,12 +127,11 @@ describe("DELETE /api/users", () => {
 
     it("continues deleting even when revokeGrant throws", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-        const mockEq = vi.fn().mockResolvedValue({
-            data: [{ nylas_grant_id: "grant-abc" }],
-            error: null,
-        });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockAdminFrom.mockReturnValue({ select: mockSelect });
+
+        const mockWhere = vi.fn().mockResolvedValue([{ nylasGrantId: "grant-abc" }]);
+        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom2 });
+
         mockRevokeGrant.mockRejectedValue(new Error("Nylas down"));
         mockDeleteUser.mockResolvedValue({ error: null });
 
@@ -135,9 +141,11 @@ describe("DELETE /api/users", () => {
 
     it("returns 500 when auth delete fails", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-        const mockEq = vi.fn().mockResolvedValue({ data: [], error: null });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockAdminFrom.mockReturnValue({ select: mockSelect });
+
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDbSelect.mockReturnValue({ from: mockFrom2 });
+
         mockDeleteUser.mockResolvedValue({ error: { message: "delete failed" } });
 
         const res = await DELETE(makeDelete());

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { integrations } from "@/db/schema";
 import { exchangeCodeForGrant } from "@/lib/nylas/client";
 import { enqueueEmailSync } from "@/utils/sqs";
 import { createClient } from "@/utils/supabase/server";
@@ -32,26 +34,21 @@ export async function GET(request: NextRequest) {
             throw new Error("Failed to exchange code for grant");
         }
 
-        // Create Supabase client
+        // Create Supabase client (still needed for auth cookie handling)
         const supabase = await createClient();
 
         // Store integration in database
-        const { error: dbError } = await supabase.from("integrations").insert({
-            user_id: userId,
-            nylas_grant_id: grantResponse.grantId,
+        await db.insert(integrations).values({
+            userId,
+            nylasGrantId: grantResponse.grantId,
             provider: grantResponse.provider,
-            email_address: grantResponse.email,
-            integration_type: "both", // email and calendar
+            emailAddress: grantResponse.email,
+            integrationType: "both", // email and calendar
             status: "syncing", // Will be updated to 'active' after sync completes
             metadata: {
                 scopes: grantResponse.scope,
             },
         });
-
-        if (dbError) {
-            console.error("Error storing integration:", dbError);
-            throw dbError;
-        }
 
         // Enqueue sync job to SQS for async processing by Lambda
         // This ensures all syncs go through Lambda for consistency and scalability

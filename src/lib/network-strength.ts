@@ -1,4 +1,6 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { people } from "@/db/schema";
 
 // Calculate interaction count from timeline (emails + meetings)
 function getInteractionCount(timeline: any[] = []): number {
@@ -9,15 +11,10 @@ function getInteractionCount(timeline: any[] = []): number {
 }
 
 // Calculate network strength for all people and update database
-export async function recalculateNetworkStrengthForUser(supabase: SupabaseClient, userId: string): Promise<void> {
+export async function recalculateNetworkStrengthForUser(userId: string): Promise<void> {
     try {
         // Fetch all people for the user (only need id and timeline)
-        const { data: allPeople, error: peopleError } = await supabase.from("people").select("id, timeline").eq("user_id", userId);
-
-        if (peopleError) {
-            console.error("Error fetching people for network strength calculation:", peopleError);
-            return;
-        }
+        const allPeople = await db.select({ id: people.id, timeline: people.timeline }).from(people).where(eq(people.userId, userId));
 
         if (!allPeople || allPeople.length === 0) {
             return;
@@ -26,7 +23,7 @@ export async function recalculateNetworkStrengthForUser(supabase: SupabaseClient
         // Calculate interaction count for each person
         const peopleWithCounts = allPeople.map((p) => ({
             id: p.id,
-            count: getInteractionCount(p.timeline),
+            count: getInteractionCount((p.timeline as any[] | null) ?? []),
         }));
 
         // Sort by interaction count (descending)
@@ -56,7 +53,7 @@ export async function recalculateNetworkStrengthForUser(supabase: SupabaseClient
         });
 
         // Batch update all people's network strength
-        await Promise.all(updates.map((update) => supabase.from("people").update({ network_strength: update.network_strength }).eq("id", update.id)));
+        await Promise.all(updates.map((update) => db.update(people).set({ networkStrength: update.network_strength }).where(eq(people.id, update.id))));
 
         console.log(`Recalculated network strength for ${updates.length} people`);
     } catch (error) {

@@ -40,7 +40,7 @@ describe("POST /api/people/recalculate-network-strength", () => {
 
         expect(res.status).toBe(200);
         expect(body.success).toBe(true);
-        expect(mockRecalculate).toHaveBeenCalledWith(expect.anything(), "user-1");
+        expect(mockRecalculate).toHaveBeenCalledWith("user-1");
     });
 
     it("returns 500 when recalculate throws", async () => {
