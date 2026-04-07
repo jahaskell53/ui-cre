@@ -104,6 +104,12 @@ def cleaned_listings(
             if config.limit and total_processed >= config.limit:
                 break
 
+            if not isinstance(listing, dict):
+                context.log.error(f"Malformed listing in {zip_code}: expected dict, got {type(listing).__name__}")
+                failed += 1
+                total_processed += 1
+                continue
+
             home_info = (listing.get("hdpData") or {}).get("homeInfo", {})
             home_type = (home_info.get("homeType") or "").upper()
             if home_type == "TOWNHOUSE":
