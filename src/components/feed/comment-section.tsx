@@ -9,6 +9,8 @@ import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/mod
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { applyMention, getMentionMatch } from "@/lib/feed/comments";
+import { getFeedInitials } from "@/lib/feed/create-post";
 import { supabase } from "@/utils/supabase";
 import { MentionDropdown, UserSuggestion } from "./mention-dropdown";
 
@@ -132,24 +134,14 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
             const input = mentionInputRef.current as HTMLInputElement | null;
             if (!input) return;
 
-            const pos = input.selectionStart || value.length;
-            setCursorPosition(pos);
+            const nextCursorPosition = input.selectionStart || value.length;
+            setCursorPosition(nextCursorPosition);
 
-            const textBeforeCursor = value.substring(0, pos);
-            const lastAtIndex = textBeforeCursor.lastIndexOf("@");
-
-            if (lastAtIndex !== -1) {
-                const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-                if (textAfterAt.includes(" ") || textAfterAt.length === 0) {
-                    setShowMentionDropdown(false);
-                    setMentionQuery("");
-                    setMentionPosition(null);
-                } else {
-                    const query = textAfterAt.trim();
-                    setMentionQuery(query);
-                    setMentionPosition(lastAtIndex);
-                    searchMentionUsers(query);
-                }
+            const match = getMentionMatch(value, nextCursorPosition);
+            if (match) {
+                setMentionQuery(match.query);
+                setMentionPosition(match.position);
+                searchMentionUsers(match.query);
             } else {
                 setShowMentionDropdown(false);
                 setMentionQuery("");
@@ -174,11 +166,9 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
             return;
         }
 
-        const textBefore = commentText.substring(0, pos);
-        const textAfter = commentText.substring(pos + 1 + (mentionQuery.length || 0));
-        const newText = `${textBefore}@${username} ${textAfter}`;
+        const nextMention = applyMention(commentText, pos, mentionQuery, username);
 
-        setCommentText(newText);
+        setCommentText(nextMention.text);
         setShowMentionDropdown(false);
         setMentionQuery("");
         setMentionPosition(null);
@@ -188,8 +178,7 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
             const input = mentionInputRef.current as HTMLInputElement | null;
             if (input) {
                 input.focus();
-                const newCursorPos = pos! + username.length + 2;
-                input.setSelectionRange(newCursorPos, newCursorPos);
+                input.setSelectionRange(nextMention.cursorPosition, nextMention.cursorPosition);
             }
         }, 0);
     };
@@ -288,13 +277,7 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
                 <div className="flex flex-col gap-4">
                     {comments.map((comment) => {
                         const commentAuthorName = comment.profile?.full_name || "Anonymous";
-                        const commentInitials =
-                            commentAuthorName
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()
-                                .slice(0, 2) || "U";
+                        const commentInitials = getFeedInitials(commentAuthorName);
                         return (
                             <div key={comment.id} className="flex gap-3">
                                 <div className="cursor-pointer transition-opacity hover:opacity-80" onClick={() => router.push(`/users/${comment.user_id}`)}>
@@ -338,12 +321,7 @@ export const CommentSection = ({ postId, currentUserId, currentUserProfile, onCo
                                 style={{ background: generateAuroraGradient(currentUserProfile.full_name || "User") }}
                                 className="text-[10px] text-white"
                             >
-                                {currentUserProfile.full_name
-                                    ?.split(" ")
-                                    .map((n) => n[0])
-                                    .join("")
-                                    .toUpperCase()
-                                    .slice(0, 2) || "U"}
+                                {getFeedInitials(currentUserProfile.full_name)}
                             </AvatarFallback>
                         </Avatar>
                         <div className="relative flex flex-1 gap-2">

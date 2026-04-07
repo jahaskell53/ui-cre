@@ -7,6 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    DEFAULT_FEED_POST_DRAFT,
+    canSubmitFeedPost,
+    getAttachmentDisplayName,
+    getFeedPostContent,
+    isImageAttachment,
+    resolvePostAuthorId,
+    uploadPostAttachment,
+} from "@/lib/feed/create-post";
 import { supabase } from "@/utils/supabase";
 
 interface CreatePostModalProps {
@@ -18,74 +27,73 @@ interface CreatePostModalProps {
 }
 
 export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }: CreatePostModalProps) => {
-    const [postType, setPostType] = useState<"post" | "link">("post");
-    const [postContent, setPostContent] = useState("");
-    const [postUrl, setPostUrl] = useState("");
+    const [postType, setPostType] = useState<"post" | "link">(DEFAULT_FEED_POST_DRAFT.postType);
+    const [postContent, setPostContent] = useState(DEFAULT_FEED_POST_DRAFT.postContent);
+    const [postUrl, setPostUrl] = useState(DEFAULT_FEED_POST_DRAFT.postUrl);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [attachedFileUrl, setAttachedFileUrl] = useState<string | null>(null);
+    const [attachedFileUrl, setAttachedFileUrl] = useState<string | null>(DEFAULT_FEED_POST_DRAFT.attachedFileUrl);
     const [isUploadingFile, setIsUploadingFile] = useState(false);
-    const [postAsSystem, setPostAsSystem] = useState(false);
+    const [postAsSystem, setPostAsSystem] = useState(DEFAULT_FEED_POST_DRAFT.postAsSystem);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         setIsUploadingFile(true);
-        const formData = new FormData();
-        formData.append("file", file);
-
-        try {
-            const response = await fetch("/api/upload", {
+        const result = await uploadPostAttachment(file, (formData) =>
+            fetch("/api/upload", {
                 method: "POST",
                 body: formData,
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-                setAttachedFileUrl(data.url);
-            } else {
-                alert(data.error || "Failed to upload file");
-            }
-        } catch (error) {
-            console.error("Upload error:", error);
-            alert("Failed to upload file");
-        } finally {
-            setIsUploadingFile(false);
+            }),
+        );
+        if (result.url) {
+            setAttachedFileUrl(result.url);
+        } else if (result.error) {
+            alert(result.error);
         }
+        setIsUploadingFile(false);
     };
 
     const handleCreatePost = async () => {
-        if (postType !== "link" && !postContent.trim()) return;
-        if (postType === "link" && !postUrl.trim()) return;
+        if (!canSubmitFeedPost(postType, postContent, postUrl)) return;
 
         setIsSubmitting(true);
 
-        let userIdToUse = userId;
+        const { userIdToUse, fellBackToUser } = await resolvePostAuthorId({
+            userId,
+            isAdmin,
+            postAsSystem,
+            lookupSystemProfileId: async () => {
+                const { data: systemProfile, error: systemError } = await supabase
+                    .from("profiles")
+                    .select("id")
+                    .eq("full_name", "OpenMidmarket") // pragma: allowlist secret
+                    .single();
+                if (systemError || !systemProfile) {
+                    console.error("Error fetching system account:", systemError);
+                    return null;
+                }
+                return systemProfile.id;
+            },
+        });
 
-        if (postAsSystem && isAdmin) {
-            const { data: systemProfile, error: systemError } = await supabase.from("profiles").select("id").eq("full_name", "OpenMidmarket").single();
-
-            if (!systemError && systemProfile) {
-                userIdToUse = systemProfile.id;
-            } else {
-                console.error("Error fetching system account:", systemError);
-                alert("Failed to find system account. Posting as yourself.");
-            }
+        if (fellBackToUser) {
+            alert("Failed to find system account. Posting as yourself.");
         }
 
         const { error } = await supabase.from("posts").insert({
             user_id: userIdToUse,
             type: postType,
-            content: postType === "link" ? postUrl.trim() : postContent.trim(),
+            content: getFeedPostContent(postType, postContent, postUrl),
             file_url: attachedFileUrl,
         });
 
         if (!error) {
-            setPostContent("");
-            setPostUrl("");
-            setAttachedFileUrl(null);
-            setPostType("post");
-            setPostAsSystem(false);
+            setPostContent(DEFAULT_FEED_POST_DRAFT.postContent);
+            setPostUrl(DEFAULT_FEED_POST_DRAFT.postUrl);
+            setAttachedFileUrl(DEFAULT_FEED_POST_DRAFT.attachedFileUrl);
+            setPostType(DEFAULT_FEED_POST_DRAFT.postType);
+            setPostAsSystem(DEFAULT_FEED_POST_DRAFT.postAsSystem);
             onSuccess();
             onClose();
         }
@@ -93,11 +101,11 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
     };
 
     const handleClose = () => {
-        setPostContent("");
-        setPostUrl("");
-        setAttachedFileUrl(null);
-        setPostType("post");
-        setPostAsSystem(false);
+        setPostContent(DEFAULT_FEED_POST_DRAFT.postContent);
+        setPostUrl(DEFAULT_FEED_POST_DRAFT.postUrl);
+        setAttachedFileUrl(DEFAULT_FEED_POST_DRAFT.attachedFileUrl);
+        setPostType(DEFAULT_FEED_POST_DRAFT.postType);
+        setPostAsSystem(DEFAULT_FEED_POST_DRAFT.postAsSystem);
         onClose();
     };
 
@@ -170,14 +178,12 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                         <div className="flex flex-wrap gap-3">
                             {attachedFileUrl ? (
                                 <div className="group relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-800/50">
-                                    {attachedFileUrl.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i) ? (
+                                    {isImageAttachment(attachedFileUrl) ? (
                                         <img src={attachedFileUrl} className="h-full w-full rounded-md object-cover" />
                                     ) : (
                                         <div className="flex flex-col items-center gap-1 text-center">
                                             <File className="size-8 text-gray-400 dark:text-gray-500" />
-                                            <span className="w-24 truncate text-[10px] font-medium text-gray-600 dark:text-gray-400">
-                                                {decodeURIComponent(attachedFileUrl.split("/").pop()?.split("-").slice(1).join("-") || "File")}
-                                            </span>
+                                            <span className="w-24 truncate text-[10px] font-medium text-gray-600 dark:text-gray-400">{getAttachmentDisplayName(attachedFileUrl)}</span>
                                         </div>
                                     )}
                                     <button
@@ -215,7 +221,7 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                     </button>
                     <button
                         onClick={handleCreatePost}
-                        disabled={isSubmitting || (postType === "link" ? !postUrl.trim() : !postContent.trim())}
+                        disabled={isSubmitting || !canSubmitFeedPost(postType, postContent, postUrl)}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                     >
                         {isSubmitting && <Loader2 className="size-4 animate-spin" />}

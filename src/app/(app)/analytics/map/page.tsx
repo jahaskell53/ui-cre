@@ -21,28 +21,29 @@ import {
     searchMsas,
     searchNeighborhoods,
 } from "@/db/rpc";
-import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
+import {
+    AREA_TYPE_LABELS,
+    AREA_TYPE_PLACEHOLDERS,
+    BATH_OPTIONS,
+    BED_OPTIONS,
+    buildMapSearchParams,
+    countActiveMapFilters,
+    createDefaultMapFilters,
+    parseAreaFilter,
+    parseAreaType,
+    parseMapFilters,
+    parseMapListingSource,
+    parseShowLatestOnly,
+    type AreaFilter,
+    type AreaType,
+    type Filters,
+    type MapListingSource,
+} from "@/lib/analytics/map-page";
+import { mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
-
-type MapListingSource = "loopnet" | "zillow";
-type AreaType = "zip" | "neighborhood" | "city" | "county" | "msa" | "address";
-
-interface AreaFilter {
-    type: AreaType;
-    label: string;
-    zipCode?: string;
-    cityName?: string;
-    cityState?: string;
-    neighborhoodId?: number;
-    countyName?: string;
-    countyState?: string;
-    msaGeoid?: string;
-    addressQuery?: string;
-    bbox?: MapBounds;
-}
 
 type AreaSuggestion =
     | { kind: "neighborhood"; id: number; name: string; city: string; state: string }
@@ -58,64 +59,6 @@ interface MapboxFeature {
     bbox?: [number, number, number, number];
     context?: Array<{ id: string; text: string; short_code?: string }>;
 }
-
-interface Filters {
-    priceMin: string;
-    priceMax: string;
-    capRateMin: string;
-    capRateMax: string;
-    sqftMin: string;
-    sqftMax: string;
-    beds: number[];
-    bathsMin: number | null;
-    propertyType: "both" | "reit" | "mid";
-}
-
-const defaultFilters: Filters = {
-    priceMin: "",
-    priceMax: "",
-    capRateMin: "",
-    capRateMax: "",
-    sqftMin: "",
-    sqftMax: "",
-    beds: [],
-    bathsMin: null,
-    propertyType: "both",
-};
-
-const BED_OPTIONS = [
-    { label: "Studio", value: 0 },
-    { label: "1", value: 1 },
-    { label: "2", value: 2 },
-    { label: "3", value: 3 },
-    { label: "4+", value: 4 },
-];
-
-const BATH_OPTIONS = [
-    { label: "1+", value: 1 },
-    { label: "1.5+", value: 1.5 },
-    { label: "2+", value: 2 },
-    { label: "3+", value: 3 },
-    { label: "4+", value: 4 },
-];
-
-const AREA_TYPE_LABELS: Record<AreaType, string> = {
-    zip: "ZIP",
-    neighborhood: "Neighborhood",
-    city: "City",
-    county: "County",
-    msa: "MSA",
-    address: "Address",
-};
-
-const AREA_TYPE_PLACEHOLDERS: Record<AreaType, string> = {
-    zip: "Enter zip code…",
-    neighborhood: "Search neighborhood…",
-    city: "Search city…",
-    county: "Search county…",
-    msa: "Search metro area…",
-    address: "Search address, building name…",
-};
 
 function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
     return (
@@ -154,62 +97,16 @@ function MapPageInner() {
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
-    const [filters, setFilters] = useState<Filters>(() => {
-        const beds = searchParams.get("beds");
-        const bathsMin = searchParams.get("bathsMin");
-        const propertyType = searchParams.get("propertyType");
-        return {
-            priceMin: searchParams.get("priceMin") ?? "",
-            priceMax: searchParams.get("priceMax") ?? "",
-            capRateMin: searchParams.get("capRateMin") ?? "",
-            capRateMax: searchParams.get("capRateMax") ?? "",
-            sqftMin: searchParams.get("sqftMin") ?? "",
-            sqftMax: searchParams.get("sqftMax") ?? "",
-            beds: beds
-                ? beds
-                      .split(",")
-                      .map(Number)
-                      .filter((n) => !isNaN(n))
-                : [],
-            bathsMin: bathsMin !== null ? parseFloat(bathsMin) || null : null,
-            propertyType: (["both", "reit", "mid"] as const).find((v) => v === propertyType) ?? "both",
-        };
-    });
+    const [filters, setFilters] = useState<Filters>(() => parseMapFilters(searchParams));
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => {
-        return searchParams.get("source") === "loopnet" ? "loopnet" : "zillow";
-    });
-    const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => {
-        return searchParams.get("latest") !== "false";
-    });
+    const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => parseMapListingSource(searchParams));
+    const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => parseShowLatestOnly(searchParams));
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Area-type search state
-    const [areaType, setAreaType] = useState<AreaType>(() => {
-        const t = searchParams.get("areaType");
-        return (["zip", "neighborhood", "city", "county", "msa", "address"] as const).find((v) => v === t) ?? "zip";
-    });
-    const [areaFilter, setAreaFilter] = useState<AreaFilter | null>(() => {
-        const type = searchParams.get("areaType") as AreaType | null;
-        const label = searchParams.get("area");
-        if (!type || !label) return null;
-        const bboxW = parseFloat(searchParams.get("areaBboxW") ?? "");
-        const bboxS = parseFloat(searchParams.get("areaBboxS") ?? "");
-        const bboxE = parseFloat(searchParams.get("areaBboxE") ?? "");
-        const bboxN = parseFloat(searchParams.get("areaBboxN") ?? "");
-        const bbox: MapBounds | undefined = [bboxW, bboxS, bboxE, bboxN].every((n) => !isNaN(n))
-            ? { west: bboxW, south: bboxS, east: bboxE, north: bboxN }
-            : undefined;
-        const base = { type, label, bbox };
-        if (type === "zip") return { ...base, zipCode: searchParams.get("areaZip") ?? label };
-        if (type === "city") return { ...base, cityName: searchParams.get("areaCity") ?? "", cityState: searchParams.get("areaCityState") ?? "" };
-        if (type === "county") return { ...base, countyName: searchParams.get("areaCounty") ?? "", countyState: searchParams.get("areaCountyState") ?? "" };
-        if (type === "neighborhood") return { ...base, neighborhoodId: parseInt(searchParams.get("areaNeighborhoodId") ?? "") || undefined };
-        if (type === "msa") return { ...base, msaGeoid: searchParams.get("areaMsaGeoid") ?? "" };
-        if (type === "address") return { ...base, addressQuery: searchParams.get("areaAddress") ?? label };
-        return null;
-    });
+    const [areaType, setAreaType] = useState<AreaType>(() => parseAreaType(searchParams));
+    const [areaFilter, setAreaFilter] = useState<AreaFilter | null>(() => parseAreaFilter(searchParams));
     const [areaInput, setAreaInput] = useState<string>(() => {
         return searchParams.get("area") ?? "";
     });
@@ -220,19 +117,10 @@ function MapPageInner() {
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
 
-    const activeFilterCount = useMemo(() => {
-        let count = 0;
-        if (filters.priceMin || filters.priceMax) count++;
-        if (mapListingSource === "loopnet" && (filters.capRateMin || filters.capRateMax)) count++;
-        if (filters.sqftMin || filters.sqftMax) count++;
-        if (mapListingSource === "zillow" && filters.beds.length > 0) count++;
-        if (mapListingSource === "zillow" && filters.bathsMin !== null) count++;
-        if (mapListingSource === "zillow" && filters.propertyType !== "both") count++;
-        return count;
-    }, [filters, mapListingSource]);
+    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
 
     const clearFilters = () => {
-        setFilters(defaultFilters);
+        setFilters(createDefaultMapFilters());
     };
 
     const clearAreaFilter = () => {
@@ -503,82 +391,14 @@ function MapPageInner() {
 
     // Sync all filter/area state to URL
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-
-        // Source / latest
-        if (mapListingSource !== "zillow") params.set("source", mapListingSource);
-        else params.delete("source");
-        if (!showLatestOnly) params.set("latest", "false");
-        else params.delete("latest");
-
-        // Area type
-        params.set("areaType", areaType);
-
-        // Area filter
-        if (areaFilter) {
-            params.set("area", areaFilter.label);
-            if (areaFilter.zipCode) params.set("areaZip", areaFilter.zipCode);
-            else params.delete("areaZip");
-            if (areaFilter.cityName) params.set("areaCity", areaFilter.cityName);
-            else params.delete("areaCity");
-            if (areaFilter.cityState) params.set("areaCityState", areaFilter.cityState);
-            else params.delete("areaCityState");
-            if (areaFilter.neighborhoodId != null) params.set("areaNeighborhoodId", String(areaFilter.neighborhoodId));
-            else params.delete("areaNeighborhoodId");
-            if (areaFilter.countyName) params.set("areaCounty", areaFilter.countyName);
-            else params.delete("areaCounty");
-            if (areaFilter.countyState) params.set("areaCountyState", areaFilter.countyState);
-            else params.delete("areaCountyState");
-            if (areaFilter.msaGeoid) params.set("areaMsaGeoid", areaFilter.msaGeoid);
-            else params.delete("areaMsaGeoid");
-            if (areaFilter.addressQuery) params.set("areaAddress", areaFilter.addressQuery);
-            else params.delete("areaAddress");
-            if (areaFilter.bbox) {
-                params.set("areaBboxW", String(areaFilter.bbox.west));
-                params.set("areaBboxS", String(areaFilter.bbox.south));
-                params.set("areaBboxE", String(areaFilter.bbox.east));
-                params.set("areaBboxN", String(areaFilter.bbox.north));
-            } else {
-                ["areaBboxW", "areaBboxS", "areaBboxE", "areaBboxN"].forEach((k) => params.delete(k));
-            }
-        } else {
-            [
-                "area",
-                "areaZip",
-                "areaCity",
-                "areaCityState",
-                "areaNeighborhoodId",
-                "areaCounty",
-                "areaCountyState",
-                "areaMsaGeoid",
-                "areaAddress",
-                "areaBboxW",
-                "areaBboxS",
-                "areaBboxE",
-                "areaBboxN",
-            ].forEach((k) => params.delete(k));
-        }
-
-        // Filters
-        if (filters.priceMin) params.set("priceMin", filters.priceMin);
-        else params.delete("priceMin");
-        if (filters.priceMax) params.set("priceMax", filters.priceMax);
-        else params.delete("priceMax");
-        if (filters.capRateMin) params.set("capRateMin", filters.capRateMin);
-        else params.delete("capRateMin");
-        if (filters.capRateMax) params.set("capRateMax", filters.capRateMax);
-        else params.delete("capRateMax");
-        if (filters.sqftMin) params.set("sqftMin", filters.sqftMin);
-        else params.delete("sqftMin");
-        if (filters.sqftMax) params.set("sqftMax", filters.sqftMax);
-        else params.delete("sqftMax");
-        if (filters.beds.length > 0) params.set("beds", filters.beds.join(","));
-        else params.delete("beds");
-        if (filters.bathsMin !== null) params.set("bathsMin", String(filters.bathsMin));
-        else params.delete("bathsMin");
-        if (filters.propertyType !== "both") params.set("propertyType", filters.propertyType);
-        else params.delete("propertyType");
-
+        const params = buildMapSearchParams({
+            baseParams: new URLSearchParams(window.location.search),
+            filters,
+            mapListingSource,
+            showLatestOnly,
+            areaType,
+            areaFilter,
+        });
         router.replace(`?${params.toString()}`, { scroll: false });
     }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, router]);
 
