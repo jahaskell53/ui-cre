@@ -15,7 +15,18 @@ describe("analytics comps helpers", () => {
                 features: [
                     {
                         type: "Feature",
-                        geometry: { type: "Polygon", coordinates: [[[-122.5, 37.7], [-122.3, 37.7], [-122.3, 37.9], [-122.5, 37.9], [-122.5, 37.7]]] },
+                        geometry: {
+                            type: "Polygon",
+                            coordinates: [
+                                [
+                                    [-122.5, 37.7],
+                                    [-122.3, 37.7],
+                                    [-122.3, 37.9],
+                                    [-122.5, 37.9],
+                                    [-122.5, 37.7],
+                                ],
+                            ],
+                        },
                         properties: {},
                     },
                 ],

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_ZILLOW_RAW_DETAILS } from "@/components/application/zillow-detail-utils";
 import {
+    type Listing,
     buildUnitTypeSummary,
     getHeroImageUrls,
     getListingDisplayAddress,
     getPropertyTypeLabel,
     shouldShowZillowPropertySection,
-    type Listing,
 } from "./listing-detail";
 
 describe("listing-detail helpers", () => {

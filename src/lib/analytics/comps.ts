@@ -85,12 +85,7 @@ export function titleCaseAddress(value: string | null | undefined): string {
         .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function sortCompResults<T extends CompResultLike>(
-    comps: T[],
-    sortCol: CompSortColumn | null,
-    sortDir: SortDirection,
-    subject: SubjectCompInputs,
-): T[] {
+export function sortCompResults<T extends CompResultLike>(comps: T[], sortCol: CompSortColumn | null, sortDir: SortDirection, subject: SubjectCompInputs): T[] {
     if (!sortCol) {
         return comps;
     }

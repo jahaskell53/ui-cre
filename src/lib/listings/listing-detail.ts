@@ -134,14 +134,14 @@ export function getHeroImageUrls(raw: unknown, targetZpid: string | null | undef
 export function shouldShowZillowPropertySection(details: ZillowRawDetails | null): boolean {
     return Boolean(
         details &&
-            (details.neighborhood ||
-                details.county ||
-                details.walkScore ||
-                details.transitScore ||
-                details.bikeScore ||
-                details.specialOffer ||
-                details.commonUnitAmenities.length ||
-                details.description),
+        (details.neighborhood ||
+            details.county ||
+            details.walkScore ||
+            details.transitScore ||
+            details.bikeScore ||
+            details.specialOffer ||
+            details.commonUnitAmenities.length ||
+            details.description),
     );
 }
 

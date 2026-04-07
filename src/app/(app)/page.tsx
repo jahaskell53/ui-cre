@@ -10,13 +10,7 @@ import { NotificationCard } from "@/components/notifications/notification-card";
 import { GuidedTour, type TourStep } from "@/components/ui/guided-tour";
 import { usePageTour } from "@/hooks/use-page-tour";
 import { useUser } from "@/hooks/use-user";
-import {
-    adjustFeedPostComments,
-    enrichFeedPosts,
-    getRecentNotifications,
-    getVisibleFeedPosts,
-    updateFeedPostLike,
-} from "@/lib/feed/feed-page";
+import { adjustFeedPostComments, enrichFeedPosts, getRecentNotifications, getVisibleFeedPosts, updateFeedPostLike } from "@/lib/feed/feed-page";
 import { supabase } from "@/utils/supabase";
 
 const HeartIcon = ({ isLiked, className }: { isLiked: boolean; className?: string }) => {

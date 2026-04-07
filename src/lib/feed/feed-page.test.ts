@@ -1,15 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
-    adjustFeedPostComments,
-    enrichFeedPosts,
-    getRecentNotifications,
-    getVisibleFeedPosts,
-    updateFeedPostLike,
-} from "./feed-page";
+import { adjustFeedPostComments, enrichFeedPosts, getRecentNotifications, getVisibleFeedPosts, updateFeedPostLike } from "./feed-page";
 
 describe("feed-page helpers", () => {
     it("merges likes and comments into posts", () => {
-        const posts = [{ id: "post-1", title: "First" }, { id: "post-2", title: "Second" }];
+        const posts = [
+            { id: "post-1", title: "First" },
+            { id: "post-2", title: "Second" },
+        ];
         const likes = [
             { post_id: "post-1", user_id: "user-1" },
             { post_id: "post-1", user_id: "user-2" },
@@ -31,7 +28,10 @@ describe("feed-page helpers", () => {
     });
 
     it("returns visible posts and recent notifications", () => {
-        const posts = [{ id: "post-1", is_liked: true }, { id: "post-2", is_liked: false }];
+        const posts = [
+            { id: "post-1", is_liked: true },
+            { id: "post-2", is_liked: false },
+        ];
 
         expect(getVisibleFeedPosts(posts, false)).toHaveLength(2);
         expect(getVisibleFeedPosts(posts, true)).toEqual([{ id: "post-1", is_liked: true }]);

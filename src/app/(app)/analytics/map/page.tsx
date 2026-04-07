@@ -24,8 +24,12 @@ import {
 import {
     AREA_TYPE_LABELS,
     AREA_TYPE_PLACEHOLDERS,
+    type AreaFilter,
+    type AreaType,
     BATH_OPTIONS,
     BED_OPTIONS,
+    type Filters,
+    type MapListingSource,
     buildMapSearchParams,
     countActiveMapFilters,
     createDefaultMapFilters,
@@ -34,10 +38,6 @@ import {
     parseMapFilters,
     parseMapListingSource,
     parseShowLatestOnly,
-    type AreaFilter,
-    type AreaType,
-    type Filters,
-    type MapListingSource,
 } from "@/lib/analytics/map-page";
 import { mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";

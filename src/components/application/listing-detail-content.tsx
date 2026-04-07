@@ -19,15 +19,15 @@ import {
 } from "@/components/application/zillow-detail-utils";
 import { Button } from "@/components/ui/button";
 import {
+    type Listing,
+    type LoopnetListing,
+    type UnitRow,
+    type ZillowListing,
     buildUnitTypeSummary,
     getHeroImageUrls,
     getListingDisplayAddress,
     getPropertyTypeLabel,
     shouldShowZillowPropertySection,
-    type Listing,
-    type LoopnetListing,
-    type UnitRow,
-    type ZillowListing,
 } from "@/lib/listings/listing-detail";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";

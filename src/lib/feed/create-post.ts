@@ -81,10 +81,7 @@ export async function resolvePostAuthorId({
     return { userIdToUse: systemProfileId, fellBackToUser: false };
 }
 
-export async function uploadPostAttachment(
-    file: File,
-    upload: (formData: FormData) => Promise<Response>,
-): Promise<UploadPostAttachmentResult> {
+export async function uploadPostAttachment(file: File, upload: (formData: FormData) => Promise<Response>): Promise<UploadPostAttachmentResult> {
     const formData = new FormData();
     formData.append("file", file);
 

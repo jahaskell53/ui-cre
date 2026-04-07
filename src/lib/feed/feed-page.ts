@@ -36,11 +36,7 @@ export function enrichFeedPosts<T extends { id: string }>(
     }));
 }
 
-export function updateFeedPostLike<T extends { id: string; likes_count?: number; is_liked?: boolean }>(
-    posts: T[],
-    postId: string,
-    isLiked: boolean,
-): T[] {
+export function updateFeedPostLike<T extends { id: string; likes_count?: number; is_liked?: boolean }>(posts: T[], postId: string, isLiked: boolean): T[] {
     return posts.map((post) =>
         post.id === postId
             ? {

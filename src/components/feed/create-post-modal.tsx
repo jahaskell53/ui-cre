@@ -183,7 +183,9 @@ export const CreatePostModal = ({ isOpen, onClose, onSuccess, userId, isAdmin }:
                                     ) : (
                                         <div className="flex flex-col items-center gap-1 text-center">
                                             <File className="size-8 text-gray-400 dark:text-gray-500" />
-                                            <span className="w-24 truncate text-[10px] font-medium text-gray-600 dark:text-gray-400">{getAttachmentDisplayName(attachedFileUrl)}</span>
+                                            <span className="w-24 truncate text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                                                {getAttachmentDisplayName(attachedFileUrl)}
+                                            </span>
                                         </div>
                                     )}
                                     <button
