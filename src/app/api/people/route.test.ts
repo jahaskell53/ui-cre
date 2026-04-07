@@ -2,17 +2,25 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST, PUT } from "./route";
 
-const { mockGetUser, mockFrom, mockRecalculate } = vi.hoisted(() => ({
+const { mockGetUser, mockDb, mockRecalculate } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        insert: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+    },
     mockRecalculate: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 vi.mock("@/lib/network-strength", () => ({
@@ -68,7 +76,31 @@ function stubFetchNoGeocode() {
     );
 }
 
-const person = { id: "p-1", name: "Alice", user_id: "user-1" };
+const personRow = {
+    id: "p-1",
+    userId: "user-1",
+    name: "Alice",
+    starred: false,
+    signal: false,
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    email: null,
+    timeline: [],
+    address: null,
+    ownedAddresses: [],
+    phone: null,
+    category: null,
+    addressLatitude: null,
+    addressLongitude: null,
+    ownedAddressesGeo: [],
+    bio: null,
+    birthday: null,
+    linkedinUrl: null,
+    twitterUrl: null,
+    instagramUrl: null,
+    facebookUrl: null,
+    networkStrength: "MEDIUM",
+};
 
 // ─── GET ──────────────────────────────────────────────────────────────────────
 
@@ -83,51 +115,49 @@ describe("GET /api/people", () => {
 
     it("returns list of people", async () => {
         authAs();
-        const mockOrder = vi.fn().mockResolvedValue({ data: [person], error: null });
-        const mockEq = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockOrderBy = vi.fn().mockResolvedValue([personRow]);
+        const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toEqual([person]);
+        expect(body[0].id).toBe("p-1");
+        expect(body[0].user_id).toBe("user-1");
+        expect(body[0].name).toBe("Alice");
     });
 
     it("returns single person when id is provided", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: person, error: null });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([personRow]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet({ id: "p-1" }));
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toEqual(person);
+        expect(body.id).toBe("p-1");
     });
 
     it("returns 404 when person not found by id", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet({ id: "bad-id" }));
         expect(res.status).toBe(404);
     });
 
-    it("returns 500 when list fetch fails", async () => {
+    it("returns 500 when DB throws", async () => {
         authAs();
-        const mockOrder = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockEq = vi.fn().mockReturnValue({ order: mockOrder });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockOrderBy = vi.fn().mockRejectedValue(new Error("DB error"));
+        const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeGet());
         expect(res.status).toBe(500);
@@ -165,38 +195,36 @@ describe("POST /api/people — happy path", () => {
 
     it("creates person without address (no geocoding)", async () => {
         authAs("user-1");
-        const mockSingle = vi.fn().mockResolvedValue({ data: person, error: null });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
-        mockFrom.mockReturnValue({ insert: mockInsert });
+        const mockReturning = vi.fn().mockResolvedValue([personRow]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDb.insert.mockReturnValue({ values: mockValues });
 
         const res = await POST(makePost({ name: "Alice" }));
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ name: "Alice", user_id: "user-1", address_latitude: null }));
+        expect(body.name).toBe("Alice");
+        expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ name: "Alice", userId: "user-1", addressLatitude: null }));
     });
 
     it("geocodes address when provided", async () => {
         authAs("user-1");
         stubFetchNoGeocode();
 
-        const mockSingle = vi.fn().mockResolvedValue({ data: person, error: null });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
-        mockFrom.mockReturnValue({ insert: mockInsert });
+        const mockReturning = vi.fn().mockResolvedValue([personRow]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDb.insert.mockReturnValue({ values: mockValues });
 
         await POST(makePost({ name: "Alice", address: "123 Main St, Boston MA" }));
 
         expect(vi.mocked(fetch)).toHaveBeenCalled();
     });
 
-    it("returns 500 when DB insert fails", async () => {
+    it("returns 500 when DB insert returns empty array", async () => {
         authAs("user-1");
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });
-        mockFrom.mockReturnValue({ insert: mockInsert });
+        const mockReturning = vi.fn().mockResolvedValue([]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDb.insert.mockReturnValue({ values: mockValues });
 
         const res = await POST(makePost({ name: "Alice" }));
         expect(res.status).toBe(500);
@@ -229,13 +257,11 @@ describe("PUT /api/people", () => {
 
     it("updates person and returns it", async () => {
         authAs("user-1");
-        const updated = { ...person, name: "Bob" };
-        const mockSingle = vi.fn().mockResolvedValue({ data: updated, error: null });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq2 = vi.fn().mockReturnValue({ select: mockSelect });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ update: mockUpdate });
+        const updated = { ...personRow, name: "Bob" };
+        const mockReturning = vi.fn().mockResolvedValue([updated]);
+        const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning });
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         const res = await PUT(makePut({ name: "Bob" }, { id: "p-1" }));
         const body = await res.json();
@@ -246,12 +272,10 @@ describe("PUT /api/people", () => {
 
     it("recalculates network strength when timeline is updated", async () => {
         authAs("user-1");
-        const mockSingle = vi.fn().mockResolvedValue({ data: person, error: null });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq2 = vi.fn().mockReturnValue({ select: mockSelect });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ update: mockUpdate });
+        const mockReturning = vi.fn().mockResolvedValue([personRow]);
+        const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning });
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         await PUT(makePut({ timeline: [] }, { id: "p-1" }));
 
@@ -260,26 +284,22 @@ describe("PUT /api/people", () => {
 
     it("does not recalculate network strength when timeline is not in the update", async () => {
         authAs("user-1");
-        const mockSingle = vi.fn().mockResolvedValue({ data: person, error: null });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq2 = vi.fn().mockReturnValue({ select: mockSelect });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ update: mockUpdate });
+        const mockReturning = vi.fn().mockResolvedValue([personRow]);
+        const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning });
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         await PUT(makePut({ name: "Bob" }, { id: "p-1" }));
 
         expect(mockRecalculate).not.toHaveBeenCalled();
     });
 
-    it("returns 500 when DB update fails", async () => {
+    it("returns 500 when DB update returns empty array", async () => {
         authAs("user-1");
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq2 = vi.fn().mockReturnValue({ select: mockSelect });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ update: mockUpdate });
+        const mockReturning = vi.fn().mockResolvedValue([]);
+        const mockWhere = vi.fn().mockReturnValue({ returning: mockReturning });
+        const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.update.mockReturnValue({ set: mockSet });
 
         const res = await PUT(makePut({ name: "Bob" }, { id: "p-1" }));
         expect(res.status).toBe(500);
@@ -305,10 +325,8 @@ describe("DELETE /api/people", () => {
 
     it("deletes person and returns success", async () => {
         authAs("user-1");
-        const mockEq2 = vi.fn().mockResolvedValue({ error: null });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ delete: mockDelete });
+        const mockWhere = vi.fn().mockResolvedValue(undefined);
+        mockDb.delete.mockReturnValue({ where: mockWhere });
 
         const res = await DELETE(makeDelete({ id: "p-1" }));
         const body = await res.json();
@@ -317,12 +335,10 @@ describe("DELETE /api/people", () => {
         expect(body.success).toBe(true);
     });
 
-    it("returns 500 when DB delete fails", async () => {
+    it("returns 500 when DB throws", async () => {
         authAs("user-1");
-        const mockEq2 = vi.fn().mockResolvedValue({ error: { message: "DB error" } });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ delete: mockDelete });
+        const mockWhere = vi.fn().mockRejectedValue(new Error("DB error"));
+        mockDb.delete.mockReturnValue({ where: mockWhere });
 
         const res = await DELETE(makeDelete({ id: "p-1" }));
         expect(res.status).toBe(500);

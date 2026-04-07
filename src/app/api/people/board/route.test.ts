@@ -2,9 +2,12 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST, PUT } from "./route";
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockDb } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
     mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+    },
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
@@ -12,6 +15,10 @@ vi.mock("@/utils/supabase/server", () => ({
         auth: { getUser: mockGetUser },
         from: mockFrom,
     }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -127,11 +134,10 @@ describe("POST /api/people/board", () => {
 
     it("returns 404 when person not found", async () => {
         authAs();
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        // Drizzle select returns empty array → person not found
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom2 });
 
         const res = await POST(makePost({ personId: "p-1", columnId: "col-a" }));
         expect(res.status).toBe(404);
@@ -141,23 +147,16 @@ describe("POST /api/people/board", () => {
         authAs("user-1");
         const assignment = { user_id: "user-1", person_id: "p-1", column_id: "col-a" };
 
-        let callCount = 0;
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "people") {
-                const mockSingle = vi.fn().mockResolvedValue({ data: { id: "p-1" }, error: null });
-                const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-                const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-                const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-                return { select: mockSelect };
-            }
-            if (table === "people_board_assignments") {
-                const mockSingle = vi.fn().mockResolvedValue({ data: assignment, error: null });
-                const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
-                const mockUpsert = vi.fn().mockReturnValue({ select: mockSelect });
-                return { upsert: mockUpsert };
-            }
-            return {};
-        });
+        // Drizzle select returns the person
+        const mockWhere = vi.fn().mockResolvedValue([{ id: "p-1" }]);
+        const mockFrom2 = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom2 });
+
+        // Supabase upsert for board assignments
+        const mockSingle = vi.fn().mockResolvedValue({ data: assignment, error: null });
+        const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
+        const mockUpsert = vi.fn().mockReturnValue({ select: mockSelect });
+        mockFrom.mockReturnValue({ upsert: mockUpsert });
 
         const res = await POST(makePost({ personId: "p-1", columnId: "col-a" }));
         const body = await res.json();
@@ -193,14 +192,12 @@ describe("PUT /api/people/board", () => {
             if (table === "people_board_assignments") {
                 if (deleteCallCount === 0) {
                     deleteCallCount++;
-                    // First call: delete old assignment
                     const mockEq3 = vi.fn().mockResolvedValue({ error: null });
                     const mockEq2 = vi.fn().mockReturnValue({ eq: mockEq3 });
                     const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
                     const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
                     return { delete: mockDelete };
                 }
-                // Second call: insert new assignment
                 const mockSingle = vi.fn().mockResolvedValue({ data: newAssignment, error: null });
                 const mockSelect = vi.fn().mockReturnValue({ single: mockSingle });
                 const mockInsert = vi.fn().mockReturnValue({ select: mockSelect });

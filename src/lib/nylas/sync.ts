@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { integrations, interactions, people } from "@/db/schema";
 import { recalculateNetworkStrengthForUser } from "@/lib/network-strength";
@@ -630,8 +630,7 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
                 ? await db
                       .select({ id: people.id, email: people.email })
                       .from(people)
-                      .where(eq(people.userId, userId))
-                      .then((rows) => rows.filter((r) => r.email && contactEmails.includes(r.email)))
+                      .where(and(eq(people.userId, userId), inArray(people.email, contactEmails)))
                 : [];
 
         const existingEmailToId = new Map<string, string>();
@@ -721,14 +720,14 @@ export async function syncEmailContacts(grantId: string, userId: string, lastSyn
         // Fetch all people at once
         const personIds = Array.from(interactionsByPerson.keys());
         if (personIds.length > 0) {
-            const fetchedPeople = await db
+            const peopleRows = await db
                 .select({ id: people.id, timeline: people.timeline, name: people.name })
                 .from(people)
                 .where(inArray(people.id, personIds));
 
             // Batch update timelines using Promise.all
-            if (fetchedPeople.length > 0) {
-                const timelineUpdates = fetchedPeople.map((person) => {
+            if (peopleRows.length > 0) {
+                const timelineUpdates = peopleRows.map((person) => {
                     const personInteractions = interactionsByPerson.get(person.id) || [];
                     const newEntries = personInteractions.map((interaction) => ({
                         type: "email" as const,
@@ -1080,17 +1079,16 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
 
         // Batch fetch existing contacts
         const contactEmails = contacts.map((c) => c.email_address);
-        const existingPeople =
+        const existingPeopleRows =
             contactEmails.length > 0
                 ? await db
                       .select({ id: people.id, email: people.email })
                       .from(people)
-                      .where(eq(people.userId, userId))
-                      .then((rows) => rows.filter((r) => r.email && contactEmails.includes(r.email)))
+                      .where(and(eq(people.userId, userId), inArray(people.email, contactEmails)))
                 : [];
 
         const existingEmailToId = new Map<string, string>();
-        for (const person of existingPeople) {
+        for (const person of existingPeopleRows) {
             if (person.email) existingEmailToId.set(person.email.toLowerCase(), person.id);
         }
 
@@ -1177,14 +1175,14 @@ export async function syncCalendarContacts(grantId: string, userId: string, last
         // Fetch all people at once
         const personIds = Array.from(interactionsByPerson.keys());
         if (personIds.length > 0) {
-            const fetchedPeople = await db
+            const calendarPeopleRows = await db
                 .select({ id: people.id, timeline: people.timeline, name: people.name })
                 .from(people)
                 .where(inArray(people.id, personIds));
 
             // Batch update timelines using Promise.all
-            if (fetchedPeople.length > 0) {
-                const timelineUpdates = fetchedPeople.map((person) => {
+            if (calendarPeopleRows.length > 0) {
+                const timelineUpdates = calendarPeopleRows.map((person) => {
                     const personInteractions = interactionsByPerson.get(person.id) || [];
                     const newEntries = personInteractions.map((interaction) => ({
                         type: "meeting" as const,

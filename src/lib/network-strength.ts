@@ -13,7 +13,6 @@ function getInteractionCount(timeline: any[] = []): number {
 // Calculate network strength for all people and update database
 export async function recalculateNetworkStrengthForUser(userId: string): Promise<void> {
     try {
-        // Fetch all people for the user (only need id and timeline)
         const allPeople = await db.select({ id: people.id, timeline: people.timeline }).from(people).where(eq(people.userId, userId));
 
         if (!allPeople || allPeople.length === 0) {
@@ -23,7 +22,7 @@ export async function recalculateNetworkStrengthForUser(userId: string): Promise
         // Calculate interaction count for each person
         const peopleWithCounts = allPeople.map((p) => ({
             id: p.id,
-            count: getInteractionCount((p.timeline as any[] | null) ?? []),
+            count: getInteractionCount(p.timeline as any[]),
         }));
 
         // Sort by interaction count (descending)
@@ -31,31 +30,27 @@ export async function recalculateNetworkStrengthForUser(userId: string): Promise
 
         const totalPeople = peopleWithCounts.length;
 
-        // Calculate network strength for each person and prepare updates
-        const updates = peopleWithCounts.map((person, index) => {
-            const percentile = (totalPeople - index) / totalPeople;
-            let strength: "HIGH" | "MEDIUM" | "LOW";
+        // Calculate network strength for each person and batch update
+        await Promise.all(
+            peopleWithCounts.map(async (person, index) => {
+                const percentile = (totalPeople - index) / totalPeople;
+                let strength: "HIGH" | "MEDIUM" | "LOW";
 
-            if (person.count === 0) {
-                strength = "LOW";
-            } else if (percentile > 0.8) {
-                strength = "HIGH";
-            } else if (percentile <= 0.2) {
-                strength = "LOW";
-            } else {
-                strength = "MEDIUM";
-            }
+                if (person.count === 0) {
+                    strength = "LOW";
+                } else if (percentile > 0.8) {
+                    strength = "HIGH";
+                } else if (percentile <= 0.2) {
+                    strength = "LOW";
+                } else {
+                    strength = "MEDIUM";
+                }
 
-            return {
-                id: person.id,
-                network_strength: strength,
-            };
-        });
+                await db.update(people).set({ networkStrength: strength }).where(eq(people.id, person.id));
+            }),
+        );
 
-        // Batch update all people's network strength
-        await Promise.all(updates.map((update) => db.update(people).set({ networkStrength: update.network_strength }).where(eq(people.id, update.id))));
-
-        console.log(`Recalculated network strength for ${updates.length} people`);
+        console.log(`Recalculated network strength for ${peopleWithCounts.length} people`);
     } catch (error) {
         console.error("Error recalculating network strength:", error);
     }

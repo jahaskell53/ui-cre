@@ -2,16 +2,21 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockDb } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+    },
 }));
 
 vi.mock("@/utils/supabase/server", () => ({
     createClient: vi.fn().mockResolvedValue({
         auth: { getUser: mockGetUser },
-        from: mockFrom,
     }),
+}));
+
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 function makeRequest(params?: Record<string, string>) {
@@ -37,11 +42,9 @@ describe("GET /api/people/network-strength", () => {
 
     it("returns networkStrength for a person", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-        const mockSingle = vi.fn().mockResolvedValue({ data: { network_strength: "HIGH" }, error: null });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([{ networkStrength: "HIGH" }]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeRequest({ id: "p-1" }));
         const body = await res.json();
@@ -50,13 +53,11 @@ describe("GET /api/people/network-strength", () => {
         expect(body.networkStrength).toBe("HIGH");
     });
 
-    it("defaults to MEDIUM when network_strength is null", async () => {
+    it("defaults to MEDIUM when networkStrength is null", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-        const mockSingle = vi.fn().mockResolvedValue({ data: { network_strength: null }, error: null });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([{ networkStrength: null }]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeRequest({ id: "p-1" }));
         const body = await res.json();
@@ -66,11 +67,9 @@ describe("GET /api/people/network-strength", () => {
 
     it("returns 404 when person not found", async () => {
         mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } });
-        const mockEq2 = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
-        mockFrom.mockReturnValue({ select: mockSelect });
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeRequest({ id: "bad-id" }));
         expect(res.status).toBe(404);
