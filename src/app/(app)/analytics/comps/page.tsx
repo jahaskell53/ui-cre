@@ -1494,7 +1494,7 @@ function CompsContent() {
                                                     </td>
                                                     <td className="px-4 py-3 text-right text-xs text-gray-500">{metersToMiles(comp.distance_m)} mi</td>
                                                     <td className="px-4 py-3 text-right">
-                                                        <span className={cn("text-sm font-semibold tabular-nums", scoreColor(comp.composite_score))}>
+                                                        <span className={cn("text-sm font-semibold tabular-nums", getScoreColor(comp.composite_score))}>
                                                             {Math.round(comp.composite_score * 100)}
                                                         </span>
                                                     </td>
