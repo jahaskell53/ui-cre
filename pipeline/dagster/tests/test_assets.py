@@ -296,6 +296,48 @@ class TestCleanedListings:
         assert meta(output, "inserted") == 1
         assert meta(output, "failed") == 1
 
+    def test_skips_townhouse_and_multifamily_listings(self):
+        supabase, client = make_supabase()
+
+        latest_mock = MagicMock()
+        latest_mock.data = [{"run_id": "run-1", "scraped_at": "2024-01-01T00:00:00Z"}]
+
+        raw_rows_mock = MagicMock()
+        raw_rows_mock.data = [
+            {
+                "id": "row-1",
+                "zip_code": "94102",
+                "scraped_at": "2024-01-01T00:00:00Z",
+                "raw_json": [
+                    {"zpid": "1", "address": "123 Main St", "hdpData": {"homeInfo": {"homeType": "TOWNHOUSE"}}},
+                    {"zpid": "2", "address": "456 Oak Ave", "hdpData": {"homeInfo": {"homeType": "MULTI_FAMILY"}}},
+                    {"zpid": "3", "address": "789 Pine St", "hdpData": {"homeInfo": {"homeType": "APARTMENT"}}},
+                ],
+            }
+        ]
+
+        order_chain = MagicMock()
+        order_chain.limit.return_value.execute.return_value = latest_mock
+        eq_chain = MagicMock()
+        eq_chain.execute.return_value = raw_rows_mock
+        select_mock = MagicMock()
+        select_mock.order.return_value = order_chain
+        select_mock.eq.return_value = eq_chain
+        client.table.return_value.select.return_value = select_mock
+        client.rpc.return_value.execute.return_value = MagicMock()
+
+        with patch("zillow_pipeline.assets.cleaned_listings.normalize_address", return_value={"house_number": "123", "road": "Main St"}):
+            with build_asset_context() as ctx:
+                output = cleaned_listings(
+                    context=ctx,
+                    config=CleaningConfig(),
+                    supabase=supabase,
+                )
+
+        assert meta(output, "inserted") == 1
+        assert meta(output, "total_processed") == 1
+        assert client.rpc.call_count == 1
+
 
 # ─── raw_building_scrapes ────────────────────────────────────────────────────
 
