@@ -1,8 +1,10 @@
+import { eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { articles, newsletterArticles, newsletters } from "@/db/schema";
 import { sendAlertEmail } from "@/lib/news/alert";
 import { fetchArticlesForNewsletter } from "@/lib/news/newsletter-utils";
 import { PreferredSendTime, getActiveSubscribers } from "@/lib/news/subscribers";
-import { createAdminClient } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minute timeout
@@ -22,7 +24,6 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const supabase = createAdminClient();
         const now = new Date();
         const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         console.log(`Looking for subscribers who want newsletters at: ${oneHourFromNow.toISOString()}`);
 
         // Get all active subscribers
-        const subscribers = await getActiveSubscribers(supabase);
+        const subscribers = await getActiveSubscribers();
         console.log(`Found ${subscribers.length} active subscribers`);
 
         if (subscribers.length === 0) {
@@ -76,35 +77,34 @@ export async function GET(request: NextRequest) {
                 const allArticles = [...nationalArticles, ...localArticles];
 
                 // Create newsletter record in database with status "scheduled"
-                const { data: newsletter, error: newsletterError } = await supabase
-                    .from("newsletters")
-                    .insert({
-                        subscriber_email: subscriber.email,
+                const [newsletter] = await db
+                    .insert(newsletters)
+                    .values({
+                        subscriberEmail: subscriber.email,
                         status: "scheduled",
-                        scheduled_send_at: scheduledSendAt.toISOString(),
-                        subject: null, // Will be generated when sending
+                        scheduledSendAt: scheduledSendAt.toISOString(),
+                        subject: null,
                     })
-                    .select("id")
-                    .single();
+                    .returning({ id: newsletters.id });
 
-                if (newsletterError || !newsletter) {
-                    console.error(`Error creating newsletter for ${subscriber.email}:`, newsletterError);
+                if (!newsletter) {
+                    console.error(`Error creating newsletter for ${subscriber.email}`);
                     continue;
                 }
 
                 // Create newsletter article associations
                 const articleLinks = allArticles.map((article) => article.link);
-                const { data: dbArticles } = await supabase.from("articles").select("id, link").in("link", articleLinks);
+                const dbArticles = await db.select({ id: articles.id, link: articles.link }).from(articles).where(inArray(articles.link, articleLinks));
 
-                const validArticleIds = (dbArticles || []).map((a) => a.id);
+                const validArticleIds = dbArticles.map((a) => a.id);
 
                 if (validArticleIds.length > 0) {
-                    const newsletterArticles = validArticleIds.map((articleId) => ({
-                        newsletter_id: newsletter.id,
-                        article_id: articleId,
-                    }));
-
-                    await supabase.from("newsletter_articles").insert(newsletterArticles);
+                    await db.insert(newsletterArticles).values(
+                        validArticleIds.map((articleId) => ({
+                            newsletterId: newsletter.id,
+                            articleId: articleId,
+                        })),
+                    );
                 }
 
                 preparedCount++;

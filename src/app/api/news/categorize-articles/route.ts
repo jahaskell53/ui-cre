@@ -1,7 +1,9 @@
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { articleCities, articleCounties, articleTags, articles } from "@/db/schema";
 import { checkArticleRelevance, getArticleTags, getCityCategories, getCountyCategories } from "@/lib/news/categorization";
 import { getCountyIds } from "@/lib/news/counties";
-import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minute timeout for long-running categorization
@@ -28,24 +30,16 @@ export async function GET(request: Request) {
         }
         console.log("Authentication successful");
 
-        const supabase = await createClient();
-
         // Fetch uncategorized articles (limit to batch size to avoid timeout)
         const BATCH_SIZE = 50;
-        const { data: articles, error: fetchError } = await supabase
-            .from("articles")
-            .select("id, title, description, link")
-            .eq("is_categorized", false)
-            .eq("is_relevant", true) // Only categorize relevant articles
-            .order("date", { ascending: false })
+        const fetchedArticles = await db
+            .select({ id: articles.id, title: articles.title, description: articles.description, link: articles.link })
+            .from(articles)
+            .where(and(eq(articles.isCategorized, false), eq(articles.isRelevant, true)))
+            .orderBy(desc(articles.date))
             .limit(BATCH_SIZE);
 
-        if (fetchError) {
-            console.error("Error fetching uncategorized articles:", fetchError);
-            return NextResponse.json({ ok: false, error: fetchError.message }, { status: 500 });
-        }
-
-        if (!articles || articles.length === 0) {
+        if (!fetchedArticles || fetchedArticles.length === 0) {
             console.log("No uncategorized articles found");
             return NextResponse.json({
                 ok: true,
@@ -54,13 +48,13 @@ export async function GET(request: Request) {
             });
         }
 
-        console.log(`Found ${articles.length} uncategorized articles to process`);
+        console.log(`Found ${fetchedArticles.length} uncategorized articles to process`);
 
         // Step 1: Check relevance for articles that haven't been checked yet
         const relevanceStartTime = Date.now();
         console.log("Checking article relevance...");
 
-        const articleInputs = articles.map((a: Article) => ({
+        const articleInputs = fetchedArticles.map((a: Article) => ({
             title: a.title,
             description: a.description || undefined,
         }));
@@ -70,15 +64,15 @@ export async function GET(request: Request) {
         console.log(`Relevance check completed in ${timings.relevance}ms`);
 
         // Filter out irrelevant articles
-        const relevantArticles = articles.filter((_: Article, i: number) => relevanceResults[i]);
-        const irrelevantArticles = articles.filter((_: Article, i: number) => !relevanceResults[i]);
+        const relevantArticles = fetchedArticles.filter((_: Article, i: number) => relevanceResults[i]);
+        const irrelevantArticles = fetchedArticles.filter((_: Article, i: number) => !relevanceResults[i]);
 
         console.log(`${relevantArticles.length} relevant, ${irrelevantArticles.length} irrelevant`);
 
         // Mark irrelevant articles
         if (irrelevantArticles.length > 0) {
             const irrelevantIds = irrelevantArticles.map((a: Article) => a.id);
-            await supabase.from("articles").update({ is_relevant: false, is_categorized: true }).in("id", irrelevantIds);
+            await db.update(articles).set({ isRelevant: false, isCategorized: true }).where(inArray(articles.id, irrelevantIds));
             console.log(`Marked ${irrelevantArticles.length} articles as irrelevant`);
         }
 
@@ -87,7 +81,7 @@ export async function GET(request: Request) {
             return NextResponse.json({
                 ok: true,
                 results: {
-                    processed: articles.length,
+                    processed: fetchedArticles.length,
                     relevant: 0,
                     irrelevant: irrelevantArticles.length,
                 },
@@ -142,46 +136,46 @@ export async function GET(request: Request) {
         let savedCount = 0;
         for (let i = 0; i < relevantArticles.length; i++) {
             const article = relevantArticles[i];
-            const counties = countyResults[i] || ["Other"];
+            const articleCountyNames = countyResults[i] || ["Other"];
             const cities = cityResults[i] || [];
             const tags = tagResults[i] || [];
 
             try {
                 // Get county IDs
-                const countyIds = await getCountyIds(counties);
+                const countyIds = await getCountyIds(articleCountyNames);
 
                 // Insert county links
                 if (countyIds.length > 0) {
                     const countyLinks = countyIds.map((countyId) => ({
-                        article_id: article.id,
-                        county_id: countyId,
+                        articleId: article.id,
+                        countyId: countyId,
                     }));
 
-                    await supabase.from("article_counties").upsert(countyLinks, { onConflict: "article_id,county_id", ignoreDuplicates: true });
+                    await db.insert(articleCounties).values(countyLinks).onConflictDoNothing();
                 }
 
                 // Insert city links
                 if (cities.length > 0) {
                     const cityLinks = cities.map((city: string) => ({
-                        article_id: article.id,
+                        articleId: article.id,
                         city: city,
                     }));
 
-                    await supabase.from("article_cities").upsert(cityLinks, { onConflict: "article_id,city", ignoreDuplicates: true });
+                    await db.insert(articleCities).values(cityLinks).onConflictDoNothing();
                 }
 
                 // Insert tag links
                 if (tags.length > 0) {
                     const tagLinks = tags.map((tag: string) => ({
-                        article_id: article.id,
+                        articleId: article.id,
                         tag: tag,
                     }));
 
-                    await supabase.from("article_tags").upsert(tagLinks, { onConflict: "article_id,tag", ignoreDuplicates: true });
+                    await db.insert(articleTags).values(tagLinks).onConflictDoNothing();
                 }
 
                 // Mark article as categorized
-                await supabase.from("articles").update({ is_categorized: true }).eq("id", article.id);
+                await db.update(articles).set({ isCategorized: true }).where(eq(articles.id, article.id));
 
                 savedCount++;
             } catch (error) {
@@ -207,7 +201,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             ok: true,
             results: {
-                processed: articles.length,
+                processed: fetchedArticles.length,
                 relevant: relevantArticles.length,
                 irrelevant: irrelevantArticles.length,
                 categorized: savedCount,

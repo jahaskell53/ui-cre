@@ -1,4 +1,7 @@
+import { desc, eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { articleCounties, articleTags, articles, counties, sources } from "@/db/schema";
 import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -19,56 +22,73 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
 
-        // Get user's profile to check for newsletter preferences
-        const { data: profile } = await supabase.from("profiles").select("subscriber_id, newsletter_active").eq("id", user.id).single();
+        // Fetch articles with source join
+        const articleRows = await db
+            .select({
+                id: articles.id,
+                title: articles.title,
+                link: articles.link,
+                description: articles.description,
+                image_url: articles.imageUrl,
+                date: articles.date,
+                source_name: sources.sourceName,
+            })
+            .from(articles)
+            .leftJoin(sources, eq(articles.sourceId, sources.sourceId))
+            .where(eq(articles.isRelevant, true))
+            .orderBy(desc(articles.date))
+            .limit(limit)
+            .offset(offset);
 
-        // Build the query for articles
-        // For now, return recent relevant articles
-        // Later we can filter by user's county/city preferences via subscriber_id
-        const { data: articles, error } = await supabase
-            .from("articles")
-            .select(
-                `
-        id,
-        title,
-        link,
-        description,
-        image_url,
-        date,
-        source_id,
-        sources!articles_source_id_fkey (
-          source_name
-        ),
-        article_counties (
-          counties (
-            name
-          )
-        ),
-        article_tags (
-          tag
-        )
-      `,
-            )
-            .eq("is_relevant", true)
-            .order("date", { ascending: false })
-            .range(offset, offset + limit - 1);
-
-        if (error) {
-            console.error("Error fetching articles:", error);
-            return NextResponse.json({ error: "Failed to fetch articles" }, { status: 500 });
+        if (articleRows.length === 0) {
+            return NextResponse.json([]);
         }
 
-        // Transform the data to flatten the nested structures
-        const transformedArticles = (articles || []).map((article: any) => ({
+        const articleIds = articleRows.map((a) => a.id);
+
+        // Fetch counties for all articles
+        const countyRows = await db
+            .select({
+                article_id: articleCounties.articleId,
+                county_name: counties.name,
+            })
+            .from(articleCounties)
+            .leftJoin(counties, eq(articleCounties.countyId, counties.id))
+            .where(inArray(articleCounties.articleId, articleIds));
+
+        // Fetch tags for all articles
+        const tagRows = await db
+            .select({
+                article_id: articleTags.articleId,
+                tag: articleTags.tag,
+            })
+            .from(articleTags)
+            .where(inArray(articleTags.articleId, articleIds));
+
+        // Build county/tag lookups
+        const countyByArticle = new Map<string, string[]>();
+        const tagByArticle = new Map<string, string[]>();
+
+        for (const row of countyRows) {
+            if (!countyByArticle.has(row.article_id)) countyByArticle.set(row.article_id, []);
+            if (row.county_name) countyByArticle.get(row.article_id)!.push(row.county_name);
+        }
+
+        for (const row of tagRows) {
+            if (!tagByArticle.has(row.article_id)) tagByArticle.set(row.article_id, []);
+            if (row.tag) tagByArticle.get(row.article_id)!.push(row.tag);
+        }
+
+        const transformedArticles = articleRows.map((article) => ({
             id: article.id,
             title: article.title,
             link: article.link,
             description: article.description,
             image_url: article.image_url,
             date: article.date,
-            source_name: article.sources?.source_name || "Unknown",
-            counties: article.article_counties?.map((ac: any) => ac.counties?.name).filter(Boolean) || [],
-            tags: article.article_tags?.map((at: any) => at.tag).filter(Boolean) || [],
+            source_name: article.source_name || "Unknown",
+            counties: countyByArticle.get(article.id) || [],
+            tags: tagByArticle.get(article.id) || [],
         }));
 
         return NextResponse.json(transformedArticles);

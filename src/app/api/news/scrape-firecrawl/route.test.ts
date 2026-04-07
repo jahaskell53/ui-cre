@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockGetFirecrawlSources, mockSanitizeImageUrl, mockFrom } = vi.hoisted(() => ({
+const { mockGetFirecrawlSources, mockSanitizeImageUrl, mockDb } = vi.hoisted(() => ({
     mockGetFirecrawlSources: vi.fn(),
     mockSanitizeImageUrl: vi.fn((url: string) => url || ""),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        insert: vi.fn(),
+    },
 }));
 
 vi.mock("@/lib/news/news-sources", () => ({
@@ -16,8 +19,8 @@ vi.mock("@/lib/news/counties", () => ({
     getCountyIds: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 // Mock p-retry to just call the function directly
@@ -31,18 +34,21 @@ function makeRequest(authHeader?: string) {
     });
 }
 
-function setupSupabaseMocks() {
-    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-    const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { code: "PGRST116" } });
-    const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-    const mockInsertSelect = vi.fn().mockResolvedValue({ data: { id: "art-new" }, error: null });
-    const mockInsert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockInsertSelect }) });
-
-    mockFrom.mockImplementation((table: string) => {
-        if (table === "sources") return { upsert: mockUpsert };
-        return { select: mockSelect, insert: mockInsert };
+function setupDbMocks() {
+    // insert().values().onConflictDoNothing() → sources upsert
+    // insert().values().returning().onConflictDoNothing() → article insert
+    const mockOnConflictDoNothing = vi.fn().mockResolvedValue([]);
+    const mockReturning = vi.fn().mockReturnValue({ onConflictDoNothing: vi.fn().mockResolvedValue([{ id: "art-new" }]) });
+    const mockValues = vi.fn().mockReturnValue({
+        onConflictDoNothing: mockOnConflictDoNothing,
+        returning: mockReturning,
     });
+    mockDb.insert.mockReturnValue({ values: mockValues });
+
+    // select().from().where() → check existing article
+    const mockWhere = vi.fn().mockResolvedValue([]);
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+    mockDb.select.mockReturnValue({ from: mockFrom });
 }
 
 describe("GET /api/news/scrape-firecrawl — auth", () => {
@@ -66,7 +72,7 @@ describe("GET /api/news/scrape-firecrawl — no sources", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.CRON_SECRET = "secret";
-        setupSupabaseMocks();
+        setupDbMocks();
     });
 
     it("returns ok:true with empty results when no firecrawl sources", async () => {
@@ -103,7 +109,7 @@ describe("GET /api/news/scrape-firecrawl — with sources", () => {
 
     it("skips source with no URL", async () => {
         mockGetFirecrawlSources.mockResolvedValue([{ sourceId: "src-1", sourceName: "Source 1", url: null }]);
-        setupSupabaseMocks();
+        setupDbMocks();
 
         const res = await GET(makeRequest("Bearer secret"));
         const body = await res.json();
@@ -114,7 +120,7 @@ describe("GET /api/news/scrape-firecrawl — with sources", () => {
 
     it("scrapes articles from a source", async () => {
         mockGetFirecrawlSources.mockResolvedValue([{ sourceId: "crenews", sourceName: "CRE News", url: "https://crenews.com" }]);
-        setupSupabaseMocks();
+        setupDbMocks();
 
         vi.stubGlobal(
             "fetch",

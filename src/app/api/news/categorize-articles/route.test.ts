@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockFrom, mockCheckRelevance, mockGetCountyCategories, mockGetCityCategories, mockGetArticleTags, mockGetCountyIds } = vi.hoisted(() => ({
-    mockFrom: vi.fn(),
+const { mockDb, mockCheckRelevance, mockGetCountyCategories, mockGetCityCategories, mockGetArticleTags, mockGetCountyIds } = vi.hoisted(() => ({
+    mockDb: {
+        select: vi.fn(),
+        update: vi.fn(),
+        insert: vi.fn(),
+    },
     mockCheckRelevance: vi.fn(),
     mockGetCountyCategories: vi.fn(),
     mockGetCityCategories: vi.fn(),
@@ -10,8 +14,8 @@ const { mockFrom, mockCheckRelevance, mockGetCountyCategories, mockGetCityCatego
     mockGetCountyIds: vi.fn(),
 }));
 
-vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 vi.mock("@/lib/news/categorization", () => ({
@@ -32,23 +36,31 @@ function makeRequest(authHeader?: string) {
 }
 
 function setupArticlesFetch(articles: unknown[], error: unknown = null) {
-    const mockLimit = vi.fn().mockResolvedValue({ data: articles, error });
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit });
-    const mockEq2 = vi.fn().mockReturnValue({ order: mockOrder });
-    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq1 });
+    if (error) {
+        mockDb.select.mockImplementation(() => {
+            throw error;
+        });
+        return {};
+    }
 
-    const mockIn = vi.fn().mockResolvedValue({ error: null });
-    const mockUpdate = vi.fn().mockReturnValue({ in: mockIn, eq: vi.fn().mockResolvedValue({ error: null }) });
-    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+    // Articles fetch: select().from().where().orderBy().limit()
+    const mockLimit = vi.fn().mockResolvedValue(articles);
+    const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+    const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+    const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+    mockDb.select.mockReturnValue({ from: mockFrom });
 
-    mockFrom.mockImplementation(() => ({
-        select: mockSelect,
-        update: mockUpdate,
-        upsert: mockUpsert,
-    }));
+    // update().set().where()
+    const mockUpdateWhere = vi.fn().mockResolvedValue([]);
+    const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+    mockDb.update.mockReturnValue({ set: mockSet });
 
-    return { mockUpdate };
+    // insert().values().onConflictDoNothing()
+    const mockOnConflict = vi.fn().mockResolvedValue([]);
+    const mockValues = vi.fn().mockReturnValue({ onConflictDoNothing: mockOnConflict });
+    mockDb.insert.mockReturnValue({ values: mockValues });
+
+    return { mockSet };
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

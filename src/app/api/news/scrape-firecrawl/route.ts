@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import pRetry from "p-retry";
+import { db } from "@/db";
+import { articleCities, articleCounties, articleTags, articles, sources } from "@/db/schema";
 import { getCountyIds } from "@/lib/news/counties";
 import { getFirecrawlSources, sanitizeImageUrl } from "@/lib/news/news-sources";
-import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -143,64 +145,55 @@ async function scrapeWithFirecrawl(targetUrl: string, sourceName: string, feedKe
     return mapped;
 }
 
-// Helper function to save articles to Supabase
-async function saveArticlesToDatabase(articles: ArticleItem[], sourceId: string, sourceName?: string, isCategorized: boolean = false): Promise<number> {
+// Helper function to save articles to DB using Drizzle
+async function saveArticlesToDatabase(articleItems: ArticleItem[], sourceId: string, sourceName?: string, isCategorized: boolean = false): Promise<number> {
     let saved = 0;
-    const supabase = await createClient();
 
     // Ensure source exists in sources table
-    await supabase.from("sources").upsert(
-        {
-            source_id: sourceId,
-            source_name: sourceName || sourceId,
-        },
-        { onConflict: "source_id" },
-    );
+    await db
+        .insert(sources)
+        .values({
+            sourceId: sourceId,
+            sourceName: sourceName || sourceId,
+        })
+        .onConflictDoNothing();
 
-    for (const article of articles) {
+    for (const article of articleItems) {
         try {
             const articleSourceId = article.source || sourceId;
 
             // Ensure the article's source exists
             if (articleSourceId !== sourceId) {
-                await supabase.from("sources").upsert(
-                    {
-                        source_id: articleSourceId,
-                        source_name: articleSourceId,
-                    },
-                    { onConflict: "source_id" },
-                );
+                await db
+                    .insert(sources)
+                    .values({
+                        sourceId: articleSourceId,
+                        sourceName: articleSourceId,
+                    })
+                    .onConflictDoNothing();
             }
 
-            // Upsert article (ON CONFLICT DO NOTHING pattern)
-            const { data: existingArticle } = await supabase.from("articles").select("id").eq("link", article.link).single();
+            // Check if article already exists
+            const [existingArticle] = await db.select({ id: articles.id }).from(articles).where(eq(articles.link, article.link));
 
             if (existingArticle) {
                 // Article already exists, skip
                 continue;
             }
 
-            const { data: createdArticle, error: insertError } = await supabase
-                .from("articles")
-                .insert({
+            const [createdArticle] = await db
+                .insert(articles)
+                .values({
                     link: article.link,
                     title: article.title,
-                    source_id: articleSourceId,
+                    sourceId: articleSourceId,
                     date: new Date(article.date).toISOString(),
-                    image_url: article.imageUrl || null,
+                    imageUrl: article.imageUrl || null,
                     description: article.description || null,
-                    is_categorized: isCategorized,
+                    isCategorized: isCategorized,
                 })
-                .select("id")
-                .single();
-
-            if (insertError) {
-                // Unique constraint violation - article already exists
-                if (insertError.code === "23505") {
-                    continue;
-                }
-                throw insertError;
-            }
+                .returning({ id: articles.id })
+                .onConflictDoNothing();
 
             if (!createdArticle) continue;
 
@@ -210,36 +203,42 @@ async function saveArticlesToDatabase(articles: ArticleItem[], sourceId: string,
                 if (article.counties && article.counties.length > 0) {
                     const countyIds = await getCountyIds(article.counties);
                     if (countyIds.length > 0) {
-                        await supabase.from("article_counties").upsert(
-                            countyIds.map((countyId) => ({
-                                article_id: createdArticle.id,
-                                county_id: countyId,
-                            })),
-                            { onConflict: "article_id,county_id", ignoreDuplicates: true },
-                        );
+                        await db
+                            .insert(articleCounties)
+                            .values(
+                                countyIds.map((countyId) => ({
+                                    articleId: createdArticle.id,
+                                    countyId: countyId,
+                                })),
+                            )
+                            .onConflictDoNothing();
                     }
                 }
 
                 // Insert cities
                 if (article.cities && article.cities.length > 0) {
-                    await supabase.from("article_cities").upsert(
-                        article.cities.map((city) => ({
-                            article_id: createdArticle.id,
-                            city: city,
-                        })),
-                        { onConflict: "article_id,city", ignoreDuplicates: true },
-                    );
+                    await db
+                        .insert(articleCities)
+                        .values(
+                            article.cities.map((city) => ({
+                                articleId: createdArticle.id,
+                                city: city,
+                            })),
+                        )
+                        .onConflictDoNothing();
                 }
 
                 // Insert tags
                 if (article.tags && article.tags.length > 0) {
-                    await supabase.from("article_tags").upsert(
-                        article.tags.map((tag) => ({
-                            article_id: createdArticle.id,
-                            tag: tag,
-                        })),
-                        { onConflict: "article_id,tag", ignoreDuplicates: true },
-                    );
+                    await db
+                        .insert(articleTags)
+                        .values(
+                            article.tags.map((tag) => ({
+                                articleId: createdArticle.id,
+                                tag: tag,
+                            })),
+                        )
+                        .onConflictDoNothing();
                 }
             }
 
@@ -288,9 +287,9 @@ export async function GET(request: Request) {
                 console.log(`📰 Processing ${source.sourceId} (${source.sourceName})`);
                 const scraped = await scrapeWithFirecrawl(source.url, source.sourceName, source.sourceId);
                 console.log(`✅ ${source.sourceId}: Found ${scraped.length} articles`);
-                const saved = await saveArticlesToDatabase(scraped, source.sourceId, source.sourceName);
-                console.log(`💾 Saved ${saved} articles to database for ${source.sourceId}`);
-                return { key: source.sourceId, loaded: saved };
+                const savedCount = await saveArticlesToDatabase(scraped, source.sourceId, source.sourceName);
+                console.log(`💾 Saved ${savedCount} articles to database for ${source.sourceId}`);
+                return { key: source.sourceId, loaded: savedCount };
             } catch (error) {
                 console.error(`❌ Error processing ${source.sourceId}:`, error);
                 return { key: source.sourceId, loaded: 0 };

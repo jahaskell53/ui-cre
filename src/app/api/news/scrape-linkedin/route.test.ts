@@ -9,7 +9,7 @@ const {
     mockGetCityCategories,
     mockGetArticleTags,
     mockGetCountyIds,
-    mockFrom,
+    mockDb,
     mockApifyCall,
     mockApifyListItems,
 } = vi.hoisted(() => ({
@@ -19,7 +19,10 @@ const {
     mockGetCityCategories: vi.fn(),
     mockGetArticleTags: vi.fn(),
     mockGetCountyIds: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        insert: vi.fn(),
+    },
     mockApifyCall: vi.fn(),
     mockApifyListItems: vi.fn(),
 }));
@@ -39,8 +42,8 @@ vi.mock("@/lib/news/counties", () => ({
     getCountyIds: mockGetCountyIds,
 }));
 
-vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 vi.mock("apify-client", () => ({
@@ -154,19 +157,20 @@ describe("GET /api/news/scrape-linkedin — happy path", () => {
         mockGetArticleTags.mockResolvedValue([["multifamily"]]);
         mockGetCountyIds.mockResolvedValue(["county-1"]);
 
-        const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: { code: "PGRST116" } });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        const mockInsertSingle = vi.fn().mockResolvedValue({ data: { id: "art-1" }, error: null });
-        const mockInsert = vi.fn().mockReturnValue({
-            select: vi.fn().mockReturnValue({ single: mockInsertSingle }),
+        // insert().values().onConflictDoNothing() for sources
+        // insert().values().returning().onConflictDoNothing() for articles
+        const mockOnConflictDoNothing = vi.fn().mockResolvedValue([]);
+        const mockReturning = vi.fn().mockReturnValue({ onConflictDoNothing: vi.fn().mockResolvedValue([{ id: "art-1" }]) });
+        const mockValues = vi.fn().mockReturnValue({
+            onConflictDoNothing: mockOnConflictDoNothing,
+            returning: mockReturning,
         });
+        mockDb.insert.mockReturnValue({ values: mockValues });
 
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "sources") return { upsert: mockUpsert };
-            return { select: mockSelect, insert: mockInsert, upsert: mockUpsert };
-        });
+        // select().from().where() → no existing article
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeRequest("Bearer secret"));
         const body = await res.json();

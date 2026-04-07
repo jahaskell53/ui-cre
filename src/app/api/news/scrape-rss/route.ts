@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import Parser from "rss-parser";
+import { db } from "@/db";
+import { articleCities, articleCounties, articleTags, articles, sources } from "@/db/schema";
 import { getCountyIds } from "@/lib/news/counties";
 import { getRssFeeds, sanitizeImageUrl } from "@/lib/news/news-sources";
-import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -140,64 +142,49 @@ async function fetchOpenGraphImage(articleUrl: string): Promise<string | undefin
     return undefined;
 }
 
-// Helper function to save articles to Supabase with proper handling of relations
-async function saveArticlesToDatabase(articles: ArticleItem[], sourceId: string, sourceName?: string, isCategorized: boolean = false): Promise<number> {
+// Helper function to save articles to database using Drizzle
+async function saveArticlesToDatabase(articleItems: ArticleItem[], sourceId: string, sourceName?: string, isCategorized: boolean = false): Promise<number> {
     let saved = 0;
-    const supabase = await createClient();
 
     // Ensure source exists in sources table
-    const { error: upsertError } = await supabase.from("sources").upsert(
-        {
-            source_id: sourceId,
-            source_name: sourceName || sourceId,
-        },
-        { onConflict: "source_id" },
-    );
+    await db
+        .insert(sources)
+        .values({
+            sourceId: sourceId,
+            sourceName: sourceName || sourceId,
+        })
+        .onConflictDoNothing();
 
-    if (upsertError) {
-        console.error("Error upserting source:", upsertError);
-    }
-
-    for (const article of articles) {
+    for (const article of articleItems) {
         try {
             // Use article.source if provided, otherwise use the passed sourceId
             const articleSourceId = article.source || sourceId;
 
             // Ensure the article's source exists
             if (articleSourceId !== sourceId) {
-                await supabase.from("sources").upsert(
-                    {
-                        source_id: articleSourceId,
-                        source_name: articleSourceId,
-                    },
-                    { onConflict: "source_id" },
-                );
+                await db
+                    .insert(sources)
+                    .values({
+                        sourceId: articleSourceId,
+                        sourceName: articleSourceId,
+                    })
+                    .onConflictDoNothing();
             }
 
             // Upsert article (ON CONFLICT DO NOTHING pattern)
-            const { data: createdArticle, error: articleError } = await supabase
-                .from("articles")
-                .upsert(
-                    {
-                        link: article.link,
-                        title: article.title,
-                        source_id: articleSourceId,
-                        date: new Date(article.date).toISOString(),
-                        image_url: article.imageUrl || null,
-                        description: article.description || null,
-                        is_categorized: isCategorized,
-                    },
-                    { onConflict: "link", ignoreDuplicates: true },
-                )
-                .select("id")
-                .single();
-
-            if (articleError) {
-                // Skip duplicates
-                if (articleError.code === "23505") continue;
-                console.error(`Error saving article ${article.link}:`, articleError);
-                continue;
-            }
+            const [createdArticle] = await db
+                .insert(articles)
+                .values({
+                    link: article.link,
+                    title: article.title,
+                    sourceId: articleSourceId,
+                    date: new Date(article.date).toISOString(),
+                    imageUrl: article.imageUrl || null,
+                    description: article.description || null,
+                    isCategorized: isCategorized,
+                })
+                .returning({ id: articles.id })
+                .onConflictDoNothing();
 
             if (!createdArticle) continue;
 
@@ -206,32 +193,43 @@ async function saveArticlesToDatabase(articles: ArticleItem[], sourceId: string,
                 // Insert counties
                 if (article.counties && article.counties.length > 0) {
                     const countyIds = await getCountyIds(article.counties);
-                    const countyLinks = countyIds.map((countyId) => ({
-                        article_id: createdArticle.id,
-                        county_id: countyId,
-                    }));
-
-                    await supabase.from("article_counties").upsert(countyLinks, { onConflict: "article_id,county_id", ignoreDuplicates: true });
+                    if (countyIds.length > 0) {
+                        await db
+                            .insert(articleCounties)
+                            .values(
+                                countyIds.map((countyId) => ({
+                                    articleId: createdArticle.id,
+                                    countyId: countyId,
+                                })),
+                            )
+                            .onConflictDoNothing();
+                    }
                 }
 
                 // Insert cities
                 if (article.cities && article.cities.length > 0) {
-                    const cityLinks = article.cities.map((city) => ({
-                        article_id: createdArticle.id,
-                        city: city,
-                    }));
-
-                    await supabase.from("article_cities").upsert(cityLinks, { onConflict: "article_id,city", ignoreDuplicates: true });
+                    await db
+                        .insert(articleCities)
+                        .values(
+                            article.cities.map((city) => ({
+                                articleId: createdArticle.id,
+                                city: city,
+                            })),
+                        )
+                        .onConflictDoNothing();
                 }
 
                 // Insert tags
                 if (article.tags && article.tags.length > 0) {
-                    const tagLinks = article.tags.map((tag) => ({
-                        article_id: createdArticle.id,
-                        tag: tag,
-                    }));
-
-                    await supabase.from("article_tags").upsert(tagLinks, { onConflict: "article_id,tag", ignoreDuplicates: true });
+                    await db
+                        .insert(articleTags)
+                        .values(
+                            article.tags.map((tag) => ({
+                                articleId: createdArticle.id,
+                                tag: tag,
+                            })),
+                        )
+                        .onConflictDoNothing();
                 }
             }
 
@@ -315,8 +313,6 @@ export async function GET(request: Request) {
         const today = new Date().toISOString().split("T")[0];
         console.log("Processing date:", today);
 
-        const supabase = await createClient();
-
         // Process RSS feeds
         const rssStartTime = Date.now();
         console.log("Starting RSS feed processing...");
@@ -335,15 +331,14 @@ export async function GET(request: Request) {
                 articlesBySource.get(article.source)!.push(article);
             }
 
-            // Save articles grouped by source
+            // Save articles grouped by source; look up source name from DB
             let totalSaved = 0;
-            for (const [sourceId, articles] of articlesBySource.entries()) {
-                // Get the source name from database
-                const { data: source } = await supabase.from("sources").select("source_name").eq("source_id", sourceId).single();
+            for (const [sourceIdKey, sourceArticles] of articlesBySource.entries()) {
+                const [sourceRow] = await db.select({ sourceName: sources.sourceName }).from(sources).where(eq(sources.sourceId, sourceIdKey));
 
-                const saved = await saveArticlesToDatabase(articles, sourceId, source?.source_name || sourceId);
-                totalSaved += saved;
-                console.log(`Saved ${saved} articles from ${sourceId} to database`);
+                const savedCount = await saveArticlesToDatabase(sourceArticles, sourceIdKey, sourceRow?.sourceName || sourceIdKey);
+                totalSaved += savedCount;
+                console.log(`Saved ${savedCount} articles from ${sourceIdKey} to database`);
             }
 
             results["rss"] = { loaded: totalSaved };

@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockGetRssFeeds, mockFrom, mockParseURL } = vi.hoisted(() => ({
+const { mockGetRssFeeds, mockDb, mockParseURL } = vi.hoisted(() => ({
     mockGetRssFeeds: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        insert: vi.fn(),
+    },
     mockParseURL: vi.fn(),
 }));
 
@@ -16,8 +19,8 @@ vi.mock("@/lib/news/counties", () => ({
     getCountyIds: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 // Mock rss-parser so no real network calls are made
@@ -34,28 +37,23 @@ function makeRequest(authHeader?: string) {
 }
 
 function setupSourceAndArticleMocks() {
-    const mockSourceSingle = vi.fn().mockResolvedValue({ data: { source_name: "CRE News" }, error: null });
-    const mockSourceEq = vi.fn().mockReturnValue({ single: mockSourceSingle });
-    const mockSourceSelect = vi.fn().mockReturnValue({ eq: mockSourceEq });
-    const mockSourceUpsert = vi.fn().mockResolvedValue({ error: null });
-
-    const mockArticleSingle = vi.fn().mockResolvedValue({ data: { id: "art-1" }, error: null });
-    const mockArticleSelect = vi.fn().mockReturnValue({ single: mockArticleSingle });
-    const mockArticleUpsert = vi.fn().mockReturnValue({ select: mockArticleSelect });
-
-    mockFrom.mockImplementation((table: string) => {
-        if (table === "sources") {
-            return { select: mockSourceSelect, upsert: mockSourceUpsert };
-        }
-
-        if (table === "articles") {
-            return { upsert: mockArticleUpsert };
-        }
-
-        return {};
+    // insert().values().onConflictDoNothing() for sources and articles
+    let mockInsertValues: ReturnType<typeof vi.fn>;
+    const mockInsertOnConflict = vi.fn().mockResolvedValue([]);
+    const mockReturningOnConflict = vi.fn().mockResolvedValue([{ id: "art-1" }]);
+    const mockReturning = vi.fn().mockReturnValue({ onConflictDoNothing: mockReturningOnConflict });
+    mockInsertValues = vi.fn().mockReturnValue({
+        onConflictDoNothing: mockInsertOnConflict,
+        returning: mockReturning,
     });
+    mockDb.insert.mockReturnValue({ values: mockInsertValues });
 
-    return { mockArticleUpsert };
+    // select().from().where() → source name lookup
+    const mockSourceWhere = vi.fn().mockResolvedValue([{ sourceName: "CRE News" }]);
+    const mockSourceFrom = vi.fn().mockReturnValue({ where: mockSourceWhere });
+    mockDb.select.mockReturnValue({ from: mockSourceFrom });
+
+    return { mockInsertValues, mockReturning };
 }
 
 describe("GET /api/news/scrape-rss — auth", () => {
@@ -84,12 +82,19 @@ describe("GET /api/news/scrape-rss — processing", () => {
         process.env.CRON_SECRET = "secret";
         mockParseURL.mockResolvedValue({ items: [] });
 
-        // Default supabase mock: sources select + single for source name lookup
-        const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-        const mockEq = vi.fn().mockReturnValue({ single: mockSingle });
-        const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-        const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-        mockFrom.mockReturnValue({ select: mockSelect, upsert: mockUpsert });
+        // Default DB mock: sources lookup returns null, articles upsert returns nothing
+        const mockInsertOnConflict = vi.fn().mockResolvedValue([]);
+        const mockReturningOnConflict = vi.fn().mockResolvedValue([]);
+        const mockReturning = vi.fn().mockReturnValue({ onConflictDoNothing: mockReturningOnConflict });
+        const mockValues = vi.fn().mockReturnValue({
+            onConflictDoNothing: mockInsertOnConflict,
+            returning: mockReturning,
+        });
+        mockDb.insert.mockReturnValue({ values: mockValues });
+
+        const mockSourceWhere = vi.fn().mockResolvedValue([]);
+        const mockSourceFrom = vi.fn().mockReturnValue({ where: mockSourceWhere });
+        mockDb.select.mockReturnValue({ from: mockSourceFrom });
     });
 
     afterEach(() => {
@@ -131,7 +136,7 @@ describe("GET /api/news/scrape-rss — processing", () => {
 
     it("uses feed-provided images and snippets when saving parsed articles", async () => {
         mockGetRssFeeds.mockResolvedValue([{ sourceId: "crenews", sourceName: "CRE News", url: "https://crenews.com/rss" }]);
-        const { mockArticleUpsert } = setupSourceAndArticleMocks();
+        const { mockInsertValues } = setupSourceAndArticleMocks();
 
         mockParseURL.mockResolvedValue({
             items: [
@@ -151,22 +156,21 @@ describe("GET /api/news/scrape-rss — processing", () => {
         expect(res.status).toBe(200);
         expect(body.results.rss.loaded).toBe(1);
         expect(mockParseURL).toHaveBeenCalledWith("https://crenews.com/rss");
-        expect(mockArticleUpsert).toHaveBeenCalledWith(
+        expect(mockInsertValues).toHaveBeenCalledWith(
             expect.objectContaining({
                 link: "https://crenews.com/office-tower",
                 title: "Office tower sold",
-                source_id: "crenews",
+                sourceId: "crenews",
                 description: "A downtown tower traded hands.",
-                image_url: "https://cdn.example.com/tower.jpg",
-                is_categorized: false,
+                imageUrl: "https://cdn.example.com/tower.jpg",
+                isCategorized: false,
             }),
-            { onConflict: "link", ignoreDuplicates: true },
         );
     });
 
     it("falls back to the article Open Graph image when the feed has none", async () => {
         mockGetRssFeeds.mockResolvedValue([{ sourceId: "crenews", sourceName: "CRE News", url: "https://crenews.com/rss" }]);
-        const { mockArticleUpsert } = setupSourceAndArticleMocks();
+        const { mockInsertValues } = setupSourceAndArticleMocks();
 
         mockParseURL.mockResolvedValue({
             items: [
@@ -195,12 +199,11 @@ describe("GET /api/news/scrape-rss — processing", () => {
                 headers: { "User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)" },
             }),
         );
-        expect(mockArticleUpsert).toHaveBeenCalledWith(
+        expect(mockInsertValues).toHaveBeenCalledWith(
             expect.objectContaining({
-                image_url: "https://cdn.example.com/deal.jpg",
+                imageUrl: "https://cdn.example.com/deal.jpg",
                 description: "A major Boston deal closed.",
             }),
-            { onConflict: "link", ignoreDuplicates: true },
         );
     });
 

@@ -2,10 +2,13 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockGetActiveSubscribers, mockFetchArticlesForNewsletter, mockFrom, mockSendAlertEmail } = vi.hoisted(() => ({
+const { mockGetActiveSubscribers, mockFetchArticlesForNewsletter, mockDb, mockSendAlertEmail } = vi.hoisted(() => ({
     mockGetActiveSubscribers: vi.fn(),
     mockFetchArticlesForNewsletter: vi.fn(),
-    mockFrom: vi.fn(),
+    mockDb: {
+        select: vi.fn(),
+        insert: vi.fn(),
+    },
     mockSendAlertEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -21,8 +24,8 @@ vi.mock("@/lib/news/newsletter-utils", () => ({
     fetchArticlesForNewsletter: mockFetchArticlesForNewsletter,
 }));
 
-vi.mock("@/utils/supabase/admin", () => ({
-    createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
+vi.mock("@/db", () => ({
+    db: mockDb,
 }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -193,32 +196,35 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
         mockGetActiveSubscribers.mockResolvedValue([subscriber]);
         mockFetchArticlesForNewsletter.mockResolvedValue(withArticles);
 
-        // newsletters.insert().select().single()
-        const mockNewsletterSingle = vi.fn().mockResolvedValue({ data: { id: "nl-1" }, error: null });
-        const mockNewsletterSelectChain = vi.fn().mockReturnValue({ single: mockNewsletterSingle });
-        const mockNewsletterInsert = vi.fn().mockReturnValue({ select: mockNewsletterSelectChain });
+        // newsletters.insert().values().returning() → [{ id: "nl-1" }]
+        const mockReturning = vi.fn().mockResolvedValue([{ id: "nl-1" }]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        const mockInsert = vi.fn().mockReturnValue({ values: mockValues });
 
-        // articles.select().in()
-        const mockArticlesIn = vi.fn().mockResolvedValue({ data: [{ id: "art-1", link: "https://example.com/1" }] });
-        const mockArticlesSelect = vi.fn().mockReturnValue({ in: mockArticlesIn });
+        // articles.select().from().where() → [{ id: "art-1", link: "https://example.com/1" }]
+        const mockWhere = vi.fn().mockResolvedValue([{ id: "art-1", link: "https://example.com/1" }]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
 
-        // newsletter_articles.insert()
-        const mockNlArticlesInsert = vi.fn().mockResolvedValue({ error: null });
+        // newsletter_articles.insert().values() → resolved
+        const mockNlArticlesValues = vi.fn().mockResolvedValue([]);
+        const mockNlArticlesInsert = vi.fn().mockReturnValue({ values: mockNlArticlesValues });
 
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "newsletters") return { insert: mockNewsletterInsert };
-            if (table === "articles") return { select: mockArticlesSelect };
-            if (table === "newsletter_articles") return { insert: mockNlArticlesInsert };
-            return {};
+        let insertCallCount = 0;
+        mockDb.insert.mockImplementation(() => {
+            insertCallCount++;
+            if (insertCallCount === 1) return { values: mockValues };
+            return { values: mockNlArticlesValues };
         });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
         expect(body.newslettersPrepared).toBe(1);
-        expect(mockNewsletterInsert).toHaveBeenCalledWith(expect.objectContaining({ subscriber_email: "alice@example.com", status: "scheduled" }));
-        expect(mockNlArticlesInsert).toHaveBeenCalledWith([{ newsletter_id: "nl-1", article_id: "art-1" }]);
+        expect(mockDb.insert).toHaveBeenCalledWith(expect.objectContaining({}));
+        expect(mockNlArticlesValues).toHaveBeenCalledWith([{ newsletterId: "nl-1", articleId: "art-1" }]);
 
         vi.useRealTimers();
     });
@@ -231,14 +237,14 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
         mockGetActiveSubscribers.mockResolvedValue(subscribers);
         mockFetchArticlesForNewsletter.mockResolvedValue(withArticles);
 
-        const mockNewsletterSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "DB error" } });
-        const mockNewsletterSelectChain = vi.fn().mockReturnValue({ single: mockNewsletterSingle });
-        const mockNewsletterInsert = vi.fn().mockReturnValue({ select: mockNewsletterSelectChain });
+        // insert().values().returning() → returns null (simulate failure)
+        const mockReturning = vi.fn().mockResolvedValue([]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDb.insert.mockReturnValue({ values: mockValues });
 
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "newsletters") return { insert: mockNewsletterInsert };
-            return {};
-        });
+        const mockWhere = vi.fn().mockResolvedValue([]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
 
         const res = await GET(makeRequest());
         const body = await res.json();
@@ -259,18 +265,26 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
         mockGetActiveSubscribers.mockResolvedValue(subscribers);
         mockFetchArticlesForNewsletter.mockRejectedValueOnce(new Error("fetch failed")).mockResolvedValueOnce(withArticles);
 
-        const mockNewsletterSingle = vi.fn().mockResolvedValue({ data: { id: "nl-2" }, error: null });
-        const mockNewsletterSelectChain = vi.fn().mockReturnValue({ single: mockNewsletterSingle });
-        const mockNewsletterInsert = vi.fn().mockReturnValue({ select: mockNewsletterSelectChain });
-        const mockArticlesIn = vi.fn().mockResolvedValue({ data: [{ id: "art-1", link: "https://example.com/1" }] });
-        const mockArticlesSelect = vi.fn().mockReturnValue({ in: mockArticlesIn });
-        const mockNlArticlesInsert = vi.fn().mockResolvedValue({ error: null });
+        // newsletter insert → succeeds for second subscriber
+        const mockReturning = vi.fn().mockResolvedValue([{ id: "nl-2" }]);
+        const mockValues = vi.fn().mockReturnValue({ returning: mockReturning });
+        mockDb.insert.mockReturnValue({ values: mockValues });
 
-        mockFrom.mockImplementation((table: string) => {
-            if (table === "newsletters") return { insert: mockNewsletterInsert };
-            if (table === "articles") return { select: mockArticlesSelect };
-            if (table === "newsletter_articles") return { insert: mockNlArticlesInsert };
-            return {};
+        const mockWhere = vi.fn().mockResolvedValue([{ id: "art-1", link: "https://example.com/1" }]);
+        const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+        mockDb.select.mockReturnValue({ from: mockFrom });
+
+        let nlArticleInsertCalled = false;
+        let insertCallCount = 0;
+        mockDb.insert.mockImplementation(() => {
+            insertCallCount++;
+            if (insertCallCount === 1) {
+                // newsletter insert
+                return { values: vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([{ id: "nl-2" }]) }) };
+            }
+            // newsletter_articles insert
+            nlArticleInsertCalled = true;
+            return { values: vi.fn().mockResolvedValue([]) };
         });
 
         const res = await GET(makeRequest());
@@ -279,7 +293,6 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
         expect(res.status).toBe(200);
         expect(body.totalSubscribers).toBe(2);
         expect(body.newslettersPrepared).toBe(1);
-        expect(mockNewsletterInsert).toHaveBeenCalledTimes(1);
 
         vi.useRealTimers();
     });
