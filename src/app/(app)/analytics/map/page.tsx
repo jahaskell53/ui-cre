@@ -9,6 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+    getCityGeojson,
+    getCountyGeojson,
+    getMsaBbox,
+    getMsaGeojson,
+    getNeighborhoodBbox,
+    getNeighborhoodGeojson,
+    getZillowMapListings,
+    getZipBoundary,
+    searchMsas,
+    searchNeighborhoods,
+} from "@/db/rpc";
 import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
@@ -274,16 +286,12 @@ function MapPageInner() {
                     setAreaSuggestions([]);
                 }
             } else if (areaType === "neighborhood") {
-                const { data } = await supabase.rpc("search_neighborhoods", { p_query: areaInput });
-                setAreaSuggestions(
-                    ((data ?? []) as { id: number; name: string; city: string; state: string }[]).map((r) => ({ kind: "neighborhood" as const, ...r })),
-                );
+                const data = await searchNeighborhoods({ p_query: areaInput });
+                setAreaSuggestions(data.map((r) => ({ kind: "neighborhood" as const, ...r })));
                 setShowSuggestions(true);
             } else if (areaType === "msa") {
-                const { data } = await supabase.rpc("search_msas", { p_query: areaInput });
-                setAreaSuggestions(
-                    ((data ?? []) as { id: number; geoid: string; name: string; name_lsad: string }[]).map((r) => ({ kind: "msa" as const, ...r })),
-                );
+                const data = await searchMsas({ p_query: areaInput });
+                setAreaSuggestions(data.map((r) => ({ kind: "msa" as const, ...r })));
                 setShowSuggestions(true);
             } else {
                 const mapboxType = areaType === "city" ? "place" : "district";
@@ -317,8 +325,8 @@ function MapPageInner() {
         if (!v) return;
         setAreaFilter({ type: "zip", label: v, zipCode: v });
         setShowSuggestions(false);
-        const { data } = await supabase.rpc("get_zip_boundary", { p_zip: v });
-        if (data) setBoundaryGeoJSON(data as string);
+        const data = await getZipBoundary({ p_zip: v });
+        if (data) setBoundaryGeoJSON(data);
     };
 
     const selectSuggestion = async (s: AreaSuggestion) => {
@@ -332,32 +340,24 @@ function MapPageInner() {
             setAreaInput(zip);
             setAreaFilter({ type: "zip", label: zip, zipCode: zip, bbox });
             if (bbox) setFitBoundsTarget(bbox);
-            const { data } = await supabase.rpc("get_zip_boundary", { p_zip: zip });
-            if (data) setBoundaryGeoJSON(data as string);
+            const data = await getZipBoundary({ p_zip: zip });
+            if (data) setBoundaryGeoJSON(data);
         } else if (s.kind === "neighborhood") {
-            const [bboxRes, geojsonRes] = await Promise.all([
-                supabase.rpc("get_neighborhood_bbox", { p_neighborhood_id: s.id }),
-                supabase.rpc("get_neighborhood_geojson", { p_id: s.id }),
-            ]);
-            const row = (bboxRes.data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
-            const bbox: MapBounds | undefined = row ? { west: row.west, south: row.south, east: row.east, north: row.north } : undefined;
+            const [bboxRow, geojsonData] = await Promise.all([getNeighborhoodBbox({ p_neighborhood_id: s.id }), getNeighborhoodGeojson({ p_id: s.id })]);
+            const bbox: MapBounds | undefined = bboxRow ? { west: bboxRow.west, south: bboxRow.south, east: bboxRow.east, north: bboxRow.north } : undefined;
             const label = `${s.name} · ${s.city}`;
             setAreaInput(label);
             setAreaFilter({ type: "neighborhood", label, neighborhoodId: s.id, bbox });
             if (bbox) setFitBoundsTarget(bbox);
-            if (geojsonRes.data) setBoundaryGeoJSON(geojsonRes.data as string);
+            if (geojsonData) setBoundaryGeoJSON(geojsonData);
         } else if (s.kind === "msa") {
-            const [bboxRes, geojsonRes] = await Promise.all([
-                supabase.rpc("get_msa_bbox", { p_geoid: s.geoid }),
-                supabase.rpc("get_msa_geojson", { p_geoid: s.geoid }),
-            ]);
-            const row = (bboxRes.data as { west: number; south: number; east: number; north: number }[] | null)?.[0];
-            const bbox: MapBounds | undefined = row ? { west: row.west, south: row.south, east: row.east, north: row.north } : undefined;
+            const [bboxRow, geojsonData] = await Promise.all([getMsaBbox({ p_geoid: s.geoid }), getMsaGeojson({ p_geoid: s.geoid })]);
+            const bbox: MapBounds | undefined = bboxRow ? { west: bboxRow.west, south: bboxRow.south, east: bboxRow.east, north: bboxRow.north } : undefined;
             const label = s.name_lsad || s.name;
             setAreaInput(label);
             setAreaFilter({ type: "msa", label, msaGeoid: s.geoid, bbox });
             if (bbox) setFitBoundsTarget(bbox);
-            if (geojsonRes.data) setBoundaryGeoJSON(geojsonRes.data as string);
+            if (geojsonData) setBoundaryGeoJSON(geojsonData);
         } else {
             const feature = s.feature;
             const regionCtx = feature.context?.find((c) => c.id.startsWith("region."));
@@ -369,16 +369,16 @@ function MapPageInner() {
                 setAreaInput(label);
                 setAreaFilter({ type: "city", label, cityName: feature.text, cityState: stateCode, bbox });
                 if (bbox) setFitBoundsTarget(bbox);
-                const { data } = await supabase.rpc("get_city_geojson", { p_name: feature.text, p_state: stateCode });
-                if (data) setBoundaryGeoJSON(data as string);
+                const data = await getCityGeojson({ p_name: feature.text, p_state: stateCode });
+                if (data) setBoundaryGeoJSON(data);
             } else {
                 // county
                 const label = stateCode ? `${feature.text}, ${stateCode}` : feature.text;
                 setAreaInput(label);
                 setAreaFilter({ type: "county", label, countyName: feature.text, countyState: stateCode, bbox });
                 if (bbox) setFitBoundsTarget(bbox);
-                const { data } = await supabase.rpc("get_county_geojson", { p_name: feature.text, p_state: stateCode });
-                if (data) setBoundaryGeoJSON(data as string);
+                const data = await getCountyGeojson({ p_name: feature.text, p_state: stateCode });
+                if (data) setBoundaryGeoJSON(data);
             }
         }
     };
@@ -455,33 +455,35 @@ function MapPageInner() {
             }
 
             if (source === "zillow") {
-                const { data, error } = await supabase.rpc("get_zillow_map_listings", {
-                    p_zip: activeAreaFilter?.zipCode ?? null,
-                    p_city: activeAreaFilter?.cityName ?? null,
-                    p_address_query: activeAreaFilter?.addressQuery ?? null,
-                    p_latest_only: latestOnly,
-                    p_price_min: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
-                    p_price_max: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
-                    p_sqft_min: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
-                    p_sqft_max: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
-                    p_beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
-                    p_baths_min: currentFilters.bathsMin ?? null,
-                    p_home_types: currentFilters.homeTypes.length > 0 ? currentFilters.homeTypes : null,
-                    p_property_type: currentFilters.propertyType,
-                    p_bounds_south: effectiveBounds?.south ?? null,
-                    p_bounds_north: effectiveBounds?.north ?? null,
-                    p_bounds_west: effectiveBounds?.west ?? null,
-                    p_bounds_east: effectiveBounds?.east ?? null,
-                });
-                if (error) console.error("Error fetching zillow map listings:", error);
-                const rows = (data ?? []) as ZillowMapListingRow[];
-                setProperties(
-                    rows.map((row) => {
-                        const { _createdAt: _, ...p } = mapZillowRpcRow(row);
-                        return p;
-                    }),
-                );
-                setTotalCount(rows.length > 0 ? rows[0].total_count : 0);
+                try {
+                    const rows = await getZillowMapListings({
+                        p_zip: activeAreaFilter?.zipCode ?? null,
+                        p_city: activeAreaFilter?.cityName ?? null,
+                        p_address_query: activeAreaFilter?.addressQuery ?? null,
+                        p_latest_only: latestOnly,
+                        p_price_min: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                        p_price_max: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                        p_sqft_min: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                        p_sqft_max: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                        p_beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                        p_baths_min: currentFilters.bathsMin ?? null,
+                        p_home_types: currentFilters.homeTypes.length > 0 ? currentFilters.homeTypes : null,
+                        p_property_type: currentFilters.propertyType,
+                        p_bounds_south: effectiveBounds?.south ?? null,
+                        p_bounds_north: effectiveBounds?.north ?? null,
+                        p_bounds_west: effectiveBounds?.west ?? null,
+                        p_bounds_east: effectiveBounds?.east ?? null,
+                    });
+                    setProperties(
+                        rows.map((row) => {
+                            const { _createdAt: _, ...p } = mapZillowRpcRow(row);
+                            return p;
+                        }),
+                    );
+                    setTotalCount(rows.length > 0 ? rows[0].total_count : 0);
+                } catch (error) {
+                    console.error("Error fetching zillow map listings:", error);
+                }
                 setLoading(false);
                 return;
             }
@@ -597,20 +599,20 @@ function MapPageInner() {
         if (!areaFilter) return;
         (async () => {
             if (areaFilter.type === "zip" && areaFilter.zipCode) {
-                const { data } = await supabase.rpc("get_zip_boundary", { p_zip: areaFilter.zipCode });
-                if (data) setBoundaryGeoJSON(data as string);
+                const data = await getZipBoundary({ p_zip: areaFilter.zipCode });
+                if (data) setBoundaryGeoJSON(data);
             } else if (areaFilter.type === "neighborhood" && areaFilter.neighborhoodId != null) {
-                const { data } = await supabase.rpc("get_neighborhood_geojson", { p_id: areaFilter.neighborhoodId });
-                if (data) setBoundaryGeoJSON(data as string);
+                const data = await getNeighborhoodGeojson({ p_id: areaFilter.neighborhoodId });
+                if (data) setBoundaryGeoJSON(data);
             } else if (areaFilter.type === "msa" && areaFilter.msaGeoid) {
-                const { data } = await supabase.rpc("get_msa_geojson", { p_geoid: areaFilter.msaGeoid });
-                if (data) setBoundaryGeoJSON(data as string);
+                const data = await getMsaGeojson({ p_geoid: areaFilter.msaGeoid });
+                if (data) setBoundaryGeoJSON(data);
             } else if (areaFilter.type === "city" && areaFilter.cityName) {
-                const { data } = await supabase.rpc("get_city_geojson", { p_name: areaFilter.cityName, p_state: areaFilter.cityState ?? "" });
-                if (data) setBoundaryGeoJSON(data as string);
+                const data = await getCityGeojson({ p_name: areaFilter.cityName, p_state: areaFilter.cityState ?? "" });
+                if (data) setBoundaryGeoJSON(data);
             } else if (areaFilter.type === "county" && areaFilter.countyName) {
-                const { data } = await supabase.rpc("get_county_geojson", { p_name: areaFilter.countyName, p_state: areaFilter.countyState ?? "" });
-                if (data) setBoundaryGeoJSON(data as string);
+                const data = await getCountyGeojson({ p_name: areaFilter.countyName, p_state: areaFilter.countyState ?? "" });
+                if (data) setBoundaryGeoJSON(data);
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps

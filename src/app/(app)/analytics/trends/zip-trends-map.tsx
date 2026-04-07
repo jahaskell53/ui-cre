@@ -3,7 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { supabase } from "@/utils/supabase";
+import {
+    type MapRentTrendCityRow,
+    type MapRentTrendCountyRow,
+    type MapRentTrendMsaRow,
+    type MapRentTrendNeighborhoodRow,
+    type MapRentTrendZipRow,
+    getMapRentTrends,
+    getMapRentTrendsByCity,
+    getMapRentTrendsByCounty,
+    getMapRentTrendsByMsa,
+    getMapRentTrendsByNeighborhood,
+} from "@/db/rpc";
 import { AreaSelection, BED_KEYS, formatDollars } from "./trends-utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
@@ -15,55 +26,11 @@ const PERIOD_OPTIONS = [
     { weeks: 52, label: "1y" },
 ];
 
-interface ZipPoint {
-    zip: string;
-    geom_json: string;
-    current_median: number;
-    prior_median: number;
-    pct_change: number | null;
-    listing_count: number;
-}
-
-interface NhPoint {
-    neighborhood_id: number;
-    name: string;
-    city: string;
-    geom_json: string;
-    current_median: number;
-    prior_median: number;
-    pct_change: number | null;
-    listing_count: number;
-}
-
-interface CountyPoint {
-    county_name: string;
-    state: string;
-    geom_json: string;
-    current_median: number;
-    prior_median: number;
-    pct_change: number | null;
-    listing_count: number;
-}
-
-interface MsaPoint {
-    geoid: string;
-    name: string;
-    geom_json: string;
-    current_median: number;
-    prior_median: number;
-    pct_change: number | null;
-    listing_count: number;
-}
-
-interface CityPoint {
-    city_name: string;
-    state: string;
-    geom_json: string;
-    current_median: number;
-    prior_median: number;
-    pct_change: number | null;
-    listing_count: number;
-}
+type ZipPoint = MapRentTrendZipRow;
+type NhPoint = MapRentTrendNeighborhoodRow;
+type CountyPoint = MapRentTrendCountyRow;
+type MsaPoint = MapRentTrendMsaRow;
+type CityPoint = MapRentTrendCityRow;
 
 type MapPoint = ZipPoint | NhPoint | CountyPoint | MsaPoint | CityPoint;
 
@@ -132,20 +99,22 @@ export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas,
         setLoading(true);
         setData([]);
         const params = { p_beds: selectedBeds, p_weeks_back: weeksBack, p_reits_only: reitsOnly };
-        const rpc =
+        const fetcher: () => Promise<MapPoint[]> =
             areaType === "Neighborhood"
-                ? "get_map_rent_trends_by_neighborhood"
+                ? () => getMapRentTrendsByNeighborhood(params)
                 : areaType === "County"
-                  ? "get_map_rent_trends_by_county"
+                  ? () => getMapRentTrendsByCounty(params)
                   : areaType === "MSA"
-                    ? "get_map_rent_trends_by_msa"
+                    ? () => getMapRentTrendsByMsa(params)
                     : areaType === "City"
-                      ? "get_map_rent_trends_by_city"
-                      : "get_map_rent_trends";
-        supabase.rpc(rpc, params).then(({ data: rows, error }) => {
-            setLoading(false);
-            if (!error && rows) setData(rows as MapPoint[]);
-        });
+                      ? () => getMapRentTrendsByCity(params)
+                      : () => getMapRentTrends(params);
+        fetcher()
+            .then((rows) => {
+                setLoading(false);
+                setData(rows);
+            })
+            .catch(() => setLoading(false));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [areaType, selectedBeds, weeksBack, reitsOnly]);
 

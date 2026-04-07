@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { findNeighborhood, getAdjacentNeighborhoodsBatch, getComps, getZipBoundary } from "@/db/rpc";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/utils/supabase";
 
@@ -239,16 +240,15 @@ function CompsContent() {
 
     const refreshCandidates = useCallback(async (ids: number[]) => {
         if (!ids.length) return;
-        const { data } = await supabase.rpc("get_adjacent_neighborhoods_batch", { p_ids: ids });
-        if (!data) return;
+        const data = await getAdjacentNeighborhoodsBatch({ p_ids: ids });
         setNhDataCache((prev) => {
             const next = { ...prev };
-            (data as NhData[]).forEach((r) => {
+            data.forEach((r) => {
                 next[r.id] = r;
             });
             return next;
         });
-        setCandidateNhIds((data as NhData[]).map((r) => r.id));
+        setCandidateNhIds(data.map((r) => r.id));
     }, []);
 
     // Persist search params to URL without adding a history entry
@@ -329,10 +329,10 @@ function CompsContent() {
                         nhIdsForSearch = selectedNhIdsRef.current;
                         refreshCandidates(nhIdsForSearch);
                     } else {
-                        const { data: nhData } = await supabase.rpc("find_neighborhood", { p_lng: lng, p_lat: lat });
+                        const nhData = await findNeighborhood({ p_lng: lng, p_lat: lat });
                         if (gen !== searchGenRef.current) return;
-                        if (nhData && nhData.length > 0) {
-                            const nhId = nhData[0].id as number;
+                        if (nhData.length > 0) {
+                            const nhId = nhData[0].id;
                             nhIdsForSearch = [nhId];
                             lastNhDetectedRef.current = { lng, lat };
                             nhFittedRef.current = false;
@@ -358,71 +358,75 @@ function CompsContent() {
                             setNeighborhoodName(subjectZip ? `ZIP ${subjectZip}` : null);
                             setZipGeoJSON(null);
                             if (subjectZip) {
-                                supabase.rpc("get_zip_boundary", { p_zip: subjectZip }).then(({ data }) => {
-                                    if (data)
-                                        setZipGeoJSON({
-                                            type: "FeatureCollection",
-                                            features: [{ type: "Feature", geometry: JSON.parse(data), properties: { zip: subjectZip } }],
-                                        });
-                                });
+                                getZipBoundary({ p_zip: subjectZip })
+                                    .then((data) => {
+                                        if (data)
+                                            setZipGeoJSON({
+                                                type: "FeatureCollection",
+                                                features: [{ type: "Feature", geometry: JSON.parse(data), properties: { zip: subjectZip } }],
+                                            });
+                                    })
+                                    .catch(() => {});
                             }
                         }
                     }
                 }
 
-                const { data, error: rpcError } = await supabase.rpc("get_comps", {
-                    subject_lng: lng,
-                    subject_lat: lat,
-                    radius_m: p.radius * 1609.34,
-                    subject_price: p.price ? parseInt(p.price) : null,
-                    subject_beds: p.beds ? parseInt(p.beds) : null,
-                    subject_baths: p.baths ? parseFloat(p.baths) : null,
-                    subject_area: p.area ? parseInt(p.area) : null,
-
-                    p_segment: rentSegment,
-                    p_limit: 500,
-                    p_neighborhood_ids: p.filterMode === "neighborhood" ? nhIdsForSearch : null,
-                    p_neighborhood_id: null,
-                    p_subject_zip: p.filterMode === "neighborhood" && !nhIdsForSearch ? subjectZip : null,
-                    p_home_type: p.homeType || null,
-                });
+                let compsData: Omit<CompResult, "img_src" | "latitude" | "longitude">[];
+                try {
+                    compsData = (await getComps({
+                        subject_lng: lng,
+                        subject_lat: lat,
+                        radius_m: p.radius * 1609.34,
+                        subject_price: p.price ? parseInt(p.price) : null,
+                        subject_beds: p.beds ? parseInt(p.beds) : null,
+                        subject_baths: p.baths ? parseFloat(p.baths) : null,
+                        subject_area: p.area ? parseInt(p.area) : null,
+                        p_segment: rentSegment,
+                        p_limit: 500,
+                        p_neighborhood_ids: p.filterMode === "neighborhood" ? nhIdsForSearch : null,
+                        p_neighborhood_id: null,
+                        p_subject_zip: p.filterMode === "neighborhood" && !nhIdsForSearch ? subjectZip : null,
+                        p_home_type: p.homeType || null,
+                    })) as Omit<CompResult, "img_src" | "latitude" | "longitude">[];
+                } catch (rpcError) {
+                    if (gen !== searchGenRef.current) return;
+                    setError("Failed to find comps: " + (rpcError instanceof Error ? rpcError.message : String(rpcError)));
+                    if (gen === searchGenRef.current) setLoading(false);
+                    return;
+                }
 
                 if (gen !== searchGenRef.current) return;
 
-                if (rpcError) {
-                    setError("Failed to find comps: " + rpcError.message);
-                } else {
-                    const rows = (data ?? []) as Omit<CompResult, "img_src" | "latitude" | "longitude">[];
-                    const ids = rows.map((r) => r.id);
-                    const { data: metaData } = await supabase.from("cleaned_listings").select("id, img_src, latitude, longitude").in("id", ids);
+                const ids = compsData.map((r) => r.id);
+                const { data: metaData } = await supabase.from("cleaned_listings").select("id, img_src, latitude, longitude").in("id", ids);
 
-                    if (gen !== searchGenRef.current) return;
+                if (gen !== searchGenRef.current) return;
 
-                    const metaMap = Object.fromEntries(
-                        (metaData ?? []).map((r: any) => [
-                            r.id,
-                            {
-                                img_src: r.img_src as string | null,
-                                latitude: r.latitude as number | null,
-                                longitude: r.longitude as number | null,
-                            },
-                        ]),
-                    );
-                    const subjectStreet = p.addr.split(",")[0].trim().toLowerCase();
-                    const merged: CompResult[] = rows
-                        .map((r) => {
-                            const meta = metaMap[r.id] ?? {};
-                            return {
-                                ...r,
-                                img_src: meta.img_src ?? null,
-                                latitude: meta.latitude ?? null,
-                                longitude: meta.longitude ?? null,
-                            };
-                        })
-                        .filter((r) => (r.address_street || r.address_raw || "").split(",")[0].trim().toLowerCase() !== subjectStreet);
-                    setComps(merged);
-                    setCompsPage(1);
-                }
+                const metaMap = Object.fromEntries(
+                    (metaData ?? []).map((r: any) => [
+                        r.id,
+                        {
+                            img_src: r.img_src as string | null,
+                            latitude: r.latitude as number | null,
+                            longitude: r.longitude as number | null,
+                        },
+                    ]),
+                );
+                const subjectStreet = p.addr.split(",")[0].trim().toLowerCase();
+                const merged: CompResult[] = compsData
+                    .map((r) => {
+                        const meta = metaMap[r.id] ?? {};
+                        return {
+                            ...r,
+                            img_src: meta.img_src ?? null,
+                            latitude: meta.latitude ?? null,
+                            longitude: meta.longitude ?? null,
+                        };
+                    })
+                    .filter((r) => (r.address_street || r.address_raw || "").split(",")[0].trim().toLowerCase() !== subjectStreet);
+                setComps(merged);
+                setCompsPage(1);
             } catch (err) {
                 // Ignore errors from aborted (superseded) requests
                 if (err instanceof Error && err.name === "AbortError") return;
@@ -897,32 +901,34 @@ function CompsContent() {
 
         // Auto-detect neighborhood in background so it's ready before search
         const [lng, lat] = feature.center;
-        supabase.rpc("find_neighborhood", { p_lng: lng, p_lat: lat }).then(({ data: nhData }) => {
-            if (nhData && nhData.length > 0) {
-                const nhId = nhData[0].id as number;
-                lastNhDetectedRef.current = { lng, lat };
-                nhFittedRef.current = false;
-                const newCache: Record<number, NhData> = {
-                    [nhId]: { id: nhId, name: nhData[0].name, city: nhData[0].city, geojson: nhData[0].geojson },
-                };
-                setNhDataCache(newCache);
-                nhDataCacheRef.current = newCache;
-                setSelectedNhIds([nhId]);
-                selectedNhIdsRef.current = [nhId];
-                setCandidateNhIds([]);
-                setZipGeoJSON(null);
-                setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
-                refreshCandidates([nhId]);
-            } else {
-                // No neighborhood found — clear state, show ZIP if available
-                setSelectedNhIds([]);
-                setCandidateNhIds([]);
-                setNhDataCache({});
-                selectedNhIdsRef.current = [];
-                lastNhDetectedRef.current = null;
-                setNeighborhoodName(zip ? `ZIP ${zip}` : null);
-            }
-        });
+        findNeighborhood({ p_lng: lng, p_lat: lat })
+            .then((nhData) => {
+                if (nhData.length > 0) {
+                    const nhId = nhData[0].id;
+                    lastNhDetectedRef.current = { lng, lat };
+                    nhFittedRef.current = false;
+                    const newCache: Record<number, NhData> = {
+                        [nhId]: { id: nhId, name: nhData[0].name, city: nhData[0].city, geojson: nhData[0].geojson },
+                    };
+                    setNhDataCache(newCache);
+                    nhDataCacheRef.current = newCache;
+                    setSelectedNhIds([nhId]);
+                    selectedNhIdsRef.current = [nhId];
+                    setCandidateNhIds([]);
+                    setZipGeoJSON(null);
+                    setNeighborhoodName(`${nhData[0].name}, ${nhData[0].city}`);
+                    refreshCandidates([nhId]);
+                } else {
+                    // No neighborhood found — clear state, show ZIP if available
+                    setSelectedNhIds([]);
+                    setCandidateNhIds([]);
+                    setNhDataCache({});
+                    selectedNhIdsRef.current = [];
+                    lastNhDetectedRef.current = null;
+                    setNeighborhoodName(zip ? `ZIP ${zip}` : null);
+                }
+            })
+            .catch(() => {});
     };
 
     // Rent estimate banner removed

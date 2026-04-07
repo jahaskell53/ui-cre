@@ -4,7 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, BarChart2, Map, MapPin, Search, Table2, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/utils/supabase";
+import {
+    getMarketActivity,
+    getMarketActivityByCity,
+    getMarketActivityByCounty,
+    getMarketActivityByMsa,
+    getMarketActivityByNeighborhood,
+    getMsaAtPoint,
+    getNeighborhoodAtPoint,
+    getRentTrends,
+    getRentTrendsByCity,
+    getRentTrendsByCounty,
+    getRentTrendsByMsa,
+    getRentTrendsByNeighborhood,
+    searchMsas,
+    searchNeighborhoods,
+} from "@/db/rpc";
 import { MarketActivitySection } from "./market-activity-section";
 import { RentTrendsSection } from "./rent-trends-section";
 import { TrendsTableSection } from "./trends-table-section";
@@ -142,16 +157,16 @@ export default function TrendsPage() {
         suggestTimerRef.current = setTimeout(async () => {
             if (areaType === "MSA" && !addressMode) {
                 try {
-                    const { data } = await supabase.rpc("search_msas", { p_query: address });
-                    setMsaSuggestions((data ?? []) as { id: number; name: string; name_lsad: string; geoid: string }[]);
+                    const data = await searchMsas({ p_query: address });
+                    setMsaSuggestions(data);
                     setShowSuggestions(true);
                 } catch {
                     setMsaSuggestions([]);
                 }
             } else if (areaType === "Neighborhood" && !addressMode) {
                 try {
-                    const { data } = await supabase.rpc("search_neighborhoods", { p_query: address });
-                    setNhSuggestions((data ?? []) as NeighborhoodResult[]);
+                    const data = await searchNeighborhoods({ p_query: address });
+                    setNhSuggestions(data);
                     setShowSuggestions(true);
                 } catch {
                     setNhSuggestions([]);
@@ -209,12 +224,12 @@ export default function TrendsPage() {
         const [lng, lat] = pendingFeature.center;
         setPendingNh("loading");
         setPendingMsa("loading");
-        supabase
-            .rpc("get_neighborhood_at_point", { p_lat: lat, p_lng: lng })
-            .then(({ data }) => setPendingNh((data as { id: number; name: string; city: string }[] | null)?.[0] ?? null));
-        supabase
-            .rpc("get_msa_at_point", { p_lat: lat, p_lng: lng })
-            .then(({ data }) => setPendingMsa((data as { geoid: string; name: string }[] | null)?.[0] ?? null));
+        getNeighborhoodAtPoint({ p_lat: lat, p_lng: lng })
+            .then((rows) => setPendingNh(rows[0] ?? null))
+            .catch(() => setPendingNh(null));
+        getMsaAtPoint({ p_lat: lat, p_lng: lng })
+            .then((rows) => setPendingMsa(rows[0] ?? null))
+            .catch(() => setPendingMsa(null));
     }, [pendingFeature]);
 
     // Fetch when areas or filters change
@@ -232,21 +247,20 @@ export default function TrendsPage() {
             const isMsa = area.msaGeoid != null;
             const p = { p_beds: beds, p_reits_only: reitsOnly, p_home_type: selectedHomeType };
             const call = isNh
-                ? supabase.rpc("get_rent_trends_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], ...p })
+                ? getRentTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!], ...p })
                 : isCity
-                  ? supabase.rpc("get_rent_trends_by_city", { p_city: area.cityName!, p_state: area.cityState!, ...p })
+                  ? getRentTrendsByCity({ p_city: area.cityName!, p_state: area.cityState!, ...p })
                   : isCounty
-                    ? supabase.rpc("get_rent_trends_by_county", { p_county_name: area.countyName!, p_state: area.countyState!, ...p })
+                    ? getRentTrendsByCounty({ p_county_name: area.countyName!, p_state: area.countyState!, ...p })
                     : isMsa
-                      ? supabase.rpc("get_rent_trends_by_msa", { p_geoid: area.msaGeoid!, ...p })
-                      : supabase.rpc("get_rent_trends", { p_zip: area.id, ...p });
-            return call.then(({ data, error }) => {
-                if (error) {
+                      ? getRentTrendsByMsa({ p_geoid: area.msaGeoid!, ...p })
+                      : getRentTrends({ p_zip: area.id, ...p });
+            return call
+                .then((data) => data as TrendRow[])
+                .catch((error) => {
                     console.error(error);
                     return [] as TrendRow[];
-                }
-                return (data ?? []) as TrendRow[];
-            });
+                });
         };
 
         const fetchActivity = (area: AreaSelection, reitsOnly: boolean) => {
@@ -256,26 +270,25 @@ export default function TrendsPage() {
             const isMsa = area.msaGeoid != null;
             const ht = { p_home_type: selectedHomeType };
             const call = isNh
-                ? supabase.rpc("get_market_activity_by_neighborhood", { p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly, ...ht })
+                ? getMarketActivityByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!], p_reits_only: reitsOnly, ...ht })
                 : isCity
-                  ? supabase.rpc("get_market_activity_by_city", { p_city: area.cityName!, p_state: area.cityState!, p_reits_only: reitsOnly, ...ht })
+                  ? getMarketActivityByCity({ p_city: area.cityName!, p_state: area.cityState!, p_reits_only: reitsOnly, ...ht })
                   : isCounty
-                    ? supabase.rpc("get_market_activity_by_county", {
+                    ? getMarketActivityByCounty({
                           p_county_name: area.countyName!,
                           p_state: area.countyState!,
                           p_reits_only: reitsOnly,
                           ...ht,
                       })
                     : isMsa
-                      ? supabase.rpc("get_market_activity_by_msa", { p_geoid: area.msaGeoid!, p_reits_only: reitsOnly, ...ht })
-                      : supabase.rpc("get_market_activity", { p_zip: area.id, p_reits_only: reitsOnly, ...ht });
-            return call.then(({ data, error }) => {
-                if (error) {
+                      ? getMarketActivityByMsa({ p_geoid: area.msaGeoid!, p_reits_only: reitsOnly, ...ht })
+                      : getMarketActivity({ p_zip: area.id, p_reits_only: reitsOnly, ...ht });
+            return call
+                .then((data) => data as ActivityRow[])
+                .catch((error) => {
                     console.error(error);
                     return [] as ActivityRow[];
-                }
-                return (data ?? []) as ActivityRow[];
-            });
+                });
         };
 
         const multiSource = selectedSegment === "both";
@@ -426,16 +439,16 @@ export default function TrendsPage() {
             applyArea(key, { id: key, label, color, countyName, countyState: stateCode });
         } else if (granularity === "Neighborhood") {
             const [lng, lat] = feature.center;
-            const { data } = await supabase.rpc("get_neighborhood_at_point", { p_lat: lat, p_lng: lng });
-            const nh = (data as { id: number; name: string; city: string; state: string }[] | null)?.[0];
+            const rows = await getNeighborhoodAtPoint({ p_lat: lat, p_lng: lng });
+            const nh = rows[0];
             if (!nh) return;
             const key = `nh:${nh.id}`;
             if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
             applyArea(key, { id: key, label: `${nh.name} · ${nh.city}`, color, neighborhoodId: nh.id });
         } else if (granularity === "MSA") {
             const [lng, lat] = feature.center;
-            const { data } = await supabase.rpc("get_msa_at_point", { p_lat: lat, p_lng: lng });
-            const msa = (data as { id: number; name: string; name_lsad: string; geoid: string }[] | null)?.[0];
+            const msaRows = await getMsaAtPoint({ p_lat: lat, p_lng: lng });
+            const msa = msaRows[0];
             if (!msa) return;
             const key = `msa:${msa.geoid}`;
             if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_AREAS)) return;
