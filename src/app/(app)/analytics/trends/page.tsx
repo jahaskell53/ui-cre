@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, BarChart2, Map, MapPin, Search, Table2, TrendingUp, X } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BarChart2, Map, MapPin, Table2, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import {
@@ -744,11 +744,7 @@ export default function TrendsPage() {
                         {!pendingFeature && (selectedAreas.length === 0 || showAddInput || addressMode) && (
                             <div className="flex items-center gap-2">
                                 <div className="relative flex-1" ref={inputWrapperRef}>
-                                    {addressMode ? (
-                                        <MapPin className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-blue-500" />
-                                    ) : (
-                                        <Search className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-gray-400" />
-                                    )}
+                                    <MapPin className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-gray-400" />
                                     <Input
                                         placeholder={searchPlaceholder}
                                         value={address}
