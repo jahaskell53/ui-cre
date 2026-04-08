@@ -1181,6 +1181,7 @@ export const cleanedListings = pgTable(
         index("idx_cleaned_listings_geom")
             .using("gist", table.geom.asc().nullsLast().op("gist_geometry_ops_2d"))
             .where(sql`(geom IS NOT NULL)`),
+        index("idx_cleaned_listings_run_id_desc").using("btree", table.runId.desc().nullsFirst().op("text_ops")),
         foreignKey({
             columns: [table.rawScrapeId],
             foreignColumns: [rawZillowScrapes.id],
