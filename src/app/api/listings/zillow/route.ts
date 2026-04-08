@@ -25,18 +25,35 @@ export async function GET(request: NextRequest) {
             p_bounds_east: sp.has("bounds_east") ? parseFloat(sp.get("bounds_east")!) : null,
         };
 
+        const t0 = performance.now();
         const supabase = createAdminClient();
+        const tClientReady = performance.now();
+
         const { data, error } = await supabase.rpc("get_zillow_map_listings", params);
+        const tRpcDone = performance.now();
+
+        const clientMs = (tClientReady - t0).toFixed(1);
+        const rpcMs = (tRpcDone - tClientReady).toFixed(1);
+
+        const serverTiming = (extraMs?: string) =>
+            [
+                `client;dur=${clientMs};desc="Admin client init"`,
+                `rpc;dur=${rpcMs};desc="PostgREST RPC"`,
+                ...(extraMs ? [`serialize;dur=${extraMs};desc="JSON serialize"`] : []),
+                `total;dur=${(performance.now() - t0).toFixed(1)};desc="Total"`,
+            ].join(", ");
 
         if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
+            return NextResponse.json({ error: error.message }, { status: 500, headers: { "Server-Timing": serverTiming() } });
         }
 
         const rows = (data ?? []) as ZillowMapListingRow[];
+        const tSerialize = performance.now();
 
         return NextResponse.json(rows, {
             headers: {
                 "Cache-Control": "public, s-maxage=604800, stale-while-revalidate=86400",
+                "Server-Timing": serverTiming((tSerialize - tRpcDone).toFixed(1)),
             },
         });
     } catch (error: any) {
