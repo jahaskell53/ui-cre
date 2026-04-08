@@ -1,5 +1,3 @@
-import { supabase } from "@/utils/supabase";
-
 export interface MapRentTrendZipRow {
     zip: string;
     geom_json: string;
@@ -56,32 +54,35 @@ interface BaseMapRentTrendsParams {
     p_reits_only: boolean;
 }
 
+async function rpc<T>(fn: string, params: object): Promise<T[]> {
+    const res = await fetch("/api/rpc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fn, params }),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
 export async function getMapRentTrends(params: BaseMapRentTrendsParams): Promise<MapRentTrendZipRow[]> {
-    const { data, error } = await supabase.rpc("get_map_rent_trends", params);
-    if (error) throw error;
-    return (data ?? []) as MapRentTrendZipRow[];
+    return rpc("get_map_rent_trends", params);
 }
 
 export async function getMapRentTrendsByNeighborhood(params: BaseMapRentTrendsParams): Promise<MapRentTrendNeighborhoodRow[]> {
-    const { data, error } = await supabase.rpc("get_map_rent_trends_by_neighborhood", params);
-    if (error) throw error;
-    return (data ?? []) as MapRentTrendNeighborhoodRow[];
+    return rpc("get_map_rent_trends_by_neighborhood", params);
 }
 
 export async function getMapRentTrendsByCounty(params: BaseMapRentTrendsParams): Promise<MapRentTrendCountyRow[]> {
-    const { data, error } = await supabase.rpc("get_map_rent_trends_by_county", params);
-    if (error) throw error;
-    return (data ?? []) as MapRentTrendCountyRow[];
+    return rpc("get_map_rent_trends_by_county", params);
 }
 
 export async function getMapRentTrendsByMsa(params: BaseMapRentTrendsParams): Promise<MapRentTrendMsaRow[]> {
-    const { data, error } = await supabase.rpc("get_map_rent_trends_by_msa", params);
-    if (error) throw error;
-    return (data ?? []) as MapRentTrendMsaRow[];
+    return rpc("get_map_rent_trends_by_msa", params);
 }
 
 export async function getMapRentTrendsByCity(params: BaseMapRentTrendsParams): Promise<MapRentTrendCityRow[]> {
-    const { data, error } = await supabase.rpc("get_map_rent_trends_by_city", params);
-    if (error) throw error;
-    return (data ?? []) as MapRentTrendCityRow[];
+    return rpc("get_map_rent_trends_by_city", params);
 }

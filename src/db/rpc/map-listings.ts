@@ -1,5 +1,4 @@
 import { type ZillowMapListingRow } from "@/lib/map-listings";
-import { supabase } from "@/utils/supabase";
 
 export type { ZillowMapListingRow };
 
@@ -23,7 +22,14 @@ export interface GetZillowMapListingsParams {
 }
 
 export async function getZillowMapListings(params: GetZillowMapListingsParams): Promise<ZillowMapListingRow[]> {
-    const { data, error } = await supabase.rpc("get_zillow_map_listings", params);
-    if (error) throw error;
-    return (data ?? []) as ZillowMapListingRow[];
+    const res = await fetch("/api/rpc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fn: "get_zillow_map_listings", params }),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+    }
+    return res.json();
 }

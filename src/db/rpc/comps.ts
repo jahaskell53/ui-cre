@@ -1,5 +1,3 @@
-import { supabase } from "@/utils/supabase";
-
 export interface CompRow {
     id: string;
     address_raw: string | null;
@@ -34,7 +32,14 @@ export interface GetCompsParams {
 }
 
 export async function getComps(params: GetCompsParams): Promise<CompRow[]> {
-    const { data, error } = await supabase.rpc("get_comps", params);
-    if (error) throw error;
-    return (data ?? []) as CompRow[];
+    const res = await fetch("/api/rpc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fn: "get_comps", params }),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+    }
+    return res.json();
 }
