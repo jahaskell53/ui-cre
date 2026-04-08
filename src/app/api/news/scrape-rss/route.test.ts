@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
@@ -31,7 +32,7 @@ vi.mock("rss-parser", () => ({
 }));
 
 function makeRequest(authHeader?: string) {
-    return new Request("http://localhost/api/news/scrape-rss", {
+    return new NextRequest("http://localhost/api/news/scrape-rss", {
         headers: authHeader ? { authorization: authHeader } : {},
     });
 }

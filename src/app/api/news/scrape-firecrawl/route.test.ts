@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
@@ -29,7 +30,7 @@ vi.mock("p-retry", () => ({
 }));
 
 function makeRequest(authHeader?: string) {
-    return new Request("http://localhost/api/news/scrape-firecrawl", {
+    return new NextRequest("http://localhost/api/news/scrape-firecrawl", {
         headers: authHeader ? { authorization: authHeader } : {},
     });
 }

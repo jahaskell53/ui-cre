@@ -18,34 +18,20 @@ export async function GET(request: NextRequest) {
         }
 
         // Get unread notifications
-        let rows: Array<{
-            id: string;
-            type: string;
-            title: string | null;
-            content: string;
-            related_id: string | null;
-            created_at: string;
-            read_at: string | null;
-        }>;
-        try {
-            rows = await db
-                .select({
-                    id: notifications.id,
-                    type: notifications.type,
-                    title: notifications.title,
-                    content: notifications.content,
-                    related_id: notifications.relatedId,
-                    created_at: notifications.createdAt,
-                    read_at: notifications.readAt,
-                })
-                .from(notifications)
-                .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)))
-                .orderBy(desc(notifications.createdAt))
-                .limit(50);
-        } catch (dbError) {
-            console.error("Error fetching notifications:", dbError);
-            return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 });
-        }
+        const rows = await db
+            .select({
+                id: notifications.id,
+                type: notifications.type,
+                title: notifications.title,
+                content: notifications.content,
+                related_id: notifications.relatedId,
+                created_at: notifications.createdAt,
+                read_at: notifications.readAt,
+            })
+            .from(notifications)
+            .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)))
+            .orderBy(desc(notifications.createdAt))
+            .limit(50);
 
         // For message notifications, get sender info from the related message
         const formattedNotifications = await Promise.all(

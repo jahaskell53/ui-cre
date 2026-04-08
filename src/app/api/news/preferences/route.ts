@@ -30,7 +30,7 @@ export async function GET() {
             .where(eq(profiles.id, user.id));
 
         if (profileRows.length === 0) {
-            return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
+            return NextResponse.json({ error: "Profile not found" }, { status: 404 });
         }
 
         const profile = profileRows[0];
@@ -70,9 +70,9 @@ export async function GET() {
             counties: countyNames,
             cities: cityList,
         });
-    } catch (error) {
-        console.error("Error in preferences API:", error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in GET /api/news/preferences:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
 
@@ -216,8 +216,8 @@ export async function PUT(request: NextRequest) {
         }
 
         return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error("Error in preferences API:", error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in PUT /api/news/preferences:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }

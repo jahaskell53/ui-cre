@@ -92,8 +92,8 @@ export async function GET(request: NextRequest) {
         }));
 
         return NextResponse.json(transformedArticles);
-    } catch (error) {
-        console.error("Error in news articles API:", error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in GET /api/news/articles:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }

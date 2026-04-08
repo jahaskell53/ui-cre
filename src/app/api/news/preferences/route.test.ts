@@ -76,14 +76,14 @@ describe("GET /api/news/preferences", () => {
         expect(body.cities).toEqual([]);
     });
 
-    it("returns 500 on DB error (empty profile rows)", async () => {
+    it("returns 404 when profile is not found", async () => {
         authAs();
         const mockWhere = vi.fn().mockResolvedValue([]);
         const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
         mockDbSelect.mockReturnValue({ from: mockFrom });
 
         const res = await GET();
-        expect(res.status).toBe(500);
+        expect(res.status).toBe(404);
     });
 
     it("fetches counties and cities when subscriber_id is present", async () => {

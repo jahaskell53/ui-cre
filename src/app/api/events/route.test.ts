@@ -143,6 +143,12 @@ describe("GET /api/events", () => {
         expect(res.status).toBe(404);
     });
 
+    it("returns 401 when not authenticated", async () => {
+        noAuth();
+        const res = await GET(makeGet());
+        expect(res.status).toBe(401);
+    });
+
     it("returns 500 on DB error", async () => {
         authAs();
         const mockOrderBy = vi.fn().mockRejectedValue(new Error("DB error"));

@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { articleCities, articleCounties, articleTags, articles } from "@/db/schema";
 import { checkArticleRelevance, getArticleTags, getCityCategories, getCountyCategories } from "@/lib/news/categorization";
@@ -15,7 +15,7 @@ interface Article {
     link: string;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     const startTime = Date.now();
     const timings: Record<string, number> = {};
 
@@ -208,8 +208,8 @@ export async function GET(request: Request) {
             },
             timings,
         });
-    } catch (error) {
-        console.error("Error in categorization job:", error);
-        return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in GET /api/news/categorize-articles:", error);
+        return NextResponse.json({ ok: false, error: error.message || "Internal server error" }, { status: 500 });
     }
 }

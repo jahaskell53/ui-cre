@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
@@ -30,7 +31,7 @@ vi.mock("@/lib/news/counties", () => ({
 }));
 
 function makeRequest(authHeader?: string) {
-    return new Request("http://localhost/api/news/categorize-articles", {
+    return new NextRequest("http://localhost/api/news/categorize-articles", {
         headers: authHeader ? { authorization: authHeader } : {},
     });
 }

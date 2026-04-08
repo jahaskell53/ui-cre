@@ -17,11 +17,10 @@ export async function GET(request: NextRequest) {
     try {
         console.log("Starting newsletter preparation process...");
 
-        // Verify this is a legitimate cron request
         const authHeader = request.headers.get("authorization");
-        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
             console.log("UNAUTHORIZED: Invalid or missing auth header");
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
         }
 
         const now = new Date();
@@ -124,15 +123,15 @@ export async function GET(request: NextRequest) {
         console.log("Newsletter preparation completed:", result);
 
         return NextResponse.json(result);
-    } catch (error) {
-        console.error("Newsletter preparation error:", error);
+    } catch (error: any) {
+        console.error("Error in GET /api/news/prepare-newsletters:", error);
         await sendAlertEmail(
             "🚨 Newsletter prepare cron crashed",
             `The prepare-newsletters cron threw an unexpected error.\n\n` +
                 `Error: ${error instanceof Error ? error.message : String(error)}\n\n` +
                 `Check Vercel logs for the full stack trace.`,
         );
-        return NextResponse.json({ error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+        return NextResponse.json({ ok: false, error: error.message || "Internal server error" }, { status: 500 });
     }
 }
 
