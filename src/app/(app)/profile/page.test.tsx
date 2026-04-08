@@ -2,14 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 import ProfilePage from "./page";
 
 // Mock dependencies
 vi.mock("@/hooks/use-user");
 vi.mock("@/utils/supabase", () => ({
     supabase: {
-        from: vi.fn(),
+        auth: { signOut: vi.fn().mockResolvedValue({ error: null }) },
     },
 }));
 const mockPush = vi.fn();
@@ -50,6 +49,10 @@ const mockProfile = {
 describe("ProfilePage", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({}),
+        } as Response);
         vi.mocked(useUser).mockReturnValue({
             user: mockUser,
             profile: mockProfile,
@@ -71,13 +74,13 @@ describe("ProfilePage", () => {
 
     it("should update profile when save is clicked", async () => {
         const user = userEvent.setup();
-        const mockUpdate = vi.fn().mockResolvedValue({ error: null });
-
-        vi.mocked(supabase.from).mockReturnValue({
-            update: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue(mockUpdate),
-            }),
-        } as any);
+        const refreshProfile = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(useUser).mockReturnValue({
+            user: mockUser,
+            profile: mockProfile,
+            loading: false,
+            refreshProfile,
+        });
 
         render(<ProfilePage />);
 
@@ -89,8 +92,25 @@ describe("ProfilePage", () => {
         await user.click(saveButton);
 
         await waitFor(() => {
-            expect(supabase.from).toHaveBeenCalledWith("profiles");
+            expect(global.fetch).toHaveBeenCalledWith(
+                "/api/profile",
+                expect.objectContaining({
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                }),
+            );
         });
+
+        const fetchCall = vi.mocked(global.fetch).mock.calls.find((c) => c[0] === "/api/profile");
+        expect(fetchCall).toBeDefined();
+        const init = fetchCall![1] as RequestInit;
+        expect(JSON.parse(init.body as string)).toMatchObject({
+            full_name: "Updated Name",
+            website: "https://example.com",
+            avatar_url: "https://example.com/avatar.jpg",
+            roles: ["Property Owner"],
+        });
+        expect(refreshProfile).toHaveBeenCalled();
     });
 
     it("should toggle roles when checkbox is clicked", async () => {

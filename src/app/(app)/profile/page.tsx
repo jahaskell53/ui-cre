@@ -26,7 +26,7 @@ function BackIcon({ className }: { className?: string }) {
 export default function ProfilePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user, profile, loading } = useUser();
+    const { user, profile, loading, refreshProfile } = useUser();
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -95,18 +95,24 @@ export default function ProfilePage() {
         setMessage(null);
 
         try {
-            const { error: updateError } = await supabase
-                .from("profiles")
-                .update({
+            const response = await fetch("/api/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
                     full_name: fullName || null,
                     website: website || null,
                     avatar_url: avatarUrl,
                     roles: selectedRoles,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", user.id);
+                }),
+            });
 
-            if (updateError) throw updateError;
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to update profile");
+            }
+
+            await refreshProfile();
 
             setMessage("Profile updated successfully!");
             setTimeout(() => setMessage(null), 3000);
@@ -154,15 +160,19 @@ export default function ProfilePage() {
         setMessage(null);
 
         try {
-            const { error: updateError } = await supabase
-                .from("profiles")
-                .update({
-                    avatar_url: null,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", user.id);
+            const response = await fetch("/api/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ avatar_url: null }),
+            });
 
-            if (updateError) throw updateError;
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to remove profile photo");
+            }
+
+            await refreshProfile();
 
             setAvatarUrl(null);
             setMessage("Profile photo removed successfully!");
