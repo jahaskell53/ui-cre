@@ -43,11 +43,6 @@ import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
-function quantize(value: number, decimals: number = 2): number {
-    const factor = Math.pow(10, decimals);
-    return Math.round(value * factor) / factor;
-}
-
 async function fetchZillowListings(params: {
     zip: string | null;
     city: string | null;
@@ -60,10 +55,6 @@ async function fetchZillowListings(params: {
     beds: number[] | null;
     bathsMin: number | null;
     propertyType: "both" | "reit" | "mid";
-    boundsSouth: number | null;
-    boundsNorth: number | null;
-    boundsWest: number | null;
-    boundsEast: number | null;
 }): Promise<ZillowMapListingRow[]> {
     const sp = new URLSearchParams();
     if (params.zip) sp.set("zip", params.zip);
@@ -77,10 +68,6 @@ async function fetchZillowListings(params: {
     if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
     if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
     sp.set("property_type", params.propertyType);
-    if (params.boundsSouth !== null) sp.set("bounds_south", String(quantize(params.boundsSouth)));
-    if (params.boundsNorth !== null) sp.set("bounds_north", String(quantize(params.boundsNorth)));
-    if (params.boundsWest !== null) sp.set("bounds_west", String(quantize(params.boundsWest)));
-    if (params.boundsEast !== null) sp.set("bounds_east", String(quantize(params.boundsEast)));
 
     const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
     if (!response.ok) {
@@ -88,6 +75,11 @@ async function fetchZillowListings(params: {
         throw new Error(body.error ?? `HTTP ${response.status}`);
     }
     return response.json();
+}
+
+function filterToViewport(rows: ZillowMapListingRow[], bounds: MapBounds | null): ZillowMapListingRow[] {
+    if (!bounds) return rows;
+    return rows.filter((r) => r.latitude >= bounds.south && r.latitude <= bounds.north && r.longitude >= bounds.west && r.longitude <= bounds.east);
 }
 
 type AreaSuggestion =
@@ -119,6 +111,7 @@ function MapPageInner() {
         return isNaN(z) ? undefined : z;
     }, []);
 
+    const [allZillowRows, setAllZillowRows] = useState<ZillowMapListingRow[]>([]);
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -291,10 +284,9 @@ function MapPageInner() {
         async (activeAreaFilter: AreaFilter | null, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null, latestOnly: boolean) => {
             setLoading(true);
 
-            // Which bounds to use for geographic clipping
-            const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
-
+            // Loopnet: still server-side filtered (no edge caching concern, result set is small)
             if (source === "loopnet") {
+                const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
                 const params = new URLSearchParams();
                 if (latestOnly) params.set("latest_only", "1");
                 if (activeAreaFilter?.zipCode) params.set("zip", activeAreaFilter.zipCode);
@@ -326,6 +318,9 @@ function MapPageInner() {
                 return;
             }
 
+            // Zillow: fetch all rows matching non-spatial filters, then filter to viewport client-side.
+            // This keeps the API URL stable (no bbox params) so Vercel's edge cache serves all users
+            // from the same cached response regardless of where they are on the map.
             if (source === "zillow") {
                 try {
                     const rows = await fetchZillowListings({
@@ -340,20 +335,12 @@ function MapPageInner() {
                         beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
                         bathsMin: currentFilters.bathsMin ?? null,
                         propertyType: currentFilters.propertyType,
-                        boundsSouth: effectiveBounds?.south ?? null,
-                        boundsNorth: effectiveBounds?.north ?? null,
-                        boundsWest: effectiveBounds?.west ?? null,
-                        boundsEast: effectiveBounds?.east ?? null,
                     });
-                    setProperties(
-                        rows.map((row) => {
-                            const { _createdAt: _, ...p } = mapZillowRpcRow(row);
-                            return p;
-                        }),
-                    );
-                    setTotalCount(rows.length > 0 ? rows[0].total_count : 0);
+                    setAllZillowRows(rows);
+                    // Viewport filtering happens in a separate effect below
                 } catch (error) {
                     console.error("Error fetching zillow map listings:", error);
+                    setAllZillowRows([]);
                 }
                 setLoading(false);
                 return;
@@ -419,7 +406,33 @@ function MapPageInner() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Apply client-side viewport filter whenever the fetched Zillow rows or map bounds change.
+    // No network request — just a JS array filter over the already-fetched rows.
     useEffect(() => {
+        if (mapListingSource !== "zillow") return;
+        const effectiveBounds = areaFilter?.bbox ?? mapBounds;
+        const visible = filterToViewport(allZillowRows, effectiveBounds);
+        setProperties(
+            visible.map((row) => {
+                const { _createdAt: _, ...p } = mapZillowRpcRow(row);
+                return p;
+            }),
+        );
+        setTotalCount(visible.length);
+    }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
+
+    // Zillow: re-fetch only when non-spatial params change. mapBounds is intentionally excluded
+    // because panning is handled by the client-side filter effect above.
+    useEffect(() => {
+        if (mapListingSource !== "zillow") return;
+        if (!areaFilter && !mapBounds) return;
+        fetchProperties(areaFilter, filters, mapListingSource, null, showLatestOnly);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
+
+    // Loopnet: server-side bbox filtering, re-fetch on bounds changes too.
+    useEffect(() => {
+        if (mapListingSource !== "loopnet") return;
         if (!areaFilter && !mapBounds) return;
         fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
     }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);

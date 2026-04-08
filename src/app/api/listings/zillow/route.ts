@@ -19,10 +19,11 @@ export async function GET(request: NextRequest) {
             p_baths_min: sp.has("baths_min") ? parseFloat(sp.get("baths_min")!) : null,
             p_home_types: sp.has("home_types") ? sp.get("home_types")!.split(",") : null,
             p_property_type: (sp.get("property_type") ?? "both") as "both" | "reit" | "mid",
-            p_bounds_south: sp.has("bounds_south") ? parseFloat(sp.get("bounds_south")!) : null,
-            p_bounds_north: sp.has("bounds_north") ? parseFloat(sp.get("bounds_north")!) : null,
-            p_bounds_west: sp.has("bounds_west") ? parseFloat(sp.get("bounds_west")!) : null,
-            p_bounds_east: sp.has("bounds_east") ? parseFloat(sp.get("bounds_east")!) : null,
+            // Bounds are handled client-side so the API URL stays cacheable regardless of viewport.
+            p_bounds_south: null,
+            p_bounds_north: null,
+            p_bounds_west: null,
+            p_bounds_east: null,
         };
 
         const t0 = performance.now();

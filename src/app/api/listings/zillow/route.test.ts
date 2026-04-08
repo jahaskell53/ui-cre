@@ -65,10 +65,6 @@ describe("GET /api/listings/zillow", () => {
                 beds: "1,2",
                 baths_min: "1",
                 property_type: "reit",
-                bounds_south: "37.80",
-                bounds_north: "37.82",
-                bounds_west: "-122.26",
-                bounds_east: "-122.22",
             }),
         );
 
@@ -85,10 +81,10 @@ describe("GET /api/listings/zillow", () => {
             p_baths_min: 1,
             p_home_types: null,
             p_property_type: "reit",
-            p_bounds_south: 37.8,
-            p_bounds_north: 37.82,
-            p_bounds_west: -122.26,
-            p_bounds_east: -122.22,
+            p_bounds_south: null,
+            p_bounds_north: null,
+            p_bounds_west: null,
+            p_bounds_east: null,
         });
     });
 
@@ -100,10 +96,10 @@ describe("GET /api/listings/zillow", () => {
         expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.objectContaining({ p_property_type: "both" }));
     });
 
-    it("passes null bounds when not provided", async () => {
+    it("always passes null bounds regardless of any bounds query params", async () => {
         mockRpc.mockResolvedValue({ data: [], error: null });
 
-        await GET(makeGet({ zip: "94610" }));
+        await GET(makeGet({ bounds_south: "37.8", bounds_north: "37.82", bounds_west: "-122.26", bounds_east: "-122.22" }));
 
         expect(mockRpc).toHaveBeenCalledWith(
             "get_zillow_map_listings",
