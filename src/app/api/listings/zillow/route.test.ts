@@ -116,7 +116,7 @@ describe("GET /api/listings/zillow", () => {
         );
     });
 
-    it("returns 500 when rpc returns an error", async () => {
+    it("returns 500 with Server-Timing when rpc returns an error", async () => {
         mockRpc.mockResolvedValue({ data: null, error: { message: "RPC failed" } });
 
         const res = await GET(makeGet({ zip: "94610" }));
@@ -124,6 +124,7 @@ describe("GET /api/listings/zillow", () => {
 
         expect(res.status).toBe(500);
         expect(body.error).toBe("RPC failed");
+        expect(res.headers.get("Server-Timing")).toContain("rpc;dur=");
     });
 
     it("returns 500 when admin client throws", async () => {
