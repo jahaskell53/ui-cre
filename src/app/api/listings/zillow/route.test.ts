@@ -96,10 +96,28 @@ describe("GET /api/listings/zillow", () => {
         expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.objectContaining({ p_property_type: "both" }));
     });
 
-    it("always passes null bounds regardless of any bounds query params", async () => {
+    it("snaps bounds outward to 0.1° grid before passing to rpc", async () => {
         mockRpc.mockResolvedValue({ data: [], error: null });
 
-        await GET(makeGet({ bounds_south: "37.8", bounds_north: "37.82", bounds_west: "-122.26", bounds_east: "-122.22" }));
+        // south=37.82 floors to 37.8, north=37.85 ceils to 37.9
+        // west=-122.26 floors to -122.3, east=-122.22 ceils to -122.2
+        await GET(makeGet({ bounds_south: "37.82", bounds_north: "37.85", bounds_west: "-122.26", bounds_east: "-122.22" }));
+
+        expect(mockRpc).toHaveBeenCalledWith(
+            "get_zillow_map_listings",
+            expect.objectContaining({
+                p_bounds_south: 37.8,
+                p_bounds_north: 37.9,
+                p_bounds_west: -122.3,
+                p_bounds_east: -122.2,
+            }),
+        );
+    });
+
+    it("passes null bounds when none provided", async () => {
+        mockRpc.mockResolvedValue({ data: [], error: null });
+
+        await GET(makeGet({ zip: "94610" }));
 
         expect(mockRpc).toHaveBeenCalledWith(
             "get_zillow_map_listings",

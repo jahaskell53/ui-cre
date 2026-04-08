@@ -43,6 +43,12 @@ import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
+// Snap a coordinate outward to a 0.1° grid to ensure the server-side bbox always
+// contains the exact viewport. Client-side filterToViewport() trims to the exact edge.
+function snapOut(value: number, direction: "floor" | "ceil"): number {
+    return direction === "floor" ? Math.floor(value * 10) / 10 : Math.ceil(value * 10) / 10;
+}
+
 async function fetchZillowListings(params: {
     zip: string | null;
     city: string | null;
@@ -55,6 +61,7 @@ async function fetchZillowListings(params: {
     beds: number[] | null;
     bathsMin: number | null;
     propertyType: "both" | "reit" | "mid";
+    bounds: MapBounds | null;
 }): Promise<ZillowMapListingRow[]> {
     const sp = new URLSearchParams();
     if (params.zip) sp.set("zip", params.zip);
@@ -68,6 +75,12 @@ async function fetchZillowListings(params: {
     if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
     if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
     sp.set("property_type", params.propertyType);
+    if (params.bounds) {
+        sp.set("bounds_south", String(snapOut(params.bounds.south, "floor")));
+        sp.set("bounds_north", String(snapOut(params.bounds.north, "ceil")));
+        sp.set("bounds_west", String(snapOut(params.bounds.west, "floor")));
+        sp.set("bounds_east", String(snapOut(params.bounds.east, "ceil")));
+    }
 
     const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
     if (!response.ok) {
@@ -335,6 +348,7 @@ function MapPageInner() {
                         beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
                         bathsMin: currentFilters.bathsMin ?? null,
                         propertyType: currentFilters.propertyType,
+                        bounds: activeAreaFilter?.bbox ?? bounds,
                     });
                     setAllZillowRows(rows);
                     // Viewport filtering happens in a separate effect below
@@ -421,14 +435,23 @@ function MapPageInner() {
         setTotalCount(visible.length);
     }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
 
-    // Zillow: re-fetch only when non-spatial params change. mapBounds is intentionally excluded
-    // because panning is handled by the client-side filter effect above.
+    // Compute the snapped bounds so we can use them as the effect dependency.
+    // Panning within the same 0.1° tile produces the same snappedKey → no re-fetch.
+    const snappedBoundsKey = useMemo(() => {
+        const b = areaFilter?.bbox ?? mapBounds;
+        if (!b) return null;
+        return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
+    }, [areaFilter, mapBounds]);
+
+    // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
+    // The server receives a 0.1°-snapped bbox; client-side filterToViewport() trims to the exact viewport.
     useEffect(() => {
         if (mapListingSource !== "zillow") return;
-        if (!areaFilter && !mapBounds) return;
-        fetchProperties(areaFilter, filters, mapListingSource, null, showLatestOnly);
+        if (!snappedBoundsKey) return;
+        const b = areaFilter?.bbox ?? mapBounds;
+        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
+    }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
 
     // Loopnet: server-side bbox filtering, re-fetch on bounds changes too.
     useEffect(() => {
