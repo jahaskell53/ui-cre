@@ -1,4 +1,4 @@
-import { ilike, ne } from "drizzle-orm";
+import { ilike } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { profiles } from "@/db/schema";

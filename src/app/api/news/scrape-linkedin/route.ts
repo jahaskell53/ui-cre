@@ -77,20 +77,11 @@ export async function GET(request: NextRequest) {
     try {
         console.log("🔗 Starting LinkedIn scraping via Apify...");
 
-        // Check for authorization header
         const authHeader = request.headers.get("authorization");
-        const expectedToken = process.env.ADMIN_SECRET || process.env.CRON_SECRET;
-
-        if (!expectedToken) {
-            console.error("ADMIN_SECRET or CRON_SECRET not configured");
-            return NextResponse.json({ error: "Admin access not configured" }, { status: 500 });
+        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            console.log("UNAUTHORIZED: Invalid or missing auth header");
+            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
         }
-
-        if (authHeader !== `Bearer ${expectedToken}`) {
-            console.error("Unauthorized attempt to scrape LinkedIn");
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
         console.log("✅ Authentication successful");
 
         const apiToken = process.env.APIFY_TOKEN;
@@ -324,14 +315,8 @@ export async function GET(request: NextRequest) {
         console.log("LinkedIn scraping completed:", result);
 
         return NextResponse.json(result);
-    } catch (error) {
-        console.error("LinkedIn scraping error:", error);
-        return NextResponse.json(
-            {
-                error: "Internal server error",
-                details: error instanceof Error ? error.message : "Unknown error",
-            },
-            { status: 500 },
-        );
+    } catch (error: any) {
+        console.error("Error in GET /api/news/scrape-linkedin:", error);
+        return NextResponse.json({ ok: false, error: error.message || "Internal server error" }, { status: 500 });
     }
 }

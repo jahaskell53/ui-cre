@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { counties } from "@/db/schema";
 import { makeGeminiCall } from "@/lib/news/gemini";
-import { createClient } from "@/utils/supabase/server";
 
 export async function POST(request: NextRequest) {
     try {
@@ -199,8 +198,8 @@ Example:
         } else {
             return NextResponse.json({ error: "Invalid action. Must be 'ask-questions', 'enhance-description', or 'determine-counties'" }, { status: 400 });
         }
-    } catch (error) {
-        console.error("Error in refine-interests API:", error);
-        return NextResponse.json({ error: "Failed to process request", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in POST /api/news/refine-interests:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }

@@ -80,10 +80,10 @@ describe("GET /api/news/scrape-linkedin — auth", () => {
         setValidEnv();
     });
 
-    it("returns 500 when neither ADMIN_SECRET nor CRON_SECRET is set", async () => {
+    it("returns 401 when CRON_SECRET is not set", async () => {
         clearEnv();
         const res = await GET(makeRequest());
-        expect(res.status).toBe(500);
+        expect(res.status).toBe(401);
     });
 
     it("returns 401 when auth header is missing", async () => {

@@ -1,4 +1,4 @@
-import { eq, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { profiles, subscribers } from "@/db/schema";
@@ -95,9 +95,9 @@ export async function POST(request: NextRequest) {
             notFound: notFoundCount,
             results,
         });
-    } catch (error) {
-        console.error("Error in subscriber linking:", error);
-        return NextResponse.json({ error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in POST /api/news/link-subscribers:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }
 
@@ -174,8 +174,8 @@ export async function GET(request: NextRequest) {
             subscriberId: subscriber.id,
             linked: true,
         });
-    } catch (error) {
-        console.error("Error in subscriber linking:", error);
-        return NextResponse.json({ error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in GET /api/news/link-subscribers:", error);
+        return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
     }
 }

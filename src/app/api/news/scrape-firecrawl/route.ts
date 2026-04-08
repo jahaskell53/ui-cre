@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import pRetry from "p-retry";
 import { db } from "@/db";
 import { articleCities, articleCounties, articleTags, articles, sources } from "@/db/schema";
@@ -251,7 +251,7 @@ async function saveArticlesToDatabase(articleItems: ArticleItem[], sourceId: str
     return saved;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     const startTime = Date.now();
     const timings: Record<string, number> = {};
 
@@ -321,7 +321,8 @@ export async function GET(request: Request) {
         console.log(`   🎯 Total: ${timings.total}ms`);
         console.log("🎉 CRON JOB COMPLETED SUCCESSFULLY");
         return NextResponse.json({ ok: true, results, timings });
-    } catch (error) {
-        return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
+    } catch (error: any) {
+        console.error("Error in GET /api/news/scrape-firecrawl:", error);
+        return NextResponse.json({ ok: false, error: error.message || "Internal server error" }, { status: 500 });
     }
 }

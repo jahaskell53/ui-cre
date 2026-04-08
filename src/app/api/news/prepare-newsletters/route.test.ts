@@ -30,10 +30,16 @@ vi.mock("@/db", () => ({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+const TEST_SECRET = "test-secret";
+
 function makeRequest(authHeader?: string) {
     return new NextRequest("http://localhost/api/news/prepare-newsletters", {
         headers: authHeader ? { authorization: authHeader } : {},
     });
+}
+
+function authedRequest() {
+    return makeRequest(`Bearer ${TEST_SECRET}`);
 }
 
 function makeSubscriber(overrides = {}) {
@@ -67,29 +73,27 @@ describe("GET /api/news/prepare-newsletters — auth", () => {
     });
 
     it("returns 401 when CRON_SECRET is set and auth header is missing", async () => {
-        process.env.CRON_SECRET = "secret123";
-        mockGetActiveSubscribers.mockResolvedValue([]);
+        process.env.CRON_SECRET = TEST_SECRET;
         const res = await GET(makeRequest());
         expect(res.status).toBe(401);
     });
 
     it("returns 401 when CRON_SECRET is set and auth header is wrong", async () => {
-        process.env.CRON_SECRET = "secret123";
+        process.env.CRON_SECRET = TEST_SECRET;
         const res = await GET(makeRequest("Bearer wrong"));
         expect(res.status).toBe(401);
     });
 
     it("proceeds when CRON_SECRET is set and auth header is correct", async () => {
-        process.env.CRON_SECRET = "secret123";
+        process.env.CRON_SECRET = TEST_SECRET;
         mockGetActiveSubscribers.mockResolvedValue([]);
-        const res = await GET(makeRequest("Bearer secret123"));
+        const res = await GET(authedRequest());
         expect(res.status).toBe(200);
     });
 
-    it("proceeds without auth check when CRON_SECRET is not set", async () => {
-        mockGetActiveSubscribers.mockResolvedValue([]);
+    it("returns 401 when CRON_SECRET is not set and auth header is missing", async () => {
         const res = await GET(makeRequest());
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(401);
     });
 });
 
@@ -98,12 +102,12 @@ describe("GET /api/news/prepare-newsletters — auth", () => {
 describe("GET /api/news/prepare-newsletters — no subscribers", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("returns newslettersPrepared: 0 when there are no active subscribers", async () => {
         mockGetActiveSubscribers.mockResolvedValue([]);
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
         expect(res.status).toBe(200);
         expect(body.newslettersPrepared).toBe(0);
@@ -115,7 +119,7 @@ describe("GET /api/news/prepare-newsletters — no subscribers", () => {
 describe("GET /api/news/prepare-newsletters — subscriber scheduling", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
         // Default: no articles so even matched subscribers get skipped at the articles step
         mockFetchArticlesForNewsletter.mockResolvedValue(noArticles);
     });
@@ -128,7 +132,7 @@ describe("GET /api/news/prepare-newsletters — subscriber scheduling", () => {
         });
         mockGetActiveSubscribers.mockResolvedValue([subscriber]);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
         expect(body.skipped).toBe(1);
         expect(body.newslettersPrepared).toBe(0);
@@ -145,7 +149,7 @@ describe("GET /api/news/prepare-newsletters — subscriber scheduling", () => {
         });
         mockGetActiveSubscribers.mockResolvedValue([subscriber]);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
@@ -161,7 +165,7 @@ describe("GET /api/news/prepare-newsletters — subscriber scheduling", () => {
 describe("GET /api/news/prepare-newsletters — no articles", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("skips subscriber when fetchArticlesForNewsletter returns no articles", async () => {
@@ -171,7 +175,7 @@ describe("GET /api/news/prepare-newsletters — no articles", () => {
         mockGetActiveSubscribers.mockResolvedValue([subscriber]);
         mockFetchArticlesForNewsletter.mockResolvedValue(noArticles);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
         // Either skipped at scheduling or at articles step — either way newslettersPrepared is 0
         expect(body.newslettersPrepared).toBe(0);
@@ -183,7 +187,7 @@ describe("GET /api/news/prepare-newsletters — no articles", () => {
 describe("GET /api/news/prepare-newsletters — happy path", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("creates newsletter record and links articles", async () => {
@@ -218,7 +222,7 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
         });
         mockDb.select.mockReturnValue({ from: mockFrom });
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
@@ -246,7 +250,7 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
         const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
         mockDb.select.mockReturnValue({ from: mockFrom });
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
@@ -287,7 +291,7 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
             return { values: vi.fn().mockResolvedValue([]) };
         });
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
@@ -303,12 +307,12 @@ describe("GET /api/news/prepare-newsletters — happy path", () => {
 describe("GET /api/news/prepare-newsletters — error handling", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("returns 500 when getActiveSubscribers throws", async () => {
         mockGetActiveSubscribers.mockRejectedValue(new Error("DB connection failed"));
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         expect(mockSendAlertEmail).toHaveBeenCalledWith("🚨 Newsletter prepare cron crashed", expect.stringContaining("DB connection failed"));
         expect(res.status).toBe(500);
     });

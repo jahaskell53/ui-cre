@@ -7,8 +7,6 @@ import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
     try {
-        const supabase = await createClient();
-
         const searchParams = request.nextUrl.searchParams;
         const userId = searchParams.get("id");
         const fullName = searchParams.get("full_name");

@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { comments, posts, profiles } from "@/db/schema";

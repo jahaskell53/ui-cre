@@ -37,10 +37,16 @@ vi.mock("@/db", () => ({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+const TEST_SECRET = "test-secret";
+
 function makeRequest(authHeader?: string) {
     return new NextRequest("http://localhost/api/news/send-scheduled-newsletters", {
         headers: authHeader ? { authorization: authHeader } : {},
     });
+}
+
+function authedRequest() {
+    return makeRequest(`Bearer ${TEST_SECRET}`);
 }
 
 function makeSubscriber(overrides = {}) {
@@ -117,21 +123,21 @@ describe("GET /api/news/send-scheduled-newsletters — auth", () => {
     });
 
     it("returns 401 when CRON_SECRET is set and auth header is missing", async () => {
-        process.env.CRON_SECRET = "secret";
+        process.env.CRON_SECRET = TEST_SECRET;
         const res = await GET(makeRequest());
         expect(res.status).toBe(401);
     });
 
     it("returns 401 when CRON_SECRET is set and auth header is wrong", async () => {
-        process.env.CRON_SECRET = "secret";
+        process.env.CRON_SECRET = TEST_SECRET;
         const res = await GET(makeRequest("Bearer wrong"));
         expect(res.status).toBe(401);
     });
 
     it("proceeds when CRON_SECRET is set and auth header is correct", async () => {
-        process.env.CRON_SECRET = "secret";
+        process.env.CRON_SECRET = TEST_SECRET;
         setupNewslettersFetch([]);
-        const res = await GET(makeRequest("Bearer secret"));
+        const res = await GET(authedRequest());
         expect(res.status).toBe(200);
     });
 });
@@ -141,12 +147,12 @@ describe("GET /api/news/send-scheduled-newsletters — auth", () => {
 describe("GET /api/news/send-scheduled-newsletters — no newsletters", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("returns emailsSent: 0 when there are no newsletters ready", async () => {
         setupNewslettersFetch([]);
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
         expect(res.status).toBe(200);
         expect(body.emailsSent).toBe(0);
@@ -154,7 +160,7 @@ describe("GET /api/news/send-scheduled-newsletters — no newsletters", () => {
 
     it("returns 500 when DB fetch fails", async () => {
         setupNewslettersFetch([], { message: "DB error" });
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         expect(res.status).toBe(500);
     });
 });
@@ -164,14 +170,14 @@ describe("GET /api/news/send-scheduled-newsletters — no newsletters", () => {
 describe("GET /api/news/send-scheduled-newsletters — inactive subscriber", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("marks newsletter as failed when subscriber is not found", async () => {
         const { mockSet } = setupNewslettersFetch([makeNewsletter()]);
         mockGetSubscriberByEmail.mockResolvedValue(null);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(body.errors).toBe(1);
@@ -183,7 +189,7 @@ describe("GET /api/news/send-scheduled-newsletters — inactive subscriber", () 
         const { mockSet } = setupNewslettersFetch([makeNewsletter()]);
         mockGetSubscriberByEmail.mockResolvedValue(makeSubscriber({ isActive: false }));
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(body.errors).toBe(1);
@@ -196,7 +202,7 @@ describe("GET /api/news/send-scheduled-newsletters — inactive subscriber", () 
 describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("sends email and marks newsletter as sent", async () => {
@@ -204,7 +210,7 @@ describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
         mockGetSubscriberByEmail.mockResolvedValue(makeSubscriber());
         mockSendNewsletterToSubscriber.mockResolvedValue(true);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(body.emailsSent).toBe(1);
@@ -217,7 +223,7 @@ describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
         mockGetSubscriberByEmail.mockResolvedValue(makeSubscriber());
         mockSendNewsletterToSubscriber.mockResolvedValue(false);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(body.errors).toBe(1);
@@ -234,7 +240,7 @@ describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
         mockGetSubscriberByEmail.mockResolvedValue(makeSubscriber());
         mockSendNewsletterToSubscriber.mockResolvedValueOnce(true).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(body.emailsSent).toBe(2);
@@ -248,7 +254,7 @@ describe("GET /api/news/send-scheduled-newsletters — happy path", () => {
 describe("GET /api/news/send-scheduled-newsletters — error isolation", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("marks newsletter as failed and continues when processing throws", async () => {
@@ -259,7 +265,7 @@ describe("GET /api/news/send-scheduled-newsletters — error isolation", () => {
         mockGetSubscriberByEmail.mockRejectedValueOnce(new Error("unexpected crash")).mockResolvedValueOnce(makeSubscriber());
         mockSendNewsletterToSubscriber.mockResolvedValue(true);
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
@@ -284,7 +290,7 @@ describe("GET /api/news/send-scheduled-newsletters — error isolation", () => {
 
         mockGetSubscriberByEmail.mockRejectedValue(new Error("unexpected crash"));
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(res.status).toBe(200);
@@ -297,7 +303,7 @@ describe("GET /api/news/send-scheduled-newsletters — error isolation", () => {
 describe("GET /api/news/send-scheduled-newsletters — top-level error handling", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete process.env.CRON_SECRET;
+        process.env.CRON_SECRET = TEST_SECRET;
     });
 
     it("sends an alert when the cron crashes before processing newsletters", async () => {
@@ -305,11 +311,11 @@ describe("GET /api/news/send-scheduled-newsletters — top-level error handling"
             throw new Error("query crashed");
         });
 
-        const res = await GET(makeRequest());
+        const res = await GET(authedRequest());
         const body = await res.json();
 
         expect(res.status).toBe(500);
-        expect(body.error).toBe("Internal server error");
+        expect(body.error).toBe("query crashed");
         expect(mockSendAlertEmail).toHaveBeenCalledWith("🚨 Newsletter send cron crashed", expect.stringContaining("query crashed"));
     });
 });
