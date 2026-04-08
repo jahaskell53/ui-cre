@@ -16,7 +16,6 @@ import {
     getMsaGeojson,
     getNeighborhoodBbox,
     getNeighborhoodGeojson,
-    getZillowMapListings,
     getZipBoundary,
     searchMsas,
     searchNeighborhoods,
@@ -39,10 +38,57 @@ import {
     parseMapListingSource,
     parseShowLatestOnly,
 } from "@/lib/analytics/map-page";
-import { mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
+import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
+
+function quantize(value: number, decimals: number = 2): number {
+    const factor = Math.pow(10, decimals);
+    return Math.round(value * factor) / factor;
+}
+
+async function fetchZillowListings(params: {
+    zip: string | null;
+    city: string | null;
+    addressQuery: string | null;
+    latestOnly: boolean;
+    priceMin: number | null;
+    priceMax: number | null;
+    sqftMin: number | null;
+    sqftMax: number | null;
+    beds: number[] | null;
+    bathsMin: number | null;
+    propertyType: "both" | "reit" | "mid";
+    boundsSouth: number | null;
+    boundsNorth: number | null;
+    boundsWest: number | null;
+    boundsEast: number | null;
+}): Promise<ZillowMapListingRow[]> {
+    const sp = new URLSearchParams();
+    if (params.zip) sp.set("zip", params.zip);
+    if (params.city) sp.set("city", params.city);
+    if (params.addressQuery) sp.set("address_query", params.addressQuery);
+    sp.set("latest_only", String(params.latestOnly));
+    if (params.priceMin !== null) sp.set("price_min", String(params.priceMin));
+    if (params.priceMax !== null) sp.set("price_max", String(params.priceMax));
+    if (params.sqftMin !== null) sp.set("sqft_min", String(params.sqftMin));
+    if (params.sqftMax !== null) sp.set("sqft_max", String(params.sqftMax));
+    if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
+    if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
+    sp.set("property_type", params.propertyType);
+    if (params.boundsSouth !== null) sp.set("bounds_south", String(quantize(params.boundsSouth)));
+    if (params.boundsNorth !== null) sp.set("bounds_north", String(quantize(params.boundsNorth)));
+    if (params.boundsWest !== null) sp.set("bounds_west", String(quantize(params.boundsWest)));
+    if (params.boundsEast !== null) sp.set("bounds_east", String(quantize(params.boundsEast)));
+
+    const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${response.status}`);
+    }
+    return response.json();
+}
 
 type AreaSuggestion =
     | { kind: "neighborhood"; id: number; name: string; city: string; state: string }
@@ -282,23 +328,22 @@ function MapPageInner() {
 
             if (source === "zillow") {
                 try {
-                    const rows = await getZillowMapListings({
-                        p_zip: activeAreaFilter?.zipCode ?? null,
-                        p_city: activeAreaFilter?.cityName ?? null,
-                        p_address_query: activeAreaFilter?.addressQuery ?? null,
-                        p_latest_only: latestOnly,
-                        p_price_min: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
-                        p_price_max: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
-                        p_sqft_min: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
-                        p_sqft_max: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
-                        p_beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
-                        p_baths_min: currentFilters.bathsMin ?? null,
-                        p_home_types: null,
-                        p_property_type: currentFilters.propertyType,
-                        p_bounds_south: effectiveBounds?.south ?? null,
-                        p_bounds_north: effectiveBounds?.north ?? null,
-                        p_bounds_west: effectiveBounds?.west ?? null,
-                        p_bounds_east: effectiveBounds?.east ?? null,
+                    const rows = await fetchZillowListings({
+                        zip: activeAreaFilter?.zipCode ?? null,
+                        city: activeAreaFilter?.cityName ?? null,
+                        addressQuery: activeAreaFilter?.addressQuery ?? null,
+                        latestOnly,
+                        priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                        priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                        sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                        sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                        beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                        bathsMin: currentFilters.bathsMin ?? null,
+                        propertyType: currentFilters.propertyType,
+                        boundsSouth: effectiveBounds?.south ?? null,
+                        boundsNorth: effectiveBounds?.north ?? null,
+                        boundsWest: effectiveBounds?.west ?? null,
+                        boundsEast: effectiveBounds?.east ?? null,
                     });
                     setProperties(
                         rows.map((row) => {
