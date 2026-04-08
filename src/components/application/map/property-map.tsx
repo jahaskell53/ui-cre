@@ -196,7 +196,7 @@ export const PropertyMap = ({
                 type: "geojson",
                 data: propertiesToGeoJSON(propertiesRef.current),
                 cluster: true,
-                clusterMaxZoom: 14,
+                clusterMaxZoom: 10,
                 clusterRadius: 50,
             });
 
