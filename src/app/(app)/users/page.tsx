@@ -7,7 +7,6 @@ import { generateAuroraGradient } from "@/app/(app)/network/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 
 interface UserProfile {
     id: string;
@@ -65,15 +64,10 @@ function UsersPageContent() {
 
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("id, full_name, avatar_url, website, roles")
-                .ilike("full_name", `%${query}%`)
-                .limit(20);
-
-            if (error) throw error;
-
-            setUsers(data || []);
+            const res = await fetch(`/api/users/search?q=${encodeURIComponent(query.trim())}`);
+            if (!res.ok) throw new Error("Search failed");
+            const data: UserProfile[] = await res.json();
+            setUsers(data);
         } catch (error) {
             console.error("Error searching users:", error);
             setUsers([]);
