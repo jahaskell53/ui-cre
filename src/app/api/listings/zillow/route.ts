@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(rows, {
             headers: {
-                "Cache-Control": "public, s-maxage=604800, stale-while-revalidate=86400",
+                "Cache-Control": "public, s-maxage=259200, stale-while-revalidate=43200",
                 "Server-Timing": serverTiming((tSerialize - tRpcDone).toFixed(1)),
             },
         });
