@@ -61,7 +61,10 @@ export async function GET(request: NextRequest) {
             }
 
             rows.push(...pageRows);
-            const totalCount = Number(pageRows[0]?.total_count ?? rows.length);
+            const totalCount = Number(pageRows[0]?.total_count);
+            if (!Number.isFinite(totalCount) || totalCount < 0) {
+                throw new Error("Invalid total_count from get_zillow_map_listings");
+            }
             if (rows.length >= totalCount) {
                 break;
             }
