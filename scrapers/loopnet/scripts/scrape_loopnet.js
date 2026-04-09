@@ -1,46 +1,63 @@
 (async (startIndex = 0) => {
   const BB = '37mtyq5j5O1j6ikg9D';
   const TOTAL_PAGES = 13;
-  const allListings = [];
+  const STORAGE_KEY = 'loopnet_scrape';
 
-  // ── Phase 1: Scrape search result pages ──────────────────────────────────
-  for (let page = 1; page <= TOTAL_PAGES; page++) {
-    console.log(`[Phase 1] Scraping search page ${page}/${TOTAL_PAGES}...`);
-    const url = `https://www.loopnet.com/search/apartment-buildings/for-sale/${page}/?bb=${BB}&view=map`;
+  // ── Resume from localStorage if available ────────────────────────────────
+  const saved = localStorage.getItem(STORAGE_KEY);
+  const allListings = saved ? JSON.parse(saved) : [];
 
-    try {
-      const res = await fetch(url, { credentials: 'include' });
-      const html = await res.text();
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-
-      const cards = doc.querySelectorAll('article.placard');
-      cards.forEach(card => {
-        const liItems = Array.from(card.querySelectorAll('li'))
-          .map(li => li.textContent.trim()).filter(Boolean);
-        const getAttr = (sel, attr) => { const el = card.querySelector(sel); return el ? el.getAttribute(attr) : ''; };
-        const get = (sel) => { const el = card.querySelector(sel); return el ? el.textContent.trim() : ''; };
-        allListings.push({
-          url: getAttr('a.placard-carousel-pseudo', 'ng-href') || getAttr('div.placard-pseudo > a', 'ng-href'),
-          address: get('h4 a') || get('h4'),
-          location: get('a.subtitle-beta'),
-          price: liItems[0] || '',
-          detail1: liItems[1] || '',
-          detail2: liItems[2] || '',
-          page,
-        });
-      });
-
-      await new Promise(r => setTimeout(r, 600));
-    } catch (e) {
-      console.error(`Page ${page} failed:`, e);
+  if (allListings.length > 0) {
+    console.log(`[Resume] Loaded ${allListings.length} listings from localStorage.`);
+    // Derive startIndex from how many have been detail-fetched already
+    if (startIndex === 0) {
+      startIndex = allListings.filter(l => 'num_units' in l).length;
+      console.log(`[Resume] Auto-resuming Phase 2 from index ${startIndex}.`);
     }
   }
 
-  console.log(`[Phase 1] Done. ${allListings.length} listings found.`);
+  // ── Phase 1: Scrape search result pages (skip if already loaded) ─────────
+  if (allListings.length === 0) {
+    for (let page = 1; page <= TOTAL_PAGES; page++) {
+      console.log(`[Phase 1] Scraping search page ${page}/${TOTAL_PAGES}...`);
+      const url = `https://www.loopnet.com/search/apartment-buildings/for-sale/${page}/?bb=${BB}&view=map`;
+
+      try {
+        const res = await fetch(url, { credentials: 'include' });
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        const cards = doc.querySelectorAll('article.placard');
+        cards.forEach(card => {
+          const liItems = Array.from(card.querySelectorAll('li'))
+            .map(li => li.textContent.trim()).filter(Boolean);
+          const getAttr = (sel, attr) => { const el = card.querySelector(sel); return el ? el.getAttribute(attr) : ''; };
+          const get = (sel) => { const el = card.querySelector(sel); return el ? el.textContent.trim() : ''; };
+          allListings.push({
+            url: getAttr('a.placard-carousel-pseudo', 'ng-href') || getAttr('div.placard-pseudo > a', 'ng-href'),
+            address: get('h4 a') || get('h4'),
+            location: get('a.subtitle-beta'),
+            price: liItems[0] || '',
+            detail1: liItems[1] || '',
+            detail2: liItems[2] || '',
+            page,
+          });
+        });
+
+        await new Promise(r => setTimeout(r, 600));
+      } catch (e) {
+        console.error(`Page ${page} failed:`, e);
+      }
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allListings));
+    console.log(`[Phase 1] Done. ${allListings.length} listings saved to localStorage.`);
+  } else {
+    console.log(`[Phase 1] Skipped — using ${allListings.length} listings from localStorage.`);
+  }
 
   // ── Phase 2: Fetch detail pages and extract JSON-LD ──────────────────────
   function extractJsonLd(doc) {
-    // Find the JSON-LD script that describes the listing (has additionalProperty)
     const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
     for (const script of scripts) {
       try {
@@ -70,11 +87,11 @@
       const data = extractJsonLd(doc);
 
       if (data) {
-        listing.description    = data.description || '';
-        listing.date_modified  = data.dateModified || '';
-        listing.price_per_unit = getProp(data, 'Price Per Unit');
-        listing.grm            = getProp(data, 'Gross Rent Multiplier');
-        listing.num_units      = getProp(data, 'No. Units');
+        listing.description      = data.description || '';
+        listing.date_modified    = data.dateModified || '';
+        listing.price_per_unit   = getProp(data, 'Price Per Unit');
+        listing.grm              = getProp(data, 'Gross Rent Multiplier');
+        listing.num_units        = getProp(data, 'No. Units');
         listing.property_subtype = getProp(data, 'Property Subtype');
         listing.apartment_style  = getProp(data, 'Apartment Style');
         listing.building_class   = getProp(data, 'Building Class');
@@ -87,6 +104,9 @@
     } catch (e) {
       console.error(`Detail fetch failed for ${listing.url}:`, e);
     }
+
+    // Save progress to localStorage after every listing
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allListings));
 
     // Pause every 25 requests to reset sliding-window rate limits
     if ((i + 1) % 25 === 0) {
@@ -119,4 +139,8 @@
   a.download = `${ts}-loopnet-bay-area-multifamily.csv`;
   a.click();
   console.log('CSV downloaded!');
+
+  // Clear localStorage on successful completion
+  localStorage.removeItem(STORAGE_KEY);
+  console.log('[Done] localStorage cleared.');
 })();
