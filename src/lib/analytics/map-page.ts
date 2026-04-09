@@ -171,7 +171,8 @@ export function parseAreaFilter(searchParams: SearchParamSource): AreaFilter | n
     }
 
     if (type === "address") {
-        return { ...base, addressQuery: searchParams.get("areaAddress") ?? label };
+        const rawAddressQuery = searchParams.get("areaAddress");
+        return { ...base, addressQuery: rawAddressQuery ?? undefined };
     }
 
     return null;

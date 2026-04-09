@@ -43,6 +43,7 @@ interface MapProps {
     initialZoom?: number;
     fitBoundsTarget?: MapBounds | null;
     boundaryGeoJSON?: string | null;
+    addressPin?: [number, number] | null;
     onBoundsChange?: (bounds: MapBounds) => void;
     onViewChange?: (lat: number, lng: number, zoom: number) => void;
 }
@@ -86,6 +87,7 @@ export const PropertyMap = ({
     initialZoom,
     fitBoundsTarget,
     boundaryGeoJSON,
+    addressPin,
     onBoundsChange,
     onViewChange,
 }: MapProps) => {
@@ -94,6 +96,7 @@ export const PropertyMap = ({
     const popup = useRef<mapboxgl.Popup | null>(null);
     const popupRoot = useRef<ReturnType<typeof createRoot> | null>(null);
     const popupContainer = useRef<HTMLDivElement | null>(null);
+    const addressMarker = useRef<mapboxgl.Marker | null>(null);
     const onBoundsChangeRef = useRef(onBoundsChange);
     const onViewChangeRef = useRef(onViewChange);
     const propertiesRef = useRef(properties);
@@ -158,6 +161,20 @@ export const PropertyMap = ({
             map.current.once("load", apply);
         }
     }, [boundaryGeoJSON]);
+
+    // Address pin marker
+    useEffect(() => {
+        if (!map.current) return;
+        if (addressMarker.current) {
+            addressMarker.current.remove();
+            addressMarker.current = null;
+        }
+        if (!addressPin) return;
+        const el = document.createElement("div");
+        el.style.cssText =
+            "width:28px;height:38px;background:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 38'%3E%3Cellipse cx='14' cy='35' rx='6' ry='3' fill='rgba(0,0,0,0.18)'/%3E%3Cpath d='M14 2C8.48 2 4 6.48 4 12c0 7.25 10 22 10 22S24 19.25 24 12c0-5.52-4.48-10-10-10z' fill='%232563eb'/%3E%3Ccircle cx='14' cy='12' r='4' fill='white'/%3E%3C/svg%3E\") center/contain no-repeat;cursor:default;";
+        addressMarker.current = new mapboxgl.Marker({ element: el, anchor: "bottom" }).setLngLat(addressPin).addTo(map.current);
+    }, [addressPin]);
 
     // Map initialisation
     useEffect(() => {
@@ -312,6 +329,8 @@ export const PropertyMap = ({
             popupRoot.current?.unmount();
             popupRoot.current = null;
             popupContainer.current = null;
+            addressMarker.current?.remove();
+            addressMarker.current = null;
             m.remove();
             map.current = null;
         };
