@@ -23,6 +23,19 @@ export function mapLoopnetRow(item: LoopnetRow): PropertyWithDate {
     };
 }
 
+/** A row returned by the get_zillow_map_clusters RPC (low zoom). */
+export interface ZillowClusterRow {
+    lat: number;
+    lng: number;
+    point_count: number;
+    avg_price: number | null;
+}
+
+/** Discriminated response from /api/listings/zillow. */
+export type ZillowApiResponse =
+    | { mode: "pins"; data: ZillowMapListingRow[] }
+    | { mode: "clusters"; data: ZillowClusterRow[]; listings: ZillowMapListingRow[]; total_count: number };
+
 /** A row returned by the get_zillow_map_listings RPC. */
 export interface ZillowMapListingRow {
     id: string;
