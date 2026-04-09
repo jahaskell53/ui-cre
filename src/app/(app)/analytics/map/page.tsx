@@ -38,34 +38,13 @@ import {
     parseMapListingSource,
     parseShowLatestOnly,
 } from "@/lib/analytics/map-page";
+import { createSnappedBounds, createSnappedBoundsKey } from "@/lib/analytics/map-snapping";
 import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
-// Snap a coordinate outward to a 0.1° grid to ensure the server-side bbox always
-// contains the exact viewport. Client-side filterToViewport() trims to the exact edge.
-function snapOut(value: number, direction: "floor" | "ceil"): number {
-    return direction === "floor" ? Math.floor(value * 10) / 10 : Math.ceil(value * 10) / 10;
-}
-
 type ClientRequestCache = Map<string, Promise<unknown>>;
-
-function createSnappedBounds(bounds: MapBounds | null): MapBounds | null {
-    if (!bounds) return null;
-    return {
-        south: snapOut(bounds.south, "floor"),
-        north: snapOut(bounds.north, "ceil"),
-        west: snapOut(bounds.west, "floor"),
-        east: snapOut(bounds.east, "ceil"),
-    };
-}
-
-function createSnappedBoundsKey(bounds: MapBounds | null): string | null {
-    const snappedBounds = createSnappedBounds(bounds);
-    if (!snappedBounds) return null;
-    return `${snappedBounds.south},${snappedBounds.north},${snappedBounds.west},${snappedBounds.east}`;
-}
 
 async function fetchJsonWithClientCache<T>(cache: ClientRequestCache, url: string): Promise<T> {
     const cachedRequest = cache.get(url);
