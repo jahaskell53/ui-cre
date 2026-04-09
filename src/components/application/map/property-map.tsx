@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { createRoot } from "react-dom/client";
+import { type ZillowClusterRow } from "@/lib/map-listings";
 import { PropertyPopupContent } from "./property-popup-content";
 
 mapboxgl.accessToken = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
@@ -38,6 +39,7 @@ export type MapBounds = { north: number; south: number; east: number; west: numb
 interface MapProps {
     className?: string;
     properties: Property[];
+    serverClusters?: ZillowClusterRow[];
     selectedId?: string | number | null;
     initialCenter?: [number, number];
     initialZoom?: number;
@@ -52,8 +54,11 @@ const BOUNDARY_SOURCE = "area-boundary";
 const BOUNDARY_FILL = "area-boundary-fill";
 const BOUNDARY_LINE = "area-boundary-line";
 const PROPERTIES_SOURCE = "properties";
+const SERVER_CLUSTERS_SOURCE = "server-clusters";
 const CLUSTER_LAYER = "clusters";
 const CLUSTER_COUNT_LAYER = "cluster-count";
+const SERVER_CLUSTER_LAYER = "server-cluster-circles";
+const SERVER_CLUSTER_COUNT_LAYER = "server-cluster-count";
 const UNCLUSTERED_LAYER = "unclustered-point";
 
 function propertiesToGeoJSON(properties: Property[]): GeoJSON.FeatureCollection {
@@ -79,9 +84,25 @@ function propertiesToGeoJSON(properties: Property[]): GeoJSON.FeatureCollection 
     };
 }
 
+function clustersToGeoJSON(clusters: ZillowClusterRow[]): GeoJSON.FeatureCollection {
+    return {
+        type: "FeatureCollection",
+        features: clusters.map((c) => ({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [c.lng, c.lat] },
+            properties: {
+                point_count: c.point_count,
+                point_count_abbreviated: c.point_count >= 1000 ? `${(c.point_count / 1000).toFixed(1)}k` : String(c.point_count),
+                avg_price: c.avg_price,
+            },
+        })),
+    };
+}
+
 export const PropertyMap = ({
     className,
     properties,
+    serverClusters,
     selectedId,
     initialCenter,
     initialZoom,
@@ -100,6 +121,7 @@ export const PropertyMap = ({
     const onBoundsChangeRef = useRef(onBoundsChange);
     const onViewChangeRef = useRef(onViewChange);
     const propertiesRef = useRef(properties);
+    const serverClustersRef = useRef(serverClusters);
 
     useEffect(() => {
         onBoundsChangeRef.current = onBoundsChange;
@@ -109,6 +131,9 @@ export const PropertyMap = ({
     });
     useEffect(() => {
         propertiesRef.current = properties;
+    });
+    useEffect(() => {
+        serverClustersRef.current = serverClusters;
     });
 
     // fitBounds
@@ -208,16 +233,46 @@ export const PropertyMap = ({
             m.resize();
             reportBounds();
 
-            // Add clustered GeoJSON source
+            // Server-side clusters source (low zoom)
+            m.addSource(SERVER_CLUSTERS_SOURCE, {
+                type: "geojson",
+                data: clustersToGeoJSON(serverClustersRef.current ?? []),
+            });
+
+            m.addLayer({
+                id: SERVER_CLUSTER_LAYER,
+                type: "circle",
+                source: SERVER_CLUSTERS_SOURCE,
+                paint: {
+                    "circle-color": ["step", ["get", "point_count"], "#0ea5e9", 10, "#f97316", 50, "#ef4444"],
+                    "circle-radius": ["step", ["get", "point_count"], 20, 10, 30, 50, 40],
+                    "circle-stroke-width": 2,
+                    "circle-stroke-color": "#fff",
+                    "circle-opacity": 0.9,
+                },
+            });
+
+            m.addLayer({
+                id: SERVER_CLUSTER_COUNT_LAYER,
+                type: "symbol",
+                source: SERVER_CLUSTERS_SOURCE,
+                layout: {
+                    "text-field": "{point_count_abbreviated}",
+                    "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+                    "text-size": 13,
+                },
+                paint: { "text-color": "#ffffff" },
+            });
+
+            // Client-side clustered GeoJSON source (high zoom)
             m.addSource(PROPERTIES_SOURCE, {
                 type: "geojson",
                 data: propertiesToGeoJSON(propertiesRef.current),
                 cluster: true,
-                clusterMaxZoom: 11,
+                clusterMaxZoom: 13,
                 clusterRadius: 50,
             });
 
-            // Cluster circles
             m.addLayer({
                 id: CLUSTER_LAYER,
                 type: "circle",
@@ -232,7 +287,6 @@ export const PropertyMap = ({
                 },
             });
 
-            // Cluster count labels
             m.addLayer({
                 id: CLUSTER_COUNT_LAYER,
                 type: "symbol",
@@ -248,7 +302,6 @@ export const PropertyMap = ({
                 },
             });
 
-            // Individual (unclustered) points
             m.addLayer({
                 id: UNCLUSTERED_LAYER,
                 type: "circle",
@@ -263,7 +316,14 @@ export const PropertyMap = ({
                 },
             });
 
-            // Click cluster → zoom in
+            // Click server cluster → zoom in
+            m.on("click", SERVER_CLUSTER_LAYER, (e) => {
+                if (!e.features?.length) return;
+                const coords = (e.features[0].geometry as GeoJSON.Point).coordinates as [number, number];
+                m.easeTo({ center: coords, zoom: Math.min(m.getZoom() + 2, 12) });
+            });
+
+            // Click client cluster → zoom in
             m.on("click", CLUSTER_LAYER, (e) => {
                 const features = m.queryRenderedFeatures(e.point, { layers: [CLUSTER_LAYER] });
                 if (!features.length) return;
@@ -317,7 +377,8 @@ export const PropertyMap = ({
                     .addTo(m);
             });
 
-            // Pointer cursor changes
+            m.on("mouseenter", SERVER_CLUSTER_LAYER, () => (m.getCanvas().style.cursor = "pointer"));
+            m.on("mouseleave", SERVER_CLUSTER_LAYER, () => (m.getCanvas().style.cursor = ""));
             m.on("mouseenter", CLUSTER_LAYER, () => (m.getCanvas().style.cursor = "pointer"));
             m.on("mouseleave", CLUSTER_LAYER, () => (m.getCanvas().style.cursor = ""));
             m.on("mouseenter", UNCLUSTERED_LAYER, () => (m.getCanvas().style.cursor = "pointer"));
@@ -336,15 +397,22 @@ export const PropertyMap = ({
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Update GeoJSON data when properties change
+    // Update pin data when properties change
     useEffect(() => {
         if (!map.current) return;
         const src = map.current.getSource(PROPERTIES_SOURCE) as mapboxgl.GeoJSONSource | undefined;
         if (!src) return;
         src.setData(propertiesToGeoJSON(properties));
-        // Close any open popup since it may belong to a stale feature
         popup.current?.remove();
     }, [properties]);
+
+    // Update server cluster data
+    useEffect(() => {
+        if (!map.current) return;
+        const src = map.current.getSource(SERVER_CLUSTERS_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+        if (!src) return;
+        src.setData(clustersToGeoJSON(serverClusters ?? []));
+    }, [serverClusters]);
 
     // Handle external selection (fly to + open popup)
     useEffect(() => {

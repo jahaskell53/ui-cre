@@ -38,7 +38,7 @@ import {
     parseMapListingSource,
     parseShowLatestOnly,
 } from "@/lib/analytics/map-page";
-import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
+import { type ZillowApiResponse, type ZillowClusterRow, type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
@@ -62,7 +62,8 @@ async function fetchZillowListings(params: {
     bathsMin: number | null;
     propertyType: "both" | "reit" | "mid";
     bounds: MapBounds | null;
-}): Promise<ZillowMapListingRow[]> {
+    zoom: number | null;
+}): Promise<ZillowApiResponse> {
     const sp = new URLSearchParams();
     if (params.zip) sp.set("zip", params.zip);
     if (params.city) sp.set("city", params.city);
@@ -81,6 +82,7 @@ async function fetchZillowListings(params: {
         sp.set("bounds_west", String(snapOut(params.bounds.west, "floor")));
         sp.set("bounds_east", String(snapOut(params.bounds.east, "ceil")));
     }
+    if (params.zoom !== null) sp.set("zoom", String(Math.floor(params.zoom)));
 
     const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
     if (!response.ok) {
@@ -126,10 +128,12 @@ function MapPageInner() {
     }, []);
 
     const [allZillowRows, setAllZillowRows] = useState<ZillowMapListingRow[]>([]);
+    const [serverClusters, setServerClusters] = useState<ZillowClusterRow[]>([]);
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
+    const [mapZoom, setMapZoom] = useState<number>(initialZoom ?? 10);
     const [filters, setFilters] = useState<Filters>(() => parseMapFilters(searchParams));
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => parseMapListingSource(searchParams));
@@ -316,11 +320,18 @@ function MapPageInner() {
     };
 
     const fetchProperties = useCallback(
-        async (activeAreaFilter: AreaFilter | null, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null, latestOnly: boolean) => {
+        async (
+            activeAreaFilter: AreaFilter | null,
+            currentFilters: Filters,
+            source: MapListingSource,
+            bounds: MapBounds | null,
+            latestOnly: boolean,
+            zoom: number,
+        ) => {
             setLoading(true);
 
-            // Loopnet: still server-side filtered (no edge caching concern, result set is small)
             if (source === "loopnet") {
+                setServerClusters([]);
                 const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
                 const params = new URLSearchParams();
                 if (latestOnly) params.set("latest_only", "1");
@@ -353,12 +364,9 @@ function MapPageInner() {
                 return;
             }
 
-            // Zillow: fetch all rows matching non-spatial filters, then filter to viewport client-side.
-            // This keeps the API URL stable (no bbox params) so Vercel's edge cache serves all users
-            // from the same cached response regardless of where they are on the map.
             if (source === "zillow") {
                 try {
-                    const rows = await fetchZillowListings({
+                    const result = await fetchZillowListings({
                         zip: activeAreaFilter?.zipCode ?? null,
                         city: activeAreaFilter?.cityName ?? null,
                         addressQuery: activeAreaFilter?.addressQuery ?? null,
@@ -371,11 +379,22 @@ function MapPageInner() {
                         bathsMin: currentFilters.bathsMin ?? null,
                         propertyType: currentFilters.propertyType,
                         bounds: activeAreaFilter?.bbox ?? bounds,
+                        zoom,
                     });
-                    setAllZillowRows(rows);
-                    // Viewport filtering happens in a separate effect below
+
+                    if (result.mode === "clusters") {
+                        setServerClusters(result.data);
+                        setAllZillowRows([]);
+                        setProperties([]);
+                        const total = result.data.reduce((sum, c) => sum + c.point_count, 0);
+                        setTotalCount(total);
+                    } else {
+                        setServerClusters([]);
+                        setAllZillowRows(result.data);
+                    }
                 } catch (error) {
                     console.error("Error fetching zillow map listings:", error);
+                    setServerClusters([]);
                     setAllZillowRows([]);
                 }
                 setLoading(false);
@@ -396,6 +415,7 @@ function MapPageInner() {
 
     const handleViewChange = useCallback(
         (lat: number, lng: number, zoom: number) => {
+            setMapZoom(zoom);
             const params = new URLSearchParams(window.location.search);
             params.set("lat", lat.toFixed(5));
             params.set("lng", lng.toFixed(5));
@@ -457,30 +477,28 @@ function MapPageInner() {
         setTotalCount(visible.length);
     }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
 
-    // Compute the snapped bounds so we can use them as the effect dependency.
-    // Panning within the same 0.1° tile produces the same snappedKey → no re-fetch.
+    // Compute a cache key from snapped bounds + floored zoom. Re-fetch only when
+    // the viewport crosses a 0.1° tile boundary or the integer zoom level changes.
     const snappedBoundsKey = useMemo(() => {
         const b = areaFilter?.bbox ?? mapBounds;
         if (!b) return null;
-        return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
-    }, [areaFilter, mapBounds]);
+        const zoomBucket = Math.floor(mapZoom);
+        return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")},z${zoomBucket}`;
+    }, [areaFilter, mapBounds, mapZoom]);
 
-    // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
-    // The server receives a 0.1°-snapped bbox; client-side filterToViewport() trims to the exact viewport.
     useEffect(() => {
         if (mapListingSource !== "zillow") return;
         if (!snappedBoundsKey) return;
         const b = areaFilter?.bbox ?? mapBounds;
-        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly);
+        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly, mapZoom);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
 
-    // Loopnet: server-side bbox filtering, re-fetch on bounds changes too.
     useEffect(() => {
         if (mapListingSource !== "loopnet") return;
         if (!areaFilter && !mapBounds) return;
-        fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
-    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
+        fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly, mapZoom);
+    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties, mapZoom]);
 
     return (
         <div className="flex flex-1 flex-col overflow-hidden">
@@ -791,6 +809,7 @@ function MapPageInner() {
                 <div className="relative flex-1">
                     <PropertyMap
                         properties={properties}
+                        serverClusters={serverClusters}
                         selectedId={selectedId}
                         className="absolute inset-0"
                         initialCenter={initialCenter}

@@ -47,7 +47,7 @@ describe("GET /api/listings/zillow", () => {
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toEqual(SAMPLE_ROWS);
+        expect(body).toEqual({ mode: "pins", data: SAMPLE_ROWS });
         expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=259200, stale-while-revalidate=43200");
     });
 
@@ -158,6 +158,38 @@ describe("GET /api/listings/zillow", () => {
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toEqual([]);
+        expect(body).toEqual({ mode: "pins", data: [] });
+    });
+
+    it("calls cluster RPC at low zoom levels", async () => {
+        const clusterRows = [{ lat: 37.8, lng: -122.3, point_count: 120, avg_price: 2500 }];
+        mockRpc.mockResolvedValue({ data: clusterRows, error: null });
+
+        const res = await GET(makeGet({ zoom: "8", bounds_south: "37.5", bounds_north: "38", bounds_west: "-122.9", bounds_east: "-121.9" }));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.mode).toBe("clusters");
+        expect(body.data).toEqual(clusterRows);
+        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_clusters", expect.objectContaining({ p_grid_step: 0.1 }));
+    });
+
+    it("calls listings RPC at high zoom levels", async () => {
+        mockRpc.mockResolvedValue({ data: SAMPLE_ROWS, error: null });
+
+        const res = await GET(makeGet({ zoom: "13", bounds_south: "37.8", bounds_north: "37.82", bounds_west: "-122.26", bounds_east: "-122.22" }));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.mode).toBe("pins");
+        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.any(Object));
+    });
+
+    it("calls listings RPC when no zoom is provided", async () => {
+        mockRpc.mockResolvedValue({ data: SAMPLE_ROWS, error: null });
+
+        await GET(makeGet({ zip: "94610" }));
+
+        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.any(Object));
     });
 });
