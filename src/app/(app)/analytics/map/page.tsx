@@ -95,6 +95,29 @@ function filterToViewport(rows: ZillowMapListingRow[], bounds: MapBounds | null)
     return rows.filter((r) => r.latitude >= bounds.south && r.latitude <= bounds.north && r.longitude >= bounds.west && r.longitude <= bounds.east);
 }
 
+function boundsContainedIn(
+    inner: { south: number; north: number; west: number; east: number },
+    outer: { south: number; north: number; west: number; east: number },
+): boolean {
+    return inner.south >= outer.south && inner.north <= outer.north && inner.west >= outer.west && inner.east <= outer.east;
+}
+
+function buildZillowFilterKey(areaFilter: AreaFilter | null, filters: Filters, showLatestOnly: boolean): string {
+    return JSON.stringify({
+        z: areaFilter?.zipCode ?? null,
+        c: areaFilter?.cityName ?? null,
+        a: areaFilter?.addressQuery ?? null,
+        l: showLatestOnly,
+        pm: filters.priceMin,
+        px: filters.priceMax,
+        sm: filters.sqftMin,
+        sx: filters.sqftMax,
+        b: filters.beds,
+        ba: filters.bathsMin,
+        t: filters.propertyType,
+    });
+}
+
 type AreaSuggestion =
     | { kind: "neighborhood"; id: number; name: string; city: string; state: string }
     | { kind: "mapbox"; feature: MapboxFeature }
@@ -149,6 +172,20 @@ function MapPageInner() {
     const [boundaryGeoJSON, setBoundaryGeoJSON] = useState<string | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Client-side cache: avoid re-fetching Zillow rows when zooming into an
+    // already-fetched area. We track a map of filter-key → { rows, union bbox }
+    // so we only hit the network when the viewport extends beyond what we've
+    // already retrieved for the current set of non-spatial filters.
+    const zillowCacheRef = useRef<
+        Map<
+            string,
+            {
+                rows: ZillowMapListingRow[];
+                coveredBounds: { south: number; north: number; west: number; east: number };
+            }
+        >
+    >(new Map());
 
     const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
 
@@ -353,10 +390,8 @@ function MapPageInner() {
                 return;
             }
 
-            // Zillow: fetch all rows matching non-spatial filters, then filter to viewport client-side.
-            // This keeps the API URL stable (no bbox params) so Vercel's edge cache serves all users
-            // from the same cached response regardless of where they are on the map.
             if (source === "zillow") {
+                const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
                 try {
                     const rows = await fetchZillowListings({
                         zip: activeAreaFilter?.zipCode ?? null,
@@ -370,10 +405,37 @@ function MapPageInner() {
                         beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
                         bathsMin: currentFilters.bathsMin ?? null,
                         propertyType: currentFilters.propertyType,
-                        bounds: activeAreaFilter?.bbox ?? bounds,
+                        bounds: effectiveBounds,
                     });
-                    setAllZillowRows(rows);
-                    // Viewport filtering happens in a separate effect below
+
+                    const filterKey = buildZillowFilterKey(activeAreaFilter, currentFilters, latestOnly);
+                    const fetchedBounds = effectiveBounds
+                        ? {
+                              south: snapOut(effectiveBounds.south, "floor"),
+                              north: snapOut(effectiveBounds.north, "ceil"),
+                              west: snapOut(effectiveBounds.west, "floor"),
+                              east: snapOut(effectiveBounds.east, "ceil"),
+                          }
+                        : null;
+
+                    const existing = zillowCacheRef.current.get(filterKey);
+                    if (existing && fetchedBounds) {
+                        const seen = new Set(existing.rows.map((r) => r.id));
+                        const merged = [...existing.rows, ...rows.filter((r) => !seen.has(r.id))];
+                        const unionBounds = {
+                            south: Math.min(existing.coveredBounds.south, fetchedBounds.south),
+                            north: Math.max(existing.coveredBounds.north, fetchedBounds.north),
+                            west: Math.min(existing.coveredBounds.west, fetchedBounds.west),
+                            east: Math.max(existing.coveredBounds.east, fetchedBounds.east),
+                        };
+                        zillowCacheRef.current.set(filterKey, { rows: merged, coveredBounds: unionBounds });
+                        setAllZillowRows(merged);
+                    } else {
+                        if (fetchedBounds) {
+                            zillowCacheRef.current.set(filterKey, { rows, coveredBounds: fetchedBounds });
+                        }
+                        setAllZillowRows(rows);
+                    }
                 } catch (error) {
                     console.error("Error fetching zillow map listings:", error);
                     setAllZillowRows([]);
@@ -465,12 +527,29 @@ function MapPageInner() {
         return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
     }, [areaFilter, mapBounds]);
 
-    // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
-    // The server receives a 0.1°-snapped bbox; client-side filterToViewport() trims to the exact viewport.
+    // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes,
+    // but skip the fetch if the current viewport is already covered by cached data.
     useEffect(() => {
         if (mapListingSource !== "zillow") return;
         if (!snappedBoundsKey) return;
         const b = areaFilter?.bbox ?? mapBounds;
+        if (!b) return;
+
+        const filterKey = buildZillowFilterKey(areaFilter, filters, showLatestOnly);
+        const cached = zillowCacheRef.current.get(filterKey);
+        const snappedBounds = {
+            south: snapOut(b.south, "floor"),
+            north: snapOut(b.north, "ceil"),
+            west: snapOut(b.west, "floor"),
+            east: snapOut(b.east, "ceil"),
+        };
+
+        if (cached && boundsContainedIn(snappedBounds, cached.coveredBounds)) {
+            setAllZillowRows(cached.rows);
+            setLoading(false);
+            return;
+        }
+
         fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
