@@ -22,7 +22,7 @@ function LoginFormInner({ initialEmail, initialPassword }: LoginFormProps) {
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) {
-                window.location.href = "/network";
+                window.location.href = "/analytics/listings";
             }
         });
     }, []);
@@ -60,7 +60,7 @@ function LoginFormInner({ initialEmail, initialPassword }: LoginFormProps) {
         if (error) {
             setError(error.message);
         } else {
-            window.location.href = "/network";
+            window.location.href = "/analytics/listings";
         }
     };
 
