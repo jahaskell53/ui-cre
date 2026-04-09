@@ -408,18 +408,24 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     </dd>
                                 </div>
                             )}
-                            <div className="flex justify-between">
-                                <dt className="text-gray-500 dark:text-gray-400">Beds</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.beds ?? 0}</dd>
-                            </div>
-                            <div className="flex justify-between">
-                                <dt className="text-gray-500 dark:text-gray-400">Baths</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.baths ? Number(listing.baths).toFixed(1) : "—"}</dd>
-                            </div>
-                            <div className="flex justify-between">
-                                <dt className="text-gray-500 dark:text-gray-400">Sq Ft</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.area ? listing.area.toLocaleString() : "—"}</dd>
-                            </div>
+                            {!listing.is_building && (
+                                <>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Beds</dt>
+                                        <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.beds ?? 0}</dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Baths</dt>
+                                        <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                            {listing.baths ? Number(listing.baths).toFixed(1) : "—"}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Sq Ft</dt>
+                                        <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.area ? listing.area.toLocaleString() : "—"}</dd>
+                                    </div>
+                                </>
+                            )}
                             {listing.home_type && (
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Home Type</dt>
