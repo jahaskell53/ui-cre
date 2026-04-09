@@ -32,7 +32,9 @@ export interface ZillowClusterRow {
 }
 
 /** Discriminated response from /api/listings/zillow. */
-export type ZillowApiResponse = { mode: "pins"; data: ZillowMapListingRow[] } | { mode: "clusters"; data: ZillowClusterRow[] };
+export type ZillowApiResponse =
+    | { mode: "pins"; data: ZillowMapListingRow[] }
+    | { mode: "clusters"; data: ZillowClusterRow[]; listings: ZillowMapListingRow[]; total_count: number };
 
 /** A row returned by the get_zillow_map_listings RPC. */
 export interface ZillowMapListingRow {

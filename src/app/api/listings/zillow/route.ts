@@ -52,24 +52,10 @@ export async function GET(request: NextRequest) {
         const supabase = createAdminClient();
         const tClientReady = performance.now();
 
-        let result: { data: unknown; error: { message: string } | null };
+        const limit = sp.has("limit") ? parseInt(sp.get("limit")!, 10) : null;
+        const offset = sp.has("offset") ? parseInt(sp.get("offset")!, 10) : 0;
 
-        if (useCluster) {
-            result = await supabase.rpc("get_zillow_map_clusters", {
-                ...baseParams,
-                p_grid_step: gridStepForZoom(zoom),
-            });
-        } else {
-            result = await supabase.rpc("get_zillow_map_listings", baseParams);
-        }
-
-        const { data, error } = result;
-        const tRpcDone = performance.now();
-
-        const clientMs = (tClientReady - t0).toFixed(1);
-        const rpcMs = (tRpcDone - tClientReady).toFixed(1);
-
-        const serverTiming = (extraMs?: string) =>
+        const serverTiming = (clientMs: string, rpcMs: string, extraMs?: string) =>
             [
                 `client;dur=${clientMs};desc="Admin client init"`,
                 `rpc;dur=${rpcMs};desc="PostgREST RPC"`,
@@ -77,19 +63,65 @@ export async function GET(request: NextRequest) {
                 `total;dur=${(performance.now() - t0).toFixed(1)};desc="Total"`,
             ].join(", ");
 
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500, headers: { "Server-Timing": serverTiming() } });
+        if (useCluster) {
+            const sidebarLimit = limit ?? 50;
+            const [clusterResult, listingsResult] = await Promise.all([
+                supabase.rpc("get_zillow_map_clusters", {
+                    ...baseParams,
+                    p_grid_step: gridStepForZoom(zoom),
+                }),
+                supabase.rpc("get_zillow_map_listings", {
+                    ...baseParams,
+                    p_limit: sidebarLimit,
+                    p_offset: offset,
+                }),
+            ]);
+            const tRpcDone = performance.now();
+            const clientMs = (tClientReady - t0).toFixed(1);
+            const rpcMs = (tRpcDone - tClientReady).toFixed(1);
+
+            if (clusterResult.error) {
+                return NextResponse.json({ error: clusterResult.error.message }, { status: 500, headers: { "Server-Timing": serverTiming(clientMs, rpcMs) } });
+            }
+            if (listingsResult.error) {
+                return NextResponse.json({ error: listingsResult.error.message }, { status: 500, headers: { "Server-Timing": serverTiming(clientMs, rpcMs) } });
+            }
+
+            const clusters = (clusterResult.data ?? []) as ZillowClusterRow[];
+            const listings = (listingsResult.data ?? []) as ZillowMapListingRow[];
+            const totalCount = listings.length > 0 ? listings[0].total_count : clusters.reduce((s, c) => s + c.point_count, 0);
+            const tSerialize = performance.now();
+
+            return NextResponse.json(
+                { mode: "clusters" as const, data: clusters, listings, total_count: totalCount },
+                {
+                    headers: {
+                        "Cache-Control": "public, s-maxage=259200, stale-while-revalidate=43200",
+                        "Server-Timing": serverTiming(clientMs, rpcMs, (tSerialize - tRpcDone).toFixed(1)),
+                    },
+                },
+            );
         }
 
-        const rows = (data ?? []) as ZillowMapListingRow[] | ZillowClusterRow[];
+        const listingsParams = { ...baseParams, ...(limit != null ? { p_limit: limit, p_offset: offset } : {}) };
+        const result = await supabase.rpc("get_zillow_map_listings", listingsParams);
+        const tRpcDone = performance.now();
+        const clientMs = (tClientReady - t0).toFixed(1);
+        const rpcMs = (tRpcDone - tClientReady).toFixed(1);
+
+        if (result.error) {
+            return NextResponse.json({ error: result.error.message }, { status: 500, headers: { "Server-Timing": serverTiming(clientMs, rpcMs) } });
+        }
+
+        const rows = (result.data ?? []) as ZillowMapListingRow[];
         const tSerialize = performance.now();
 
         return NextResponse.json(
-            { mode: useCluster ? "clusters" : "pins", data: rows },
+            { mode: "pins" as const, data: rows },
             {
                 headers: {
                     "Cache-Control": "public, s-maxage=259200, stale-while-revalidate=43200",
-                    "Server-Timing": serverTiming((tSerialize - tRpcDone).toFixed(1)),
+                    "Server-Timing": serverTiming(clientMs, rpcMs, (tSerialize - tRpcDone).toFixed(1)),
                 },
             },
         );

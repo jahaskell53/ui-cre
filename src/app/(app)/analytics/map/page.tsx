@@ -384,10 +384,8 @@ function MapPageInner() {
 
                     if (result.mode === "clusters") {
                         setServerClusters(result.data);
-                        setAllZillowRows([]);
-                        setProperties([]);
-                        const total = result.data.reduce((sum, c) => sum + c.point_count, 0);
-                        setTotalCount(total);
+                        setAllZillowRows(result.listings);
+                        setTotalCount(result.total_count);
                     } else {
                         setServerClusters([]);
                         setAllZillowRows(result.data);
@@ -463,9 +461,19 @@ function MapPageInner() {
     }, []);
 
     // Apply client-side viewport filter whenever the fetched Zillow rows or map bounds change.
-    // No network request — just a JS array filter over the already-fetched rows.
+    // In cluster mode the listings are already bbox-bounded by the server, so skip viewport
+    // filtering and preserve the total_count from the SQL response.
     useEffect(() => {
         if (mapListingSource !== "zillow") return;
+        if (serverClusters.length > 0) {
+            setProperties(
+                allZillowRows.map((row) => {
+                    const { _createdAt: _, ...p } = mapZillowRpcRow(row);
+                    return p;
+                }),
+            );
+            return;
+        }
         const effectiveBounds = areaFilter?.bbox ?? mapBounds;
         const visible = filterToViewport(allZillowRows, effectiveBounds);
         setProperties(
@@ -475,7 +483,7 @@ function MapPageInner() {
             }),
         );
         setTotalCount(visible.length);
-    }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
+    }, [allZillowRows, mapBounds, areaFilter, mapListingSource, serverClusters]);
 
     // Compute a cache key from snapped bounds + floored zoom. Re-fetch only when
     // the viewport crosses a 0.1° tile boundary or the integer zoom level changes.
