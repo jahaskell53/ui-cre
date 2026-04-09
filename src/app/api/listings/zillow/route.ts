@@ -3,6 +3,11 @@ import { type ZillowMapListingRow } from "@/lib/map-listings";
 import { createAdminClient } from "@/utils/supabase/admin";
 
 const RPC_PAGE_SIZE = 1000;
+const MISSING_PAGED_RPC_SIGNATURE = "Could not find the function public.get_zillow_map_listings";
+
+function isMissingPagedRpcSignature(message: string | undefined): boolean {
+    return Boolean(message && message.includes(MISSING_PAGED_RPC_SIGNATURE) && message.includes("p_limit") && message.includes("p_offset"));
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -51,6 +56,16 @@ export async function GET(request: NextRequest) {
                 p_offset: nextOffset,
             });
             if (error) {
+                if (nextOffset === 0 && isMissingPagedRpcSignature(error.message)) {
+                    const { data: legacyData, error: legacyError } = await supabase.rpc("get_zillow_map_listings", params);
+                    if (legacyError) {
+                        const tRpcDone = performance.now();
+                        return NextResponse.json({ error: legacyError.message }, { status: 500, headers: { "Server-Timing": serverTiming(tRpcDone) } });
+                    }
+                    rows.push(...((legacyData ?? []) as ZillowMapListingRow[]));
+                    break;
+                }
+
                 const tRpcDone = performance.now();
                 return NextResponse.json({ error: error.message }, { status: 500, headers: { "Server-Timing": serverTiming(tRpcDone) } });
             }

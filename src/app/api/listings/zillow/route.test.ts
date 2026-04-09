@@ -189,6 +189,37 @@ describe("GET /api/listings/zillow", () => {
         );
     });
 
+    it("falls back to legacy rpc signature when pagination params are missing in schema cache", async () => {
+        mockRpc
+            .mockResolvedValueOnce({
+                data: null,
+                error: {
+                    message:
+                        "Could not find the function public.get_zillow_map_listings(p_address_query, p_baths_min, p_beds, p_bounds_east, p_bounds_north, p_bounds_south, p_bounds_west, p_city, p_home_types, p_latest_only, p_limit, p_offset, p_price_max, p_price_min, p_property_type, p_sqft_max, p_sqft_min, p_zip) in the schema cache",
+                },
+            })
+            .mockResolvedValueOnce({
+                data: SAMPLE_ROWS,
+                error: null,
+            });
+
+        const res = await GET(makeGet({ zip: "94610" }));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body).toEqual(SAMPLE_ROWS);
+        expect(mockRpc).toHaveBeenCalledTimes(2);
+        expect(mockRpc).toHaveBeenNthCalledWith(1, "get_zillow_map_listings", expect.objectContaining({ p_limit: 1000, p_offset: 0 }));
+        expect(mockRpc).toHaveBeenNthCalledWith(
+            2,
+            "get_zillow_map_listings",
+            expect.not.objectContaining({
+                p_limit: expect.anything(),
+                p_offset: expect.anything(),
+            }),
+        );
+    });
+
     it("returns empty array when rpc returns no data", async () => {
         mockRpc.mockResolvedValue({ data: null, error: null });
 
