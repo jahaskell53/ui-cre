@@ -43,10 +43,10 @@ import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
-// Snap a coordinate outward to a 0.1° grid to ensure the server-side bbox always
+// Snap a coordinate outward to a 0.2° grid to ensure the server-side bbox always
 // contains the exact viewport. Client-side filterToViewport() trims to the exact edge.
 function snapOut(value: number, direction: "floor" | "ceil"): number {
-    return direction === "floor" ? Math.floor(value * 10) / 10 : Math.ceil(value * 10) / 10;
+    return direction === "floor" ? Math.floor(value * 5) / 5 : Math.ceil(value * 5) / 5;
 }
 
 async function fetchZillowListings(params: {
@@ -458,7 +458,7 @@ function MapPageInner() {
     }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
 
     // Compute the snapped bounds so we can use them as the effect dependency.
-    // Panning within the same 0.1° tile produces the same snappedKey → no re-fetch.
+    // Panning within the same 0.2° tile produces the same snappedKey → no re-fetch.
     const snappedBoundsKey = useMemo(() => {
         const b = areaFilter?.bbox ?? mapBounds;
         if (!b) return null;
@@ -466,7 +466,7 @@ function MapPageInner() {
     }, [areaFilter, mapBounds]);
 
     // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
-    // The server receives a 0.1°-snapped bbox; client-side filterToViewport() trims to the exact viewport.
+    // The server receives a 0.2°-snapped bbox; client-side filterToViewport() trims to the exact viewport.
     useEffect(() => {
         if (mapListingSource !== "zillow") return;
         if (!snappedBoundsKey) return;
