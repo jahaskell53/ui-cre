@@ -174,6 +174,17 @@ describe("GET /api/listings/zillow", () => {
         expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_clusters", expect.objectContaining({ p_grid_step: 0.1 }));
     });
 
+    it("calls listings RPC at zoom 10 (above cluster threshold)", async () => {
+        mockRpc.mockResolvedValue({ data: SAMPLE_ROWS, error: null });
+
+        const res = await GET(makeGet({ zoom: "10", bounds_south: "37.7", bounds_north: "37.9", bounds_west: "-122.4", bounds_east: "-122.2" }));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body.mode).toBe("pins");
+        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.any(Object));
+    });
+
     it("calls listings RPC at high zoom levels", async () => {
         mockRpc.mockResolvedValue({ data: SAMPLE_ROWS, error: null });
 

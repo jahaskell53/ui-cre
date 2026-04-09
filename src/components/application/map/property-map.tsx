@@ -61,6 +61,14 @@ const SERVER_CLUSTER_LAYER = "server-cluster-circles";
 const SERVER_CLUSTER_COUNT_LAYER = "server-cluster-count";
 const UNCLUSTERED_LAYER = "unclustered-point";
 
+const COUNT_EXPR: mapboxgl.Expression = ["coalesce", ["get", "sum"], ["get", "weight"]];
+const ABBREV_EXPR: mapboxgl.Expression = [
+    "case",
+    [">=", COUNT_EXPR, 1000],
+    ["concat", ["to-string", ["/", ["round", ["/", COUNT_EXPR, 100]], 10]], "k"],
+    ["to-string", COUNT_EXPR],
+];
+
 function propertiesToGeoJSON(properties: Property[]): GeoJSON.FeatureCollection {
     return {
         type: "FeatureCollection",
@@ -91,9 +99,7 @@ function clustersToGeoJSON(clusters: ZillowClusterRow[]): GeoJSON.FeatureCollect
             type: "Feature",
             geometry: { type: "Point", coordinates: [c.lng, c.lat] },
             properties: {
-                point_count: c.point_count,
-                point_count_abbreviated: c.point_count >= 1000 ? `${(c.point_count / 1000).toFixed(1)}k` : String(c.point_count),
-                avg_price: c.avg_price,
+                weight: c.point_count,
             },
         })),
     };
@@ -233,19 +239,29 @@ export const PropertyMap = ({
             m.resize();
             reportBounds();
 
-            // Server-side clusters source (low zoom)
+            // Server-side clusters source — each point carries a `weight`
+            // (the DB grid cell's listing count). Mapbox re-clusters these
+            // with `clusterProperties: { sum: ["+", ["get", "weight"]] }` so
+            // nearby grid cells merge smoothly, just like the old behavior.
             m.addSource(SERVER_CLUSTERS_SOURCE, {
                 type: "geojson",
                 data: clustersToGeoJSON(serverClustersRef.current ?? []),
+                cluster: true,
+                clusterRadius: 50,
+                clusterMaxZoom: 14,
+                clusterProperties: {
+                    sum: ["+", ["get", "weight"]],
+                },
             });
 
             m.addLayer({
                 id: SERVER_CLUSTER_LAYER,
                 type: "circle",
                 source: SERVER_CLUSTERS_SOURCE,
+                filter: ["has", "point_count"],
                 paint: {
-                    "circle-color": ["step", ["get", "point_count"], "#0ea5e9", 10, "#f97316", 50, "#ef4444"],
-                    "circle-radius": ["step", ["get", "point_count"], 20, 10, 30, 50, 40],
+                    "circle-color": ["step", COUNT_EXPR, "#0ea5e9", 10, "#f97316", 50, "#ef4444"],
+                    "circle-radius": ["step", COUNT_EXPR, 20, 10, 30, 50, 40],
                     "circle-stroke-width": 2,
                     "circle-stroke-color": "#fff",
                     "circle-opacity": 0.9,
@@ -256,8 +272,9 @@ export const PropertyMap = ({
                 id: SERVER_CLUSTER_COUNT_LAYER,
                 type: "symbol",
                 source: SERVER_CLUSTERS_SOURCE,
+                filter: ["has", "point_count"],
                 layout: {
-                    "text-field": "{point_count_abbreviated}",
+                    "text-field": ABBREV_EXPR,
                     "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
                     "text-size": 13,
                 },
@@ -316,8 +333,46 @@ export const PropertyMap = ({
                 },
             });
 
+            // Unclustered server-side grid cells (not merged by Mapbox)
+            m.addLayer({
+                id: "server-cluster-single",
+                type: "circle",
+                source: SERVER_CLUSTERS_SOURCE,
+                filter: ["!", ["has", "point_count"]],
+                paint: {
+                    "circle-color": ["step", ["get", "weight"], "#0ea5e9", 10, "#f97316", 50, "#ef4444"],
+                    "circle-radius": ["step", ["get", "weight"], 20, 10, 30, 50, 40],
+                    "circle-stroke-width": 2,
+                    "circle-stroke-color": "#fff",
+                    "circle-opacity": 0.9,
+                },
+            });
+
+            m.addLayer({
+                id: "server-cluster-single-count",
+                type: "symbol",
+                source: SERVER_CLUSTERS_SOURCE,
+                filter: ["!", ["has", "point_count"]],
+                layout: {
+                    "text-field": ABBREV_EXPR,
+                    "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+                    "text-size": 13,
+                },
+                paint: { "text-color": "#ffffff" },
+            });
+
             // Click server cluster → zoom in
             m.on("click", SERVER_CLUSTER_LAYER, (e) => {
+                if (!e.features?.length) return;
+                const clusterId = e.features[0].properties?.cluster_id as number;
+                (m.getSource(SERVER_CLUSTERS_SOURCE) as mapboxgl.GeoJSONSource).getClusterExpansionZoom(clusterId, (err, zoom) => {
+                    if (err || zoom == null) return;
+                    const coords = (e.features![0].geometry as GeoJSON.Point).coordinates as [number, number];
+                    m.easeTo({ center: coords, zoom });
+                });
+            });
+
+            m.on("click", "server-cluster-single", (e) => {
                 if (!e.features?.length) return;
                 const coords = (e.features[0].geometry as GeoJSON.Point).coordinates as [number, number];
                 m.easeTo({ center: coords, zoom: Math.min(m.getZoom() + 2, 12) });
@@ -377,12 +432,10 @@ export const PropertyMap = ({
                     .addTo(m);
             });
 
-            m.on("mouseenter", SERVER_CLUSTER_LAYER, () => (m.getCanvas().style.cursor = "pointer"));
-            m.on("mouseleave", SERVER_CLUSTER_LAYER, () => (m.getCanvas().style.cursor = ""));
-            m.on("mouseenter", CLUSTER_LAYER, () => (m.getCanvas().style.cursor = "pointer"));
-            m.on("mouseleave", CLUSTER_LAYER, () => (m.getCanvas().style.cursor = ""));
-            m.on("mouseenter", UNCLUSTERED_LAYER, () => (m.getCanvas().style.cursor = "pointer"));
-            m.on("mouseleave", UNCLUSTERED_LAYER, () => (m.getCanvas().style.cursor = ""));
+            for (const layer of [SERVER_CLUSTER_LAYER, "server-cluster-single", CLUSTER_LAYER, UNCLUSTERED_LAYER]) {
+                m.on("mouseenter", layer, () => (m.getCanvas().style.cursor = "pointer"));
+                m.on("mouseleave", layer, () => (m.getCanvas().style.cursor = ""));
+            }
         });
 
         return () => {

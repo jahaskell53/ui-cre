@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type ZillowClusterRow, type ZillowMapListingRow } from "@/lib/map-listings";
 import { createAdminClient } from "@/utils/supabase/admin";
 
-const CLUSTER_ZOOM_THRESHOLD = 11;
+const CLUSTER_ZOOM_THRESHOLD = 9;
 
 const GRID_STEP_BY_ZOOM: Record<number, number> = {
     0: 5,
@@ -15,13 +15,11 @@ const GRID_STEP_BY_ZOOM: Record<number, number> = {
     7: 0.1,
     8: 0.1,
     9: 0.05,
-    10: 0.02,
-    11: 0.01,
 };
 
 function gridStepForZoom(zoom: number): number {
-    const z = Math.max(0, Math.min(11, Math.floor(zoom)));
-    return GRID_STEP_BY_ZOOM[z] ?? 0.05;
+    const z = Math.max(0, Math.min(9, Math.floor(zoom)));
+    return GRID_STEP_BY_ZOOM[z] ?? 0.1;
 }
 
 export async function GET(request: NextRequest) {
