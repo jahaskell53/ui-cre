@@ -1,13 +1,24 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Filter, MapPin, Search, X } from "lucide-react";
+import { Filter, MoreVertical } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { type AreaSuggestion, MapAreaSearchSection, MapFiltersFields, type MapboxFeature } from "@/app/(app)/analytics/map/map-page-controls";
 import { PropertiesSidebar } from "@/app/(app)/analytics/map/properties-sidebar";
 import { type MapBounds, type Property, PropertyMap } from "@/components/application/map/property-map";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     getCityGeojson,
@@ -21,12 +32,8 @@ import {
     searchNeighborhoods,
 } from "@/db/rpc";
 import {
-    AREA_TYPE_LABELS,
-    AREA_TYPE_PLACEHOLDERS,
     type AreaFilter,
     type AreaType,
-    BATH_OPTIONS,
-    BED_OPTIONS,
     type Filters,
     type MapListingSource,
     buildMapSearchParams,
@@ -36,6 +43,7 @@ import {
     parseAreaType,
     parseMapFilters,
     parseMapListingSource,
+    parseMobileListingsPanel,
     parseShowLatestOnly,
 } from "@/lib/analytics/map-page";
 import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
@@ -118,22 +126,6 @@ function buildZillowFilterKey(areaFilter: AreaFilter | null, filters: Filters, s
     });
 }
 
-type AreaSuggestion =
-    | { kind: "neighborhood"; id: number; name: string; city: string; state: string }
-    | { kind: "mapbox"; feature: MapboxFeature }
-    | { kind: "msa"; id: number; geoid: string; name: string; name_lsad: string }
-    | { kind: "zip"; feature: MapboxFeature }
-    | { kind: "address"; feature: MapboxFeature };
-
-interface MapboxFeature {
-    id: string;
-    text: string;
-    place_name: string;
-    center: [number, number];
-    bbox?: [number, number, number, number];
-    context?: Array<{ id: string; text: string; short_code?: string }>;
-}
-
 function MapPageInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -158,6 +150,7 @@ function MapPageInner() {
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => parseMapListingSource(searchParams));
     const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => parseShowLatestOnly(searchParams));
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+    const [mobileListingsPanel, setMobileListingsPanel] = useState<"list" | "map">(() => parseMobileListingsPanel(searchParams));
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Area-type search state
@@ -476,9 +469,10 @@ function MapPageInner() {
             showLatestOnly,
             areaType,
             areaFilter,
+            mobileListingsPanel,
         });
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, router]);
+    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, mobileListingsPanel, router]);
 
     // Restore boundary GeoJSON when areaFilter is hydrated from URL on mount
     useEffect(() => {
@@ -561,15 +555,29 @@ function MapPageInner() {
         fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
     }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
 
+    const filtersPanel = (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Filters</h3>
+                {activeFilterCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto px-2 py-1 text-xs">
+                        Clear all
+                    </Button>
+                )}
+            </div>
+            <MapFiltersFields filters={filters} setFilters={setFilters} mapListingSource={mapListingSource} />
+        </div>
+    );
+
     return (
         <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Map Controls Bar */}
-            <div className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-                {/* Sales vs Rent toggle */}
+            {/* Map controls — desktop */}
+            <div className="hidden flex-shrink-0 flex-wrap items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 lg:flex dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
                     {(["zillow", "loopnet"] as const).map((source) => (
                         <button
                             key={source}
+                            type="button"
                             onClick={() => {
                                 setMapListingSource(source);
                             }}
@@ -585,11 +593,11 @@ function MapPageInner() {
                     ))}
                 </div>
 
-                {/* Latest / Historical toggle */}
                 <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
                     {([true, false] as const).map((latest) => (
                         <button
                             key={String(latest)}
+                            type="button"
                             onClick={() => setShowLatestOnly(latest)}
                             className={cn(
                                 "rounded-md px-3 py-1 text-xs font-medium transition-colors",
@@ -603,108 +611,25 @@ function MapPageInner() {
                     ))}
                 </div>
 
-                {/* Area type selector + search */}
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                    {/* Area type buttons */}
-                    <div className="flex flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-gray-600">
-                        {(Object.keys(AREA_TYPE_LABELS) as AreaType[]).map((type, i) => (
-                            <button
-                                key={type}
-                                type="button"
-                                onClick={() => {
-                                    setAreaType(type);
-                                    setAreaFilter(null);
-                                    setAreaInput("");
-                                    setAreaSuggestions([]);
-                                }}
-                                className={cn(
-                                    "px-2.5 py-1.5 font-medium whitespace-nowrap transition-colors",
-                                    i > 0 && "border-l border-gray-200 dark:border-gray-600",
-                                    areaType === type
-                                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                                        : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700",
-                                )}
-                            >
-                                {AREA_TYPE_LABELS[type]}
-                            </button>
-                        ))}
-                    </div>
+                <MapAreaSearchSection
+                    variant="toolbar"
+                    areaType={areaType}
+                    setAreaType={setAreaType}
+                    areaFilter={areaFilter}
+                    setAreaFilter={setAreaFilter}
+                    areaInput={areaInput}
+                    setAreaInput={setAreaInput}
+                    areaSuggestions={areaSuggestions}
+                    showSuggestions={showSuggestions}
+                    setShowSuggestions={setShowSuggestions}
+                    setAreaSuggestions={setAreaSuggestions}
+                    inputWrapperRef={inputWrapperRef}
+                    clearAreaFilter={clearAreaFilter}
+                    commitZip={commitZip}
+                    commitAddressText={commitAddressText}
+                    selectSuggestion={selectSuggestion}
+                />
 
-                    {/* Search input or committed area chip */}
-                    {areaFilter && (areaFilter.type !== "address" || areaFilter.bbox) ? (
-                        <div className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                            <MapPin className="size-3 flex-shrink-0" />
-                            <span className="max-w-[180px] truncate">{areaFilter.label}</span>
-                            <button type="button" onClick={clearAreaFilter} className="ml-0.5 text-blue-400 hover:text-blue-600 dark:hover:text-blue-200">
-                                <X className="size-3" />
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="relative max-w-xs flex-1" ref={inputWrapperRef}>
-                            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400" />
-                            <Input
-                                inputMode={areaType === "zip" ? "numeric" : "text"}
-                                placeholder={AREA_TYPE_PLACEHOLDERS[areaType]}
-                                className={cn(
-                                    "h-8 border-gray-200 bg-gray-50 pl-9 text-sm dark:border-gray-700 dark:bg-gray-800",
-                                    areaType === "address" && areaInput && "pr-8",
-                                )}
-                                value={areaInput}
-                                onChange={(e) => setAreaInput(e.target.value)}
-                                onFocus={() => {
-                                    if (areaSuggestions.length > 0) setShowSuggestions(true);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && areaType === "zip") {
-                                        commitZip(areaInput);
-                                    } else if (e.key === "Enter" && areaType === "address") {
-                                        commitAddressText(areaInput);
-                                    } else if (e.key === "Escape") {
-                                        setShowSuggestions(false);
-                                    }
-                                }}
-                            />
-                            {areaType === "address" && areaInput && (
-                                <button
-                                    type="button"
-                                    onClick={clearAreaFilter}
-                                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                                >
-                                    <X className="size-3.5" />
-                                </button>
-                            )}
-                            {showSuggestions && areaSuggestions.length > 0 && (
-                                <ul className="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-hidden overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                                    {areaSuggestions.map((s, i) => {
-                                        const label =
-                                            s.kind === "neighborhood"
-                                                ? `${s.name} · ${s.city}, ${s.state}`
-                                                : s.kind === "msa"
-                                                  ? s.name_lsad || s.name
-                                                  : s.kind === "zip"
-                                                    ? s.feature.place_name
-                                                    : s.feature.place_name;
-                                        return (
-                                            <li
-                                                key={i}
-                                                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-                                                onMouseDown={(e) => {
-                                                    e.preventDefault();
-                                                    selectSuggestion(s);
-                                                }}
-                                            >
-                                                <MapPin className="size-3 flex-shrink-0 text-gray-400" />
-                                                <span className="truncate">{label}</span>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Filters Popover */}
                 <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
                     <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="relative h-8">
@@ -718,156 +643,98 @@ function MapPageInner() {
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent align="end" className="w-72">
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-medium">Filters</h3>
-                                {activeFilterCount > 0 && (
-                                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto px-2 py-1 text-xs">
-                                        Clear all
-                                    </Button>
-                                )}
-                            </div>
-                            <div className="space-y-3">
-                                {mapListingSource === "zillow" && (
-                                    <div>
-                                        <Label className="text-xs">Bedrooms</Label>
-                                        <div className="mt-1 flex flex-wrap gap-1.5">
-                                            {BED_OPTIONS.map(({ label, value }) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() =>
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            beds: prev.beds.includes(value) ? prev.beds.filter((b) => b !== value) : [...prev.beds, value],
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                                                        filters.beds.includes(value)
-                                                            ? "border-blue-600 bg-blue-600 text-white"
-                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {mapListingSource === "zillow" && (
-                                    <div>
-                                        <Label className="text-xs">Bathrooms (min)</Label>
-                                        <div className="mt-1 flex flex-wrap gap-1.5">
-                                            {BATH_OPTIONS.map(({ label, value }) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() =>
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            bathsMin: prev.bathsMin === value ? null : value,
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                                                        filters.bathsMin === value
-                                                            ? "border-blue-600 bg-blue-600 text-white"
-                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {mapListingSource === "zillow" && (
-                                    <div>
-                                        <Label className="text-xs">Segment</Label>
-                                        <div className="mt-1 flex gap-1.5">
-                                            {(
-                                                [
-                                                    ["both", "All"],
-                                                    ["reit", "REIT"],
-                                                    ["mid", "Mid-market"],
-                                                ] as const
-                                            ).map(([value, label]) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() => setFilters((prev) => ({ ...prev, propertyType: value }))}
-                                                    className={cn(
-                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                                                        filters.propertyType === value
-                                                            ? "border-blue-600 bg-blue-600 text-white"
-                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                <div>
-                                    <Label className="text-xs">Price Range</Label>
-                                    <div className="mt-1 flex gap-2">
-                                        <Input
-                                            type="number"
-                                            placeholder="Min"
-                                            value={filters.priceMin}
-                                            onChange={(e) => {
-                                                setFilters((prev) => ({ ...prev, priceMin: e.target.value }));
-                                            }}
-                                            className="h-7 text-xs"
-                                        />
-                                        <Input
-                                            type="number"
-                                            placeholder="Max"
-                                            value={filters.priceMax}
-                                            onChange={(e) => {
-                                                setFilters((prev) => ({ ...prev, priceMax: e.target.value }));
-                                            }}
-                                            className="h-7 text-xs"
-                                        />
-                                    </div>
-                                </div>
-                                {mapListingSource === "loopnet" && (
-                                    <div>
-                                        <Label className="text-xs">Cap Rate (%)</Label>
-                                        <div className="mt-1 flex gap-2">
-                                            <Input
-                                                type="number"
-                                                placeholder="Min"
-                                                value={filters.capRateMin}
-                                                onChange={(e) => {
-                                                    setFilters((prev) => ({ ...prev, capRateMin: e.target.value }));
-                                                }}
-                                                className="h-7 text-xs"
-                                            />
-                                            <Input
-                                                type="number"
-                                                placeholder="Max"
-                                                value={filters.capRateMax}
-                                                onChange={(e) => {
-                                                    setFilters((prev) => ({ ...prev, capRateMax: e.target.value }));
-                                                }}
-                                                className="h-7 text-xs"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        {filtersPanel}
                     </PopoverContent>
                 </Popover>
             </div>
 
-            {/* Map Content */}
-            <div className="relative flex flex-1 flex-col overflow-hidden lg:flex-row">
-                {/* Sidebar */}
-                <PropertiesSidebar properties={properties} selectedId={selectedId} loading={loading} totalCount={totalCount} onSelect={setSelectedId} />
+            {/* Mobile: results + More menu */}
+            <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3 lg:hidden dark:border-gray-800 dark:bg-gray-900">
+                <p className="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
+                    {loading ? "Loading…" : `${totalCount.toLocaleString()} results`}
+                </p>
+                <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" aria-label="More options">
+                            <MoreVertical className="size-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="max-h-[min(85vh,32rem)] w-[min(calc(100vw-2rem),22rem)] overflow-y-auto p-2">
+                        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">More</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs">Screen</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup value={mobileListingsPanel} onValueChange={(v) => setMobileListingsPanel(v as "list" | "map")}>
+                            <DropdownMenuRadioItem value="list">List view</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="map">Map view</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs">Listing type</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup value={mapListingSource} onValueChange={(v) => setMapListingSource(v as MapListingSource)}>
+                            <DropdownMenuRadioItem value="zillow">Rent</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="loopnet">Sales</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs">Time range</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup value={showLatestOnly ? "latest" : "historical"} onValueChange={(v) => setShowLatestOnly(v === "latest")}>
+                            <DropdownMenuRadioItem value="latest">Latest</DropdownMenuRadioItem>
+                            <DropdownMenuRadioItem value="historical">Historical</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>Area & search</DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="max-h-[min(70vh,24rem)] w-[min(calc(100vw-2rem),20rem)] overflow-y-auto p-2">
+                                <MapAreaSearchSection
+                                    variant="menu"
+                                    areaType={areaType}
+                                    setAreaType={setAreaType}
+                                    areaFilter={areaFilter}
+                                    setAreaFilter={setAreaFilter}
+                                    areaInput={areaInput}
+                                    setAreaInput={setAreaInput}
+                                    areaSuggestions={areaSuggestions}
+                                    showSuggestions={showSuggestions}
+                                    setShowSuggestions={setShowSuggestions}
+                                    setAreaSuggestions={setAreaSuggestions}
+                                    inputWrapperRef={inputWrapperRef}
+                                    clearAreaFilter={clearAreaFilter}
+                                    commitZip={commitZip}
+                                    commitAddressText={commitAddressText}
+                                    selectSuggestion={selectSuggestion}
+                                />
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="relative">
+                                Filters
+                                {activeFilterCount > 0 && (
+                                    <span className="ml-auto flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="max-h-[min(70vh,24rem)] w-[min(calc(100vw-2rem),20rem)] overflow-y-auto p-3">
+                                {filtersPanel}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
-                {/* Map */}
-                <div className="relative flex-1">
+            {/* Map content */}
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+                <PropertiesSidebar
+                    properties={properties}
+                    selectedId={selectedId}
+                    loading={loading}
+                    totalCount={totalCount}
+                    onSelect={setSelectedId}
+                    className={cn(
+                        mobileListingsPanel === "list" ? "flex min-h-0 flex-1" : "hidden",
+                        "max-lg:h-full max-lg:min-h-0 max-lg:flex-1 max-lg:border-b-0 lg:flex",
+                    )}
+                />
+
+                <div className={cn("relative min-h-0 flex-1", mobileListingsPanel === "map" ? "flex flex-col" : "hidden", "lg:flex")}>
                     <PropertyMap
                         properties={properties}
                         selectedId={selectedId}

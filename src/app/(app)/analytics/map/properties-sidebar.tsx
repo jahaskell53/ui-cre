@@ -15,6 +15,7 @@ interface PropertiesSidebarProps {
     loading: boolean;
     totalCount: number;
     onSelect: (id: string | number) => void;
+    className?: string;
 }
 
 export function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
@@ -36,7 +37,7 @@ export function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
     );
 }
 
-export function PropertiesSidebar({ properties, selectedId, loading, totalCount, onSelect }: PropertiesSidebarProps) {
+export function PropertiesSidebar({ properties, selectedId, loading, totalCount, onSelect, className }: PropertiesSidebarProps) {
     const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH_SIZE);
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -67,7 +68,12 @@ export function PropertiesSidebar({ properties, selectedId, loading, totalCount,
     const showingCount = loading ? 0 : visibleProperties.length;
 
     return (
-        <div className="z-10 flex h-1/2 w-full flex-col border-b border-gray-200 bg-white lg:h-full lg:w-72 lg:border-r lg:border-b-0 dark:border-gray-800 dark:bg-gray-900">
+        <div
+            className={cn(
+                "z-10 flex h-1/2 w-full flex-col border-b border-gray-200 bg-white lg:h-full lg:w-72 lg:border-r lg:border-b-0 dark:border-gray-800 dark:bg-gray-900",
+                className,
+            )}
+        >
             <div className="border-b border-gray-200 p-3 dark:border-gray-800">
                 <span className="text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
                     {loading ? "Loading..." : `${totalCount.toLocaleString()} Results · Showing ${showingCount.toLocaleString()}`}

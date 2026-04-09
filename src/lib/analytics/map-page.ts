@@ -117,6 +117,11 @@ export function parseShowLatestOnly(searchParams: SearchParamSource): boolean {
     return searchParams.get("latest") !== "false";
 }
 
+/** Mobile listings page: full-height list vs map (`panel=map` in URL when map is selected). */
+export function parseMobileListingsPanel(searchParams: SearchParamSource): "list" | "map" {
+    return searchParams.get("panel") === "map" ? "map" : "list";
+}
+
 export function parseAreaType(searchParams: SearchParamSource): AreaType {
     const areaType = searchParams.get("areaType");
     return (["zip", "neighborhood", "city", "county", "msa", "address"] as const).find((value) => value === areaType) ?? "zip";
@@ -198,6 +203,7 @@ export function buildMapSearchParams({
     showLatestOnly,
     areaType,
     areaFilter,
+    mobileListingsPanel,
 }: {
     baseParams?: URLSearchParams;
     filters: Filters;
@@ -205,8 +211,14 @@ export function buildMapSearchParams({
     showLatestOnly: boolean;
     areaType: AreaType;
     areaFilter: AreaFilter | null;
+    mobileListingsPanel?: "list" | "map";
 }): URLSearchParams {
     const params = new URLSearchParams(baseParams?.toString() ?? "");
+
+    if (mobileListingsPanel !== undefined) {
+        if (mobileListingsPanel === "map") params.set("panel", "map");
+        else params.delete("panel");
+    }
 
     if (mapListingSource !== "zillow") params.set("source", mapListingSource);
     else params.delete("source");

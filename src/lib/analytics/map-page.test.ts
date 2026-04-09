@@ -6,6 +6,7 @@ import {
     parseAreaFilter,
     parseMapFilters,
     parseMapListingSource,
+    parseMobileListingsPanel,
     parseShowLatestOnly,
 } from "./map-page";
 
@@ -17,6 +18,7 @@ describe("analytics map-page helpers", () => {
 
         expect(parseMapListingSource(params)).toBe("loopnet");
         expect(parseShowLatestOnly(params)).toBe(false);
+        expect(parseMobileListingsPanel(params)).toBe("list");
         expect(parseMapFilters(params)).toEqual({
             priceMin: "1000",
             priceMax: "2000",
@@ -114,6 +116,34 @@ describe("analytics map-page helpers", () => {
         const restored = parseAreaFilter(serialized);
         expect(restored?.addressQuery).toBeUndefined();
         expect(restored?.bbox?.west).toBe(-122.42);
+    });
+
+    it("parses mobile list vs map panel from url", () => {
+        expect(parseMobileListingsPanel(new URLSearchParams())).toBe("list");
+        expect(parseMobileListingsPanel(new URLSearchParams("panel=map"))).toBe("map");
+    });
+
+    it("serializes mobile panel when provided to buildMapSearchParams", () => {
+        const withMap = buildMapSearchParams({
+            filters: createDefaultMapFilters(),
+            mapListingSource: "zillow",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+            mobileListingsPanel: "map",
+        });
+        expect(withMap.get("panel")).toBe("map");
+
+        const withList = buildMapSearchParams({
+            baseParams: withMap,
+            filters: createDefaultMapFilters(),
+            mapListingSource: "zillow",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+            mobileListingsPanel: "list",
+        });
+        expect(withList.get("panel")).toBeNull();
     });
 
     it("counts only active filters relevant to the active listing source", () => {
