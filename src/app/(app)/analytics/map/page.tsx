@@ -797,6 +797,11 @@ function MapPageInner() {
                         initialZoom={initialZoom}
                         fitBoundsTarget={fitBoundsTarget}
                         boundaryGeoJSON={boundaryGeoJSON}
+                        addressPin={
+                            areaFilter?.type === "address" && areaFilter.bbox && !areaFilter.addressQuery
+                                ? [(areaFilter.bbox.west + areaFilter.bbox.east) / 2, (areaFilter.bbox.south + areaFilter.bbox.north) / 2]
+                                : null
+                        }
                         onBoundsChange={handleBoundsChange}
                         onViewChange={handleViewChange}
                     />
