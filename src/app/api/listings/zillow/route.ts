@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
             p_bounds_north: sp.has("bounds_north") ? Math.ceil(parseFloat(sp.get("bounds_north")!) * 10) / 10 : null,
             p_bounds_west: sp.has("bounds_west") ? Math.floor(parseFloat(sp.get("bounds_west")!) * 10) / 10 : null,
             p_bounds_east: sp.has("bounds_east") ? Math.ceil(parseFloat(sp.get("bounds_east")!) * 10) / 10 : null,
+            p_limit: sp.has("limit") ? parseInt(sp.get("limit")!, 10) : null,
+            p_offset: sp.has("offset") ? parseInt(sp.get("offset")!, 10) : 0,
         };
 
         const t0 = performance.now();

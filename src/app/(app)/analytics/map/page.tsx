@@ -42,6 +42,7 @@ import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/
 import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
+const SIDEBAR_PAGE_SIZE = 50;
 
 // Snap a coordinate outward to a 0.1° grid to ensure the server-side bbox always
 // contains the exact viewport. Client-side filterToViewport() trims to the exact edge.
@@ -62,6 +63,8 @@ async function fetchZillowListings(params: {
     bathsMin: number | null;
     propertyType: "both" | "reit" | "mid";
     bounds: MapBounds | null;
+    limit?: number;
+    offset?: number;
 }): Promise<ZillowMapListingRow[]> {
     const sp = new URLSearchParams();
     if (params.zip) sp.set("zip", params.zip);
@@ -75,6 +78,8 @@ async function fetchZillowListings(params: {
     if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
     if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
     sp.set("property_type", params.propertyType);
+    if (params.limit !== undefined) sp.set("limit", String(params.limit));
+    if (params.offset !== undefined) sp.set("offset", String(params.offset));
     if (params.bounds) {
         sp.set("bounds_south", String(snapOut(params.bounds.south, "floor")));
         sp.set("bounds_north", String(snapOut(params.bounds.north, "ceil")));
@@ -93,6 +98,13 @@ async function fetchZillowListings(params: {
 function filterToViewport(rows: ZillowMapListingRow[], bounds: MapBounds | null): ZillowMapListingRow[] {
     if (!bounds) return rows;
     return rows.filter((r) => r.latitude >= bounds.south && r.latitude <= bounds.north && r.longitude >= bounds.west && r.longitude <= bounds.east);
+}
+
+function mapZillowRowsToProperties(rows: ZillowMapListingRow[]): Property[] {
+    return rows.map((row) => {
+        const { _createdAt: _, ...property } = mapZillowRpcRow(row);
+        return property;
+    });
 }
 
 type AreaSuggestion =
@@ -127,8 +139,11 @@ function MapPageInner() {
 
     const [allZillowRows, setAllZillowRows] = useState<ZillowMapListingRow[]>([]);
     const [properties, setProperties] = useState<Property[]>([]);
+    const [sidebarProperties, setSidebarProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
+    const [sidebarLoading, setSidebarLoading] = useState(true);
+    const [sidebarLoadingMore, setSidebarLoadingMore] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
     const [filters, setFilters] = useState<Filters>(() => parseMapFilters(searchParams));
     const [filtersOpen, setFiltersOpen] = useState(false);
@@ -149,6 +164,7 @@ function MapPageInner() {
     const [boundaryGeoJSON, setBoundaryGeoJSON] = useState<string | null>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
+    const sidebarRequestKeyRef = useRef(0);
 
     const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
 
@@ -387,6 +403,69 @@ function MapPageInner() {
         [],
     );
 
+    const fetchZillowSidebarPage = useCallback(
+        async ({
+            activeAreaFilter,
+            currentFilters,
+            bounds,
+            latestOnly,
+            offset,
+            append,
+        }: {
+            activeAreaFilter: AreaFilter | null;
+            currentFilters: Filters;
+            bounds: MapBounds | null;
+            latestOnly: boolean;
+            offset: number;
+            append: boolean;
+        }) => {
+            const requestKey = append ? sidebarRequestKeyRef.current : ++sidebarRequestKeyRef.current;
+
+            if (append) setSidebarLoadingMore(true);
+            else {
+                setSidebarLoading(true);
+                setSidebarLoadingMore(false);
+            }
+
+            try {
+                const rows = await fetchZillowListings({
+                    zip: activeAreaFilter?.zipCode ?? null,
+                    city: activeAreaFilter?.cityName ?? null,
+                    addressQuery: activeAreaFilter?.addressQuery ?? null,
+                    latestOnly,
+                    priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                    priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                    sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                    sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                    beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                    bathsMin: currentFilters.bathsMin ?? null,
+                    propertyType: currentFilters.propertyType,
+                    bounds: activeAreaFilter?.bbox ?? bounds,
+                    limit: SIDEBAR_PAGE_SIZE,
+                    offset,
+                });
+
+                if (requestKey !== sidebarRequestKeyRef.current) return;
+
+                const nextPage = mapZillowRowsToProperties(rows);
+                setSidebarProperties((current) => (append ? [...current, ...nextPage] : nextPage));
+                setTotalCount(rows[0]?.total_count ?? 0);
+            } catch (error) {
+                console.error("Error fetching zillow sidebar listings:", error);
+                if (requestKey !== sidebarRequestKeyRef.current) return;
+                if (!append) {
+                    setSidebarProperties([]);
+                    setTotalCount(0);
+                }
+            } finally {
+                if (requestKey !== sidebarRequestKeyRef.current) return;
+                setSidebarLoading(false);
+                setSidebarLoadingMore(false);
+            }
+        },
+        [],
+    );
+
     const handleBoundsChange = useCallback((bounds: MapBounds) => {
         if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
         boundsTimerRef.current = setTimeout(() => {
@@ -448,13 +527,7 @@ function MapPageInner() {
         if (mapListingSource !== "zillow") return;
         const effectiveBounds = areaFilter?.bbox ?? mapBounds;
         const visible = filterToViewport(allZillowRows, effectiveBounds);
-        setProperties(
-            visible.map((row) => {
-                const { _createdAt: _, ...p } = mapZillowRpcRow(row);
-                return p;
-            }),
-        );
-        setTotalCount(visible.length);
+        setProperties(mapZillowRowsToProperties(visible));
     }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
 
     // Compute the snapped bounds so we can use them as the effect dependency.
@@ -463,6 +536,12 @@ function MapPageInner() {
         const b = areaFilter?.bbox ?? mapBounds;
         if (!b) return null;
         return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
+    }, [areaFilter, mapBounds]);
+
+    const sidebarBoundsKey = useMemo(() => {
+        const b = areaFilter?.bbox ?? mapBounds;
+        if (!b) return null;
+        return `${b.south},${b.north},${b.west},${b.east}`;
     }, [areaFilter, mapBounds]);
 
     // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
@@ -475,12 +554,60 @@ function MapPageInner() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
 
+    useEffect(() => {
+        if (mapListingSource !== "zillow") return;
+        if (!sidebarBoundsKey) return;
+        const bounds = areaFilter?.bbox ?? mapBounds;
+        fetchZillowSidebarPage({
+            activeAreaFilter: areaFilter,
+            currentFilters: filters,
+            bounds,
+            latestOnly: showLatestOnly,
+            offset: 0,
+            append: false,
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sidebarBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchZillowSidebarPage]);
+
     // Loopnet: server-side bbox filtering, re-fetch on bounds changes too.
     useEffect(() => {
         if (mapListingSource !== "loopnet") return;
         if (!areaFilter && !mapBounds) return;
         fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
     }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
+
+    const handleSidebarLoadMore = useCallback(() => {
+        if (mapListingSource !== "zillow") return;
+        if (sidebarLoading || sidebarLoadingMore) return;
+        if (sidebarProperties.length >= totalCount) return;
+
+        const bounds = areaFilter?.bbox ?? mapBounds;
+        if (!bounds) return;
+
+        fetchZillowSidebarPage({
+            activeAreaFilter: areaFilter,
+            currentFilters: filters,
+            bounds,
+            latestOnly: showLatestOnly,
+            offset: sidebarProperties.length,
+            append: true,
+        });
+    }, [
+        areaFilter,
+        fetchZillowSidebarPage,
+        filters,
+        mapBounds,
+        mapListingSource,
+        showLatestOnly,
+        sidebarLoading,
+        sidebarLoadingMore,
+        sidebarProperties.length,
+        totalCount,
+    ]);
+
+    const sidebarResults = mapListingSource === "zillow" ? sidebarProperties : properties;
+    const sidebarIsLoading = mapListingSource === "zillow" ? sidebarLoading : loading;
+    const sidebarHasMore = mapListingSource === "zillow" && sidebarProperties.length < totalCount;
 
     return (
         <div className="flex flex-1 flex-col overflow-hidden">
@@ -785,7 +912,16 @@ function MapPageInner() {
             {/* Map Content */}
             <div className="relative flex flex-1 flex-col overflow-hidden lg:flex-row">
                 {/* Sidebar */}
-                <PropertiesSidebar properties={properties} selectedId={selectedId} loading={loading} totalCount={totalCount} onSelect={setSelectedId} />
+                <PropertiesSidebar
+                    properties={sidebarResults}
+                    selectedId={selectedId}
+                    loading={sidebarIsLoading}
+                    loadingMore={sidebarLoadingMore}
+                    totalCount={totalCount}
+                    hasMore={sidebarHasMore}
+                    onLoadMore={handleSidebarLoadMore}
+                    onSelect={setSelectedId}
+                />
 
                 {/* Map */}
                 <div className="relative flex-1">

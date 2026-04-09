@@ -51,10 +51,22 @@ describe("PropertiesSidebar", () => {
         vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
     });
 
-    it("renders an initial batch and loads more when the sentinel intersects", async () => {
-        const properties = Array.from({ length: 120 }, (_, index) => buildProperty(index + 1));
+    it("renders the current page and asks the parent to load more when the sentinel intersects", async () => {
+        const properties = Array.from({ length: 50 }, (_, index) => buildProperty(index + 1));
+        const onLoadMore = vi.fn();
 
-        render(<PropertiesSidebar properties={properties} selectedId={null} loading={false} totalCount={properties.length} onSelect={vi.fn()} />);
+        render(
+            <PropertiesSidebar
+                properties={properties}
+                selectedId={null}
+                loading={false}
+                loadingMore={false}
+                totalCount={120}
+                hasMore={true}
+                onLoadMore={onLoadMore}
+                onSelect={vi.fn()}
+            />,
+        );
 
         expect(screen.getByText("120 Results · Showing 50")).toBeTruthy();
         expect(screen.getByText("Property 1")).toBeTruthy();
@@ -67,9 +79,9 @@ describe("PropertiesSidebar", () => {
             MockIntersectionObserver.instances[0].trigger(true);
         });
 
-        expect(await screen.findByText("120 Results · Showing 100")).toBeTruthy();
-        expect(screen.getByText("Property 100")).toBeTruthy();
-        expect(screen.queryByText("Property 101")).toBeNull();
+        expect(onLoadMore).toHaveBeenCalledTimes(1);
+        expect(await screen.findByText("120 Results · Showing 50")).toBeTruthy();
+        expect(screen.queryByText("Property 51")).toBeNull();
     });
 
     it("links non-REIT property to listing detail page", () => {
@@ -83,7 +95,17 @@ describe("PropertiesSidebar", () => {
             buildingZpid: null,
         };
 
-        render(<PropertiesSidebar properties={[property]} selectedId={null} loading={false} totalCount={1} onSelect={vi.fn()} />);
+        render(
+            <PropertiesSidebar
+                properties={[property]}
+                selectedId={null}
+                loading={false}
+                loadingMore={false}
+                totalCount={1}
+                hasMore={false}
+                onSelect={vi.fn()}
+            />,
+        );
 
         const link = screen.getByRole("link");
         expect(link.getAttribute("href")).toBe("/analytics/listing/zillow-abc");
@@ -100,7 +122,17 @@ describe("PropertiesSidebar", () => {
             buildingZpid: "zpid-tower-123",
         };
 
-        render(<PropertiesSidebar properties={[property]} selectedId={null} loading={false} totalCount={1} onSelect={vi.fn()} />);
+        render(
+            <PropertiesSidebar
+                properties={[property]}
+                selectedId={null}
+                loading={false}
+                loadingMore={false}
+                totalCount={1}
+                hasMore={false}
+                onSelect={vi.fn()}
+            />,
+        );
 
         const link = screen.getByRole("link");
         expect(link.getAttribute("href")).toBe("/analytics/building/zpid-tower-123");

@@ -65,6 +65,8 @@ describe("GET /api/listings/zillow", () => {
                 beds: "1,2",
                 baths_min: "1",
                 property_type: "reit",
+                limit: "50",
+                offset: "100",
             }),
         );
 
@@ -85,6 +87,8 @@ describe("GET /api/listings/zillow", () => {
             p_bounds_north: null,
             p_bounds_west: null,
             p_bounds_east: null,
+            p_limit: 50,
+            p_offset: 100,
         });
     });
 

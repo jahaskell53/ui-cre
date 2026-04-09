@@ -6,14 +6,14 @@ import Link from "next/link";
 import type { Property } from "@/components/application/map/property-map";
 import { cn } from "@/lib/utils";
 
-const INITIAL_BATCH_SIZE = 50;
-const BATCH_SIZE = 50;
-
 interface PropertiesSidebarProps {
     properties: Property[];
     selectedId: string | number | null;
     loading: boolean;
+    loadingMore?: boolean;
     totalCount: number;
+    hasMore?: boolean;
+    onLoadMore?: () => void;
     onSelect: (id: string | number) => void;
 }
 
@@ -36,22 +36,26 @@ export function PropertiesListSkeleton({ count = 6 }: { count?: number }) {
     );
 }
 
-export function PropertiesSidebar({ properties, selectedId, loading, totalCount, onSelect }: PropertiesSidebarProps) {
-    const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH_SIZE);
+export function PropertiesSidebar({
+    properties,
+    selectedId,
+    loading,
+    loadingMore = false,
+    totalCount,
+    hasMore = false,
+    onLoadMore,
+    onSelect,
+}: PropertiesSidebarProps) {
     const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        setVisibleCount(INITIAL_BATCH_SIZE);
-    }, [properties]);
-
-    useEffect(() => {
         const sentinel = loadMoreRef.current;
-        if (!sentinel || loading || visibleCount >= properties.length) return;
+        if (!sentinel || loading || loadingMore || !hasMore || !onLoadMore) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (!entries.some((entry) => entry.isIntersecting)) return;
-                setVisibleCount((current) => Math.min(current + BATCH_SIZE, properties.length));
+                onLoadMore();
             },
             {
                 root: sentinel.parentElement,
@@ -61,10 +65,9 @@ export function PropertiesSidebar({ properties, selectedId, loading, totalCount,
 
         observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [loading, properties.length, visibleCount]);
+    }, [hasMore, loading, loadingMore, onLoadMore]);
 
-    const visibleProperties = useMemo(() => properties.slice(0, visibleCount), [properties, visibleCount]);
-    const showingCount = loading ? 0 : visibleProperties.length;
+    const showingCount = loading ? 0 : properties.length;
 
     return (
         <div className="z-10 flex h-1/2 w-full flex-col border-b border-gray-200 bg-white lg:h-full lg:w-72 lg:border-r lg:border-b-0 dark:border-gray-800 dark:bg-gray-900">
@@ -81,7 +84,7 @@ export function PropertiesSidebar({ properties, selectedId, loading, totalCount,
                     <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">No properties found</div>
                 ) : (
                     <>
-                        {visibleProperties.map((property) => (
+                        {properties.map((property) => (
                             <div
                                 key={property.id}
                                 onClick={() => onSelect(property.id)}
@@ -129,9 +132,9 @@ export function PropertiesSidebar({ properties, selectedId, loading, totalCount,
                                 </Link>
                             </div>
                         ))}
-                        {visibleCount < properties.length && (
+                        {hasMore && (
                             <div ref={loadMoreRef} aria-label="load-more-sentinel" className="p-3 text-center text-xs text-gray-500 dark:text-gray-400">
-                                Loading more...
+                                {loadingMore ? "Loading more..." : "Scroll to load more..."}
                             </div>
                         )}
                     </>

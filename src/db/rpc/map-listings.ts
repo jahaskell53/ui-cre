@@ -19,6 +19,8 @@ export interface GetZillowMapListingsParams {
     p_bounds_north: number | null;
     p_bounds_west: number | null;
     p_bounds_east: number | null;
+    p_limit?: number | null;
+    p_offset?: number | null;
 }
 
 export async function getZillowMapListings(params: GetZillowMapListingsParams): Promise<ZillowMapListingRow[]> {
