@@ -49,7 +49,48 @@ function snapOut(value: number, direction: "floor" | "ceil"): number {
     return direction === "floor" ? Math.floor(value * 10) / 10 : Math.ceil(value * 10) / 10;
 }
 
-async function fetchZillowListings(params: {
+type ClientRequestCache = Map<string, Promise<unknown>>;
+
+function createSnappedBounds(bounds: MapBounds | null): MapBounds | null {
+    if (!bounds) return null;
+    return {
+        south: snapOut(bounds.south, "floor"),
+        north: snapOut(bounds.north, "ceil"),
+        west: snapOut(bounds.west, "floor"),
+        east: snapOut(bounds.east, "ceil"),
+    };
+}
+
+function createSnappedBoundsKey(bounds: MapBounds | null): string | null {
+    const snappedBounds = createSnappedBounds(bounds);
+    if (!snappedBounds) return null;
+    return `${snappedBounds.south},${snappedBounds.north},${snappedBounds.west},${snappedBounds.east}`;
+}
+
+async function fetchJsonWithClientCache<T>(cache: ClientRequestCache, url: string): Promise<T> {
+    const cachedRequest = cache.get(url);
+    if (cachedRequest) {
+        return cachedRequest as Promise<T>;
+    }
+
+    const request = fetch(url)
+        .then(async (response) => {
+            if (!response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.error ?? `HTTP ${response.status}`);
+            }
+            return response.json() as Promise<T>;
+        })
+        .catch((error) => {
+            cache.delete(url);
+            throw error;
+        });
+
+    cache.set(url, request);
+    return request;
+}
+
+function buildZillowListingsSearchParams(params: {
     zip: string | null;
     city: string | null;
     addressQuery: string | null;
@@ -62,7 +103,7 @@ async function fetchZillowListings(params: {
     bathsMin: number | null;
     propertyType: "both" | "reit" | "mid";
     bounds: MapBounds | null;
-}): Promise<ZillowMapListingRow[]> {
+}): URLSearchParams {
     const sp = new URLSearchParams();
     if (params.zip) sp.set("zip", params.zip);
     if (params.city) sp.set("city", params.city);
@@ -75,19 +116,88 @@ async function fetchZillowListings(params: {
     if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
     if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
     sp.set("property_type", params.propertyType);
-    if (params.bounds) {
-        sp.set("bounds_south", String(snapOut(params.bounds.south, "floor")));
-        sp.set("bounds_north", String(snapOut(params.bounds.north, "ceil")));
-        sp.set("bounds_west", String(snapOut(params.bounds.west, "floor")));
-        sp.set("bounds_east", String(snapOut(params.bounds.east, "ceil")));
+
+    const snappedBounds = createSnappedBounds(params.bounds);
+    if (snappedBounds) {
+        sp.set("bounds_south", String(snappedBounds.south));
+        sp.set("bounds_north", String(snappedBounds.north));
+        sp.set("bounds_west", String(snappedBounds.west));
+        sp.set("bounds_east", String(snappedBounds.east));
     }
 
-    const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
-    if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${response.status}`);
+    return sp;
+}
+
+async function fetchZillowListings(
+    params: {
+        zip: string | null;
+        city: string | null;
+        addressQuery: string | null;
+        latestOnly: boolean;
+        priceMin: number | null;
+        priceMax: number | null;
+        sqftMin: number | null;
+        sqftMax: number | null;
+        beds: number[] | null;
+        bathsMin: number | null;
+        propertyType: "both" | "reit" | "mid";
+        bounds: MapBounds | null;
+    },
+    cache: ClientRequestCache,
+): Promise<ZillowMapListingRow[]> {
+    const sp = buildZillowListingsSearchParams(params);
+    return fetchJsonWithClientCache(cache, `/api/listings/zillow?${sp.toString()}`);
+}
+
+function buildLoopnetListingsSearchParams(params: {
+    areaFilter: AreaFilter | null;
+    filters: Filters;
+    latestOnly: boolean;
+    bounds: MapBounds | null;
+}): URLSearchParams {
+    const sp = new URLSearchParams();
+    if (params.latestOnly) sp.set("latest_only", "1");
+    if (params.areaFilter?.zipCode) sp.set("zip", params.areaFilter.zipCode);
+    else if (params.areaFilter?.cityName) sp.set("city", params.areaFilter.cityName);
+    else if (params.areaFilter?.countyName) sp.set("county", params.areaFilter.countyName);
+    else if (params.areaFilter?.addressQuery) sp.set("address_query", params.areaFilter.addressQuery);
+    if (params.filters.priceMin) sp.set("price_min", params.filters.priceMin);
+    if (params.filters.priceMax) sp.set("price_max", params.filters.priceMax);
+    if (params.filters.capRateMin) sp.set("cap_rate_min", params.filters.capRateMin);
+    if (params.filters.capRateMax) sp.set("cap_rate_max", params.filters.capRateMax);
+    if (params.filters.sqftMin) sp.set("sqft_min", params.filters.sqftMin);
+    if (params.filters.sqftMax) sp.set("sqft_max", params.filters.sqftMax);
+
+    const snappedBounds = createSnappedBounds(params.bounds);
+    if (snappedBounds) {
+        sp.set("bounds_west", String(snappedBounds.west));
+        sp.set("bounds_east", String(snappedBounds.east));
+        sp.set("bounds_south", String(snappedBounds.south));
+        sp.set("bounds_north", String(snappedBounds.north));
     }
-    return response.json();
+
+    return sp;
+}
+
+async function fetchLoopnetListings(
+    params: {
+        areaFilter: AreaFilter | null;
+        filters: Filters;
+        latestOnly: boolean;
+        bounds: MapBounds | null;
+    },
+    cache: ClientRequestCache,
+): Promise<{ data?: Record<string, unknown>[]; count?: number }> {
+    const sp = buildLoopnetListingsSearchParams(params);
+    return fetchJsonWithClientCache(cache, `/api/listings/loopnet?${sp.toString()}`);
+}
+
+function filterPropertiesToViewport(rows: Property[], bounds: MapBounds | null): Property[] {
+    if (!bounds) return rows;
+    return rows.filter(
+        (row) =>
+            row.coordinates[1] >= bounds.south && row.coordinates[1] <= bounds.north && row.coordinates[0] >= bounds.west && row.coordinates[0] <= bounds.east,
+    );
 }
 
 function filterToViewport(rows: ZillowMapListingRow[], bounds: MapBounds | null): ZillowMapListingRow[] {
@@ -126,6 +236,7 @@ function MapPageInner() {
     }, []);
 
     const [allZillowRows, setAllZillowRows] = useState<ZillowMapListingRow[]>([]);
+    const [allLoopnetProperties, setAllLoopnetProperties] = useState<Property[]>([]);
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -136,6 +247,7 @@ function MapPageInner() {
     const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => parseShowLatestOnly(searchParams));
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const requestCacheRef = useRef<ClientRequestCache>(new Map());
 
     // Area-type search state
     const [areaType, setAreaType] = useState<AreaType>(() => parseAreaType(searchParams));
@@ -322,32 +434,21 @@ function MapPageInner() {
             // Loopnet: still server-side filtered (no edge caching concern, result set is small)
             if (source === "loopnet") {
                 const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
-                const params = new URLSearchParams();
-                if (latestOnly) params.set("latest_only", "1");
-                if (activeAreaFilter?.zipCode) params.set("zip", activeAreaFilter.zipCode);
-                else if (activeAreaFilter?.cityName) params.set("city", activeAreaFilter.cityName);
-                else if (activeAreaFilter?.countyName) params.set("county", activeAreaFilter.countyName);
-                else if (activeAreaFilter?.addressQuery) params.set("address_query", activeAreaFilter.addressQuery);
-                if (currentFilters.priceMin) params.set("price_min", currentFilters.priceMin);
-                if (currentFilters.priceMax) params.set("price_max", currentFilters.priceMax);
-                if (currentFilters.capRateMin) params.set("cap_rate_min", currentFilters.capRateMin);
-                if (currentFilters.capRateMax) params.set("cap_rate_max", currentFilters.capRateMax);
-                if (currentFilters.sqftMin) params.set("sqft_min", currentFilters.sqftMin);
-                if (currentFilters.sqftMax) params.set("sqft_max", currentFilters.sqftMax);
-                if (effectiveBounds) {
-                    params.set("bounds_west", String(effectiveBounds.west));
-                    params.set("bounds_east", String(effectiveBounds.east));
-                    params.set("bounds_south", String(effectiveBounds.south));
-                    params.set("bounds_north", String(effectiveBounds.north));
-                }
                 try {
-                    const response = await fetch(`/api/listings/loopnet?${params.toString()}`);
-                    const json = response.ok ? await response.json() : { data: [], count: 0 };
+                    const json = await fetchLoopnetListings(
+                        {
+                            areaFilter: activeAreaFilter,
+                            filters: currentFilters,
+                            latestOnly,
+                            bounds: effectiveBounds,
+                        },
+                        requestCacheRef.current,
+                    );
                     const rows = (json.data ?? []).map((item: Record<string, unknown>) => mapLoopnetRow(item));
-                    setProperties(rows.map(({ _createdAt: _, ...p }: any) => p));
-                    setTotalCount(json.count ?? 0);
+                    setAllLoopnetProperties(rows.map(({ _createdAt: _, ...p }: any) => p));
                 } catch (err) {
                     console.error("Error fetching loopnet listings:", err);
+                    setAllLoopnetProperties([]);
                 }
                 setLoading(false);
                 return;
@@ -358,20 +459,23 @@ function MapPageInner() {
             // from the same cached response regardless of where they are on the map.
             if (source === "zillow") {
                 try {
-                    const rows = await fetchZillowListings({
-                        zip: activeAreaFilter?.zipCode ?? null,
-                        city: activeAreaFilter?.cityName ?? null,
-                        addressQuery: activeAreaFilter?.addressQuery ?? null,
-                        latestOnly,
-                        priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
-                        priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
-                        sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
-                        sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
-                        beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
-                        bathsMin: currentFilters.bathsMin ?? null,
-                        propertyType: currentFilters.propertyType,
-                        bounds: activeAreaFilter?.bbox ?? bounds,
-                    });
+                    const rows = await fetchZillowListings(
+                        {
+                            zip: activeAreaFilter?.zipCode ?? null,
+                            city: activeAreaFilter?.cityName ?? null,
+                            addressQuery: activeAreaFilter?.addressQuery ?? null,
+                            latestOnly,
+                            priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                            priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                            sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                            sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                            beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                            bathsMin: currentFilters.bathsMin ?? null,
+                            propertyType: currentFilters.propertyType,
+                            bounds: activeAreaFilter?.bbox ?? bounds,
+                        },
+                        requestCacheRef.current,
+                    );
                     setAllZillowRows(rows);
                     // Viewport filtering happens in a separate effect below
                 } catch (error) {
@@ -457,12 +561,22 @@ function MapPageInner() {
         setTotalCount(visible.length);
     }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
 
+    useEffect(() => {
+        if (mapListingSource !== "loopnet") return;
+        const effectiveBounds = areaFilter?.bbox ?? mapBounds;
+        const visible = filterPropertiesToViewport(allLoopnetProperties, effectiveBounds);
+        setProperties(visible);
+        setTotalCount(visible.length);
+    }, [allLoopnetProperties, mapBounds, areaFilter, mapListingSource]);
+
     // Compute the snapped bounds so we can use them as the effect dependency.
     // Panning within the same 0.1° tile produces the same snappedKey → no re-fetch.
     const snappedBoundsKey = useMemo(() => {
-        const b = areaFilter?.bbox ?? mapBounds;
-        if (!b) return null;
-        return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
+        return createSnappedBoundsKey(areaFilter?.bbox ?? mapBounds);
+    }, [areaFilter, mapBounds]);
+
+    const loopnetBoundsKey = useMemo(() => {
+        return createSnappedBoundsKey(areaFilter?.bbox ?? mapBounds);
     }, [areaFilter, mapBounds]);
 
     // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
@@ -478,9 +592,9 @@ function MapPageInner() {
     // Loopnet: server-side bbox filtering, re-fetch on bounds changes too.
     useEffect(() => {
         if (mapListingSource !== "loopnet") return;
-        if (!areaFilter && !mapBounds) return;
-        fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
-    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
+        if (!areaFilter && !loopnetBoundsKey) return;
+        fetchProperties(areaFilter, filters, mapListingSource, areaFilter?.bbox ?? mapBounds, showLatestOnly);
+    }, [loopnetBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
 
     return (
         <div className="flex flex-1 flex-col overflow-hidden">
