@@ -73,6 +73,28 @@
     return prop ? (prop.value[0] || '') : '';
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const headers = [
+    'url', 'address', 'location', 'price', 'detail1', 'detail2', 'page',
+    'description', 'date_modified', 'price_per_unit', 'grm', 'num_units',
+    'property_subtype', 'apartment_style', 'building_class',
+    'lot_size', 'building_size', 'num_stories', 'year_built', 'zoning',
+  ];
+
+  function downloadCsv(listings) {
+    const csv = [
+      headers.join(','),
+      ...listings.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    a.download = `${ts}-loopnet-bay-area-multifamily.csv`;
+    a.click();
+    console.log('CSV downloaded!');
+  }
+
   if (startIndex > 0) console.log(`[Phase 2] Resuming from index ${startIndex}...`);
   for (let i = startIndex; i < allListings.length; i++) {
     const listing = allListings[i];
@@ -80,8 +102,21 @@
 
     console.log(`[Phase 2] ${i + 1}/${allListings.length} ${listing.url}`);
 
+    // Skip if already fetched in a previous run
+    if ('num_units' in listing) {
+      console.log(`[Phase 2] ${i + 1} already fetched, skipping.`);
+      continue;
+    }
+
     try {
       const res = await fetch(listing.url, { credentials: 'include' });
+      if (res.status === 403) {
+        console.warn(`[Phase 2] Blocked at ${i + 1}/${allListings.length}. Saving and downloading partial results...`);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(allListings));
+        downloadCsv(allListings);
+        console.log(`[Phase 2] Stopped. Re-run the script to resume from index ${i}.`);
+        return;
+      }
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const data = extractJsonLd(doc);
@@ -127,18 +162,7 @@
     'lot_size', 'building_size', 'num_stories', 'year_built', 'zoning',
   ];
 
-  const csv = [
-    headers.join(','),
-    ...allListings.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(','))
-  ].join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-  a.download = `${ts}-loopnet-bay-area-multifamily.csv`;
-  a.click();
-  console.log('CSV downloaded!');
+  downloadCsv(allListings);
 
   // Clear localStorage on successful completion
   localStorage.removeItem(STORAGE_KEY);
