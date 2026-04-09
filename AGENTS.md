@@ -30,6 +30,10 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 - The `.env.local` file is gitignored and must be created per-environment. All secret names are listed in `.env.example`.
 - There is no ESLint configuration — Prettier is the only code style tool.
 
+### Visual documentation
+
+When it would help reviewers or future readers (for example UI changes, flows, or before/after), capture a **screenshot** or **screen recording** if doing so is worthwhile.
+
 ### Dagster pipeline (pipeline/dagster/)
 
 - **Runtime**: Python 3.12 + uv. Both `uv` and a uv-managed Python are installed via the update script; `~/.local/bin` and the uv Python bin directory are on PATH.
