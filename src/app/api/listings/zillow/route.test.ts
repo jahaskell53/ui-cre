@@ -141,6 +141,42 @@ describe("GET /api/listings/zillow", () => {
         expect(res.headers.get("Server-Timing")).toContain("rpc;dur=");
     });
 
+    it("retries rpc on statement timeout then succeeds", async () => {
+        vi.useFakeTimers();
+        mockRpc
+            .mockResolvedValueOnce({
+                data: null,
+                error: { message: "canceling statement due to statement timeout" },
+            })
+            .mockResolvedValueOnce({ data: SAMPLE_ROWS, error: null });
+
+        const p = GET(makeGet({ zip: "94610" }));
+        await vi.advanceTimersByTimeAsync(500);
+        const res = await p;
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body).toEqual(SAMPLE_ROWS);
+        expect(mockRpc).toHaveBeenCalledTimes(2);
+        vi.useRealTimers();
+    });
+
+    it("returns 500 after exhausting retries on statement timeouts", async () => {
+        vi.useFakeTimers();
+        const timeoutErr = { message: "canceling statement due to statement timeout" };
+        mockRpc.mockResolvedValue({ data: null, error: timeoutErr });
+
+        const p = GET(makeGet({ zip: "94610" }));
+        await vi.advanceTimersByTimeAsync(2000);
+        const res = await p;
+        const body = await res.json();
+
+        expect(res.status).toBe(500);
+        expect(body.error).toBe(timeoutErr.message);
+        expect(mockRpc).toHaveBeenCalledTimes(3);
+        vi.useRealTimers();
+    });
+
     it("returns 500 when admin client throws", async () => {
         mockRpc.mockRejectedValue(new Error("connection error"));
 
