@@ -608,9 +608,9 @@ export default function TrendsPage() {
             <div className="mb-6 space-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
                 {/* Area type — in map mode only show map-supported types */}
                 {(display === "chart" || display === "table" || display === "map") && (
-                    <div className="flex items-center gap-4">
-                        <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Area type</span>
-                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                        <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Area type</span>
+                        <div className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
                             {(display === "map" ? AREA_TYPES.filter((t) => MAP_AREA_TYPES.has(t)) : AREA_TYPES).map((t) => {
                                 const enabled = display === "map" ? MAP_AREA_TYPES.has(t) : ENABLED_AREA_TYPES.has(t);
                                 const active = !addressMode && areaType === t;
