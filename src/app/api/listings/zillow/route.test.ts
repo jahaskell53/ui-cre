@@ -35,6 +35,14 @@ const SAMPLE_ROWS = [
     },
 ];
 
+function makeRows(count: number, start = 1) {
+    return Array.from({ length: count }, (_, idx) => ({
+        ...SAMPLE_ROWS[0],
+        id: `zillow-${start + idx}`,
+        total_count: start - 1 + count,
+    }));
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
 });
@@ -85,6 +93,8 @@ describe("GET /api/listings/zillow", () => {
             p_bounds_north: null,
             p_bounds_west: null,
             p_bounds_east: null,
+            p_limit: 1000,
+            p_offset: 0,
         });
     });
 
@@ -149,6 +159,34 @@ describe("GET /api/listings/zillow", () => {
 
         expect(res.status).toBe(500);
         expect(body.error).toBe("connection error");
+    });
+
+    it("fetches additional pages until total_count is reached", async () => {
+        const page1 = makeRows(2, 1).map((row) => ({ ...row, total_count: 3 }));
+        const page2 = [{ ...SAMPLE_ROWS[0], id: "zillow-3", total_count: 3 }];
+        mockRpc.mockResolvedValueOnce({ data: page1, error: null }).mockResolvedValueOnce({ data: page2, error: null });
+
+        const res = await GET(makeGet({ zip: "94610" }));
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body).toEqual([...page1, ...page2]);
+        expect(mockRpc).toHaveBeenNthCalledWith(
+            1,
+            "get_zillow_map_listings",
+            expect.objectContaining({
+                p_limit: 1000,
+                p_offset: 0,
+            }),
+        );
+        expect(mockRpc).toHaveBeenNthCalledWith(
+            2,
+            "get_zillow_map_listings",
+            expect.objectContaining({
+                p_limit: 1000,
+                p_offset: 2,
+            }),
+        );
     });
 
     it("returns empty array when rpc returns no data", async () => {

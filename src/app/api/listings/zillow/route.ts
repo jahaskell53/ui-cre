@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { type ZillowMapListingRow } from "@/lib/map-listings";
 import { createAdminClient } from "@/utils/supabase/admin";
 
+const RPC_PAGE_SIZE = 1000;
+
 export async function GET(request: NextRequest) {
     try {
         const sp = request.nextUrl.searchParams;
@@ -31,31 +33,50 @@ export async function GET(request: NextRequest) {
         const supabase = createAdminClient();
         const tClientReady = performance.now();
 
-        const { data, error } = await supabase.rpc("get_zillow_map_listings", params);
-        const tRpcDone = performance.now();
-
-        const clientMs = (tClientReady - t0).toFixed(1);
-        const rpcMs = (tRpcDone - tClientReady).toFixed(1);
-
-        const serverTiming = (extraMs?: string) =>
+        const serverTiming = (rpcDoneAt: number, extraMs?: string) =>
             [
-                `client;dur=${clientMs};desc="Admin client init"`,
-                `rpc;dur=${rpcMs};desc="PostgREST RPC"`,
+                `client;dur=${(tClientReady - t0).toFixed(1)};desc="Admin client init"`,
+                `rpc;dur=${(rpcDoneAt - tClientReady).toFixed(1)};desc="PostgREST RPC"`,
                 ...(extraMs ? [`serialize;dur=${extraMs};desc="JSON serialize"`] : []),
                 `total;dur=${(performance.now() - t0).toFixed(1)};desc="Total"`,
             ].join(", ");
 
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500, headers: { "Server-Timing": serverTiming() } });
+        const rows: ZillowMapListingRow[] = [];
+        let nextOffset = 0;
+
+        while (true) {
+            const { data, error } = await supabase.rpc("get_zillow_map_listings", {
+                ...params,
+                p_limit: RPC_PAGE_SIZE,
+                p_offset: nextOffset,
+            });
+            if (error) {
+                const tRpcDone = performance.now();
+                return NextResponse.json({ error: error.message }, { status: 500, headers: { "Server-Timing": serverTiming(tRpcDone) } });
+            }
+
+            const pageRows = (data ?? []) as ZillowMapListingRow[];
+            if (pageRows.length === 0) {
+                break;
+            }
+
+            rows.push(...pageRows);
+            const totalCount = Number(pageRows[0]?.total_count ?? rows.length);
+            if (rows.length >= totalCount) {
+                break;
+            }
+
+            nextOffset = rows.length;
         }
 
-        const rows = (data ?? []) as ZillowMapListingRow[];
+        const tRpcDone = performance.now();
+
         const tSerialize = performance.now();
 
         return NextResponse.json(rows, {
             headers: {
                 "Cache-Control": "public, s-maxage=259200, stale-while-revalidate=43200",
-                "Server-Timing": serverTiming((tSerialize - tRpcDone).toFixed(1)),
+                "Server-Timing": serverTiming(tRpcDone, (tSerialize - tRpcDone).toFixed(1)),
             },
         });
     } catch (error: any) {
