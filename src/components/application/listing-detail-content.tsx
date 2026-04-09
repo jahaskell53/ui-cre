@@ -354,6 +354,15 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             headerBadge={
                 <div className="flex flex-wrap items-center gap-2">
                     <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", sourceBadgeClass)}>{sourceLabel}</span>
+                    {listing.source === "zillow" && listing.building_zpid && !listing.is_building && (
+                        <Link
+                            href={`/analytics/building/${encodeURIComponent(listing.building_zpid)}`}
+                            className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:underline dark:text-violet-400"
+                        >
+                            <Building2 className="size-3.5" />
+                            View Building
+                        </Link>
+                    )}
                     {listing.source === "zillow" && (listing.detail_url || listing.zpid) && (
                         <a
                             href={listing.detail_url ?? `https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}

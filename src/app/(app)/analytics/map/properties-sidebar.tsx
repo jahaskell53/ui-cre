@@ -90,7 +90,15 @@ export function PropertiesSidebar({ properties, selectedId, loading, totalCount,
                                     selectedId === property.id && "bg-gray-50 dark:bg-gray-800",
                                 )}
                             >
-                                <Link href={`/analytics/listing/${property.id}`} className="group flex gap-3" onClick={(e) => e.stopPropagation()}>
+                                <Link
+                                    href={
+                                        property.isReit && property.buildingZpid
+                                            ? `/analytics/building/${encodeURIComponent(property.buildingZpid)}`
+                                            : `/analytics/listing/${property.id}`
+                                    }
+                                    className="group flex gap-3"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-gray-800">
                                         {property.thumbnailUrl ? (
                                             <img src={property.thumbnailUrl} alt="" className="h-full w-full object-cover" />
