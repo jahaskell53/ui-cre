@@ -24,6 +24,16 @@ export async function GET(request: NextRequest) {
             return NextResponse.json([]);
         }
 
+        const limitParam = searchParams.get("limit");
+        let limit = 20;
+        if (limitParam !== null) {
+            const parsed = Number.parseInt(limitParam, 10);
+            if (!Number.isFinite(parsed) || parsed < 1) {
+                return NextResponse.json({ error: "limit must be a positive integer" }, { status: 400 });
+            }
+            limit = Math.min(parsed, 50);
+        }
+
         const rows = await db
             .select({
                 id: profiles.id,
@@ -34,7 +44,7 @@ export async function GET(request: NextRequest) {
             })
             .from(profiles)
             .where(ilike(profiles.fullName, `%${query.trim()}%`))
-            .limit(20);
+            .limit(limit);
 
         const result = rows
             .filter((r) => r.id !== user.id)

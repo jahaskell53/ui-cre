@@ -16,7 +16,6 @@ import {
     getMsaGeojson,
     getNeighborhoodBbox,
     getNeighborhoodGeojson,
-    getZillowMapListings,
     getZipBoundary,
     searchMsas,
     searchNeighborhoods,
@@ -39,16 +38,69 @@ import {
     parseMapListingSource,
     parseShowLatestOnly,
 } from "@/lib/analytics/map-page";
-import { mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
+import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
+
+// Snap a coordinate outward to a 0.1° grid to ensure the server-side bbox always
+// contains the exact viewport. Client-side filterToViewport() trims to the exact edge.
+function snapOut(value: number, direction: "floor" | "ceil"): number {
+    return direction === "floor" ? Math.floor(value * 10) / 10 : Math.ceil(value * 10) / 10;
+}
+
+async function fetchZillowListings(params: {
+    zip: string | null;
+    city: string | null;
+    addressQuery: string | null;
+    latestOnly: boolean;
+    priceMin: number | null;
+    priceMax: number | null;
+    sqftMin: number | null;
+    sqftMax: number | null;
+    beds: number[] | null;
+    bathsMin: number | null;
+    propertyType: "both" | "reit" | "mid";
+    bounds: MapBounds | null;
+}): Promise<ZillowMapListingRow[]> {
+    const sp = new URLSearchParams();
+    if (params.zip) sp.set("zip", params.zip);
+    if (params.city) sp.set("city", params.city);
+    if (params.addressQuery) sp.set("address_query", params.addressQuery);
+    sp.set("latest_only", String(params.latestOnly));
+    if (params.priceMin !== null) sp.set("price_min", String(params.priceMin));
+    if (params.priceMax !== null) sp.set("price_max", String(params.priceMax));
+    if (params.sqftMin !== null) sp.set("sqft_min", String(params.sqftMin));
+    if (params.sqftMax !== null) sp.set("sqft_max", String(params.sqftMax));
+    if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
+    if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
+    sp.set("property_type", params.propertyType);
+    if (params.bounds) {
+        sp.set("bounds_south", String(snapOut(params.bounds.south, "floor")));
+        sp.set("bounds_north", String(snapOut(params.bounds.north, "ceil")));
+        sp.set("bounds_west", String(snapOut(params.bounds.west, "floor")));
+        sp.set("bounds_east", String(snapOut(params.bounds.east, "ceil")));
+    }
+
+    const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
+    if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${response.status}`);
+    }
+    return response.json();
+}
+
+function filterToViewport(rows: ZillowMapListingRow[], bounds: MapBounds | null): ZillowMapListingRow[] {
+    if (!bounds) return rows;
+    return rows.filter((r) => r.latitude >= bounds.south && r.latitude <= bounds.north && r.longitude >= bounds.west && r.longitude <= bounds.east);
+}
 
 type AreaSuggestion =
     | { kind: "neighborhood"; id: number; name: string; city: string; state: string }
     | { kind: "mapbox"; feature: MapboxFeature }
     | { kind: "msa"; id: number; geoid: string; name: string; name_lsad: string }
-    | { kind: "zip"; feature: MapboxFeature };
+    | { kind: "zip"; feature: MapboxFeature }
+    | { kind: "address"; feature: MapboxFeature };
 
 interface MapboxFeature {
     id: string;
@@ -73,6 +125,7 @@ function MapPageInner() {
         return isNaN(z) ? undefined : z;
     }, []);
 
+    const [allZillowRows, setAllZillowRows] = useState<ZillowMapListingRow[]>([]);
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedId, setSelectedId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
@@ -115,17 +168,6 @@ function MapPageInner() {
     useEffect(() => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
 
-        // Address type: debounce the filter directly, no dropdown suggestions
-        if (areaType === "address") {
-            const q = areaInput.trim();
-            // Bail if the filter already matches — prevents infinite re-render loop
-            if ((q && areaFilter?.addressQuery === q) || (!q && !areaFilter)) return;
-            suggestTimerRef.current = setTimeout(() => {
-                setAreaFilter(q ? { type: "address", label: q, addressQuery: q } : null);
-            }, 500);
-            return;
-        }
-
         if (areaFilter || areaInput.length < 2) {
             setAreaSuggestions([]);
             setShowSuggestions(false);
@@ -151,6 +193,17 @@ function MapPageInner() {
                 const data = await searchMsas({ p_query: areaInput });
                 setAreaSuggestions(data.map((r) => ({ kind: "msa" as const, ...r })));
                 setShowSuggestions(true);
+            } else if (areaType === "address") {
+                try {
+                    const res = await fetch(
+                        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(areaInput)}.json?access_token=${MAPBOX_TOKEN}&types=address,poi&country=US&limit=6`,
+                    );
+                    const json = await res.json();
+                    setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "address" as const, feature: f })));
+                    setShowSuggestions(true);
+                } catch {
+                    setAreaSuggestions([]);
+                }
             } else {
                 const mapboxType = areaType === "city" ? "place" : "district";
                 try {
@@ -187,11 +240,32 @@ function MapPageInner() {
         if (data) setBoundaryGeoJSON(data);
     };
 
+    const commitAddressText = (query: string) => {
+        const v = query.trim();
+        if (!v) return;
+        setAreaFilter({ type: "address", label: v, addressQuery: v });
+        setShowSuggestions(false);
+    };
+
     const selectSuggestion = async (s: AreaSuggestion) => {
         setShowSuggestions(false);
         setAreaSuggestions([]);
 
-        if (s.kind === "zip") {
+        if (s.kind === "address") {
+            const label = s.feature.place_name;
+            const [lng, lat] = s.feature.center;
+            // ~500m proximity radius in degrees (~0.005°)
+            const PROXIMITY_DEG = 0.005;
+            const bbox: MapBounds = {
+                west: lng - PROXIMITY_DEG,
+                east: lng + PROXIMITY_DEG,
+                south: lat - PROXIMITY_DEG,
+                north: lat + PROXIMITY_DEG,
+            };
+            setAreaInput(label);
+            setAreaFilter({ type: "address", label, bbox });
+            setFitBoundsTarget(bbox);
+        } else if (s.kind === "zip") {
             const zip = s.feature.text;
             const mb = s.feature.bbox;
             const bbox: MapBounds | undefined = mb ? { west: mb[0], south: mb[1], east: mb[2], north: mb[3] } : undefined;
@@ -245,10 +319,9 @@ function MapPageInner() {
         async (activeAreaFilter: AreaFilter | null, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null, latestOnly: boolean) => {
             setLoading(true);
 
-            // Which bounds to use for geographic clipping
-            const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
-
+            // Loopnet: still server-side filtered (no edge caching concern, result set is small)
             if (source === "loopnet") {
+                const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
                 const params = new URLSearchParams();
                 if (latestOnly) params.set("latest_only", "1");
                 if (activeAreaFilter?.zipCode) params.set("zip", activeAreaFilter.zipCode);
@@ -280,35 +353,30 @@ function MapPageInner() {
                 return;
             }
 
+            // Zillow: fetch all rows matching non-spatial filters, then filter to viewport client-side.
+            // This keeps the API URL stable (no bbox params) so Vercel's edge cache serves all users
+            // from the same cached response regardless of where they are on the map.
             if (source === "zillow") {
                 try {
-                    const rows = await getZillowMapListings({
-                        p_zip: activeAreaFilter?.zipCode ?? null,
-                        p_city: activeAreaFilter?.cityName ?? null,
-                        p_address_query: activeAreaFilter?.addressQuery ?? null,
-                        p_latest_only: latestOnly,
-                        p_price_min: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
-                        p_price_max: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
-                        p_sqft_min: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
-                        p_sqft_max: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
-                        p_beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
-                        p_baths_min: currentFilters.bathsMin ?? null,
-                        p_home_types: null,
-                        p_property_type: currentFilters.propertyType,
-                        p_bounds_south: effectiveBounds?.south ?? null,
-                        p_bounds_north: effectiveBounds?.north ?? null,
-                        p_bounds_west: effectiveBounds?.west ?? null,
-                        p_bounds_east: effectiveBounds?.east ?? null,
+                    const rows = await fetchZillowListings({
+                        zip: activeAreaFilter?.zipCode ?? null,
+                        city: activeAreaFilter?.cityName ?? null,
+                        addressQuery: activeAreaFilter?.addressQuery ?? null,
+                        latestOnly,
+                        priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                        priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                        sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                        sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                        beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                        bathsMin: currentFilters.bathsMin ?? null,
+                        propertyType: currentFilters.propertyType,
+                        bounds: activeAreaFilter?.bbox ?? bounds,
                     });
-                    setProperties(
-                        rows.map((row) => {
-                            const { _createdAt: _, ...p } = mapZillowRpcRow(row);
-                            return p;
-                        }),
-                    );
-                    setTotalCount(rows.length > 0 ? rows[0].total_count : 0);
+                    setAllZillowRows(rows);
+                    // Viewport filtering happens in a separate effect below
                 } catch (error) {
                     console.error("Error fetching zillow map listings:", error);
+                    setAllZillowRows([]);
                 }
                 setLoading(false);
                 return;
@@ -374,7 +442,42 @@ function MapPageInner() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Apply client-side viewport filter whenever the fetched Zillow rows or map bounds change.
+    // No network request — just a JS array filter over the already-fetched rows.
     useEffect(() => {
+        if (mapListingSource !== "zillow") return;
+        const effectiveBounds = areaFilter?.bbox ?? mapBounds;
+        const visible = filterToViewport(allZillowRows, effectiveBounds);
+        setProperties(
+            visible.map((row) => {
+                const { _createdAt: _, ...p } = mapZillowRpcRow(row);
+                return p;
+            }),
+        );
+        setTotalCount(visible.length);
+    }, [allZillowRows, mapBounds, areaFilter, mapListingSource]);
+
+    // Compute the snapped bounds so we can use them as the effect dependency.
+    // Panning within the same 0.1° tile produces the same snappedKey → no re-fetch.
+    const snappedBoundsKey = useMemo(() => {
+        const b = areaFilter?.bbox ?? mapBounds;
+        if (!b) return null;
+        return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
+    }, [areaFilter, mapBounds]);
+
+    // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
+    // The server receives a 0.1°-snapped bbox; client-side filterToViewport() trims to the exact viewport.
+    useEffect(() => {
+        if (mapListingSource !== "zillow") return;
+        if (!snappedBoundsKey) return;
+        const b = areaFilter?.bbox ?? mapBounds;
+        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
+
+    // Loopnet: server-side bbox filtering, re-fetch on bounds changes too.
+    useEffect(() => {
+        if (mapListingSource !== "loopnet") return;
         if (!areaFilter && !mapBounds) return;
         fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
     }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
@@ -449,7 +552,7 @@ function MapPageInner() {
                     </div>
 
                     {/* Search input or committed area chip */}
-                    {areaFilter && areaFilter.type !== "address" ? (
+                    {areaFilter && (areaFilter.type !== "address" || areaFilter.bbox) ? (
                         <div className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                             <MapPin className="size-3 flex-shrink-0" />
                             <span className="max-w-[180px] truncate">{areaFilter.label}</span>
@@ -475,6 +578,8 @@ function MapPageInner() {
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && areaType === "zip") {
                                         commitZip(areaInput);
+                                    } else if (e.key === "Enter" && areaType === "address") {
+                                        commitAddressText(areaInput);
                                     } else if (e.key === "Escape") {
                                         setShowSuggestions(false);
                                     }
@@ -692,6 +797,11 @@ function MapPageInner() {
                         initialZoom={initialZoom}
                         fitBoundsTarget={fitBoundsTarget}
                         boundaryGeoJSON={boundaryGeoJSON}
+                        addressPin={
+                            areaFilter?.type === "address" && areaFilter.bbox && !areaFilter.addressQuery
+                                ? [(areaFilter.bbox.west + areaFilter.bbox.east) / 2, (areaFilter.bbox.south + areaFilter.bbox.north) / 2]
+                                : null
+                        }
                         onBoundsChange={handleBoundsChange}
                         onViewChange={handleViewChange}
                     />

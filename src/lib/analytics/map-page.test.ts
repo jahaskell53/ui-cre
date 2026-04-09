@@ -60,6 +60,62 @@ describe("analytics map-page helpers", () => {
         expect(serialized.get("areaBboxN")).toBe("37.9");
     });
 
+    it("parses address filter with bbox and no addressQuery (geocoded proximity)", () => {
+        const params = new URLSearchParams(
+            "areaType=address&area=123+Main+St%2C+San+Francisco%2C+CA&areaBboxW=-122.42&areaBboxS=37.76&areaBboxE=-122.40&areaBboxN=37.78",
+        );
+
+        const areaFilter = parseAreaFilter(params);
+        expect(areaFilter).toEqual({
+            type: "address",
+            label: "123 Main St, San Francisco, CA",
+            addressQuery: undefined,
+            bbox: {
+                west: -122.42,
+                south: 37.76,
+                east: -122.4,
+                north: 37.78,
+            },
+        });
+    });
+
+    it("parses address filter with addressQuery and no bbox (text search)", () => {
+        const params = new URLSearchParams("areaType=address&area=Market+St&areaAddress=Market+St");
+
+        const areaFilter = parseAreaFilter(params);
+        expect(areaFilter).toEqual({
+            type: "address",
+            label: "Market St",
+            addressQuery: "Market St",
+            bbox: undefined,
+        });
+    });
+
+    it("serializes and restores geocoded address filter (bbox, no addressQuery)", () => {
+        const areaFilter = {
+            type: "address" as const,
+            label: "123 Main St, San Francisco, CA",
+            addressQuery: undefined,
+            bbox: { west: -122.42, south: 37.76, east: -122.4, north: 37.78 },
+        };
+
+        const serialized = buildMapSearchParams({
+            filters: createDefaultMapFilters(),
+            mapListingSource: "zillow",
+            showLatestOnly: true,
+            areaType: "address",
+            areaFilter,
+        });
+
+        expect(serialized.get("areaAddress")).toBeNull();
+        expect(serialized.get("areaBboxW")).toBe("-122.42");
+        expect(serialized.get("areaBboxN")).toBe("37.78");
+
+        const restored = parseAreaFilter(serialized);
+        expect(restored?.addressQuery).toBeUndefined();
+        expect(restored?.bbox?.west).toBe(-122.42);
+    });
+
     it("counts only active filters relevant to the active listing source", () => {
         const filters = {
             ...createDefaultMapFilters(),

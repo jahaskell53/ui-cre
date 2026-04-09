@@ -2,16 +2,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/utils/supabase";
 import UsersPage from "./page";
 
-// Mock dependencies
 vi.mock("@/hooks/use-user");
-vi.mock("@/utils/supabase", () => ({
-    supabase: {
-        from: vi.fn(),
-    },
-}));
 
 const mockUser = {
     id: "user-123",
@@ -31,6 +24,7 @@ describe("UsersPage", () => {
             loading: false,
             refreshProfile: vi.fn(),
         });
+        vi.stubGlobal("fetch", vi.fn());
     });
 
     it("should render search input", () => {
@@ -40,26 +34,10 @@ describe("UsersPage", () => {
 
     it("should search for users when typing", async () => {
         const user = userEvent.setup();
-        const mockSelect = vi.fn().mockReturnValue({
-            ilike: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({
-                    data: [
-                        {
-                            id: "user-1",
-                            full_name: "John Doe",
-                            avatar_url: null,
-                            website: null,
-                            roles: ["Broker"],
-                        },
-                    ],
-                    error: null,
-                }),
-            }),
-        });
-
-        vi.mocked(supabase.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        vi.mocked(fetch).mockResolvedValue({
+            ok: true,
+            json: async () => [{ id: "user-1", full_name: "John Doe", avatar_url: null, website: null, roles: ["Broker"] }],
+        } as Response);
 
         render(<UsersPage />);
 
@@ -68,33 +46,17 @@ describe("UsersPage", () => {
 
         await waitFor(
             () => {
-                expect(supabase.from).toHaveBeenCalledWith("profiles");
+                expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/users/search?q=john"));
             },
             { timeout: 1000 },
         );
     });
 
     it("should display search results", async () => {
-        const mockSelect = vi.fn().mockReturnValue({
-            ilike: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({
-                    data: [
-                        {
-                            id: "user-1",
-                            full_name: "John Doe",
-                            avatar_url: null,
-                            website: null,
-                            roles: ["Broker"],
-                        },
-                    ],
-                    error: null,
-                }),
-            }),
-        });
-
-        vi.mocked(supabase.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        vi.mocked(fetch).mockResolvedValue({
+            ok: true,
+            json: async () => [{ id: "user-1", full_name: "John Doe", avatar_url: null, website: null, roles: ["Broker"] }],
+        } as Response);
 
         render(<UsersPage />);
 
@@ -116,18 +78,10 @@ describe("UsersPage", () => {
 
     it("should show no results message when search returns empty", async () => {
         const user = userEvent.setup();
-        const mockSelect = vi.fn().mockReturnValue({
-            ilike: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                }),
-            }),
-        });
-
-        vi.mocked(supabase.from).mockReturnValue({
-            select: mockSelect,
-        } as any);
+        vi.mocked(fetch).mockResolvedValue({
+            ok: true,
+            json: async () => [],
+        } as Response);
 
         render(<UsersPage />);
 

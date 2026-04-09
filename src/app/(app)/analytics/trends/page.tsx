@@ -551,10 +551,10 @@ export default function TrendsPage() {
             key={label}
             type="button"
             onClick={onClick}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition-all ${active ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-300" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"}`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition-all ${active ? "border-gray-300 bg-white text-gray-900 shadow-sm dark:border-gray-500 dark:bg-gray-600 dark:text-gray-100" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:bg-gray-700"}`}
         >
             <span
-                className={`size-2 rounded-full border transition-all ${active ? "border-blue-500 bg-blue-500 dark:border-blue-400 dark:bg-blue-400" : "border-gray-300 dark:border-gray-500"}`}
+                className={`size-2 rounded-full border transition-all ${active ? "border-gray-500 bg-gray-500 dark:border-gray-300 dark:bg-gray-300" : "border-gray-300 dark:border-gray-500"}`}
             />
             {label}
         </button>
@@ -610,8 +610,8 @@ export default function TrendsPage() {
                 {(display === "chart" || display === "table" || display === "map") && (
                     <div className="flex items-center gap-4">
                         <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Area type</span>
-                        <div className="flex overflow-hidden rounded-lg border border-gray-200 text-sm dark:border-gray-600">
-                            {(display === "map" ? AREA_TYPES.filter((t) => MAP_AREA_TYPES.has(t)) : AREA_TYPES).map((t, i) => {
+                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
+                            {(display === "map" ? AREA_TYPES.filter((t) => MAP_AREA_TYPES.has(t)) : AREA_TYPES).map((t) => {
                                 const enabled = display === "map" ? MAP_AREA_TYPES.has(t) : ENABLED_AREA_TYPES.has(t);
                                 const active = !addressMode && areaType === t;
                                 const dimmed = addressMode && !pendingFeature;
@@ -637,7 +637,7 @@ export default function TrendsPage() {
                                                 }
                                             }
                                         }}
-                                        className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${active ? "bg-blue-600 text-white" : dimmed ? "cursor-not-allowed text-gray-300 dark:text-gray-600" : resolvable ? "text-gray-500 hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-blue-900/20" : enabled ? "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700" : "cursor-not-allowed text-gray-300 dark:text-gray-600"}`}
+                                        className={`rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${active ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : dimmed ? "cursor-not-allowed text-gray-300 dark:text-gray-600" : resolvable ? "text-gray-500 hover:text-gray-700 dark:text-gray-400" : enabled ? "text-gray-500 hover:text-gray-700 dark:text-gray-400" : "cursor-not-allowed text-gray-300 dark:text-gray-600"}`}
                                     >
                                         {t}
                                     </button>
@@ -674,7 +674,7 @@ export default function TrendsPage() {
                                             setShowAddInput(true);
                                             setAddress("");
                                         }}
-                                        className="flex size-6 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400 transition-colors hover:border-blue-400 hover:text-blue-500 dark:border-gray-600"
+                                        className="flex size-6 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400 transition-colors hover:border-gray-400 hover:text-gray-600 dark:border-gray-600"
                                         title="Add area to compare"
                                     >
                                         <span className="mb-px text-base leading-none">+</span>
@@ -693,8 +693,8 @@ export default function TrendsPage() {
                                     </button>
                                 </div>
                                 <div className="text-xs text-gray-400 dark:text-gray-500">Analyze as</div>
-                                <div className="flex overflow-hidden rounded-lg border border-gray-200 text-sm dark:border-gray-600">
-                                    {(["ZIP Code", "Neighborhood", "City", "County", "MSA"] as const).map((g, i) => {
+                                <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
+                                    {(["ZIP Code", "Neighborhood", "City", "County", "MSA"] as const).map((g) => {
                                         const ctx = pendingFeature.context ?? [];
                                         const regionShort = (
                                             (
@@ -730,7 +730,7 @@ export default function TrendsPage() {
                                                 type="button"
                                                 disabled={disabled}
                                                 onClick={() => resolveGranularity(g)}
-                                                className={`flex-1 px-2 py-2 text-center transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${disabled ? "cursor-not-allowed text-gray-300 dark:text-gray-600" : "text-gray-600 hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-blue-900/20"}`}
+                                                className={`flex-1 rounded-md px-2 py-1.5 text-center transition-colors ${disabled ? "cursor-not-allowed text-gray-300 dark:text-gray-600" : "text-gray-500 hover:bg-white hover:text-gray-700 hover:shadow-sm dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-100"}`}
                                             >
                                                 <div className="text-xs leading-tight font-medium">{resolvedLabel ?? "—"}</div>
                                                 <div className="mt-0.5 text-xs leading-tight text-gray-400">{g}</div>
@@ -745,7 +745,7 @@ export default function TrendsPage() {
                             <div className="flex items-center gap-2">
                                 <div className="relative flex-1" ref={inputWrapperRef}>
                                     {addressMode ? (
-                                        <MapPin className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-blue-500" />
+                                        <MapPin className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-gray-400" />
                                     ) : (
                                         <Search className="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-gray-400" />
                                     )}
@@ -884,7 +884,7 @@ export default function TrendsPage() {
                                             setAddress("");
                                             setSuggestions([]);
                                         }}
-                                        className="flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-gray-500 transition-colors hover:text-blue-600"
+                                        className="flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-gray-500 transition-colors hover:text-gray-700"
                                     >
                                         <MapPin className="size-3" /> by address
                                     </button>
@@ -916,19 +916,19 @@ export default function TrendsPage() {
                 {/* Segment */}
                 <div className="flex items-center gap-4">
                     <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Segment</span>
-                    <div className="flex overflow-hidden rounded-lg border border-gray-200 text-sm dark:border-gray-600">
+                    <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
                         {(
                             [
                                 { label: "All", value: "both" },
                                 { label: "Mid-market", value: "mid" },
                                 { label: "REIT", value: "reit" },
                             ] as { label: string; value: "both" | "mid" | "reit" }[]
-                        ).map(({ label, value }, i) => (
+                        ).map(({ label, value }) => (
                             <button
                                 key={value}
                                 type="button"
                                 onClick={() => setSelectedSegment(value)}
-                                className={`px-3 py-1.5 whitespace-nowrap transition-colors ${i > 0 ? "border-l border-gray-200 dark:border-gray-600" : ""} ${selectedSegment === value ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700"}`}
+                                className={`rounded-md px-3 py-1 font-medium whitespace-nowrap capitalize transition-colors ${selectedSegment === value ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
                             >
                                 {label}
                             </button>
