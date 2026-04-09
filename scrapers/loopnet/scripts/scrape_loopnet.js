@@ -87,7 +87,13 @@
       console.error(`Detail fetch failed for ${listing.url}:`, e);
     }
 
-    await new Promise(r => setTimeout(r, 400));
+    // Pause every 50 requests to reset sliding-window rate limits
+    if ((i + 1) % 50 === 0) {
+      console.log(`[Phase 2] Pausing 45s after ${i + 1} requests...`);
+      await new Promise(r => setTimeout(r, 45000));
+    } else {
+      await new Promise(r => setTimeout(r, 3000 + Math.random() * 5000));
+    }
   }
 
   console.log('[Phase 2] Done. Building CSV...');
