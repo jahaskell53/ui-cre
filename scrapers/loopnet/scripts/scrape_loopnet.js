@@ -1,4 +1,4 @@
-(async () => {
+(async (startIndex = 0) => {
   const BB = '37mtyq5j5O1j6ikg9D';
   const TOTAL_PAGES = 13;
   const allListings = [];
@@ -56,7 +56,8 @@
     return prop ? (prop.value[0] || '') : '';
   }
 
-  for (let i = 0; i < allListings.length; i++) {
+  if (startIndex > 0) console.log(`[Phase 2] Resuming from index ${startIndex}...`);
+  for (let i = startIndex; i < allListings.length; i++) {
     const listing = allListings[i];
     if (!listing.url) continue;
 
@@ -87,8 +88,8 @@
       console.error(`Detail fetch failed for ${listing.url}:`, e);
     }
 
-    // Pause every 50 requests to reset sliding-window rate limits
-    if ((i + 1) % 50 === 0) {
+    // Pause every 25 requests to reset sliding-window rate limits
+    if ((i + 1) % 25 === 0) {
       console.log(`[Phase 2] Pausing 45s after ${i + 1} requests...`);
       await new Promise(r => setTimeout(r, 45000));
     } else {
