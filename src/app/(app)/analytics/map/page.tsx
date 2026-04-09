@@ -99,7 +99,8 @@ type AreaSuggestion =
     | { kind: "neighborhood"; id: number; name: string; city: string; state: string }
     | { kind: "mapbox"; feature: MapboxFeature }
     | { kind: "msa"; id: number; geoid: string; name: string; name_lsad: string }
-    | { kind: "zip"; feature: MapboxFeature };
+    | { kind: "zip"; feature: MapboxFeature }
+    | { kind: "address"; feature: MapboxFeature };
 
 interface MapboxFeature {
     id: string;
@@ -167,17 +168,6 @@ function MapPageInner() {
     useEffect(() => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
 
-        // Address type: debounce the filter directly, no dropdown suggestions
-        if (areaType === "address") {
-            const q = areaInput.trim();
-            // Bail if the filter already matches — prevents infinite re-render loop
-            if ((q && areaFilter?.addressQuery === q) || (!q && !areaFilter)) return;
-            suggestTimerRef.current = setTimeout(() => {
-                setAreaFilter(q ? { type: "address", label: q, addressQuery: q } : null);
-            }, 500);
-            return;
-        }
-
         if (areaFilter || areaInput.length < 2) {
             setAreaSuggestions([]);
             setShowSuggestions(false);
@@ -203,6 +193,17 @@ function MapPageInner() {
                 const data = await searchMsas({ p_query: areaInput });
                 setAreaSuggestions(data.map((r) => ({ kind: "msa" as const, ...r })));
                 setShowSuggestions(true);
+            } else if (areaType === "address") {
+                try {
+                    const res = await fetch(
+                        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(areaInput)}.json?access_token=${MAPBOX_TOKEN}&types=address,poi&country=US&limit=6`,
+                    );
+                    const json = await res.json();
+                    setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "address" as const, feature: f })));
+                    setShowSuggestions(true);
+                } catch {
+                    setAreaSuggestions([]);
+                }
             } else {
                 const mapboxType = areaType === "city" ? "place" : "district";
                 try {
@@ -239,11 +240,32 @@ function MapPageInner() {
         if (data) setBoundaryGeoJSON(data);
     };
 
+    const commitAddressText = (query: string) => {
+        const v = query.trim();
+        if (!v) return;
+        setAreaFilter({ type: "address", label: v, addressQuery: v });
+        setShowSuggestions(false);
+    };
+
     const selectSuggestion = async (s: AreaSuggestion) => {
         setShowSuggestions(false);
         setAreaSuggestions([]);
 
-        if (s.kind === "zip") {
+        if (s.kind === "address") {
+            const label = s.feature.place_name;
+            const [lng, lat] = s.feature.center;
+            // ~500m proximity radius in degrees (~0.005°)
+            const PROXIMITY_DEG = 0.005;
+            const bbox: MapBounds = {
+                west: lng - PROXIMITY_DEG,
+                east: lng + PROXIMITY_DEG,
+                south: lat - PROXIMITY_DEG,
+                north: lat + PROXIMITY_DEG,
+            };
+            setAreaInput(label);
+            setAreaFilter({ type: "address", label, bbox });
+            setFitBoundsTarget(bbox);
+        } else if (s.kind === "zip") {
             const zip = s.feature.text;
             const mb = s.feature.bbox;
             const bbox: MapBounds | undefined = mb ? { west: mb[0], south: mb[1], east: mb[2], north: mb[3] } : undefined;
@@ -530,7 +552,7 @@ function MapPageInner() {
                     </div>
 
                     {/* Search input or committed area chip */}
-                    {areaFilter && areaFilter.type !== "address" ? (
+                    {areaFilter && (areaFilter.type !== "address" || areaFilter.bbox) ? (
                         <div className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                             <MapPin className="size-3 flex-shrink-0" />
                             <span className="max-w-[180px] truncate">{areaFilter.label}</span>
@@ -556,6 +578,8 @@ function MapPageInner() {
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && areaType === "zip") {
                                         commitZip(areaInput);
+                                    } else if (e.key === "Enter" && areaType === "address") {
+                                        commitAddressText(areaInput);
                                     } else if (e.key === "Escape") {
                                         setShowSuggestions(false);
                                     }
