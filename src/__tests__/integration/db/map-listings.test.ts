@@ -48,6 +48,7 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
             p_baths_min: null,
             p_home_types: null,
             p_property_type: "both",
+            p_laundry: null,
             p_bounds_south: OAKLAND_BBOX.south,
             p_bounds_north: OAKLAND_BBOX.north,
             p_bounds_west: OAKLAND_BBOX.west,
@@ -77,6 +78,13 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
             expect(typeof pin.unit_count).toBe("number");
             expect(pin.unit_count).toBeGreaterThanOrEqual(1);
             expect(Array.isArray(pin.unit_mix)).toBe(true);
+            expect(pin.building_zpid === null || typeof pin.building_zpid === "string").toBe(true);
+            if (pin.is_reit) {
+                expect(typeof pin.building_zpid).toBe("string");
+                expect((pin.building_zpid as string).length).toBeGreaterThan(0);
+            } else {
+                expect(pin.building_zpid).toBeNull();
+            }
         }
     });
 
@@ -145,6 +153,7 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
             p_baths_min: null,
             p_home_types: null,
             p_property_type: "reit",
+            p_laundry: null,
             p_bounds_south: OAKLAND_BBOX.south,
             p_bounds_north: OAKLAND_BBOX.north,
             p_bounds_west: OAKLAND_BBOX.west,
@@ -171,6 +180,7 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
             p_baths_min: null,
             p_home_types: null,
             p_property_type: "mid",
+            p_laundry: null,
             p_bounds_south: OAKLAND_BBOX.south,
             p_bounds_north: OAKLAND_BBOX.north,
             p_bounds_west: OAKLAND_BBOX.west,
@@ -198,6 +208,7 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
             p_baths_min: null,
             p_home_types: null,
             p_property_type: "both",
+            p_laundry: null,
             p_bounds_south: OAKLAND_BBOX.south,
             p_bounds_north: OAKLAND_BBOX.north,
             p_bounds_west: OAKLAND_BBOX.west,

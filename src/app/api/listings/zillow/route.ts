@@ -48,6 +48,16 @@ export async function GET(request: NextRequest) {
             p_baths_min: sp.has("baths_min") ? parseFloat(sp.get("baths_min")!) : null,
             p_home_types: sp.has("home_types") ? sp.get("home_types")!.split(",") : null,
             p_property_type: (sp.get("property_type") ?? "both") as "both" | "reit" | "mid",
+            p_laundry: (() => {
+                const raw = sp.get("laundry");
+                if (!raw) return null;
+                const allowed = new Set(["in_unit", "shared", "none"]);
+                const vals = raw
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter((s): s is "in_unit" | "shared" | "none" => allowed.has(s));
+                return vals.length > 0 ? vals : null;
+            })(),
             // Bounds are snapped to a 0.1° grid (~11 km) so nearby viewports share the same
             // cached response. Client-side filterToViewport() then trims to the exact viewport.
             p_bounds_south: sp.has("bounds_south") ? Math.floor(parseFloat(sp.get("bounds_south")!) * 10) / 10 : null,

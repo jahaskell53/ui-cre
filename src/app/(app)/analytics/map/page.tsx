@@ -28,6 +28,7 @@ import {
     BATH_OPTIONS,
     BED_OPTIONS,
     type Filters,
+    LAUNDRY_OPTIONS,
     type MapListingSource,
     buildMapSearchParams,
     countActiveMapFilters,
@@ -60,6 +61,7 @@ async function fetchZillowListings(params: {
     sqftMax: number | null;
     beds: number[] | null;
     bathsMin: number | null;
+    laundry: ("in_unit" | "shared" | "none")[] | null;
     propertyType: "both" | "reit" | "mid";
     bounds: MapBounds | null;
 }): Promise<ZillowMapListingRow[]> {
@@ -74,6 +76,7 @@ async function fetchZillowListings(params: {
     if (params.sqftMax !== null) sp.set("sqft_max", String(params.sqftMax));
     if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
     if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
+    if (params.laundry !== null && params.laundry.length > 0) sp.set("laundry", params.laundry.join(","));
     sp.set("property_type", params.propertyType);
     if (params.bounds) {
         sp.set("bounds_south", String(snapOut(params.bounds.south, "floor")));
@@ -114,6 +117,7 @@ function buildZillowFilterKey(areaFilter: AreaFilter | null, filters: Filters, s
         sx: filters.sqftMax,
         b: filters.beds,
         ba: filters.bathsMin,
+        lnd: filters.laundry,
         t: filters.propertyType,
     });
 }
@@ -404,6 +408,7 @@ function MapPageInner() {
                         sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
                         beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
                         bathsMin: currentFilters.bathsMin ?? null,
+                        laundry: currentFilters.laundry.length > 0 ? currentFilters.laundry : null,
                         propertyType: currentFilters.propertyType,
                         bounds: effectiveBounds,
                     });
@@ -770,6 +775,35 @@ function MapPageInner() {
                                                     className={cn(
                                                         "rounded-md border px-2.5 py-1 text-xs transition-colors",
                                                         filters.bathsMin === value
+                                                            ? "border-blue-600 bg-blue-600 text-white"
+                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                                                    )}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {mapListingSource === "zillow" && (
+                                    <div>
+                                        <Label className="text-xs">Laundry</Label>
+                                        <div className="mt-1 flex flex-wrap gap-1.5">
+                                            {LAUNDRY_OPTIONS.map(({ label, value }) => (
+                                                <button
+                                                    key={value}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setFilters((prev) => ({
+                                                            ...prev,
+                                                            laundry: prev.laundry.includes(value)
+                                                                ? prev.laundry.filter((v) => v !== value)
+                                                                : [...prev.laundry, value],
+                                                        }))
+                                                    }
+                                                    className={cn(
+                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                                                        filters.laundry.includes(value)
                                                             ? "border-blue-600 bg-blue-600 text-white"
                                                             : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
                                                     )}
