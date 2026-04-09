@@ -31,6 +31,7 @@ export interface Property {
     listingSource?: ListingSource | null;
     isReit?: boolean;
     unitMix?: UnitMixRow[];
+    buildingZpid?: string | null;
 }
 
 export type MapBounds = { north: number; south: number; east: number; west: number };
@@ -74,6 +75,7 @@ function propertiesToGeoJSON(properties: Property[]): GeoJSON.FeatureCollection 
                 listingSource: p.listingSource ?? null,
                 isReit: p.isReit ?? false,
                 unitMix: JSON.stringify(p.unitMix ?? []),
+                buildingZpid: p.buildingZpid ?? null,
             },
         })),
     };
@@ -295,6 +297,9 @@ export const PropertyMap = ({
                     unitMix = JSON.parse(props.unitMix ?? "[]");
                 } catch {}
 
+                const popupHref =
+                    props.isReit && props.buildingZpid ? `/analytics/building/${encodeURIComponent(props.buildingZpid)}` : `/analytics/listing/${props.id}`;
+
                 popupRoot.current.render(
                     <PropertyPopupContent
                         name={props.name}
@@ -306,7 +311,7 @@ export const PropertyMap = ({
                         thumbnailUrl={props.thumbnailUrl}
                         isReit={props.isReit}
                         unitMix={unitMix}
-                        href={`/analytics/listing/${props.id}`}
+                        href={popupHref}
                     />,
                 );
 
@@ -366,6 +371,11 @@ export const PropertyMap = ({
                 popupRoot.current = createRoot(popupContainer.current);
             }
 
+            const selectedPopupHref =
+                property.isReit && property.buildingZpid
+                    ? `/analytics/building/${encodeURIComponent(property.buildingZpid)}`
+                    : `/analytics/listing/${property.id}`;
+
             popupRoot.current.render(
                 <PropertyPopupContent
                     name={property.name}
@@ -377,7 +387,7 @@ export const PropertyMap = ({
                     thumbnailUrl={property.thumbnailUrl}
                     isReit={property.isReit}
                     unitMix={property.unitMix}
-                    href={`/analytics/listing/${property.id}`}
+                    href={selectedPopupHref}
                 />,
             );
 

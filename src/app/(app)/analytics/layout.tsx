@@ -15,7 +15,7 @@ export default function AnalyticsLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
 
     // Detail pages have their own full-page layout
-    const isDetailPage = /^\/analytics\/listing\//.test(pathname ?? "");
+    const isDetailPage = /^\/analytics\/(listing|building)\//.test(pathname ?? "");
 
     if (isDetailPage) {
         return <>{children}</>;

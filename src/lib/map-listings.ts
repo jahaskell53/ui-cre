@@ -37,6 +37,7 @@ export interface ZillowMapListingRow {
     area: number | null;
     scraped_at: string | null;
     total_count: number;
+    building_zpid: string | null;
 }
 
 /**
@@ -62,6 +63,7 @@ export function mapZillowRpcRow(row: ZillowMapListingRow): PropertyWithDate {
             avgPrice: u.avg_price,
         })),
         capRate: undefined,
+        buildingZpid: row.building_zpid ?? null,
         _createdAt: row.scraped_at ?? "",
     };
 }

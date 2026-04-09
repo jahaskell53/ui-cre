@@ -1454,7 +1454,13 @@ function CompsContent() {
                                                     <td className="px-4 py-3">
                                                         <button
                                                             type="button"
-                                                            onClick={() => setSelectedCompId(`zillow-${comp.id}`)}
+                                                            onClick={() => {
+                                                                if (comp.building_zpid) {
+                                                                    router.push(`/analytics/building/${encodeURIComponent(comp.building_zpid)}`);
+                                                                } else {
+                                                                    setSelectedCompId(`zillow-${comp.id}`);
+                                                                }
+                                                            }}
                                                             className="group flex w-full cursor-pointer items-center gap-3 text-left"
                                                         >
                                                             <div className="h-12 w-16 flex-shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-gray-700">
