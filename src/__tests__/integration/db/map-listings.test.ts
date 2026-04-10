@@ -20,6 +20,30 @@ const OAKLAND_ZIP = "94610";
 const OAKLAND_BBOX = { south: 37.799458, north: 37.820213, west: -122.261055, east: -122.22394 };
 const BAY_AREA_BBOX = { south: 37.7, north: 37.89, west: -122.49, east: -122.2 };
 
+/** Baseline args for get_zillow_map_listings — Oakland ZIP + viewport (extend via spread). */
+function zillowMapListingsParams(overrides: Record<string, unknown> = {}) {
+    return {
+        p_zip: OAKLAND_ZIP,
+        p_city: null,
+        p_address_query: null,
+        p_latest_only: false,
+        p_price_min: null,
+        p_price_max: null,
+        p_sqft_min: null,
+        p_sqft_max: null,
+        p_beds: null,
+        p_baths_min: null,
+        p_home_types: null,
+        p_property_type: "both",
+        p_laundry: null,
+        p_bounds_south: OAKLAND_BBOX.south,
+        p_bounds_north: OAKLAND_BBOX.north,
+        p_bounds_west: OAKLAND_BBOX.west,
+        p_bounds_east: OAKLAND_BBOX.east,
+        ...overrides,
+    };
+}
+
 function makeClient(): SupabaseClient {
     const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -35,24 +59,7 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
 
     beforeAll(async () => {
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_listings", {
-            p_zip: OAKLAND_ZIP,
-            p_city: null,
-            p_address_query: null,
-            p_latest_only: false,
-            p_price_min: null,
-            p_price_max: null,
-            p_sqft_min: null,
-            p_sqft_max: null,
-            p_beds: null,
-            p_baths_min: null,
-            p_home_types: null,
-            p_property_type: "both",
-            p_bounds_south: OAKLAND_BBOX.south,
-            p_bounds_north: OAKLAND_BBOX.north,
-            p_bounds_west: OAKLAND_BBOX.west,
-            p_bounds_east: OAKLAND_BBOX.east,
-        });
+        const { data, error } = await client.rpc("get_zillow_map_listings", zillowMapListingsParams());
         rpcError = error;
         pins = (data ?? []) as ZillowMapListingRow[];
     });
@@ -77,6 +84,13 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
             expect(typeof pin.unit_count).toBe("number");
             expect(pin.unit_count).toBeGreaterThanOrEqual(1);
             expect(Array.isArray(pin.unit_mix)).toBe(true);
+            expect(pin.building_zpid === null || typeof pin.building_zpid === "string").toBe(true);
+            if (pin.is_reit) {
+                expect(typeof pin.building_zpid).toBe("string");
+                expect((pin.building_zpid as string).length).toBeGreaterThan(0);
+            } else {
+                expect(pin.building_zpid).toBeNull();
+            }
         }
     });
 
@@ -132,24 +146,7 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
 
     it("p_property_type='reit' returns only REIT pins", async () => {
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_listings", {
-            p_zip: OAKLAND_ZIP,
-            p_city: null,
-            p_address_query: null,
-            p_latest_only: false,
-            p_price_min: null,
-            p_price_max: null,
-            p_sqft_min: null,
-            p_sqft_max: null,
-            p_beds: null,
-            p_baths_min: null,
-            p_home_types: null,
-            p_property_type: "reit",
-            p_bounds_south: OAKLAND_BBOX.south,
-            p_bounds_north: OAKLAND_BBOX.north,
-            p_bounds_west: OAKLAND_BBOX.west,
-            p_bounds_east: OAKLAND_BBOX.east,
-        });
+        const { data, error } = await client.rpc("get_zillow_map_listings", zillowMapListingsParams({ p_property_type: "reit" }));
         expect(error).toBeNull();
         const reitOnly = (data ?? []) as ZillowMapListingRow[];
         expect(reitOnly.length).toBeGreaterThan(0);
@@ -158,24 +155,7 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
 
     it("p_property_type='mid' returns only individual (non-REIT) pins", async () => {
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_listings", {
-            p_zip: OAKLAND_ZIP,
-            p_city: null,
-            p_address_query: null,
-            p_latest_only: false,
-            p_price_min: null,
-            p_price_max: null,
-            p_sqft_min: null,
-            p_sqft_max: null,
-            p_beds: null,
-            p_baths_min: null,
-            p_home_types: null,
-            p_property_type: "mid",
-            p_bounds_south: OAKLAND_BBOX.south,
-            p_bounds_north: OAKLAND_BBOX.north,
-            p_bounds_west: OAKLAND_BBOX.west,
-            p_bounds_east: OAKLAND_BBOX.east,
-        });
+        const { data, error } = await client.rpc("get_zillow_map_listings", zillowMapListingsParams({ p_property_type: "mid" }));
         expect(error).toBeNull();
         const midOnly = (data ?? []) as ZillowMapListingRow[];
         expect(midOnly.length).toBeGreaterThan(0);
@@ -185,27 +165,39 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
     it("p_price_min filter excludes pins below the threshold", async () => {
         const threshold = 3000;
         const client = makeClient();
-        const { data, error } = await client.rpc("get_zillow_map_listings", {
-            p_zip: OAKLAND_ZIP,
-            p_city: null,
-            p_address_query: null,
-            p_latest_only: false,
-            p_price_min: threshold,
-            p_price_max: null,
-            p_sqft_min: null,
-            p_sqft_max: null,
-            p_beds: null,
-            p_baths_min: null,
-            p_home_types: null,
-            p_property_type: "both",
-            p_bounds_south: OAKLAND_BBOX.south,
-            p_bounds_north: OAKLAND_BBOX.north,
-            p_bounds_west: OAKLAND_BBOX.west,
-            p_bounds_east: OAKLAND_BBOX.east,
-        });
+        const { data, error } = await client.rpc("get_zillow_map_listings", zillowMapListingsParams({ p_price_min: threshold }));
         expect(error).toBeNull();
         const filtered = (data ?? []) as ZillowMapListingRow[];
         expect(filtered.length).toBeLessThan(pins.length);
+    });
+
+    it("p_laundry narrows results: stricter laundry set is a subset of looser sets", async () => {
+        const client = makeClient();
+
+        const { data: noFilter, error: e0 } = await client.rpc("get_zillow_map_listings", zillowMapListingsParams());
+        expect(e0).toBeNull();
+        const n0 = (noFilter ?? []).length;
+
+        const { data: allKnown, error: e1 } = await client.rpc(
+            "get_zillow_map_listings",
+            zillowMapListingsParams({ p_laundry: ["in_unit", "shared", "none"] }),
+        );
+        expect(e1).toBeNull();
+        const n1 = (allKnown ?? []).length;
+
+        const { data: inUnitOnly, error: e2 } = await client.rpc("get_zillow_map_listings", zillowMapListingsParams({ p_laundry: ["in_unit"] }));
+        expect(e2).toBeNull();
+        const n2 = (inUnitOnly ?? []).length;
+
+        expect(n1).toBeLessThanOrEqual(n0);
+        expect(n2).toBeLessThanOrEqual(n1);
+    });
+
+    it("p_laundry empty array behaves like no laundry filter", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("get_zillow_map_listings", zillowMapListingsParams({ p_laundry: [] }));
+        expect(error).toBeNull();
+        expect((data ?? []).length).toBe(pins.length);
     });
 });
 

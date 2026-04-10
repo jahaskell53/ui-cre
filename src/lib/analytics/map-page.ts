@@ -22,6 +22,9 @@ export interface AreaFilter {
     bbox?: SerializableMapBounds;
 }
 
+/** Zillow `cleaned_listings.laundry` values users can filter by on the rent map. */
+export type LaundryFilterValue = "in_unit" | "shared" | "none";
+
 export interface Filters {
     priceMin: string;
     priceMax: string;
@@ -31,6 +34,7 @@ export interface Filters {
     sqftMax: string;
     beds: number[];
     bathsMin: number | null;
+    laundry: LaundryFilterValue[];
     propertyType: "both" | "reit" | "mid";
 }
 
@@ -52,6 +56,12 @@ export const BATH_OPTIONS = [
     { label: "2+", value: 2 },
     { label: "3+", value: 3 },
     { label: "4+", value: 4 },
+];
+
+export const LAUNDRY_OPTIONS: { label: string; value: LaundryFilterValue }[] = [
+    { label: "In unit", value: "in_unit" },
+    { label: "Shared", value: "shared" },
+    { label: "None", value: "none" },
 ];
 
 export const AREA_TYPE_LABELS: Record<AreaType, string> = {
@@ -82,6 +92,7 @@ export function createDefaultMapFilters(): Filters {
         sqftMax: "",
         beds: [],
         bathsMin: null,
+        laundry: [],
         propertyType: "both",
     };
 }
@@ -89,7 +100,16 @@ export function createDefaultMapFilters(): Filters {
 export function parseMapFilters(searchParams: SearchParamSource): Filters {
     const beds = searchParams.get("beds");
     const bathsMin = searchParams.get("bathsMin");
+    const laundryParam = searchParams.get("laundry");
     const propertyType = searchParams.get("propertyType");
+
+    const laundryValues = new Set<LaundryFilterValue>(["in_unit", "shared", "none"]);
+    const laundry: LaundryFilterValue[] = laundryParam
+        ? laundryParam
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s): s is LaundryFilterValue => laundryValues.has(s as LaundryFilterValue))
+        : [];
 
     return {
         priceMin: searchParams.get("priceMin") ?? "",
@@ -105,6 +125,7 @@ export function parseMapFilters(searchParams: SearchParamSource): Filters {
                   .filter((value) => !Number.isNaN(value))
             : [],
         bathsMin: bathsMin !== null ? parseFloat(bathsMin) || null : null,
+        laundry,
         propertyType: (["both", "reit", "mid"] as const).find((value) => value === propertyType) ?? "both",
     };
 }
@@ -115,6 +136,11 @@ export function parseMapListingSource(searchParams: SearchParamSource): MapListi
 
 export function parseShowLatestOnly(searchParams: SearchParamSource): boolean {
     return searchParams.get("latest") !== "false";
+}
+
+/** Mobile/small screens: full-area map vs list (`view=list` in URL; default is map). */
+export function parseListingsViewMode(searchParams: SearchParamSource): "map" | "list" {
+    return searchParams.get("view") === "list" ? "list" : "map";
 }
 
 export function parseAreaType(searchParams: SearchParamSource): AreaType {
@@ -178,14 +204,18 @@ export function parseAreaFilter(searchParams: SearchParamSource): AreaFilter | n
     return null;
 }
 
-export function countActiveMapFilters(filters: Filters, source: MapListingSource): number {
+export function countActiveMapFilters(filters: Filters, source: MapListingSource, showLatestOnly = true): number {
     let count = 0;
+
+    if (source !== "zillow") count++;
+    if (!showLatestOnly) count++;
 
     if (filters.priceMin || filters.priceMax) count++;
     if (source === "loopnet" && (filters.capRateMin || filters.capRateMax)) count++;
     if (filters.sqftMin || filters.sqftMax) count++;
     if (source === "zillow" && filters.beds.length > 0) count++;
     if (source === "zillow" && filters.bathsMin !== null) count++;
+    if (source === "zillow" && filters.laundry.length > 0) count++;
     if (source === "zillow" && filters.propertyType !== "both") count++;
 
     return count;
@@ -198,6 +228,7 @@ export function buildMapSearchParams({
     showLatestOnly,
     areaType,
     areaFilter,
+    listingsViewMode,
 }: {
     baseParams?: URLSearchParams;
     filters: Filters;
@@ -205,8 +236,14 @@ export function buildMapSearchParams({
     showLatestOnly: boolean;
     areaType: AreaType;
     areaFilter: AreaFilter | null;
+    listingsViewMode?: "map" | "list";
 }): URLSearchParams {
     const params = new URLSearchParams(baseParams?.toString() ?? "");
+
+    if (listingsViewMode !== undefined) {
+        if (listingsViewMode === "list") params.set("view", "list");
+        else params.delete("view");
+    }
 
     if (mapListingSource !== "zillow") params.set("source", mapListingSource);
     else params.delete("source");
@@ -275,6 +312,8 @@ export function buildMapSearchParams({
     else params.delete("beds");
     if (filters.bathsMin !== null) params.set("bathsMin", String(filters.bathsMin));
     else params.delete("bathsMin");
+    if (filters.laundry.length > 0) params.set("laundry", filters.laundry.join(","));
+    else params.delete("laundry");
     if (filters.propertyType !== "both") params.set("propertyType", filters.propertyType);
     else params.delete("propertyType");
 

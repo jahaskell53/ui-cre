@@ -81,6 +81,7 @@ describe("mapZillowRpcRow", () => {
         area: 850,
         scraped_at: "2024-03-01T00:00:00Z",
         total_count: 42,
+        building_zpid: null,
     };
 
     const baseReit: ZillowMapListingRow = {
@@ -99,6 +100,7 @@ describe("mapZillowRpcRow", () => {
         area: null,
         scraped_at: "2024-04-01T00:00:00Z",
         total_count: 42,
+        building_zpid: "zpid-tower-999",
     };
 
     it("preserves the id directly", () => {
@@ -168,5 +170,17 @@ describe("mapZillowRpcRow", () => {
 
     it("sets _createdAt to empty string when scraped_at is null", () => {
         expect(mapZillowRpcRow({ ...baseIndividual, scraped_at: null })._createdAt).toBe("");
+    });
+
+    it("sets buildingZpid to null for individual listings", () => {
+        expect(mapZillowRpcRow(baseIndividual).buildingZpid).toBeNull();
+    });
+
+    it("passes building_zpid through for REIT listings", () => {
+        expect(mapZillowRpcRow(baseReit).buildingZpid).toBe("zpid-tower-999");
+    });
+
+    it("sets buildingZpid to null when building_zpid is null on REIT row", () => {
+        expect(mapZillowRpcRow({ ...baseReit, building_zpid: null }).buildingZpid).toBeNull();
     });
 });

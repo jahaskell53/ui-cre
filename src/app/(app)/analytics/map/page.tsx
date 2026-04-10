@@ -1,14 +1,15 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Filter, MapPin, Search, X } from "lucide-react";
+import { Filter, LayoutList, Map as MapIcon, MapPin, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PropertiesSidebar } from "@/app/(app)/analytics/map/properties-sidebar";
 import { type MapBounds, type Property, PropertyMap } from "@/components/application/map/property-map";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     getCityGeojson,
     getCountyGeojson,
@@ -28,12 +29,14 @@ import {
     BATH_OPTIONS,
     BED_OPTIONS,
     type Filters,
+    LAUNDRY_OPTIONS,
     type MapListingSource,
     buildMapSearchParams,
     countActiveMapFilters,
     createDefaultMapFilters,
     parseAreaFilter,
     parseAreaType,
+    parseListingsViewMode,
     parseMapFilters,
     parseMapListingSource,
     parseShowLatestOnly,
@@ -60,6 +63,7 @@ async function fetchZillowListings(params: {
     sqftMax: number | null;
     beds: number[] | null;
     bathsMin: number | null;
+    laundry: ("in_unit" | "shared" | "none")[] | null;
     propertyType: "both" | "reit" | "mid";
     bounds: MapBounds | null;
 }): Promise<ZillowMapListingRow[]> {
@@ -74,6 +78,7 @@ async function fetchZillowListings(params: {
     if (params.sqftMax !== null) sp.set("sqft_max", String(params.sqftMax));
     if (params.beds !== null && params.beds.length > 0) sp.set("beds", params.beds.join(","));
     if (params.bathsMin !== null) sp.set("baths_min", String(params.bathsMin));
+    if (params.laundry !== null && params.laundry.length > 0) sp.set("laundry", params.laundry.join(","));
     sp.set("property_type", params.propertyType);
     if (params.bounds) {
         sp.set("bounds_south", String(snapOut(params.bounds.south, "floor")));
@@ -93,6 +98,30 @@ async function fetchZillowListings(params: {
 function filterToViewport(rows: ZillowMapListingRow[], bounds: MapBounds | null): ZillowMapListingRow[] {
     if (!bounds) return rows;
     return rows.filter((r) => r.latitude >= bounds.south && r.latitude <= bounds.north && r.longitude >= bounds.west && r.longitude <= bounds.east);
+}
+
+function boundsContainedIn(
+    inner: { south: number; north: number; west: number; east: number },
+    outer: { south: number; north: number; west: number; east: number },
+): boolean {
+    return inner.south >= outer.south && inner.north <= outer.north && inner.west >= outer.west && inner.east <= outer.east;
+}
+
+function buildZillowFilterKey(areaFilter: AreaFilter | null, filters: Filters, showLatestOnly: boolean): string {
+    return JSON.stringify({
+        z: areaFilter?.zipCode ?? null,
+        c: areaFilter?.cityName ?? null,
+        a: areaFilter?.addressQuery ?? null,
+        l: showLatestOnly,
+        pm: filters.priceMin,
+        px: filters.priceMax,
+        sm: filters.sqftMin,
+        sx: filters.sqftMax,
+        b: filters.beds,
+        ba: filters.bathsMin,
+        lnd: filters.laundry,
+        t: filters.propertyType,
+    });
 }
 
 type AreaSuggestion =
@@ -131,10 +160,10 @@ function MapPageInner() {
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
     const [filters, setFilters] = useState<Filters>(() => parseMapFilters(searchParams));
-    const [filtersOpen, setFiltersOpen] = useState(false);
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => parseMapListingSource(searchParams));
     const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => parseShowLatestOnly(searchParams));
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+    const [listingsViewMode, setListingsViewMode] = useState<"map" | "list">(() => parseListingsViewMode(searchParams));
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Area-type search state
@@ -150,7 +179,21 @@ function MapPageInner() {
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
 
-    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
+    // Client-side cache: avoid re-fetching Zillow rows when zooming into an
+    // already-fetched area. We track a map of filter-key → { rows, union bbox }
+    // so we only hit the network when the viewport extends beyond what we've
+    // already retrieved for the current set of non-spatial filters.
+    const zillowCacheRef = useRef<
+        Map<
+            string,
+            {
+                rows: ZillowMapListingRow[];
+                coveredBounds: { south: number; north: number; west: number; east: number };
+            }
+        >
+    >(new Map());
+
+    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource, showLatestOnly), [filters, mapListingSource, showLatestOnly]);
 
     const clearFilters = () => {
         setFilters(createDefaultMapFilters());
@@ -353,10 +396,8 @@ function MapPageInner() {
                 return;
             }
 
-            // Zillow: fetch all rows matching non-spatial filters, then filter to viewport client-side.
-            // This keeps the API URL stable (no bbox params) so Vercel's edge cache serves all users
-            // from the same cached response regardless of where they are on the map.
             if (source === "zillow") {
+                const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
                 try {
                     const rows = await fetchZillowListings({
                         zip: activeAreaFilter?.zipCode ?? null,
@@ -369,11 +410,39 @@ function MapPageInner() {
                         sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
                         beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
                         bathsMin: currentFilters.bathsMin ?? null,
+                        laundry: currentFilters.laundry.length > 0 ? currentFilters.laundry : null,
                         propertyType: currentFilters.propertyType,
-                        bounds: activeAreaFilter?.bbox ?? bounds,
+                        bounds: effectiveBounds,
                     });
-                    setAllZillowRows(rows);
-                    // Viewport filtering happens in a separate effect below
+
+                    const filterKey = buildZillowFilterKey(activeAreaFilter, currentFilters, latestOnly);
+                    const fetchedBounds = effectiveBounds
+                        ? {
+                              south: snapOut(effectiveBounds.south, "floor"),
+                              north: snapOut(effectiveBounds.north, "ceil"),
+                              west: snapOut(effectiveBounds.west, "floor"),
+                              east: snapOut(effectiveBounds.east, "ceil"),
+                          }
+                        : null;
+
+                    const existing = zillowCacheRef.current.get(filterKey);
+                    if (existing && fetchedBounds) {
+                        const seen = new Set(existing.rows.map((r) => r.id));
+                        const merged = [...existing.rows, ...rows.filter((r) => !seen.has(r.id))];
+                        const unionBounds = {
+                            south: Math.min(existing.coveredBounds.south, fetchedBounds.south),
+                            north: Math.max(existing.coveredBounds.north, fetchedBounds.north),
+                            west: Math.min(existing.coveredBounds.west, fetchedBounds.west),
+                            east: Math.max(existing.coveredBounds.east, fetchedBounds.east),
+                        };
+                        zillowCacheRef.current.set(filterKey, { rows: merged, coveredBounds: unionBounds });
+                        setAllZillowRows(merged);
+                    } else {
+                        if (fetchedBounds) {
+                            zillowCacheRef.current.set(filterKey, { rows, coveredBounds: fetchedBounds });
+                        }
+                        setAllZillowRows(rows);
+                    }
                 } catch (error) {
                     console.error("Error fetching zillow map listings:", error);
                     setAllZillowRows([]);
@@ -414,9 +483,10 @@ function MapPageInner() {
             showLatestOnly,
             areaType,
             areaFilter,
+            listingsViewMode,
         });
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, router]);
+    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, listingsViewMode, router]);
 
     // Restore boundary GeoJSON when areaFilter is hydrated from URL on mount
     useEffect(() => {
@@ -465,12 +535,29 @@ function MapPageInner() {
         return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
     }, [areaFilter, mapBounds]);
 
-    // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes.
-    // The server receives a 0.1°-snapped bbox; client-side filterToViewport() trims to the exact viewport.
+    // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes,
+    // but skip the fetch if the current viewport is already covered by cached data.
     useEffect(() => {
         if (mapListingSource !== "zillow") return;
         if (!snappedBoundsKey) return;
         const b = areaFilter?.bbox ?? mapBounds;
+        if (!b) return;
+
+        const filterKey = buildZillowFilterKey(areaFilter, filters, showLatestOnly);
+        const cached = zillowCacheRef.current.get(filterKey);
+        const snappedBounds = {
+            south: snapOut(b.south, "floor"),
+            north: snapOut(b.north, "ceil"),
+            west: snapOut(b.west, "floor"),
+            east: snapOut(b.east, "ceil"),
+        };
+
+        if (cached && boundsContainedIn(snappedBounds, cached.coveredBounds)) {
+            setAllZillowRows(cached.rows);
+            setLoading(false);
+            return;
+        }
+
         fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
@@ -482,313 +569,408 @@ function MapPageInner() {
         fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
     }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
 
-    return (
-        <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Map Controls Bar */}
-            <div className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-                {/* Sales vs Rent toggle */}
-                <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+    const filtersDialogInner = (
+        <div className="max-h-[min(70vh,28rem)] space-y-6 overflow-y-auto pr-1">
+            <div>
+                <Label className="text-xs text-muted-foreground">Listing type</Label>
+                <div className="mt-2 flex gap-1 rounded-lg bg-muted p-1">
                     {(["zillow", "loopnet"] as const).map((source) => (
                         <button
                             key={source}
-                            onClick={() => {
-                                setMapListingSource(source);
-                            }}
+                            type="button"
+                            onClick={() => setMapListingSource(source)}
                             className={cn(
-                                "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                                mapListingSource === source
-                                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
-                                    : "text-gray-600 dark:text-gray-400",
+                                "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                mapListingSource === source ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                             )}
                         >
                             {source === "loopnet" ? "Sales" : "Rent"}
                         </button>
                     ))}
                 </div>
-
-                {/* Latest / Historical toggle */}
-                <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+            </div>
+            <div>
+                <Label className="text-xs text-muted-foreground">Time range</Label>
+                <div className="mt-2 flex gap-1 rounded-lg bg-muted p-1">
                     {([true, false] as const).map((latest) => (
                         <button
                             key={String(latest)}
+                            type="button"
                             onClick={() => setShowLatestOnly(latest)}
                             className={cn(
-                                "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                                showLatestOnly === latest
-                                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100"
-                                    : "text-gray-600 dark:text-gray-400",
+                                "flex-1 rounded-md px-3 py-2 text-sm font-medium capitalize transition-colors",
+                                showLatestOnly === latest ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                             )}
                         >
                             {latest ? "Latest" : "Historical"}
                         </button>
                     ))}
                 </div>
-
-                {/* Area type selector + search */}
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                    {/* Area type buttons */}
-                    <div className="flex flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 text-xs dark:border-gray-600">
-                        {(Object.keys(AREA_TYPE_LABELS) as AreaType[]).map((type, i) => (
-                            <button
-                                key={type}
-                                type="button"
-                                onClick={() => {
-                                    setAreaType(type);
-                                    setAreaFilter(null);
-                                    setAreaInput("");
-                                    setAreaSuggestions([]);
-                                }}
-                                className={cn(
-                                    "px-2.5 py-1.5 font-medium whitespace-nowrap transition-colors",
-                                    i > 0 && "border-l border-gray-200 dark:border-gray-600",
-                                    areaType === type
-                                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                                        : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700",
-                                )}
-                            >
-                                {AREA_TYPE_LABELS[type]}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Search input or committed area chip */}
-                    {areaFilter && (areaFilter.type !== "address" || areaFilter.bbox) ? (
-                        <div className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                            <MapPin className="size-3 flex-shrink-0" />
-                            <span className="max-w-[180px] truncate">{areaFilter.label}</span>
-                            <button type="button" onClick={clearAreaFilter} className="ml-0.5 text-blue-400 hover:text-blue-600 dark:hover:text-blue-200">
-                                <X className="size-3" />
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="relative max-w-xs flex-1" ref={inputWrapperRef}>
-                            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400" />
-                            <Input
-                                inputMode={areaType === "zip" ? "numeric" : "text"}
-                                placeholder={AREA_TYPE_PLACEHOLDERS[areaType]}
-                                className={cn(
-                                    "h-8 border-gray-200 bg-gray-50 pl-9 text-sm dark:border-gray-700 dark:bg-gray-800",
-                                    areaType === "address" && areaInput && "pr-8",
-                                )}
-                                value={areaInput}
-                                onChange={(e) => setAreaInput(e.target.value)}
-                                onFocus={() => {
-                                    if (areaSuggestions.length > 0) setShowSuggestions(true);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && areaType === "zip") {
-                                        commitZip(areaInput);
-                                    } else if (e.key === "Enter" && areaType === "address") {
-                                        commitAddressText(areaInput);
-                                    } else if (e.key === "Escape") {
-                                        setShowSuggestions(false);
-                                    }
-                                }}
-                            />
-                            {areaType === "address" && areaInput && (
+            </div>
+            <div className="space-y-3 border-t border-border pt-4">
+                {mapListingSource === "zillow" && (
+                    <div>
+                        <Label className="text-xs">Bedrooms</Label>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                            {BED_OPTIONS.map(({ label, value }) => (
                                 <button
+                                    key={value}
                                     type="button"
-                                    onClick={clearAreaFilter}
-                                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                    onClick={() =>
+                                        setFilters((prev) => ({
+                                            ...prev,
+                                            beds: prev.beds.includes(value) ? prev.beds.filter((b) => b !== value) : [...prev.beds, value],
+                                        }))
+                                    }
+                                    className={cn(
+                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                                        filters.beds.includes(value)
+                                            ? "border-blue-600 bg-blue-600 text-white"
+                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                                    )}
                                 >
-                                    <X className="size-3.5" />
+                                    {label}
                                 </button>
-                            )}
-                            {showSuggestions && areaSuggestions.length > 0 && (
-                                <ul className="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-hidden overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                                    {areaSuggestions.map((s, i) => {
-                                        const label =
-                                            s.kind === "neighborhood"
-                                                ? `${s.name} · ${s.city}, ${s.state}`
-                                                : s.kind === "msa"
-                                                  ? s.name_lsad || s.name
-                                                  : s.kind === "zip"
-                                                    ? s.feature.place_name
-                                                    : s.feature.place_name;
-                                        return (
-                                            <li
-                                                key={i}
-                                                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
-                                                onMouseDown={(e) => {
-                                                    e.preventDefault();
-                                                    selectSuggestion(s);
-                                                }}
-                                            >
-                                                <MapPin className="size-3 flex-shrink-0 text-gray-400" />
-                                                <span className="truncate">{label}</span>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
+                            ))}
                         </div>
+                    </div>
+                )}
+                {mapListingSource === "zillow" && (
+                    <div>
+                        <Label className="text-xs">Bathrooms (min)</Label>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                            {BATH_OPTIONS.map(({ label, value }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() =>
+                                        setFilters((prev) => ({
+                                            ...prev,
+                                            bathsMin: prev.bathsMin === value ? null : value,
+                                        }))
+                                    }
+                                    className={cn(
+                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                                        filters.bathsMin === value
+                                            ? "border-blue-600 bg-blue-600 text-white"
+                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {mapListingSource === "zillow" && (
+                    <div>
+                        <Label className="text-xs">Laundry</Label>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                            {LAUNDRY_OPTIONS.map(({ label, value }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() =>
+                                        setFilters((prev) => ({
+                                            ...prev,
+                                            laundry: prev.laundry.includes(value) ? prev.laundry.filter((v) => v !== value) : [...prev.laundry, value],
+                                        }))
+                                    }
+                                    className={cn(
+                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                                        filters.laundry.includes(value)
+                                            ? "border-blue-600 bg-blue-600 text-white"
+                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {mapListingSource === "zillow" && (
+                    <div>
+                        <Label className="text-xs">Segment</Label>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                            {(
+                                [
+                                    ["both", "All"],
+                                    ["reit", "REIT"],
+                                    ["mid", "Mid-market"],
+                                ] as const
+                            ).map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setFilters((prev) => ({ ...prev, propertyType: value }))}
+                                    className={cn(
+                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                                        filters.propertyType === value
+                                            ? "border-blue-600 bg-blue-600 text-white"
+                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                <div>
+                    <Label className="text-xs">Price Range</Label>
+                    <div className="mt-1 flex gap-2">
+                        <Input
+                            type="number"
+                            placeholder="Min"
+                            value={filters.priceMin}
+                            onChange={(e) => {
+                                setFilters((prev) => ({ ...prev, priceMin: e.target.value }));
+                            }}
+                            className="h-8 text-xs"
+                        />
+                        <Input
+                            type="number"
+                            placeholder="Max"
+                            value={filters.priceMax}
+                            onChange={(e) => {
+                                setFilters((prev) => ({ ...prev, priceMax: e.target.value }));
+                            }}
+                            className="h-8 text-xs"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <Label className="text-xs">Sq ft</Label>
+                    <div className="mt-1 flex gap-2">
+                        <Input
+                            type="number"
+                            placeholder="Min"
+                            value={filters.sqftMin}
+                            onChange={(e) => {
+                                setFilters((prev) => ({ ...prev, sqftMin: e.target.value }));
+                            }}
+                            className="h-8 text-xs"
+                        />
+                        <Input
+                            type="number"
+                            placeholder="Max"
+                            value={filters.sqftMax}
+                            onChange={(e) => {
+                                setFilters((prev) => ({ ...prev, sqftMax: e.target.value }));
+                            }}
+                            className="h-8 text-xs"
+                        />
+                    </div>
+                </div>
+                {mapListingSource === "loopnet" && (
+                    <div>
+                        <Label className="text-xs">Cap Rate (%)</Label>
+                        <div className="mt-1 flex gap-2">
+                            <Input
+                                type="number"
+                                placeholder="Min"
+                                value={filters.capRateMin}
+                                onChange={(e) => {
+                                    setFilters((prev) => ({ ...prev, capRateMin: e.target.value }));
+                                }}
+                                className="h-8 text-xs"
+                            />
+                            <Input
+                                type="number"
+                                placeholder="Max"
+                                value={filters.capRateMax}
+                                onChange={(e) => {
+                                    setFilters((prev) => ({ ...prev, capRateMax: e.target.value }));
+                                }}
+                                className="h-8 text-xs"
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const areaSearchField =
+        areaFilter && (areaFilter.type !== "address" || areaFilter.bbox) ? (
+            <div className="flex min-h-10 min-w-0 flex-1 items-center gap-1.5 border-l border-input bg-blue-50/80 px-3 py-2 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                <MapPin className="size-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span className="min-w-0 flex-1 truncate">{areaFilter.label}</span>
+                <button
+                    type="button"
+                    onClick={clearAreaFilter}
+                    className="shrink-0 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300"
+                    aria-label="Clear area"
+                >
+                    <X className="size-4" />
+                </button>
+            </div>
+        ) : (
+            <div className="relative min-h-10 min-w-0 flex-1" ref={inputWrapperRef}>
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                    inputMode={areaType === "zip" ? "numeric" : "text"}
+                    placeholder={AREA_TYPE_PLACEHOLDERS[areaType]}
+                    className={cn(
+                        "h-10 rounded-none rounded-r-lg border-0 pl-9 shadow-none focus-visible:ring-0",
+                        areaType === "address" && areaInput && "pr-9",
                     )}
+                    value={areaInput}
+                    onChange={(e) => setAreaInput(e.target.value)}
+                    onFocus={() => {
+                        if (areaSuggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" && areaType === "zip") {
+                            commitZip(areaInput);
+                        } else if (e.key === "Enter" && areaType === "address") {
+                            commitAddressText(areaInput);
+                        } else if (e.key === "Escape") {
+                            setShowSuggestions(false);
+                        }
+                    }}
+                    aria-label="Area search"
+                />
+                {areaType === "address" && areaInput && (
+                    <button
+                        type="button"
+                        onClick={clearAreaFilter}
+                        className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="Clear search"
+                    >
+                        <X className="size-3.5" />
+                    </button>
+                )}
+                {showSuggestions && areaSuggestions.length > 0 && (
+                    <ul className="absolute top-full right-0 left-0 z-50 mt-1 max-h-60 overflow-hidden overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                        {areaSuggestions.map((s, i) => {
+                            const label =
+                                s.kind === "neighborhood"
+                                    ? `${s.name} · ${s.city}, ${s.state}`
+                                    : s.kind === "msa"
+                                      ? s.name_lsad || s.name
+                                      : s.kind === "zip"
+                                        ? s.feature.place_name
+                                        : s.feature.place_name;
+                            return (
+                                <li
+                                    key={i}
+                                    className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        selectSuggestion(s);
+                                    }}
+                                >
+                                    <MapPin className="size-3 shrink-0 text-gray-400" />
+                                    <span className="truncate">{label}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </div>
+        );
+
+    return (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex flex-shrink-0 flex-col gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex items-center justify-between gap-2">
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline" size="sm" className="relative gap-2">
+                                <Filter className="size-4" />
+                                Filters
+                                {activeFilterCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <div className="flex items-center justify-between gap-2 pr-8">
+                                    <DialogTitle>Filters</DialogTitle>
+                                    {activeFilterCount > 0 && (
+                                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto shrink-0 px-2 py-1 text-xs">
+                                            Clear all
+                                        </Button>
+                                    )}
+                                </div>
+                                <DialogDescription className="sr-only">Listing type, time range, and property filters</DialogDescription>
+                            </DialogHeader>
+                            {filtersDialogInner}
+                        </DialogContent>
+                    </Dialog>
+
+                    <div className="flex rounded-lg border border-input bg-muted/40 p-0.5">
+                        <button
+                            type="button"
+                            onClick={() => setListingsViewMode("map")}
+                            className={cn(
+                                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                listingsViewMode === "map" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+                            )}
+                        >
+                            <MapIcon className="size-4" />
+                            Map
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setListingsViewMode("list")}
+                            className={cn(
+                                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                listingsViewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+                            )}
+                        >
+                            <LayoutList className="size-4" />
+                            List
+                        </button>
+                    </div>
                 </div>
 
-                {/* Filters Popover */}
-                <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="relative h-8">
-                            <Filter className="size-3.5" />
-                            Filters
-                            {activeFilterCount > 0 && (
-                                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
-                                    {activeFilterCount}
-                                </span>
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-72">
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-medium">Filters</h3>
-                                {activeFilterCount > 0 && (
-                                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto px-2 py-1 text-xs">
-                                        Clear all
-                                    </Button>
-                                )}
-                            </div>
-                            <div className="space-y-3">
-                                {mapListingSource === "zillow" && (
-                                    <div>
-                                        <Label className="text-xs">Bedrooms</Label>
-                                        <div className="mt-1 flex flex-wrap gap-1.5">
-                                            {BED_OPTIONS.map(({ label, value }) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() =>
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            beds: prev.beds.includes(value) ? prev.beds.filter((b) => b !== value) : [...prev.beds, value],
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                                                        filters.beds.includes(value)
-                                                            ? "border-blue-600 bg-blue-600 text-white"
-                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {mapListingSource === "zillow" && (
-                                    <div>
-                                        <Label className="text-xs">Bathrooms (min)</Label>
-                                        <div className="mt-1 flex flex-wrap gap-1.5">
-                                            {BATH_OPTIONS.map(({ label, value }) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() =>
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            bathsMin: prev.bathsMin === value ? null : value,
-                                                        }))
-                                                    }
-                                                    className={cn(
-                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                                                        filters.bathsMin === value
-                                                            ? "border-blue-600 bg-blue-600 text-white"
-                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {mapListingSource === "zillow" && (
-                                    <div>
-                                        <Label className="text-xs">Segment</Label>
-                                        <div className="mt-1 flex gap-1.5">
-                                            {(
-                                                [
-                                                    ["both", "All"],
-                                                    ["reit", "REIT"],
-                                                    ["mid", "Mid-market"],
-                                                ] as const
-                                            ).map(([value, label]) => (
-                                                <button
-                                                    key={value}
-                                                    onClick={() => setFilters((prev) => ({ ...prev, propertyType: value }))}
-                                                    className={cn(
-                                                        "rounded-md border px-2.5 py-1 text-xs transition-colors",
-                                                        filters.propertyType === value
-                                                            ? "border-blue-600 bg-blue-600 text-white"
-                                                            : "border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300",
-                                                    )}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                <div>
-                                    <Label className="text-xs">Price Range</Label>
-                                    <div className="mt-1 flex gap-2">
-                                        <Input
-                                            type="number"
-                                            placeholder="Min"
-                                            value={filters.priceMin}
-                                            onChange={(e) => {
-                                                setFilters((prev) => ({ ...prev, priceMin: e.target.value }));
-                                            }}
-                                            className="h-7 text-xs"
-                                        />
-                                        <Input
-                                            type="number"
-                                            placeholder="Max"
-                                            value={filters.priceMax}
-                                            onChange={(e) => {
-                                                setFilters((prev) => ({ ...prev, priceMax: e.target.value }));
-                                            }}
-                                            className="h-7 text-xs"
-                                        />
-                                    </div>
-                                </div>
-                                {mapListingSource === "loopnet" && (
-                                    <div>
-                                        <Label className="text-xs">Cap Rate (%)</Label>
-                                        <div className="mt-1 flex gap-2">
-                                            <Input
-                                                type="number"
-                                                placeholder="Min"
-                                                value={filters.capRateMin}
-                                                onChange={(e) => {
-                                                    setFilters((prev) => ({ ...prev, capRateMin: e.target.value }));
-                                                }}
-                                                className="h-7 text-xs"
-                                            />
-                                            <Input
-                                                type="number"
-                                                placeholder="Max"
-                                                value={filters.capRateMax}
-                                                onChange={(e) => {
-                                                    setFilters((prev) => ({ ...prev, capRateMax: e.target.value }));
-                                                }}
-                                                className="h-7 text-xs"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </PopoverContent>
-                </Popover>
+                <div className="flex w-full min-w-0 rounded-lg border border-input shadow-xs">
+                    <Select
+                        value={areaType}
+                        onValueChange={(v) => {
+                            const next = v as AreaType;
+                            setAreaType(next);
+                            setAreaFilter(null);
+                            setAreaInput("");
+                            setAreaSuggestions([]);
+                            setShowSuggestions(false);
+                        }}
+                    >
+                        <SelectTrigger
+                            size="sm"
+                            className="h-10 w-[min(38%,11rem)] shrink-0 rounded-none rounded-l-lg border-0 border-r bg-muted/30 shadow-none focus:z-10"
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {(Object.keys(AREA_TYPE_LABELS) as AreaType[]).map((type) => (
+                                <SelectItem key={type} value={type}>
+                                    {AREA_TYPE_LABELS[type]}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {areaSearchField}
+                </div>
             </div>
 
-            {/* Map Content */}
-            <div className="relative flex flex-1 flex-col overflow-hidden lg:flex-row">
-                {/* Sidebar */}
-                <PropertiesSidebar properties={properties} selectedId={selectedId} loading={loading} totalCount={totalCount} onSelect={setSelectedId} />
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+                <PropertiesSidebar
+                    properties={properties}
+                    selectedId={selectedId}
+                    loading={loading}
+                    totalCount={totalCount}
+                    onSelect={setSelectedId}
+                    className={cn(listingsViewMode === "list" ? "flex flex-1 lg:w-72" : "hidden lg:flex", "max-lg:min-h-0 max-lg:flex-1")}
+                />
 
-                {/* Map */}
-                <div className="relative flex-1">
+                <div className={cn("relative min-h-0 flex-1", listingsViewMode === "map" ? "flex flex-col" : "hidden lg:flex")}>
                     <PropertyMap
                         properties={properties}
                         selectedId={selectedId}

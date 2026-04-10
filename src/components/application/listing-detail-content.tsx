@@ -354,6 +354,15 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             headerBadge={
                 <div className="flex flex-wrap items-center gap-2">
                     <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", sourceBadgeClass)}>{sourceLabel}</span>
+                    {listing.source === "zillow" && listing.building_zpid && !listing.is_building && (
+                        <Link
+                            href={`/analytics/building/${encodeURIComponent(listing.building_zpid)}`}
+                            className="inline-flex items-center gap-1.5 text-sm text-violet-600 hover:underline dark:text-violet-400"
+                        >
+                            <Building2 className="size-3.5" />
+                            View Building
+                        </Link>
+                    )}
                     {listing.source === "zillow" && (listing.detail_url || listing.zpid) && (
                         <a
                             href={listing.detail_url ?? `https://www.zillow.com/homedetails/${listing.zpid}_zpid/`}
@@ -399,18 +408,24 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     </dd>
                                 </div>
                             )}
-                            <div className="flex justify-between">
-                                <dt className="text-gray-500 dark:text-gray-400">Beds</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.beds ?? 0}</dd>
-                            </div>
-                            <div className="flex justify-between">
-                                <dt className="text-gray-500 dark:text-gray-400">Baths</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.baths ? Number(listing.baths).toFixed(1) : "—"}</dd>
-                            </div>
-                            <div className="flex justify-between">
-                                <dt className="text-gray-500 dark:text-gray-400">Sq Ft</dt>
-                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.area ? listing.area.toLocaleString() : "—"}</dd>
-                            </div>
+                            {!listing.is_building && (
+                                <>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Beds</dt>
+                                        <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.beds ?? 0}</dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Baths</dt>
+                                        <dd className="font-medium text-gray-900 dark:text-gray-100">
+                                            {listing.baths ? Number(listing.baths).toFixed(1) : "—"}
+                                        </dd>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <dt className="text-gray-500 dark:text-gray-400">Sq Ft</dt>
+                                        <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.area ? listing.area.toLocaleString() : "—"}</dd>
+                                    </div>
+                                </>
+                            )}
                             {listing.home_type && (
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Home Type</dt>
@@ -526,6 +541,82 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 </section>
             )}
 
+            {showZillowPropertySection && (
+                <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
+                        <Building2 className="size-4" />
+                        {zillowPropertySectionTitle}
+                    </h3>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <dl className="space-y-3 text-sm">
+                            {zillowRawDetails?.neighborhood && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Neighborhood</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{zillowRawDetails.neighborhood}</dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.county && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">County</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{zillowRawDetails.county}</dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.walkScore && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Walk Score</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{formatScoreLabel(zillowRawDetails.walkScore)}</dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.transitScore && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Transit Score</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">
+                                        {formatScoreLabel(zillowRawDetails.transitScore)}
+                                    </dd>
+                                </div>
+                            )}
+                            {zillowRawDetails?.bikeScore && (
+                                <div className="flex justify-between gap-4">
+                                    <dt className="text-gray-500 dark:text-gray-400">Bike Score</dt>
+                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{formatScoreLabel(zillowRawDetails.bikeScore)}</dd>
+                                </div>
+                            )}
+                        </dl>
+
+                        {zillowRawDetails?.commonUnitAmenities.length ? (
+                            <div>
+                                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Amenities</h4>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {zillowRawDetails.commonUnitAmenities.map((amenity) => (
+                                        <span
+                                            key={amenity}
+                                            className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700/50 dark:text-gray-200"
+                                        >
+                                            {amenity}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    {zillowRawDetails?.specialOffer && (
+                        <div className="mt-6 rounded-lg bg-blue-50 px-4 py-3 dark:bg-blue-900/20">
+                            <p className="text-xs font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-300">Special offer</p>
+                            <p className="mt-1 text-sm text-blue-900 dark:text-blue-100">{zillowRawDetails.specialOffer}</p>
+                        </div>
+                    )}
+
+                    {zillowRawDetails?.description && (
+                        <div className="mt-6 border-t border-gray-100 pt-4 dark:border-gray-700">
+                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Description</h4>
+                            <p className="mt-2 text-sm leading-6 whitespace-pre-line text-gray-600 dark:text-gray-300">{zillowRawDetails.description}</p>
+                        </div>
+                    )}
+                </section>
+            )}
+
             {/* Unit Mix */}
             {listing.source === "zillow" && units && units.length > 0 && (
                 <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
@@ -608,82 +699,6 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                     </div>
                     {units.length > 25 && (
                         <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / 25)} onPageChange={setUnitsPage} align="center" />
-                    )}
-                </section>
-            )}
-
-            {showZillowPropertySection && (
-                <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
-                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
-                        <Building2 className="size-4" />
-                        {zillowPropertySectionTitle}
-                    </h3>
-
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <dl className="space-y-3 text-sm">
-                            {zillowRawDetails?.neighborhood && (
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-gray-500 dark:text-gray-400">Neighborhood</dt>
-                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{zillowRawDetails.neighborhood}</dd>
-                                </div>
-                            )}
-                            {zillowRawDetails?.county && (
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-gray-500 dark:text-gray-400">County</dt>
-                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{zillowRawDetails.county}</dd>
-                                </div>
-                            )}
-                            {zillowRawDetails?.walkScore && (
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-gray-500 dark:text-gray-400">Walk Score</dt>
-                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{formatScoreLabel(zillowRawDetails.walkScore)}</dd>
-                                </div>
-                            )}
-                            {zillowRawDetails?.transitScore && (
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-gray-500 dark:text-gray-400">Transit Score</dt>
-                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">
-                                        {formatScoreLabel(zillowRawDetails.transitScore)}
-                                    </dd>
-                                </div>
-                            )}
-                            {zillowRawDetails?.bikeScore && (
-                                <div className="flex justify-between gap-4">
-                                    <dt className="text-gray-500 dark:text-gray-400">Bike Score</dt>
-                                    <dd className="text-right font-medium text-gray-900 dark:text-gray-100">{formatScoreLabel(zillowRawDetails.bikeScore)}</dd>
-                                </div>
-                            )}
-                        </dl>
-
-                        {zillowRawDetails?.commonUnitAmenities.length ? (
-                            <div>
-                                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Amenities</h4>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    {zillowRawDetails.commonUnitAmenities.map((amenity) => (
-                                        <span
-                                            key={amenity}
-                                            className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700/50 dark:text-gray-200"
-                                        >
-                                            {amenity}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-
-                    {zillowRawDetails?.specialOffer && (
-                        <div className="mt-6 rounded-lg bg-blue-50 px-4 py-3 dark:bg-blue-900/20">
-                            <p className="text-xs font-semibold tracking-wide text-blue-700 uppercase dark:text-blue-300">Special offer</p>
-                            <p className="mt-1 text-sm text-blue-900 dark:text-blue-100">{zillowRawDetails.specialOffer}</p>
-                        </div>
-                    )}
-
-                    {zillowRawDetails?.description && (
-                        <div className="mt-6 border-t border-gray-100 pt-4 dark:border-gray-700">
-                            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Description</h4>
-                            <p className="mt-2 text-sm leading-6 whitespace-pre-line text-gray-600 dark:text-gray-300">{zillowRawDetails.description}</p>
-                        </div>
                     )}
                 </section>
             )}

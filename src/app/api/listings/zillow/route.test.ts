@@ -32,6 +32,7 @@ const SAMPLE_ROWS = [
         area: 800,
         scraped_at: "2024-01-01T00:00:00Z",
         total_count: 1,
+        building_zpid: null,
     },
 ];
 
@@ -81,6 +82,7 @@ describe("GET /api/listings/zillow", () => {
             p_baths_min: 1,
             p_home_types: null,
             p_property_type: "reit",
+            p_laundry: null,
             p_bounds_south: null,
             p_bounds_north: null,
             p_bounds_west: null,
@@ -93,7 +95,15 @@ describe("GET /api/listings/zillow", () => {
 
         await GET(makeGet());
 
-        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.objectContaining({ p_property_type: "both" }));
+        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.objectContaining({ p_property_type: "both", p_laundry: null }));
+    });
+
+    it("passes p_laundry when laundry query param is set", async () => {
+        mockRpc.mockResolvedValue({ data: [], error: null });
+
+        await GET(makeGet({ laundry: "in_unit,shared" }));
+
+        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.objectContaining({ p_laundry: ["in_unit", "shared"] }));
     });
 
     it("snaps bounds outward to 0.1° grid before passing to rpc", async () => {
@@ -139,6 +149,42 @@ describe("GET /api/listings/zillow", () => {
         expect(res.status).toBe(500);
         expect(body.error).toBe("RPC failed");
         expect(res.headers.get("Server-Timing")).toContain("rpc;dur=");
+    });
+
+    it("retries rpc on statement timeout then succeeds", async () => {
+        vi.useFakeTimers();
+        mockRpc
+            .mockResolvedValueOnce({
+                data: null,
+                error: { message: "canceling statement due to statement timeout" },
+            })
+            .mockResolvedValueOnce({ data: SAMPLE_ROWS, error: null });
+
+        const p = GET(makeGet({ zip: "94610" }));
+        await vi.advanceTimersByTimeAsync(500);
+        const res = await p;
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(body).toEqual(SAMPLE_ROWS);
+        expect(mockRpc).toHaveBeenCalledTimes(2);
+        vi.useRealTimers();
+    });
+
+    it("returns 500 after exhausting retries on statement timeouts", async () => {
+        vi.useFakeTimers();
+        const timeoutErr = { message: "canceling statement due to statement timeout" };
+        mockRpc.mockResolvedValue({ data: null, error: timeoutErr });
+
+        const p = GET(makeGet({ zip: "94610" }));
+        await vi.advanceTimersByTimeAsync(2000);
+        const res = await p;
+        const body = await res.json();
+
+        expect(res.status).toBe(500);
+        expect(body.error).toBe(timeoutErr.message);
+        expect(mockRpc).toHaveBeenCalledTimes(3);
+        vi.useRealTimers();
     });
 
     it("returns 500 when admin client throws", async () => {

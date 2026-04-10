@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { type ZillowMapListingRow } from "@/lib/map-listings";
 import { createAdminClient } from "@/utils/supabase/admin";
 
+const ZILLOW_MAP_RPC_MAX_ATTEMPTS = 3;
+
+function isStatementTimeoutMessage(message: string): boolean {
+    const m = message.toLowerCase();
+    return m.includes("statement timeout") || m.includes("57014");
+}
+
+async function getZillowMapListingsWithRetry(
+    supabase: ReturnType<typeof createAdminClient>,
+    params: Parameters<ReturnType<typeof createAdminClient>["rpc"]>[1],
+) {
+    let last: Awaited<ReturnType<ReturnType<typeof createAdminClient>["rpc"]>> | undefined;
+
+    for (let attempt = 0; attempt < ZILLOW_MAP_RPC_MAX_ATTEMPTS; attempt++) {
+        const result = await supabase.rpc("get_zillow_map_listings", params);
+        last = result;
+
+        if (!result.error || !isStatementTimeoutMessage(result.error.message)) {
+            return result;
+        }
+
+        if (attempt < ZILLOW_MAP_RPC_MAX_ATTEMPTS - 1) {
+            await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+        }
+    }
+
+    return last!;
+}
+
 export async function GET(request: NextRequest) {
     try {
         const sp = request.nextUrl.searchParams;
@@ -19,6 +48,16 @@ export async function GET(request: NextRequest) {
             p_baths_min: sp.has("baths_min") ? parseFloat(sp.get("baths_min")!) : null,
             p_home_types: sp.has("home_types") ? sp.get("home_types")!.split(",") : null,
             p_property_type: (sp.get("property_type") ?? "both") as "both" | "reit" | "mid",
+            p_laundry: (() => {
+                const raw = sp.get("laundry");
+                if (!raw) return null;
+                const allowed = new Set(["in_unit", "shared", "none"]);
+                const vals = raw
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter((s): s is "in_unit" | "shared" | "none" => allowed.has(s));
+                return vals.length > 0 ? vals : null;
+            })(),
             // Bounds are snapped to a 0.1° grid (~11 km) so nearby viewports share the same
             // cached response. Client-side filterToViewport() then trims to the exact viewport.
             p_bounds_south: sp.has("bounds_south") ? Math.floor(parseFloat(sp.get("bounds_south")!) * 10) / 10 : null,
@@ -31,7 +70,7 @@ export async function GET(request: NextRequest) {
         const supabase = createAdminClient();
         const tClientReady = performance.now();
 
-        const { data, error } = await supabase.rpc("get_zillow_map_listings", params);
+        const { data, error } = await getZillowMapListingsWithRetry(supabase, params);
         const tRpcDone = performance.now();
 
         const clientMs = (tClientReady - t0).toFixed(1);
