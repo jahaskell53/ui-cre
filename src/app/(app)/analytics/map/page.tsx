@@ -176,6 +176,7 @@ function MapPageInner() {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [fitBoundsTarget, setFitBoundsTarget] = useState<MapBounds | null>(null);
     const [boundaryGeoJSON, setBoundaryGeoJSON] = useState<string | null>(null);
+    const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -873,10 +874,10 @@ function MapPageInner() {
         );
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex flex-shrink-0 flex-col gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-                <div className="flex items-center justify-between gap-2">
-                    <Dialog>
+        <Dialog open={filtersDialogOpen} onOpenChange={setFiltersDialogOpen}>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="flex flex-shrink-0 flex-col gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex items-center justify-between gap-2 lg:hidden">
                         <DialogTrigger asChild>
                             <Button type="button" variant="outline" size="sm" className="relative gap-2">
                                 <Filter className="size-4" />
@@ -888,108 +889,124 @@ function MapPageInner() {
                                 )}
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                                <div className="flex items-center justify-between gap-2 pr-8">
-                                    <DialogTitle>Filters</DialogTitle>
-                                    {activeFilterCount > 0 && (
-                                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto shrink-0 px-2 py-1 text-xs">
-                                            Clear all
-                                        </Button>
-                                    )}
-                                </div>
-                                <DialogDescription className="sr-only">Listing type, time range, and property filters</DialogDescription>
-                            </DialogHeader>
-                            {filtersDialogInner}
-                        </DialogContent>
-                    </Dialog>
 
-                    <div className="flex rounded-lg border border-input bg-muted/40 p-0.5 lg:hidden">
-                        <button
-                            type="button"
-                            onClick={() => setListingsViewMode("map")}
-                            className={cn(
-                                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                                listingsViewMode === "map" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
-                            )}
+                        <div className="flex rounded-lg border border-input bg-muted/40 p-0.5">
+                            <button
+                                type="button"
+                                onClick={() => setListingsViewMode("map")}
+                                className={cn(
+                                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                    listingsViewMode === "map" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+                                )}
+                            >
+                                <MapIcon className="size-4" />
+                                Map
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setListingsViewMode("list")}
+                                className={cn(
+                                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                    listingsViewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
+                                )}
+                            >
+                                <LayoutList className="size-4" />
+                                List
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex w-full min-w-0 rounded-lg border border-input shadow-xs">
+                        <Select
+                            value={areaType}
+                            onValueChange={(v) => {
+                                const next = v as AreaType;
+                                setAreaType(next);
+                                setAreaFilter(null);
+                                setAreaInput("");
+                                setAreaSuggestions([]);
+                                setShowSuggestions(false);
+                            }}
                         >
-                            <MapIcon className="size-4" />
-                            Map
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setListingsViewMode("list")}
-                            className={cn(
-                                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                                listingsViewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground",
-                            )}
-                        >
-                            <LayoutList className="size-4" />
-                            List
-                        </button>
+                            <SelectTrigger
+                                size="sm"
+                                className="h-10 w-[min(38%,11rem)] shrink-0 rounded-none rounded-l-lg border-0 border-r bg-muted/30 shadow-none focus:z-10"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {(Object.keys(AREA_TYPE_LABELS) as AreaType[]).map((type) => (
+                                    <SelectItem key={type} value={type}>
+                                        {AREA_TYPE_LABELS[type]}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {areaSearchField}
                     </div>
                 </div>
 
-                <div className="flex w-full min-w-0 rounded-lg border border-input shadow-xs">
-                    <Select
-                        value={areaType}
-                        onValueChange={(v) => {
-                            const next = v as AreaType;
-                            setAreaType(next);
-                            setAreaFilter(null);
-                            setAreaInput("");
-                            setAreaSuggestions([]);
-                            setShowSuggestions(false);
-                        }}
-                    >
-                        <SelectTrigger
-                            size="sm"
-                            className="h-10 w-[min(38%,11rem)] shrink-0 rounded-none rounded-l-lg border-0 border-r bg-muted/30 shadow-none focus:z-10"
-                        >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {(Object.keys(AREA_TYPE_LABELS) as AreaType[]).map((type) => (
-                                <SelectItem key={type} value={type}>
-                                    {AREA_TYPE_LABELS[type]}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {areaSearchField}
-                </div>
-            </div>
-
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-                <PropertiesSidebar
-                    properties={properties}
-                    selectedId={selectedId}
-                    loading={loading}
-                    totalCount={totalCount}
-                    onSelect={setSelectedId}
-                    className={cn(listingsViewMode === "list" ? "flex flex-1 lg:w-72" : "hidden lg:flex", "max-lg:min-h-0 max-lg:flex-1")}
-                />
-
-                <div className={cn("relative min-h-0 flex-1", listingsViewMode === "map" ? "flex flex-col" : "hidden lg:flex")}>
-                    <PropertyMap
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+                    <PropertiesSidebar
                         properties={properties}
                         selectedId={selectedId}
-                        className="absolute inset-0"
-                        initialCenter={initialCenter}
-                        initialZoom={initialZoom}
-                        fitBoundsTarget={fitBoundsTarget}
-                        boundaryGeoJSON={boundaryGeoJSON}
-                        addressPin={
-                            areaFilter?.type === "address" && areaFilter.bbox && !areaFilter.addressQuery
-                                ? [(areaFilter.bbox.west + areaFilter.bbox.east) / 2, (areaFilter.bbox.south + areaFilter.bbox.north) / 2]
-                                : null
-                        }
-                        onBoundsChange={handleBoundsChange}
-                        onViewChange={handleViewChange}
+                        loading={loading}
+                        totalCount={totalCount}
+                        onSelect={setSelectedId}
+                        className={cn(listingsViewMode === "list" ? "flex flex-1 lg:w-72" : "hidden lg:flex", "max-lg:min-h-0 max-lg:flex-1")}
                     />
+
+                    <div className={cn("relative min-h-0 flex-1", listingsViewMode === "map" ? "flex flex-col" : "hidden lg:flex")}>
+                        <PropertyMap
+                            properties={properties}
+                            selectedId={selectedId}
+                            className="absolute inset-0"
+                            initialCenter={initialCenter}
+                            initialZoom={initialZoom}
+                            fitBoundsTarget={fitBoundsTarget}
+                            boundaryGeoJSON={boundaryGeoJSON}
+                            addressPin={
+                                areaFilter?.type === "address" && areaFilter.bbox && !areaFilter.addressQuery
+                                    ? [(areaFilter.bbox.west + areaFilter.bbox.east) / 2, (areaFilter.bbox.south + areaFilter.bbox.north) / 2]
+                                    : null
+                            }
+                            onBoundsChange={handleBoundsChange}
+                            onViewChange={handleViewChange}
+                        />
+                        <DialogTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="absolute top-3 left-3 z-10 hidden bg-background/95 shadow-sm backdrop-blur-sm lg:inline-flex"
+                                aria-label={`Filters${activeFilterCount > 0 ? `, ${activeFilterCount} active` : ""}`}
+                            >
+                                <Filter className="size-4" />
+                                {activeFilterCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </Button>
+                        </DialogTrigger>
+                    </div>
                 </div>
             </div>
-        </div>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <div className="flex items-center justify-between gap-2 pr-8">
+                        <DialogTitle>Filters</DialogTitle>
+                        {activeFilterCount > 0 && (
+                            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto shrink-0 px-2 py-1 text-xs">
+                                Clear all
+                            </Button>
+                        )}
+                    </div>
+                    <DialogDescription className="sr-only">Listing type, time range, and property filters</DialogDescription>
+                </DialogHeader>
+                {filtersDialogInner}
+            </DialogContent>
+        </Dialog>
     );
 }
 
