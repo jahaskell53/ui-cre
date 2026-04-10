@@ -1,8 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { BarChart3, Map, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -13,6 +14,18 @@ const tabs = [
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    // Remember the last full URL (path + query) seen for each tab so switching
+    // back restores the user's previous state instead of resetting to bare path.
+    const tabUrls = useRef<Record<string, string>>(Object.fromEntries(tabs.map((t) => [t.href, t.href])));
+
+    // Update the stored URL whenever the current tab's path/params change.
+    const currentTabBase = tabs.find((t) => pathname === t.href)?.href;
+    if (currentTabBase) {
+        const qs = searchParams.toString();
+        tabUrls.current[currentTabBase] = qs ? `${currentTabBase}?${qs}` : currentTabBase;
+    }
 
     // Detail pages have their own full-page layout
     const isDetailPage = /^\/analytics\/(listing|building)\//.test(pathname ?? "");
@@ -35,7 +48,7 @@ export default function AnalyticsLayout({ children }: { children: React.ReactNod
                             return (
                                 <Link
                                     key={tab.href}
-                                    href={tab.href}
+                                    href={tabUrls.current[tab.href]}
                                     className={cn(
                                         "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                                         active
