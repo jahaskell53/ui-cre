@@ -138,7 +138,7 @@ export function parseShowLatestOnly(searchParams: SearchParamSource): boolean {
     return searchParams.get("latest") !== "false";
 }
 
-/** Mobile/small screens: full-area map vs list (`view=list` in URL; default is map). */
+/** Small screens only: full-area map vs list (`view=list` in URL; default is map). On large screens both panels are shown simultaneously. */
 export function parseListingsViewMode(searchParams: SearchParamSource): "map" | "list" {
     return searchParams.get("view") === "list" ? "list" : "map";
 }

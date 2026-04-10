@@ -904,7 +904,7 @@ function MapPageInner() {
                         </DialogContent>
                     </Dialog>
 
-                    <div className="flex rounded-lg border border-input bg-muted/40 p-0.5">
+                    <div className="flex rounded-lg border border-input bg-muted/40 p-0.5 lg:hidden">
                         <button
                             type="button"
                             onClick={() => setListingsViewMode("map")}
