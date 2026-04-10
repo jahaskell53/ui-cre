@@ -1,16 +1,13 @@
-import { defineConfig } from 'vitest/config'
-import path from 'path'
+import { defineConfig } from "vitest/config";
+import path from "path";
 
 export default defineConfig({
-  test: {
-    environment: 'node',
-    globals: true,
-    include: ['src/__tests__/integration/db/**/*.{test,spec}.{ts,js}'],
-    testTimeout: 30000,
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+    test: {
+        environment: "node",
+        globals: true,
+        include: ["src/__tests__/integration/db/**/*.test.ts"],
     },
-  },
-})
+    resolve: {
+        alias: { "@": path.resolve(__dirname, "./src") },
+    },
+});

@@ -91,7 +91,9 @@ function NotFound({ backHref }: { backHref?: string }) {
 
 export function ListingDetailContent({ id: rawId, backHref }: { id: string; backHref?: string }) {
     const [listing, setListing] = useState<Listing | null | undefined>(undefined);
+    const [buildingZpid, setBuildingZpid] = useState<string | null>(null);
     const [units, setUnits] = useState<UnitRow[] | null>(null);
+    const [unitsLatestOnly, setUnitsLatestOnly] = useState(true);
     const [unitsPage, setUnitsPage] = useState(1);
     const [heroImages, setHeroImages] = useState<string[] | null>(null);
     const [heroIndex, setHeroIndex] = useState(0);
@@ -113,12 +115,8 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 }
                 const row = await res.json();
                 setListing({ source: "zillow", ...row } as ZillowListing);
-                const buildingZpid = row.is_building ? (row.zpid as string | null) : (row.building_zpid as string | null);
-                if (buildingZpid) {
-                    const unitRes = await fetch(`/api/listings/cleaned?building_zpid=${encodeURIComponent(buildingZpid)}`);
-                    const unitData = unitRes.ok ? await unitRes.json() : null;
-                    setUnits(unitData ?? null);
-                }
+                const zpid = row.is_building ? (row.zpid as string | null) : (row.building_zpid as string | null);
+                setBuildingZpid(zpid ?? null);
             } else {
                 const res = await fetch(`/api/listings/loopnet?id=${encodeURIComponent(rawId)}`);
                 if (!res.ok) {
@@ -132,6 +130,15 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
 
         load();
     }, [rawId]);
+
+    useEffect(() => {
+        if (!buildingZpid) return;
+        setUnits(null);
+        const param = unitsLatestOnly ? "1" : "0";
+        fetch(`/api/listings/cleaned?building_zpid=${encodeURIComponent(buildingZpid)}&latest_only=${param}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => setUnits(data ?? null));
+    }, [buildingZpid, unitsLatestOnly]);
 
     useEffect(() => {
         if (!listing) return;
@@ -393,11 +400,11 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 <dl className="space-y-3 text-sm">
                     {listing.source === "zillow" ? (
                         <>
-                            {listing.is_building && units && units.length > 0 ? (
+                            {listing.is_building && buildingZpid ? (
                                 <div className="flex justify-between">
                                     <dt className="text-gray-500 dark:text-gray-400">Units</dt>
                                     <dd className="font-medium text-gray-900 dark:text-gray-100">
-                                        {unitTypeSummary.length} type{unitTypeSummary.length !== 1 ? "s" : ""} · {units.length} total
+                                        {units ? `${unitTypeSummary.length} type${unitTypeSummary.length !== 1 ? "s" : ""} · ${units.length} total` : "—"}
                                     </dd>
                                 </div>
                             ) : (
@@ -618,87 +625,124 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
             )}
 
             {/* Unit Mix */}
-            {listing.source === "zillow" && units && units.length > 0 && (
+            {listing.source === "zillow" && buildingZpid && (
                 <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
-                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
-                        <Building2 className="size-4" />
-                        Unit Mix
-                        <span className="text-sm font-normal text-gray-500">
-                            ({units.length} unit{units.length !== 1 ? "s" : ""})
-                        </span>
-                    </h3>
-                    <div className="mb-6 overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
-                                    <th className="px-3 py-2 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase">Type</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Units</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg Rent</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Range</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg Sq Ft</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg $/sqft</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {unitTypeSummary.map((row) => (
-                                    <tr key={`${row.beds}-${row.baths}`} className="border-b border-gray-50 dark:border-gray-700/50">
-                                        <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
-                                            {row.beds} bd · {row.baths != null ? Number(row.baths).toFixed(1) : "?"} ba
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.count}</td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {row.avgPrice ? `$${Math.round(row.avgPrice).toLocaleString()}` : "—"}
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {row.minPrice != null && row.maxPrice != null
-                                                ? `$${Math.round(row.minPrice).toLocaleString()} – $${Math.round(row.maxPrice).toLocaleString()}`
-                                                : "—"}
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {row.avgArea ? Math.round(row.avgArea).toLocaleString() : "—"}
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {row.avgPrice && row.avgArea ? `$${(row.avgPrice / row.avgArea).toFixed(2)}` : "—"}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="mb-4 flex items-center gap-2">
+                        <Building2 className="size-4 text-gray-900 dark:text-gray-100" />
+                        <h3 className="flex-1 font-semibold text-gray-900 dark:text-gray-100">
+                            Unit Mix
+                            {units && (
+                                <span className="ml-1 text-sm font-normal text-gray-500">
+                                    ({units.length} unit{units.length !== 1 ? "s" : ""})
+                                </span>
+                            )}
+                        </h3>
+                        <div className="flex overflow-hidden rounded-md border border-gray-200 text-xs dark:border-gray-700">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setUnitsLatestOnly(true);
+                                    setUnitsPage(1);
+                                }}
+                                className={`px-2.5 py-1 transition-colors ${unitsLatestOnly ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900" : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"}`}
+                            >
+                                Current
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setUnitsLatestOnly(false);
+                                    setUnitsPage(1);
+                                }}
+                                className={`border-l border-gray-200 px-2.5 py-1 transition-colors dark:border-gray-700 ${!unitsLatestOnly ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900" : "bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"}`}
+                            >
+                                Historical
+                            </button>
+                        </div>
                     </div>
-                    <h4 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">All Units</h4>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Rent/mo</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Beds</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Baths</th>
-                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Sq Ft</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {units.slice((unitsPage - 1) * 25, unitsPage * 25).map((unit) => (
-                                    <tr
-                                        key={unit.id}
-                                        className="border-b border-gray-50 transition-colors hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30"
-                                    >
-                                        <td className="px-3 py-2 text-right font-medium">
-                                            <Link href={`/analytics/listing/zillow-${unit.id}`} className="text-blue-600 hover:underline dark:text-blue-400">
-                                                {unit.price ? `$${unit.price.toLocaleString()}` : "—"}
-                                            </Link>
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.beds ?? 0}</td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
-                                            {unit.baths != null ? Number(unit.baths).toFixed(1) : "—"}
-                                        </td>
-                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.area?.toLocaleString() ?? "—"}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    {units.length > 25 && (
-                        <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / 25)} onPageChange={setUnitsPage} align="center" />
+                    {units === null ? (
+                        <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">Loading units…</div>
+                    ) : units.length === 0 ? (
+                        <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">No units found.</div>
+                    ) : (
+                        <>
+                            <div className="mb-6 overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
+                                            <th className="px-3 py-2 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase">Type</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Units</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg Rent</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Range</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg Sq Ft</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Avg $/sqft</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {unitTypeSummary.map((row) => (
+                                            <tr key={`${row.beds}-${row.baths}`} className="border-b border-gray-50 dark:border-gray-700/50">
+                                                <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">
+                                                    {row.beds} bd · {row.baths != null ? Number(row.baths).toFixed(1) : "?"} ba
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.count}</td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.avgPrice ? `$${Math.round(row.avgPrice).toLocaleString()}` : "—"}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.minPrice != null && row.maxPrice != null
+                                                        ? `$${Math.round(row.minPrice).toLocaleString()} – $${Math.round(row.maxPrice).toLocaleString()}`
+                                                        : "—"}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.avgArea ? Math.round(row.avgArea).toLocaleString() : "—"}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {row.avgPrice && row.avgArea ? `$${(row.avgPrice / row.avgArea).toFixed(2)}` : "—"}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <h4 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">All Units</h4>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Rent/mo</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Beds</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Baths</th>
+                                            <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Sq Ft</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {units.slice((unitsPage - 1) * 25, unitsPage * 25).map((unit) => (
+                                            <tr
+                                                key={unit.id}
+                                                className="border-b border-gray-50 transition-colors hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30"
+                                            >
+                                                <td className="px-3 py-2 text-right font-medium">
+                                                    <Link
+                                                        href={`/analytics/listing/zillow-${unit.id}`}
+                                                        className="text-blue-600 hover:underline dark:text-blue-400"
+                                                    >
+                                                        {unit.price ? `$${unit.price.toLocaleString()}` : "—"}
+                                                    </Link>
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.beds ?? 0}</td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">
+                                                    {unit.baths != null ? Number(unit.baths).toFixed(1) : "—"}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{unit.area?.toLocaleString() ?? "—"}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {units.length > 25 && (
+                                <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / 25)} onPageChange={setUnitsPage} align="center" />
+                            )}
+                        </>
                     )}
                 </section>
             )}
