@@ -217,6 +217,9 @@ function MapPageInner() {
             setShowSuggestions(false);
             return;
         }
+
+        let cancelled = false;
+
         suggestTimerRef.current = setTimeout(async () => {
             if (areaType === "zip") {
                 try {
@@ -224,29 +227,45 @@ function MapPageInner() {
                         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(areaInput)}.json?access_token=${MAPBOX_TOKEN}&types=postcode&country=US&limit=6`,
                     );
                     const json = await res.json();
-                    setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "zip" as const, feature: f })));
-                    setShowSuggestions(true);
+                    if (!cancelled) {
+                        setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "zip" as const, feature: f })));
+                        setShowSuggestions(true);
+                    }
                 } catch {
-                    setAreaSuggestions([]);
+                    if (!cancelled) setAreaSuggestions([]);
                 }
             } else if (areaType === "neighborhood") {
-                const data = await searchNeighborhoods({ p_query: areaInput });
-                setAreaSuggestions(data.map((r) => ({ kind: "neighborhood" as const, ...r })));
-                setShowSuggestions(true);
+                try {
+                    const data = await searchNeighborhoods({ p_query: areaInput });
+                    if (!cancelled) {
+                        setAreaSuggestions(data.map((r) => ({ kind: "neighborhood" as const, ...r })));
+                        setShowSuggestions(true);
+                    }
+                } catch {
+                    if (!cancelled) setAreaSuggestions([]);
+                }
             } else if (areaType === "msa") {
-                const data = await searchMsas({ p_query: areaInput });
-                setAreaSuggestions(data.map((r) => ({ kind: "msa" as const, ...r })));
-                setShowSuggestions(true);
+                try {
+                    const data = await searchMsas({ p_query: areaInput });
+                    if (!cancelled) {
+                        setAreaSuggestions(data.map((r) => ({ kind: "msa" as const, ...r })));
+                        setShowSuggestions(true);
+                    }
+                } catch {
+                    if (!cancelled) setAreaSuggestions([]);
+                }
             } else if (areaType === "address") {
                 try {
                     const res = await fetch(
                         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(areaInput)}.json?access_token=${MAPBOX_TOKEN}&types=address,poi&country=US&limit=6`,
                     );
                     const json = await res.json();
-                    setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "address" as const, feature: f })));
-                    setShowSuggestions(true);
+                    if (!cancelled) {
+                        setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "address" as const, feature: f })));
+                        setShowSuggestions(true);
+                    }
                 } catch {
-                    setAreaSuggestions([]);
+                    if (!cancelled) setAreaSuggestions([]);
                 }
             } else {
                 const mapboxType = areaType === "city" ? "place" : "district";
@@ -255,13 +274,19 @@ function MapPageInner() {
                         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(areaInput)}.json?access_token=${MAPBOX_TOKEN}&types=${mapboxType}&country=US&limit=6`,
                     );
                     const json = await res.json();
-                    setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "mapbox" as const, feature: f })));
-                    setShowSuggestions(true);
+                    if (!cancelled) {
+                        setAreaSuggestions(((json.features ?? []) as MapboxFeature[]).map((f) => ({ kind: "mapbox" as const, feature: f })));
+                        setShowSuggestions(true);
+                    }
                 } catch {
-                    setAreaSuggestions([]);
+                    if (!cancelled) setAreaSuggestions([]);
                 }
             }
         }, 300);
+
+        return () => {
+            cancelled = true;
+        };
     }, [areaInput, areaType, areaFilter]);
 
     // Close suggestions on outside click

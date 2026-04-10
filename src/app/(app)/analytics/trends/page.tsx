@@ -146,22 +146,29 @@ export default function TrendsPage() {
             setMsaSuggestions([]);
             return;
         }
+
+        let cancelled = false;
+
         suggestTimerRef.current = setTimeout(async () => {
             if (areaType === "MSA" && !addressMode) {
                 try {
                     const data = await searchMsas({ p_query: address });
-                    setMsaSuggestions(data);
-                    setShowSuggestions(true);
+                    if (!cancelled) {
+                        setMsaSuggestions(data);
+                        setShowSuggestions(true);
+                    }
                 } catch {
-                    setMsaSuggestions([]);
+                    if (!cancelled) setMsaSuggestions([]);
                 }
             } else if (areaType === "Neighborhood" && !addressMode) {
                 try {
                     const data = await searchNeighborhoods({ p_query: address });
-                    setNhSuggestions(data);
-                    setShowSuggestions(true);
+                    if (!cancelled) {
+                        setNhSuggestions(data);
+                        setShowSuggestions(true);
+                    }
                 } catch {
-                    setNhSuggestions([]);
+                    if (!cancelled) setNhSuggestions([]);
                 }
             } else {
                 try {
@@ -179,13 +186,19 @@ export default function TrendsPage() {
                         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=${types}&country=US${proximity}`,
                     );
                     const data = await res.json();
-                    setSuggestions((data.features ?? []) as MapboxFeature[]);
-                    setShowSuggestions(true);
+                    if (!cancelled) {
+                        setSuggestions((data.features ?? []) as MapboxFeature[]);
+                        setShowSuggestions(true);
+                    }
                 } catch {
-                    setSuggestions([]);
+                    if (!cancelled) setSuggestions([]);
                 }
             }
         }, 250);
+
+        return () => {
+            cancelled = true;
+        };
     }, [address, areaType, addressMode]);
 
     // Scroll active suggestion into view
