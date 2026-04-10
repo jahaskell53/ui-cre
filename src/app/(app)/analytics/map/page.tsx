@@ -193,7 +193,7 @@ function MapPageInner() {
         >
     >(new Map());
 
-    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource, showLatestOnly), [filters, mapListingSource, showLatestOnly]);
+    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
 
     const clearFilters = () => {
         setFilters(createDefaultMapFilters());
@@ -571,7 +571,7 @@ function MapPageInner() {
 
     const filtersDialogInner = (
         <div className="max-h-[min(70vh,28rem)] space-y-6 overflow-y-auto pr-1">
-            <div>
+            <div className="lg:hidden">
                 <Label className="text-xs text-muted-foreground">Listing type</Label>
                 <div className="mt-2 flex gap-1 rounded-lg bg-muted p-1">
                     {(["zillow", "loopnet"] as const).map((source) => (
@@ -589,7 +589,7 @@ function MapPageInner() {
                     ))}
                 </div>
             </div>
-            <div>
+            <div className="lg:hidden">
                 <Label className="text-xs text-muted-foreground">Time range</Label>
                 <div className="mt-2 flex gap-1 rounded-lg bg-muted p-1">
                     {([true, false] as const).map((latest) => (
@@ -607,7 +607,7 @@ function MapPageInner() {
                     ))}
                 </div>
             </div>
-            <div className="space-y-3 border-t border-border pt-4">
+            <div className="space-y-3 border-t border-border pt-4 lg:border-t-0 lg:pt-0">
                 {mapListingSource === "zillow" && (
                     <div>
                         <Label className="text-xs">Bedrooms</Label>
@@ -876,33 +876,72 @@ function MapPageInner() {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="flex flex-shrink-0 flex-col gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
                 <div className="flex items-center justify-between gap-2">
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button type="button" variant="outline" size="sm" className="relative gap-2">
-                                <Filter className="size-4" />
-                                Filters
-                                {activeFilterCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
-                                        {activeFilterCount}
-                                    </span>
-                                )}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                                <div className="flex items-center justify-between gap-2 pr-8">
-                                    <DialogTitle>Filters</DialogTitle>
+                    <div className="flex items-center gap-2">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button type="button" variant="outline" size="sm" className="relative gap-2">
+                                    <Filter className="size-4" />
+                                    Filters
                                     {activeFilterCount > 0 && (
-                                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto shrink-0 px-2 py-1 text-xs">
-                                            Clear all
-                                        </Button>
+                                        <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                                            {activeFilterCount}
+                                        </span>
                                     )}
-                                </div>
-                                <DialogDescription className="sr-only">Listing type, time range, and property filters</DialogDescription>
-                            </DialogHeader>
-                            {filtersDialogInner}
-                        </DialogContent>
-                    </Dialog>
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <div className="flex items-center justify-between gap-2 pr-8">
+                                        <DialogTitle>Filters</DialogTitle>
+                                        {activeFilterCount > 0 && (
+                                            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto shrink-0 px-2 py-1 text-xs">
+                                                Clear all
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <DialogDescription className="sr-only">Listing type, time range, and property filters</DialogDescription>
+                                </DialogHeader>
+                                {filtersDialogInner}
+                            </DialogContent>
+                        </Dialog>
+
+                        <div className="hidden items-center gap-2 lg:flex">
+                            <div className="flex rounded-lg border border-input bg-muted/40 p-0.5">
+                                {(["zillow", "loopnet"] as const).map((source) => (
+                                    <button
+                                        key={source}
+                                        type="button"
+                                        onClick={() => setMapListingSource(source)}
+                                        className={cn(
+                                            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                            mapListingSource === source
+                                                ? "bg-background text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        {source === "loopnet" ? "Sales" : "Rent"}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex rounded-lg border border-input bg-muted/40 p-0.5">
+                                {([true, false] as const).map((latest) => (
+                                    <button
+                                        key={String(latest)}
+                                        type="button"
+                                        onClick={() => setShowLatestOnly(latest)}
+                                        className={cn(
+                                            "rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
+                                            showLatestOnly === latest
+                                                ? "bg-background text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        {latest ? "Latest" : "Historical"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="flex rounded-lg border border-input bg-muted/40 p-0.5 lg:hidden">
                         <button
