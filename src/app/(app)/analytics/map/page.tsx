@@ -194,7 +194,7 @@ function MapPageInner() {
         >
     >(new Map());
 
-    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource, showLatestOnly), [filters, mapListingSource, showLatestOnly]);
+    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
 
     const clearFilters = () => {
         setFilters(createDefaultMapFilters());
@@ -572,7 +572,7 @@ function MapPageInner() {
 
     const filtersDialogInner = (
         <div className="max-h-[min(70vh,28rem)] space-y-6 overflow-y-auto pr-1">
-            <div>
+            <div className="lg:hidden">
                 <Label className="text-xs text-muted-foreground">Listing type</Label>
                 <div className="mt-2 flex gap-1 rounded-lg bg-muted p-1">
                     {(["zillow", "loopnet"] as const).map((source) => (
@@ -590,7 +590,7 @@ function MapPageInner() {
                     ))}
                 </div>
             </div>
-            <div>
+            <div className="lg:hidden">
                 <Label className="text-xs text-muted-foreground">Time range</Label>
                 <div className="mt-2 flex gap-1 rounded-lg bg-muted p-1">
                     {([true, false] as const).map((latest) => (
@@ -608,7 +608,7 @@ function MapPageInner() {
                     ))}
                 </div>
             </div>
-            <div className="space-y-3 border-t border-border pt-4">
+            <div className="space-y-3 border-t border-border pt-4 lg:border-t-0 lg:pt-0">
                 {mapListingSource === "zillow" && (
                     <div>
                         <Label className="text-xs">Bedrooms</Label>
@@ -973,22 +973,58 @@ function MapPageInner() {
                             onBoundsChange={handleBoundsChange}
                             onViewChange={handleViewChange}
                         />
-                        <DialogTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="absolute top-3 left-3 z-10 hidden bg-background/95 shadow-sm backdrop-blur-sm lg:inline-flex"
-                                aria-label={`Filters${activeFilterCount > 0 ? `, ${activeFilterCount} active` : ""}`}
-                            >
-                                <Filter className="size-4" />
-                                {activeFilterCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
-                                        {activeFilterCount}
-                                    </span>
-                                )}
-                            </Button>
-                        </DialogTrigger>
+                        <div className="absolute top-3 left-3 z-10 hidden items-center gap-2 lg:flex">
+                            <DialogTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="relative bg-background/95 shadow-sm backdrop-blur-sm"
+                                    aria-label={`Filters${activeFilterCount > 0 ? `, ${activeFilterCount} active` : ""}`}
+                                >
+                                    <Filter className="size-4" />
+                                    {activeFilterCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </Button>
+                            </DialogTrigger>
+                            <div className="flex rounded-lg bg-muted p-0.5 shadow-sm">
+                                {(["zillow", "loopnet"] as const).map((source) => (
+                                    <button
+                                        key={source}
+                                        type="button"
+                                        onClick={() => setMapListingSource(source)}
+                                        className={cn(
+                                            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                            mapListingSource === source
+                                                ? "bg-background text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        {source === "loopnet" ? "Sales" : "Rent"}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex rounded-lg bg-muted p-0.5 shadow-sm">
+                                {([true, false] as const).map((latest) => (
+                                    <button
+                                        key={String(latest)}
+                                        type="button"
+                                        onClick={() => setShowLatestOnly(latest)}
+                                        className={cn(
+                                            "rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
+                                            showLatestOnly === latest
+                                                ? "bg-background text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        {latest ? "Latest" : "Historical"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

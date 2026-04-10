@@ -159,8 +159,10 @@ describe("analytics map-page helpers", () => {
             propertyType: "reit" as const,
         };
 
+        // zillow: priceMin, beds, bathsMin, laundry, propertyType = 5
         expect(countActiveMapFilters(filters, "zillow")).toBe(5);
-        expect(countActiveMapFilters(filters, "loopnet")).toBe(3);
+        // loopnet: priceMin, capRateMin = 2 (beds/bathsMin/laundry/propertyType are zillow-only)
+        expect(countActiveMapFilters(filters, "loopnet")).toBe(2);
     });
 
     it("parses laundry from url and round-trips in buildMapSearchParams", () => {

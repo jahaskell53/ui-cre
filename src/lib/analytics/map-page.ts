@@ -204,11 +204,8 @@ export function parseAreaFilter(searchParams: SearchParamSource): AreaFilter | n
     return null;
 }
 
-export function countActiveMapFilters(filters: Filters, source: MapListingSource, showLatestOnly = true): number {
+export function countActiveMapFilters(filters: Filters, source: MapListingSource): number {
     let count = 0;
-
-    if (source !== "zillow") count++;
-    if (!showLatestOnly) count++;
 
     if (filters.priceMin || filters.priceMax) count++;
     if (source === "loopnet" && (filters.capRateMin || filters.capRateMax)) count++;
