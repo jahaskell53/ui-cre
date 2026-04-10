@@ -43,14 +43,9 @@ import {
 } from "@/lib/analytics/map-page";
 import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
+import { boundsContainedIn, expandBounds, getUncoveredBounds, snapBounds } from "@/lib/viewport-bounds";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
-
-// Snap a coordinate outward to a 0.1° grid to ensure the server-side bbox always
-// contains the exact viewport. Client-side filterToViewport() trims to the exact edge.
-function snapOut(value: number, direction: "floor" | "ceil"): number {
-    return direction === "floor" ? Math.floor(value * 10) / 10 : Math.ceil(value * 10) / 10;
-}
 
 async function fetchZillowListings(params: {
     zip: string | null;
@@ -81,10 +76,11 @@ async function fetchZillowListings(params: {
     if (params.laundry !== null && params.laundry.length > 0) sp.set("laundry", params.laundry.join(","));
     sp.set("property_type", params.propertyType);
     if (params.bounds) {
-        sp.set("bounds_south", String(snapOut(params.bounds.south, "floor")));
-        sp.set("bounds_north", String(snapOut(params.bounds.north, "ceil")));
-        sp.set("bounds_west", String(snapOut(params.bounds.west, "floor")));
-        sp.set("bounds_east", String(snapOut(params.bounds.east, "ceil")));
+        const snappedBounds = snapBounds(params.bounds);
+        sp.set("bounds_south", String(snappedBounds.south));
+        sp.set("bounds_north", String(snappedBounds.north));
+        sp.set("bounds_west", String(snappedBounds.west));
+        sp.set("bounds_east", String(snappedBounds.east));
     }
 
     const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
@@ -98,13 +94,6 @@ async function fetchZillowListings(params: {
 function filterToViewport(rows: ZillowMapListingRow[], bounds: MapBounds | null): ZillowMapListingRow[] {
     if (!bounds) return rows;
     return rows.filter((r) => r.latitude >= bounds.south && r.latitude <= bounds.north && r.longitude >= bounds.west && r.longitude <= bounds.east);
-}
-
-function boundsContainedIn(
-    inner: { south: number; north: number; west: number; east: number },
-    outer: { south: number; north: number; west: number; east: number },
-): boolean {
-    return inner.south >= outer.south && inner.north <= outer.north && inner.west >= outer.west && inner.east <= outer.east;
 }
 
 function buildZillowFilterKey(areaFilter: AreaFilter | null, filters: Filters, showLatestOnly: boolean): string {
@@ -425,50 +414,62 @@ function MapPageInner() {
             if (source === "zillow") {
                 const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
                 try {
-                    const rows = await fetchZillowListings({
-                        zip: activeAreaFilter?.zipCode ?? null,
-                        city: activeAreaFilter?.cityName ?? null,
-                        addressQuery: activeAreaFilter?.addressQuery ?? null,
-                        latestOnly,
-                        priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
-                        priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
-                        sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
-                        sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
-                        beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
-                        bathsMin: currentFilters.bathsMin ?? null,
-                        laundry: currentFilters.laundry.length > 0 ? currentFilters.laundry : null,
-                        propertyType: currentFilters.propertyType,
-                        bounds: effectiveBounds,
-                    });
-
                     const filterKey = buildZillowFilterKey(activeAreaFilter, currentFilters, latestOnly);
-                    const fetchedBounds = effectiveBounds
-                        ? {
-                              south: snapOut(effectiveBounds.south, "floor"),
-                              north: snapOut(effectiveBounds.north, "ceil"),
-                              west: snapOut(effectiveBounds.west, "floor"),
-                              east: snapOut(effectiveBounds.east, "ceil"),
-                          }
-                        : null;
-
                     const existing = zillowCacheRef.current.get(filterKey);
-                    if (existing && fetchedBounds) {
-                        const seen = new Set(existing.rows.map((r) => r.id));
-                        const merged = [...existing.rows, ...rows.filter((r) => !seen.has(r.id))];
-                        const unionBounds = {
-                            south: Math.min(existing.coveredBounds.south, fetchedBounds.south),
-                            north: Math.max(existing.coveredBounds.north, fetchedBounds.north),
-                            west: Math.min(existing.coveredBounds.west, fetchedBounds.west),
-                            east: Math.max(existing.coveredBounds.east, fetchedBounds.east),
-                        };
-                        zillowCacheRef.current.set(filterKey, { rows: merged, coveredBounds: unionBounds });
-                        setAllZillowRows(merged);
-                    } else {
-                        if (fetchedBounds) {
-                            zillowCacheRef.current.set(filterKey, { rows, coveredBounds: fetchedBounds });
-                        }
-                        setAllZillowRows(rows);
+                    const requestedBounds = effectiveBounds ? snapBounds(effectiveBounds) : null;
+                    const boundsToFetch = requestedBounds
+                        ? existing
+                            ? getUncoveredBounds(requestedBounds, existing.coveredBounds)
+                            : [requestedBounds]
+                        : [null];
+                    const deltaBoundsToFetch = boundsToFetch.filter((deltaBounds): deltaBounds is MapBounds => deltaBounds !== null);
+
+                    if (boundsToFetch.length === 0) {
+                        setAllZillowRows(existing?.rows ?? []);
+                        setLoading(false);
+                        return;
                     }
+
+                    const responses = await Promise.all(
+                        boundsToFetch.map((deltaBounds) =>
+                            fetchZillowListings({
+                                zip: activeAreaFilter?.zipCode ?? null,
+                                city: activeAreaFilter?.cityName ?? null,
+                                addressQuery: activeAreaFilter?.addressQuery ?? null,
+                                latestOnly,
+                                priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                                priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                                sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                                sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                                beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                                bathsMin: currentFilters.bathsMin ?? null,
+                                laundry: currentFilters.laundry.length > 0 ? currentFilters.laundry : null,
+                                propertyType: currentFilters.propertyType,
+                                bounds: deltaBounds,
+                            }),
+                        ),
+                    );
+
+                    const seen = new Set(existing?.rows.map((row) => row.id) ?? []);
+                    const merged = [...(existing?.rows ?? [])];
+
+                    for (const rows of responses) {
+                        for (const row of rows) {
+                            if (!seen.has(row.id)) {
+                                seen.add(row.id);
+                                merged.push(row);
+                            }
+                        }
+                    }
+
+                    if (requestedBounds) {
+                        const coveredBounds = existing
+                            ? deltaBoundsToFetch.reduce((union, deltaBounds) => expandBounds(union, deltaBounds), existing.coveredBounds)
+                            : deltaBoundsToFetch.reduce(expandBounds);
+                        zillowCacheRef.current.set(filterKey, { rows: merged, coveredBounds });
+                    }
+
+                    setAllZillowRows(merged);
                 } catch (error) {
                     console.error("Error fetching zillow map listings:", error);
                     setAllZillowRows([]);
@@ -555,11 +556,15 @@ function MapPageInner() {
 
     // Compute the snapped bounds so we can use them as the effect dependency.
     // Panning within the same 0.1° tile produces the same snappedKey → no re-fetch.
-    const snappedBoundsKey = useMemo(() => {
+    const snappedBounds = useMemo(() => {
         const b = areaFilter?.bbox ?? mapBounds;
-        if (!b) return null;
-        return `${snapOut(b.south, "floor")},${snapOut(b.north, "ceil")},${snapOut(b.west, "floor")},${snapOut(b.east, "ceil")}`;
+        return b ? snapBounds(b) : null;
     }, [areaFilter, mapBounds]);
+
+    const snappedBoundsKey = useMemo(() => {
+        if (!snappedBounds) return null;
+        return `${snappedBounds.south},${snappedBounds.north},${snappedBounds.west},${snappedBounds.east}`;
+    }, [snappedBounds]);
 
     // Zillow: re-fetch when non-spatial params or the snapped bbox tile changes,
     // but skip the fetch if the current viewport is already covered by cached data.
@@ -571,14 +576,8 @@ function MapPageInner() {
 
         const filterKey = buildZillowFilterKey(areaFilter, filters, showLatestOnly);
         const cached = zillowCacheRef.current.get(filterKey);
-        const snappedBounds = {
-            south: snapOut(b.south, "floor"),
-            north: snapOut(b.north, "ceil"),
-            west: snapOut(b.west, "floor"),
-            east: snapOut(b.east, "ceil"),
-        };
 
-        if (cached && boundsContainedIn(snappedBounds, cached.coveredBounds)) {
+        if (cached && snappedBounds && boundsContainedIn(snappedBounds, cached.coveredBounds)) {
             setAllZillowRows(cached.rows);
             setLoading(false);
             return;
