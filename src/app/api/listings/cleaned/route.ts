@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { cleanedListings } from "@/db/schema";
@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
 
         const id = searchParams.get("id");
         const buildingZpid = searchParams.get("building_zpid");
+        const latestOnly = searchParams.get("latest_only");
         const idsParam = searchParams.get("ids");
         const zpid = searchParams.get("zpid");
         const latestRunId = searchParams.get("latest_run_id");
@@ -171,12 +172,16 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Units for a building
+        // Units for a building.
+        // latest_only=1 → current snapshot (latest run_id for this building only).
+        // latest_only=0 or omitted → historical: deduplicate by zpid across all
+        //   runs, keeping the most-recent price/beds/baths per zpid.
         if (buildingZpid) {
-            const rows = await db
+            const allRows = await db
                 .select({
                     id: cleanedListings.id,
                     zpid: cleanedListings.zpid,
+                    runId: cleanedListings.runId,
                     price: cleanedListings.price,
                     beds: cleanedListings.beds,
                     baths: cleanedListings.baths,
@@ -184,7 +189,32 @@ export async function GET(request: NextRequest) {
                 })
                 .from(cleanedListings)
                 .where(eq(cleanedListings.buildingZpid, buildingZpid))
-                .orderBy(cleanedListings.beds, cleanedListings.baths, cleanedListings.price);
+                .orderBy(desc(cleanedListings.runId), cleanedListings.beds, cleanedListings.baths, cleanedListings.price);
+
+            let rows = allRows;
+
+            if (latestOnly === "1") {
+                // Keep only rows from the most recent run_id for this building.
+                const maxRunId = allRows[0]?.runId ?? null;
+                rows = maxRunId ? allRows.filter((r) => r.runId === maxRunId) : [];
+            } else {
+                // Deduplicate by zpid: allRows is ordered run_id DESC so the
+                // first occurrence of each zpid is always the most-recent data.
+                const seen = new Set<string>();
+                rows = allRows.filter((r) => {
+                    if (seen.has(r.zpid)) return false;
+                    seen.add(r.zpid);
+                    return true;
+                });
+                // Re-sort by beds / baths / price after dedup.
+                rows.sort((a, b) => {
+                    const bedDiff = (a.beds ?? 0) - (b.beds ?? 0);
+                    if (bedDiff !== 0) return bedDiff;
+                    const bathDiff = (Number(a.baths) || 0) - (Number(b.baths) || 0);
+                    if (bathDiff !== 0) return bathDiff;
+                    return (a.price ?? 0) - (b.price ?? 0);
+                });
+            }
 
             return NextResponse.json(
                 rows.map((r) => ({
