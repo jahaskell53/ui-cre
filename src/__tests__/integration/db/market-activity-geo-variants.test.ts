@@ -65,22 +65,16 @@ function assertCommonInvariants(rows: ActivityRow[], byBeds: Map<number, Activit
     }
 
     for (const row of rows) {
-        expect(toNum(row.new_listings), `${label} new <= accumulated`).toBeLessThanOrEqual(
-            toNum(row.accumulated_listings),
-        );
+        expect(toNum(row.new_listings), `${label} new <= accumulated`).toBeLessThanOrEqual(toNum(row.accumulated_listings));
     }
 
     for (const row of rows) {
-        expect(toNum(row.closed_listings), `${label} closed <= accumulated`).toBeLessThanOrEqual(
-            toNum(row.accumulated_listings),
-        );
+        expect(toNum(row.closed_listings), `${label} closed <= accumulated`).toBeLessThanOrEqual(toNum(row.accumulated_listings));
     }
 
     for (const [, group] of byBeds) {
         const first = group[0];
-        expect(toNum(first.new_listings), `${label} first week new == accumulated`).toBe(
-            toNum(first.accumulated_listings),
-        );
+        expect(toNum(first.new_listings), `${label} first week new == accumulated`).toBe(toNum(first.accumulated_listings));
     }
 }
 
