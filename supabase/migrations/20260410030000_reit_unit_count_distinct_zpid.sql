@@ -1,6 +1,26 @@
--- Drop the stale 16-argument overload (no p_laundry) that causes PostgREST
--- PGRST203 ambiguity errors alongside the 17-arg laundry overload from
--- migration 038_zillow_map_listings_laundry_filter.
+-- Fix inflated REIT unit_count and add current/historical toggle support.
+--
+-- The initial schema (20260410010908) created a 16-arg get_zillow_map_listings.
+-- Migration 20260410020000 added a 17-arg version with p_laundry and
+-- building_zpid in the return set, but both overloads co-exist causing
+-- PostgREST PGRST203 ambiguity errors.
+--
+-- Root cause of inflation: both versions used COUNT(*) over all rows matching
+-- building_zpid. When p_latest_only=false the base CTE includes every
+-- historical scrape run, so a building with 50 units scraped 10 times shows
+-- unit_count=500 instead of 50.
+--
+-- This migration:
+--   1. Drops the stale 16-arg overload.
+--   2. Replaces the 17-arg function with a DISTINCT ON (building_zpid, zpid)
+--      deduplication CTE that handles both modes correctly:
+--
+--        p_latest_only=true  → base has one run, DISTINCT ON is a no-op.
+--                              unit_count = current inventory size.
+--        p_latest_only=false → base has all runs, DISTINCT ON keeps the
+--                              most-recent row per zpid (ORDER BY run_id DESC).
+--                              unit_count = COUNT(DISTINCT zpid) across history.
+
 DROP FUNCTION IF EXISTS public.get_zillow_map_listings(
     text, text, text, boolean,
     integer, integer, integer, integer,
@@ -8,27 +28,6 @@ DROP FUNCTION IF EXISTS public.get_zillow_map_listings(
     double precision, double precision, double precision, double precision
 );
 
--- Refine REIT unit counting to support both current and historical modes.
---
--- The 17-arg laundry version from migration 038_zillow_map_listings_laundry_filter
--- still uses COUNT(*) for unit_count, which inflates counts when p_latest_only=false
--- because it counts the same units once per scrape run.
---
--- This migration replaces the function with a DISTINCT ON (building_zpid, zpid)
--- deduplication CTE that handles both modes correctly and consistently:
---
---   p_latest_only = true  → base contains only the latest run's rows, so
---                           DISTINCT ON is a no-op: one row per zpid anyway.
---                           unit_count = current inventory size.
---
---   p_latest_only = false → base contains all historical runs. DISTINCT ON
---                           keeps the most-recent row per zpid (ORDER BY
---                           run_id DESC). unit_count = COUNT(DISTINCT zpid)
---                           across all history. Shows every unique unit ever
---                           scraped for the building.
---
--- Preserves all parameters and output columns from the laundry migration,
--- including p_laundry and the building_zpid return column.
 CREATE OR REPLACE FUNCTION public.get_zillow_map_listings(
     p_zip            text    DEFAULT NULL,
     p_city           text    DEFAULT NULL,
@@ -74,9 +73,6 @@ WITH latest_run AS (
     LIMIT 1
 ),
 
--- Apply all filters except laundry first, then filter by laundry below.
--- REIT laundry filtering matches any unit in the building with the right
--- laundry type (same logic as the laundry migration baseline).
 base_pre AS (
     SELECT
         cl.id,
@@ -162,8 +158,7 @@ base AS (
 ),
 
 -- Deduplicate unit rows to one row per (building_zpid, zpid), keeping the
--- most-recent run's data. This eliminates cross-run inflation in both modes:
---
+-- most-recent run's data. Eliminates cross-run inflation in both modes:
 --   p_latest_only=true  → base has one run, DISTINCT ON is a no-op.
 --   p_latest_only=false → base has all runs, DISTINCT ON keeps the latest
 --                         price/beds/baths for each unique zpid.
@@ -179,7 +174,6 @@ deduped_units AS (
     ORDER BY building_zpid, zpid, run_id DESC
 ),
 
--- Aggregate unit_mix and unit_count from the deduplicated unit set.
 unit_mix_agg AS (
     SELECT
         building_zpid,
