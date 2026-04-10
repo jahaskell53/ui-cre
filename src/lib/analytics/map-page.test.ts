@@ -5,6 +5,7 @@ import {
     countActiveMapFilters,
     createDefaultMapFilters,
     parseAreaFilter,
+    parseListingsViewMode,
     parseMapFilters,
     parseMapListingSource,
     parseShowLatestOnly,
@@ -18,6 +19,7 @@ describe("analytics map-page helpers", () => {
 
         expect(parseMapListingSource(params)).toBe("loopnet");
         expect(parseShowLatestOnly(params)).toBe(false);
+        expect(parseListingsViewMode(params)).toBe("map");
         expect(parseMapFilters(params)).toEqual({
             priceMin: "1000",
             priceMax: "2000",
@@ -118,6 +120,34 @@ describe("analytics map-page helpers", () => {
         expect(restored?.bbox?.west).toBe(-122.42);
     });
 
+    it("parses listings view mode from url", () => {
+        expect(parseListingsViewMode(new URLSearchParams())).toBe("map");
+        expect(parseListingsViewMode(new URLSearchParams("view=list"))).toBe("list");
+    });
+
+    it("serializes listings view mode when provided to buildMapSearchParams", () => {
+        const withList = buildMapSearchParams({
+            filters: createDefaultMapFilters(),
+            mapListingSource: "zillow",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+            listingsViewMode: "list",
+        });
+        expect(withList.get("view")).toBe("list");
+
+        const withMap = buildMapSearchParams({
+            baseParams: withList,
+            filters: createDefaultMapFilters(),
+            mapListingSource: "zillow",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+            listingsViewMode: "map",
+        });
+        expect(withMap.get("view")).toBeNull();
+    });
+
     it("counts only active filters relevant to the active listing source", () => {
         const filters = {
             ...createDefaultMapFilters(),
@@ -130,7 +160,7 @@ describe("analytics map-page helpers", () => {
         };
 
         expect(countActiveMapFilters(filters, "zillow")).toBe(5);
-        expect(countActiveMapFilters(filters, "loopnet")).toBe(2);
+        expect(countActiveMapFilters(filters, "loopnet")).toBe(3);
     });
 
     it("parses laundry from url and round-trips in buildMapSearchParams", () => {

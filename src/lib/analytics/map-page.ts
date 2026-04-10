@@ -138,6 +138,11 @@ export function parseShowLatestOnly(searchParams: SearchParamSource): boolean {
     return searchParams.get("latest") !== "false";
 }
 
+/** Mobile/small screens: full-area map vs list (`view=list` in URL; default is map). */
+export function parseListingsViewMode(searchParams: SearchParamSource): "map" | "list" {
+    return searchParams.get("view") === "list" ? "list" : "map";
+}
+
 export function parseAreaType(searchParams: SearchParamSource): AreaType {
     const areaType = searchParams.get("areaType");
     return (["zip", "neighborhood", "city", "county", "msa", "address"] as const).find((value) => value === areaType) ?? "zip";
@@ -199,8 +204,11 @@ export function parseAreaFilter(searchParams: SearchParamSource): AreaFilter | n
     return null;
 }
 
-export function countActiveMapFilters(filters: Filters, source: MapListingSource): number {
+export function countActiveMapFilters(filters: Filters, source: MapListingSource, showLatestOnly = true): number {
     let count = 0;
+
+    if (source !== "zillow") count++;
+    if (!showLatestOnly) count++;
 
     if (filters.priceMin || filters.priceMax) count++;
     if (source === "loopnet" && (filters.capRateMin || filters.capRateMax)) count++;
@@ -220,6 +228,7 @@ export function buildMapSearchParams({
     showLatestOnly,
     areaType,
     areaFilter,
+    listingsViewMode,
 }: {
     baseParams?: URLSearchParams;
     filters: Filters;
@@ -227,8 +236,14 @@ export function buildMapSearchParams({
     showLatestOnly: boolean;
     areaType: AreaType;
     areaFilter: AreaFilter | null;
+    listingsViewMode?: "map" | "list";
 }): URLSearchParams {
     const params = new URLSearchParams(baseParams?.toString() ?? "");
+
+    if (listingsViewMode !== undefined) {
+        if (listingsViewMode === "list") params.set("view", "list");
+        else params.delete("view");
+    }
 
     if (mapListingSource !== "zillow") params.set("source", mapListingSource);
     else params.delete("source");
