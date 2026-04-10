@@ -61,6 +61,66 @@ function LoadingSkeleton() {
     );
 }
 
+function UnitMixUnitsLoadingSkeleton() {
+    const summaryCols = 6;
+    const detailCols = 4;
+    return (
+        <>
+            <div className="mb-6 overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
+                            {Array.from({ length: summaryCols }, (_, i) => (
+                                <th key={i} className={`px-3 py-2 ${i === 0 ? "text-left" : "text-right"}`}>
+                                    <div className={`h-3 max-w-full animate-pulse rounded bg-gray-200 dark:bg-gray-600 ${i === 0 ? "w-14" : "ml-auto w-14"}`} />
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {[0, 1, 2].map((row) => (
+                            <tr key={row} className="border-b border-gray-50 dark:border-gray-700/50">
+                                {Array.from({ length: summaryCols }, (_, col) => (
+                                    <td key={col} className={`px-3 py-2 ${col === 0 ? "text-left" : "text-right"}`}>
+                                        <div
+                                            className={`h-3 max-w-full animate-pulse rounded bg-gray-200 dark:bg-gray-600 ${col === 0 ? "w-28" : "ml-auto w-12"}`}
+                                        />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <div className="mb-3 h-4 w-28 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
+                            {Array.from({ length: detailCols }, (_, i) => (
+                                <th key={i} className="px-3 py-2 text-right">
+                                    <div className="ml-auto h-3 w-14 max-w-full animate-pulse rounded bg-gray-200 dark:bg-gray-600" />
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {[0, 1, 2, 3, 4].map((row) => (
+                            <tr key={row} className="border-b border-gray-50 dark:border-gray-700/50">
+                                {Array.from({ length: detailCols }, (_, col) => (
+                                    <td key={col} className="px-3 py-2 text-right">
+                                        <div className="ml-auto h-3 w-16 max-w-full animate-pulse rounded bg-gray-200 dark:bg-gray-600" />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
+    );
+}
+
 function NotFound({ backHref }: { backHref?: string }) {
     return (
         <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
@@ -661,7 +721,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                         </div>
                     </div>
                     {units === null ? (
-                        <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">Loading units…</div>
+                        <UnitMixUnitsLoadingSkeleton />
                     ) : units.length === 0 ? (
                         <div className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">No units found.</div>
                     ) : (
