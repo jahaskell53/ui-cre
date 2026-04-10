@@ -15,6 +15,7 @@ export interface GetZillowMapListingsParams {
     p_baths_min: number | null;
     p_home_types: string[] | null;
     p_property_type: "both" | "reit" | "mid";
+    p_laundry: ("in_unit" | "shared" | "none")[] | null;
     p_bounds_south: number | null;
     p_bounds_north: number | null;
     p_bounds_west: number | null;

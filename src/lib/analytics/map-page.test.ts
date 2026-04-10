@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    type LaundryFilterValue,
     buildMapSearchParams,
     countActiveMapFilters,
     createDefaultMapFilters,
@@ -28,6 +29,7 @@ describe("analytics map-page helpers", () => {
             sqftMax: "",
             beds: [1, 2],
             bathsMin: 1.5,
+            laundry: [],
             propertyType: "reit",
         });
     });
@@ -153,10 +155,26 @@ describe("analytics map-page helpers", () => {
             capRateMin: "4",
             beds: [2],
             bathsMin: 2,
+            laundry: ["in_unit"] as LaundryFilterValue[],
             propertyType: "reit" as const,
         };
 
-        expect(countActiveMapFilters(filters, "zillow")).toBe(4);
+        expect(countActiveMapFilters(filters, "zillow")).toBe(5);
         expect(countActiveMapFilters(filters, "loopnet")).toBe(3);
+    });
+
+    it("parses laundry from url and round-trips in buildMapSearchParams", () => {
+        const params = new URLSearchParams("laundry=in_unit,none");
+        const filters = parseMapFilters(params);
+        expect(filters.laundry).toEqual(["in_unit", "none"]);
+
+        const out = buildMapSearchParams({
+            filters,
+            mapListingSource: "zillow",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+        });
+        expect(out.get("laundry")).toBe("in_unit,none");
     });
 });
