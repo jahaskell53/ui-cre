@@ -309,10 +309,11 @@ export const AppSidebar = forwardRef<AppSidebarRef, AppSidebarProps>(function Ap
                 <div className="mt-auto">
                     <div className="border-t border-gray-200 px-3 py-2 dark:border-gray-800">
                         <button
-                            onClick={() => {
-                                // Trigger page-specific tour via custom event
+                            onClick={(e) => {
                                 window.dispatchEvent(new CustomEvent("trigger-page-tour"));
-                                onMobileClose?.();
+                                // Close after blur so aria-hidden is not applied while focus is inside the drawer
+                                e.currentTarget.blur();
+                                requestAnimationFrame(() => onMobileClose?.());
                             }}
                             className={cn(
                                 "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800",
