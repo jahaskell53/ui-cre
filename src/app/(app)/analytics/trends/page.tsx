@@ -566,10 +566,7 @@ export default function TrendsPage() {
         <div className="mx-auto w-full max-w-7xl flex-1 overflow-auto p-6">
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <TrendingUp className="size-5 text-blue-600" />
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h1>
-                </div>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h3>
                 <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
                     <button
                         type="button"
