@@ -990,7 +990,7 @@ function MapPageInner() {
                                     )}
                                 </Button>
                             </DialogTrigger>
-                            <div className="flex rounded-lg border border-input bg-background/95 p-0.5 shadow-sm backdrop-blur-sm">
+                            <div className="flex rounded-lg bg-muted p-0.5 shadow-sm">
                                 {(["zillow", "loopnet"] as const).map((source) => (
                                     <button
                                         key={source}
@@ -998,14 +998,16 @@ function MapPageInner() {
                                         onClick={() => setMapListingSource(source)}
                                         className={cn(
                                             "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                                            mapListingSource === source ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                                            mapListingSource === source
+                                                ? "bg-background text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground",
                                         )}
                                     >
                                         {source === "loopnet" ? "Sales" : "Rent"}
                                     </button>
                                 ))}
                             </div>
-                            <div className="flex rounded-lg border border-input bg-background/95 p-0.5 shadow-sm backdrop-blur-sm">
+                            <div className="flex rounded-lg bg-muted p-0.5 shadow-sm">
                                 {([true, false] as const).map((latest) => (
                                     <button
                                         key={String(latest)}
@@ -1013,7 +1015,9 @@ function MapPageInner() {
                                         onClick={() => setShowLatestOnly(latest)}
                                         className={cn(
                                             "rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
-                                            showLatestOnly === latest ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                                            showLatestOnly === latest
+                                                ? "bg-background text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground",
                                         )}
                                     >
                                         {latest ? "Latest" : "Historical"}
