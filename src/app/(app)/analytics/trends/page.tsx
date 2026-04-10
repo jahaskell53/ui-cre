@@ -570,18 +570,18 @@ export default function TrendsPage() {
                     <TrendingUp className="size-5 text-blue-600" />
                     <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h1>
                 </div>
-                <div className="flex overflow-hidden rounded-lg border border-gray-200 text-sm dark:border-gray-600">
+                <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
                     <button
                         type="button"
                         onClick={() => setDisplay("chart")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${display === "chart" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700"}`}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "chart" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
                     >
                         <BarChart2 className="size-3.5" /> Chart
                     </button>
                     <button
                         type="button"
                         onClick={() => setDisplay("table")}
-                        className={`flex items-center gap-1.5 border-l border-gray-200 px-3 py-1.5 transition-colors dark:border-gray-600 ${display === "table" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700"}`}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "table" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
                     >
                         <Table2 className="size-3.5" /> Table
                     </button>
@@ -597,7 +597,7 @@ export default function TrendsPage() {
                             setSuggestions([]);
                             setNhSuggestions([]);
                         }}
-                        className={`flex items-center gap-1.5 border-l border-gray-200 px-3 py-1.5 transition-colors dark:border-gray-600 ${display === "map" ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700"}`}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "map" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
                     >
                         <Map className="size-3.5" /> Map
                     </button>
