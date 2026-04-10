@@ -168,42 +168,14 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
         // were counted. With the fix, unit_count is always derived from the latest
         // run per building regardless of p_latest_only.
         const client = makeClient();
-        const { data: latestData, error: latestError } = await client.rpc("get_zillow_map_listings", {
-            p_zip: OAKLAND_ZIP,
-            p_city: null,
-            p_address_query: null,
-            p_latest_only: true,
-            p_price_min: null,
-            p_price_max: null,
-            p_sqft_min: null,
-            p_sqft_max: null,
-            p_beds: null,
-            p_baths_min: null,
-            p_home_types: null,
-            p_property_type: "reit",
-            p_bounds_south: OAKLAND_BBOX.south,
-            p_bounds_north: OAKLAND_BBOX.north,
-            p_bounds_west: OAKLAND_BBOX.west,
-            p_bounds_east: OAKLAND_BBOX.east,
-        });
-        const { data: allData, error: allError } = await client.rpc("get_zillow_map_listings", {
-            p_zip: OAKLAND_ZIP,
-            p_city: null,
-            p_address_query: null,
-            p_latest_only: false,
-            p_price_min: null,
-            p_price_max: null,
-            p_sqft_min: null,
-            p_sqft_max: null,
-            p_beds: null,
-            p_baths_min: null,
-            p_home_types: null,
-            p_property_type: "reit",
-            p_bounds_south: OAKLAND_BBOX.south,
-            p_bounds_north: OAKLAND_BBOX.north,
-            p_bounds_west: OAKLAND_BBOX.west,
-            p_bounds_east: OAKLAND_BBOX.east,
-        });
+        const { data: latestData, error: latestError } = await client.rpc(
+            "get_zillow_map_listings",
+            zillowMapListingsParams({ p_latest_only: true, p_property_type: "reit" }),
+        );
+        const { data: allData, error: allError } = await client.rpc(
+            "get_zillow_map_listings",
+            zillowMapListingsParams({ p_latest_only: false, p_property_type: "reit" }),
+        );
         expect(latestError).toBeNull();
         expect(allError).toBeNull();
 

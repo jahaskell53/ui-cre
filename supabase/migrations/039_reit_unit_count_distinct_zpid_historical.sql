@@ -1,19 +1,21 @@
--- Drop the stale 17-argument overload (p_laundry) that causes PostgREST
--- PGRST203 ambiguity errors alongside the canonical 16-arg function.
+-- Drop the stale 16-argument overload (no p_laundry) that causes PostgREST
+-- PGRST203 ambiguity errors alongside the 17-arg laundry overload from
+-- migration 038_zillow_map_listings_laundry_filter.
 DROP FUNCTION IF EXISTS public.get_zillow_map_listings(
     text, text, text, boolean,
     integer, integer, integer, integer,
     integer[], numeric, text[], text,
-    text[],
     double precision, double precision, double precision, double precision
 );
 
 -- Refine REIT unit counting to support both current and historical modes.
 --
--- Migration 038 fixed inflation by restricting unit_mix_agg to the latest run
--- per building regardless of p_latest_only. This migration replaces that
--- approach with a DISTINCT ON (building_zpid, zpid) deduplication CTE which
--- handles both modes correctly and consistently:
+-- The 17-arg laundry version from migration 038_zillow_map_listings_laundry_filter
+-- still uses COUNT(*) for unit_count, which inflates counts when p_latest_only=false
+-- because it counts the same units once per scrape run.
+--
+-- This migration replaces the function with a DISTINCT ON (building_zpid, zpid)
+-- deduplication CTE that handles both modes correctly and consistently:
 --
 --   p_latest_only = true  → base contains only the latest run's rows, so
 --                           DISTINCT ON is a no-op: one row per zpid anyway.
@@ -25,8 +27,8 @@ DROP FUNCTION IF EXISTS public.get_zillow_map_listings(
 --                           across all history. Shows every unique unit ever
 --                           scraped for the building.
 --
--- The reit_buildings CTE now reads unit_count and unit_mix from unit_mix_agg
--- and does not do its own COUNT(*) (which would re-inflate the total).
+-- Preserves all parameters and output columns from the laundry migration,
+-- including p_laundry and the building_zpid return column.
 CREATE OR REPLACE FUNCTION public.get_zillow_map_listings(
     p_zip            text    DEFAULT NULL,
     p_city           text    DEFAULT NULL,
@@ -40,24 +42,26 @@ CREATE OR REPLACE FUNCTION public.get_zillow_map_listings(
     p_baths_min      numeric DEFAULT NULL,
     p_home_types     text[]  DEFAULT NULL,
     p_property_type  text    DEFAULT 'both',
+    p_laundry        text[]  DEFAULT NULL,
     p_bounds_south   double precision DEFAULT NULL,
     p_bounds_north   double precision DEFAULT NULL,
     p_bounds_west    double precision DEFAULT NULL,
     p_bounds_east    double precision DEFAULT NULL
 )
 RETURNS TABLE (
-    id           text,
-    address      text,
-    longitude    double precision,
-    latitude     double precision,
-    price_label  text,
-    is_reit      boolean,
-    unit_count   integer,
-    unit_mix     jsonb,
-    img_src      text,
-    area         integer,
-    scraped_at   timestamptz,
-    total_count  bigint
+    id             text,
+    address        text,
+    longitude      double precision,
+    latitude       double precision,
+    price_label    text,
+    is_reit        boolean,
+    unit_count     integer,
+    unit_mix       jsonb,
+    img_src        text,
+    area           integer,
+    scraped_at     timestamptz,
+    building_zpid  text,
+    total_count    bigint
 )
 LANGUAGE sql
 STABLE
@@ -70,7 +74,10 @@ WITH latest_run AS (
     LIMIT 1
 ),
 
-base AS (
+-- Apply all filters except laundry first, then filter by laundry below.
+-- REIT laundry filtering matches any unit in the building with the right
+-- laundry type (same logic as the laundry migration baseline).
+base_pre AS (
     SELECT
         cl.id,
         cl.address_raw,
@@ -88,6 +95,7 @@ base AS (
         cl.is_building,
         cl.img_src,
         cl.scraped_at,
+        cl.laundry,
         cl.run_id,
         ST_X(cl.geom) AS longitude,
         ST_Y(cl.geom) AS latitude
@@ -129,6 +137,28 @@ base AS (
           OR p_bounds_west IS NULL OR p_bounds_east IS NULL
           OR cl.geom && ST_MakeEnvelope(p_bounds_west, p_bounds_south, p_bounds_east, p_bounds_north, 4326)
       )
+),
+
+base AS (
+    SELECT *
+    FROM base_pre bp
+    WHERE (
+        p_laundry IS NULL
+        OR COALESCE(array_length(p_laundry, 1), 0) = 0
+        OR (
+            (bp.building_zpid IS NULL AND bp.is_building IS NOT true AND bp.laundry = ANY(p_laundry))
+            OR (
+                bp.building_zpid IS NOT NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM base_pre u
+                    WHERE u.building_zpid = bp.building_zpid
+                      AND u.laundry = ANY(p_laundry)
+                )
+            )
+            OR (bp.is_building = true AND bp.laundry = ANY(p_laundry))
+        )
+    )
 ),
 
 -- Deduplicate unit rows to one row per (building_zpid, zpid), keeping the
@@ -198,7 +228,8 @@ individuals AS (
         '[]'::jsonb                                          AS unit_mix,
         img_src,
         area,
-        scraped_at
+        scraped_at,
+        NULL::text                                           AS building_zpid
     FROM base
     WHERE building_zpid IS NULL AND is_building IS NOT true
 ),
@@ -228,7 +259,8 @@ reit_buildings AS (
         (ARRAY_AGG(uma.unit_mix))[1]                                           AS unit_mix,
         (ARRAY_AGG(b.img_src ORDER BY b.scraped_at DESC))[1]                  AS img_src,
         NULL::integer                                                          AS area,
-        MAX(b.scraped_at)                                                      AS scraped_at
+        MAX(b.scraped_at)                                                      AS scraped_at,
+        MIN(b.building_zpid)                                                   AS building_zpid
     FROM base b
     JOIN unit_mix_agg uma ON uma.building_zpid = b.building_zpid
     WHERE b.building_zpid IS NOT NULL
@@ -253,6 +285,7 @@ SELECT
     img_src,
     area,
     scraped_at,
+    building_zpid,
     COUNT(*) OVER ()  AS total_count
 FROM combined
 ORDER BY scraped_at DESC NULLS LAST;
