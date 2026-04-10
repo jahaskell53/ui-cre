@@ -216,7 +216,7 @@ export const PropertyMap = ({
                 data: propertiesToGeoJSON(propertiesRef.current),
                 cluster: true,
                 clusterMaxZoom: 11,
-                clusterRadius: 50,
+                clusterRadius: 35,
             });
 
             // Cluster circles
@@ -227,7 +227,7 @@ export const PropertyMap = ({
                 filter: ["has", "point_count"],
                 paint: {
                     "circle-color": ["step", ["get", "point_count"], "#0ea5e9", 10, "#f97316", 50, "#ef4444"],
-                    "circle-radius": ["step", ["get", "point_count"], 20, 10, 30, 50, 40],
+                    "circle-radius": ["step", ["get", "point_count"], 16, 10, 24, 50, 34],
                     "circle-stroke-width": 2,
                     "circle-stroke-color": "#fff",
                     "circle-opacity": 0.9,
