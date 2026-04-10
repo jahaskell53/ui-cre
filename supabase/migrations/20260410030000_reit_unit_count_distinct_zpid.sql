@@ -21,6 +21,13 @@
 --                              most-recent row per zpid (ORDER BY run_id DESC).
 --                              unit_count = COUNT(DISTINCT zpid) across history.
 
+-- Index to support DISTINCT ON (building_zpid, zpid) ORDER BY run_id DESC in
+-- the deduped_units CTE. Without it, the query does a full sort of all
+-- historical unit rows which causes statement-timeout on large datasets.
+CREATE INDEX IF NOT EXISTS idx_cleaned_listings_building_zpid_zpid_run
+    ON public.cleaned_listings (building_zpid, zpid, run_id DESC)
+    WHERE building_zpid IS NOT NULL;
+
 DROP FUNCTION IF EXISTS public.get_zillow_map_listings(
     text, text, text, boolean,
     integer, integer, integer, integer,
