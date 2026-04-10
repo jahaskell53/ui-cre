@@ -5,7 +5,9 @@ import { formatDistanceToNow } from "date-fns";
 import { Heart, MessageCircle, MoreVertical, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { generateAuroraGradient } from "@/app/(app)/network/utils";
+import { Dialog, Modal, ModalOverlay } from "@/components/application/modals/modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getFeedInitials } from "@/lib/feed/create-post";
 import { CommentSection } from "./comment-section";
@@ -45,6 +47,7 @@ interface FeedItemProps {
 export const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onComment, onDeletePost, onDeleteComment }: FeedItemProps) => {
     const router = useRouter();
     const [showComments, setShowComments] = useState(false);
+    const [deletePostModalOpen, setDeletePostModalOpen] = useState(false);
     const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
     const isLink = post.type === "link";
@@ -100,14 +103,7 @@ export const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onCo
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                            onClick={() => {
-                                                if (confirm("Are you sure you want to delete this post? This action cannot be undone.")) {
-                                                    onDeletePost(post.id);
-                                                }
-                                            }}
-                                            className="text-red-600"
-                                        >
+                                        <DropdownMenuItem onClick={() => setDeletePostModalOpen(true)} className="text-red-600">
                                             <Trash2 className="mr-2 size-4" />
                                             Delete post
                                         </DropdownMenuItem>
@@ -178,6 +174,44 @@ export const FeedItem = ({ post, currentUserId, currentUserProfile, onLike, onCo
                     onCommentDeleted={handleCommentDeleted}
                 />
             )}
+
+            <ModalOverlay isOpen={deletePostModalOpen} onOpenChange={(isOpen) => !isOpen && setDeletePostModalOpen(false)}>
+                <Modal className="max-w-md rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
+                    <Dialog className="p-6">
+                        {({ close }) => (
+                            <div className="space-y-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete post</h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Are you sure you want to delete this post? This action cannot be undone.
+                                    </p>
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            setDeletePostModalOpen(false);
+                                            close();
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => {
+                                            onDeletePost(post.id);
+                                            setDeletePostModalOpen(false);
+                                            close();
+                                        }}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </Dialog>
+                </Modal>
+            </ModalOverlay>
         </article>
     );
 };
