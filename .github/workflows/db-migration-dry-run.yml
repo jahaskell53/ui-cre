@@ -1,0 +1,78 @@
+name: DB Migration Dry Run
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  db-dry-run:
+    name: Supabase DB dry run
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run migration dry run
+        id: dry-run
+        run: |
+          set +e
+          supabase link --project-ref "$SUPABASE_PROJECT_ID"
+          supabase db push --dry-run --linked > /tmp/dry-run-output.txt 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Post dry-run output as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const raw = fs.readFileSync('/tmp/dry-run-output.txt', 'utf8').trim();
+            const exitCode = '${{ steps.dry-run.outputs.exit_code }}';
+            const failed = exitCode !== '0';
+            const output = raw.length > 0 ? raw : '(no pending migrations)';
+            const header = failed
+              ? '## Supabase DB Migration Dry Run — ERROR'
+              : '## Supabase DB Migration Dry Run';
+            const body = failed
+              ? `${header}\n\n:x: The dry run failed (exit code ${exitCode}):\n\n\`\`\`\n${output}\n\`\`\``
+              : `${header}\n\nSQL that will be applied to production on merge:\n\n\`\`\`sql\n${output}\n\`\`\``;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.body.startsWith('## Supabase DB Migration Dry Run')
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail if dry run errored
+        if: steps.dry-run.outputs.exit_code != '0'
+        run: |
+          echo "Dry run failed with exit code ${{ steps.dry-run.outputs.exit_code }}"
+          exit 1

@@ -147,8 +147,8 @@ Configure the following environment variables:
 
 4. Run database migrations:
 ```bash
-# Using Supabase CLI
-supabase migration up
+# Apply pending migrations to your local or remote Supabase project
+supabase db push
 ```
 
 5. Deploy AWS Lambda function (for email sync):
@@ -178,7 +178,9 @@ bun dev
 
 ## Database Schema
 
-The application uses Supabase (PostgreSQL) with the following main tables:
+The application uses Supabase (PostgreSQL). `src/db/schema.ts` is the single source of truth for all table definitions (Drizzle ORM). The generated SQL migrations live in `supabase/migrations/`.
+
+Main tables:
 
 - **integrations**: Email/calendar provider connections
 - **contacts**: Imported contacts from email/calendar
@@ -192,7 +194,16 @@ The application uses Supabase (PostgreSQL) with the following main tables:
 - **county_boundaries**: US county polygons ([Census TIGER/Line 2025 — tl_2025_us_county.zip](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html))
 - **msa_boundaries**: Metropolitan Statistical Area polygons ([Census TIGER/Line 2025 — tl_2025_us_cbsa.zip](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html), MEMI=1 only)
 
-See `supabase/migrations/` for the complete schema.
+### Making schema changes
+
+1. Edit `src/db/schema.ts`.
+2. Run `drizzle-kit generate` to produce a new migration file under `supabase/migrations/`.
+3. Review the generated SQL — it must be additive (new columns with defaults/nullable, new tables). Dropping columns or tables requires two separate PRs (see AGENTS.md for details).
+4. Commit both the schema file and the migration file.
+5. Open a PR — CI will post a dry-run comment showing the exact SQL that will run against production.
+6. On merge to main, CI applies the migration automatically before the Vercel deployment completes.
+
+Do not apply schema changes via the Supabase dashboard or MCP — use the workflow above to keep changes version-controlled.
 
 ## Data Ingestion
 

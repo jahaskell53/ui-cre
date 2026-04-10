@@ -13,9 +13,34 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 - **Manual login in development**: With `NODE_ENV=development`, `/login` prefills from `TEST_EMAIL` and `TEST_PASSWORD` (see `.env.example`; defaults are `test@example.com` / `Password123`). Those credentials must match a real user in **the same Supabase project** as `NEXT_PUBLIC_SUPABASE_URL`. If login fails with invalid credentials, create that user in Supabase Auth (dashboard or signup) or point env at a project where the user already exists. Local Supabase starts with no users unless you add one.
 - **Local Supabase** (optional): [Docker](https://docs.docker.com/get-docker/) required. Run `bun run supabase:start`, then set the Supabase variables in `.env.local` to the values printed by `bun run supabase:status` (see `.env.example`). Stop with `bun run supabase:stop`. Reset DB and re-apply migrations with `bun run supabase:reset`.
 - Environment variables are injected automatically in Cursor Cloud Agent VMs. For local development, copy `.env.example` to `.env.local` and fill in values.
-- **Drizzle schema source of truth**: `src/db/schema.ts` is the canonical definition for table structures in application code.
-- **Drizzle migration workflow**: After schema changes, run `drizzle-kit generate` to create SQL, then apply it with `supabase db push`.
-- **ORM convention**: Server-side data access uses `db` from `src/db/index.ts` (Drizzle ORM). The `supabase` server client is for auth (`getUser`), realtime, and storage only. Client-side hooks (`use-user.ts`, `use-page-tour.ts`) and client components in `src/app/(app)/` still use the Supabase client directly for now (tracked in OPE-3e).
+- **ORM convention**: Server-side data access uses `db` from `src/db/index.ts` (Drizzle ORM). The `supabase` server client (`createClient` from `src/utils/supabase/server.ts`) is for auth (`getUser`), realtime, and storage only. On the client side, the Supabase browser client (`@/utils/supabase`) is used for auth operations only (`signOut`, `getSession`, `onAuthStateChange`, `signUp`, `signInWithPassword`). All data queries from client components go through Next.js API routes, which use Drizzle on the server side.
+
+### Schema change workflow
+
+1. Edit `src/db/schema.ts` — this is the single source of truth for all table definitions.
+2. Run `drizzle-kit generate` to produce a SQL migration file under `supabase/migrations/`.
+3. Review the generated SQL to confirm it is correct and additive (see backward compatibility rule below).
+4. Commit both the schema change and the migration file in the same PR.
+5. On PR open/update, CI runs `supabase db push --dry-run` and posts the SQL as a PR comment so reviewers can see exactly what will run in production.
+6. On merge to main, CI runs `supabase db push` to apply the migration before the Vercel deployment completes.
+
+**Do not apply schema changes via the Supabase MCP or the Supabase dashboard SQL editor.** All schema changes must go through the Drizzle → migration file → CI pipeline path described above so they remain version-controlled and reproducible.
+
+### Backward compatibility rule
+
+Migrations must be **additive only** (new columns with defaults or nullable, new tables). Destructive changes (dropping a column or table) must be split across two separate PRs:
+
+1. **PR 1**: Deploy updated application code that no longer reads or writes the old column/table.
+2. **PR 2** (after PR 1 is merged and deployed): Drop the column/table.
+
+### CI/CD: Database migrations
+
+Two GitHub Actions workflows manage schema changes automatically:
+
+- **`db-migration-dry-run.yml`** — triggers on every PR targeting `main`. Runs `supabase db push --dry-run` and posts the pending SQL as a comment on the PR so reviewers can inspect what will run against production. Requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_ID` as GitHub Actions secrets.
+- **`db-migration-apply.yml`** — triggers on every push to `main`. Runs `supabase db push` to apply pending migrations to production before the Vercel deployment completes. Same secrets required.
+
+This ordering guarantees that the database schema is always ahead of the application code.
 
 ### Testing
 
