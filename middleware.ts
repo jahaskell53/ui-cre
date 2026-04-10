@@ -39,7 +39,7 @@ export async function updateSession(request: NextRequest) {
 
   // Redirect authenticated users away from auth pages
   if (user && isAuthPage) {
-    return NextResponse.redirect(new URL('/network', request.url))
+    return NextResponse.redirect(new URL('/analytics/listings', request.url))
   }
 
   // Redirect unauthenticated users to login (except auth pages, public event pages, and internal API routes)
