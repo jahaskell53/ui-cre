@@ -916,39 +916,6 @@ function MapPageInner() {
                         </div>
                     </div>
 
-                    <div className="hidden items-center gap-2 lg:flex">
-                        <div className="flex rounded-lg border border-input bg-muted/40 p-0.5">
-                            {(["zillow", "loopnet"] as const).map((source) => (
-                                <button
-                                    key={source}
-                                    type="button"
-                                    onClick={() => setMapListingSource(source)}
-                                    className={cn(
-                                        "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                                        mapListingSource === source ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                                    )}
-                                >
-                                    {source === "loopnet" ? "Sales" : "Rent"}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="flex rounded-lg border border-input bg-muted/40 p-0.5">
-                            {([true, false] as const).map((latest) => (
-                                <button
-                                    key={String(latest)}
-                                    type="button"
-                                    onClick={() => setShowLatestOnly(latest)}
-                                    className={cn(
-                                        "rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
-                                        showLatestOnly === latest ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                                    )}
-                                >
-                                    {latest ? "Latest" : "Historical"}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
                     <div className="flex w-full min-w-0 rounded-lg border border-input shadow-xs">
                         <Select
                             value={areaType}
@@ -1006,22 +973,54 @@ function MapPageInner() {
                             onBoundsChange={handleBoundsChange}
                             onViewChange={handleViewChange}
                         />
-                        <DialogTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="absolute top-3 left-3 z-10 hidden bg-background/95 shadow-sm backdrop-blur-sm lg:inline-flex"
-                                aria-label={`Filters${activeFilterCount > 0 ? `, ${activeFilterCount} active` : ""}`}
-                            >
-                                <Filter className="size-4" />
-                                {activeFilterCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
-                                        {activeFilterCount}
-                                    </span>
-                                )}
-                            </Button>
-                        </DialogTrigger>
+                        <div className="absolute top-3 left-3 z-10 hidden items-center gap-2 lg:flex">
+                            <DialogTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="relative bg-background/95 shadow-sm backdrop-blur-sm"
+                                    aria-label={`Filters${activeFilterCount > 0 ? `, ${activeFilterCount} active` : ""}`}
+                                >
+                                    <Filter className="size-4" />
+                                    {activeFilterCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </Button>
+                            </DialogTrigger>
+                            <div className="flex rounded-lg border border-input bg-background/95 p-0.5 shadow-sm backdrop-blur-sm">
+                                {(["zillow", "loopnet"] as const).map((source) => (
+                                    <button
+                                        key={source}
+                                        type="button"
+                                        onClick={() => setMapListingSource(source)}
+                                        className={cn(
+                                            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                                            mapListingSource === source ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        {source === "loopnet" ? "Sales" : "Rent"}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex rounded-lg border border-input bg-background/95 p-0.5 shadow-sm backdrop-blur-sm">
+                                {([true, false] as const).map((latest) => (
+                                    <button
+                                        key={String(latest)}
+                                        type="button"
+                                        onClick={() => setShowLatestOnly(latest)}
+                                        className={cn(
+                                            "rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors",
+                                            showLatestOnly === latest ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                                        )}
+                                    >
+                                        {latest ? "Latest" : "Historical"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
