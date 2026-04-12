@@ -91,10 +91,7 @@ export async function findNeighborhood(params: { p_lng: number; p_lat: number })
     return rpc("find_neighborhood", params);
 }
 
-export async function searchNeighborhoods(
-    params: { p_query: string },
-    options?: { signal?: AbortSignal },
-): Promise<NeighborhoodAtPointRow[]> {
+export async function searchNeighborhoods(params: { p_query: string }, options?: { signal?: AbortSignal }): Promise<NeighborhoodAtPointRow[]> {
     return rpc("search_neighborhoods", params, options);
 }
 
