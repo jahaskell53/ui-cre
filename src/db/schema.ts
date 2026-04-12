@@ -631,6 +631,24 @@ export const profiles = pgTable(
     ],
 );
 
+export const rawLoopnetSearchScrapes = pgTable("raw_loopnet_search_scrapes", {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    runId: text("run_id").notNull(),
+    scrapedAt: timestamp("scraped_at", { withTimezone: true, mode: "string" }).notNull(),
+    searchUrl: text("search_url").notNull(),
+    rawJson: jsonb("raw_json").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).defaultNow(),
+});
+
+export const rawLoopnetDetailScrapes = pgTable("raw_loopnet_detail_scrapes", {
+    id: uuid().defaultRandom().primaryKey().notNull(),
+    runId: text("run_id").notNull(),
+    scrapedAt: timestamp("scraped_at", { withTimezone: true, mode: "string" }).notNull(),
+    listingUrl: text("listing_url").notNull(),
+    rawJson: jsonb("raw_json"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).defaultNow(),
+});
+
 export const rawBuildingDetails = pgTable("raw_building_details", {
     id: uuid().defaultRandom().primaryKey().notNull(),
     runId: text("run_id").notNull(),

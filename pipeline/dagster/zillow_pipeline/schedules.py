@@ -40,6 +40,8 @@ from zillow_pipeline.assets.zip_codes import ba_zip_codes
 from zillow_pipeline.assets.zillow_scrape import raw_zillow_scrapes
 from zillow_pipeline.assets.zillow_building_scrape import raw_building_scrapes
 from zillow_pipeline.assets.cleaned_building_units import cleaned_building_units
+from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes
+from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 
 zillow_scrape_job = define_asset_job(
     name="zillow_weekly_scrape_job",
@@ -62,9 +64,20 @@ zillow_building_job = define_asset_job(
     selection=AssetSelection.assets(raw_building_scrapes, cleaned_building_units),
 )
 
+loopnet_scrape_job = define_asset_job(
+    name="loopnet_weekly_scrape_job",
+    selection=AssetSelection.assets(raw_loopnet_search_scrapes, raw_loopnet_detail_scrapes),
+)
+
+weekly_loopnet_scrape_schedule = ScheduleDefinition(
+    name="weekly_loopnet_scrape",
+    job=loopnet_scrape_job,
+    cron_schedule="0 7 * * 1",  # Every Monday at 7am UTC
+)
+
 
 @run_failure_sensor(
-    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job],
+    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job],
 )
 def alert_on_pipeline_failure(context: RunFailureSensorContext):
     error_msg = str(context.failure_event.message) if context.failure_event else None
@@ -73,7 +86,7 @@ def alert_on_pipeline_failure(context: RunFailureSensorContext):
 
 @run_status_sensor(
     run_status=DagsterRunStatus.SUCCESS,
-    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job],
+    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job],
 )
 def alert_on_pipeline_success(context: RunStatusSensorContext):
     _send_run_alert(context.dagster_run.job_name, context.dagster_run.run_id, success=True)
