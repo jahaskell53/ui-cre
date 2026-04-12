@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 
 const tabs = [
     { href: "/analytics/listings", label: "Listings", icon: Map },
-    { href: "/analytics/trends", label: "Trends", icon: TrendingUp },
     { href: "/analytics/comps", label: "Comps", icon: BarChart3 },
+    { href: "/analytics/trends", label: "Trends", icon: TrendingUp },
 ];
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {
