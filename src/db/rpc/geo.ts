@@ -39,11 +39,12 @@ export interface MsaBboxRow {
     north: number;
 }
 
-async function rpc<T>(fn: string, params: object): Promise<T> {
+async function rpc<T>(fn: string, params: object, options?: { signal?: AbortSignal }): Promise<T> {
     const res = await fetch("/api/rpc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fn, params }),
+        signal: options?.signal,
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -90,12 +91,15 @@ export async function findNeighborhood(params: { p_lng: number; p_lat: number })
     return rpc("find_neighborhood", params);
 }
 
-export async function searchNeighborhoods(params: { p_query: string }): Promise<NeighborhoodAtPointRow[]> {
-    return rpc("search_neighborhoods", params);
+export async function searchNeighborhoods(
+    params: { p_query: string },
+    options?: { signal?: AbortSignal },
+): Promise<NeighborhoodAtPointRow[]> {
+    return rpc("search_neighborhoods", params, options);
 }
 
-export async function searchMsas(params: { p_query: string }): Promise<MsaRow[]> {
-    return rpc("search_msas", params);
+export async function searchMsas(params: { p_query: string }, options?: { signal?: AbortSignal }): Promise<MsaRow[]> {
+    return rpc("search_msas", params, options);
 }
 
 export async function getNeighborhoodAtPoint(params: { p_lat: number; p_lng: number }): Promise<NeighborhoodAtPointRow[]> {

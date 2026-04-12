@@ -120,6 +120,7 @@ export default function TrendsPage() {
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
     const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const suggestAbortRef = useRef<AbortController | null>(null);
     const inputWrapperRef = useRef<HTMLDivElement>(null);
     const userCoordsRef = useRef<{ lng: number; lat: number } | null>(null);
 
@@ -139,6 +140,7 @@ export default function TrendsPage() {
     // Autocomplete
     useEffect(() => {
         if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+        suggestAbortRef.current?.abort();
         setActiveSuggestionIndex(-1);
         if (address.length < 3) {
             setSuggestions([]);
@@ -148,26 +150,30 @@ export default function TrendsPage() {
         }
 
         let cancelled = false;
+        const controller = new AbortController();
+        suggestAbortRef.current = controller;
 
         suggestTimerRef.current = setTimeout(async () => {
             if (areaType === "MSA" && !addressMode) {
                 try {
-                    const data = await searchMsas({ p_query: address });
+                    const data = await searchMsas({ p_query: address }, { signal: controller.signal });
                     if (!cancelled) {
                         setMsaSuggestions(data);
                         setShowSuggestions(true);
                     }
-                } catch {
+                } catch (error) {
+                    if (error instanceof Error && error.name === "AbortError") return;
                     if (!cancelled) setMsaSuggestions([]);
                 }
             } else if (areaType === "Neighborhood" && !addressMode) {
                 try {
-                    const data = await searchNeighborhoods({ p_query: address });
+                    const data = await searchNeighborhoods({ p_query: address }, { signal: controller.signal });
                     if (!cancelled) {
                         setNhSuggestions(data);
                         setShowSuggestions(true);
                     }
-                } catch {
+                } catch (error) {
+                    if (error instanceof Error && error.name === "AbortError") return;
                     if (!cancelled) setNhSuggestions([]);
                 }
             } else {
@@ -184,20 +190,23 @@ export default function TrendsPage() {
                     const proximity = userCoordsRef.current ? `&proximity=${userCoordsRef.current.lng},${userCoordsRef.current.lat}` : "";
                     const res = await fetch(
                         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5&types=${types}&country=US${proximity}`,
+                        { signal: controller.signal },
                     );
                     const data = await res.json();
                     if (!cancelled) {
                         setSuggestions((data.features ?? []) as MapboxFeature[]);
                         setShowSuggestions(true);
                     }
-                } catch {
+                } catch (error) {
+                    if (error instanceof Error && error.name === "AbortError") return;
                     if (!cancelled) setSuggestions([]);
                 }
             }
-        }, 250);
+        }, 180);
 
         return () => {
             cancelled = true;
+            controller.abort();
         };
     }, [address, areaType, addressMode]);
 
