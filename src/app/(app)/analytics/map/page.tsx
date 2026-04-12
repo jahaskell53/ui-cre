@@ -152,6 +152,7 @@ function MapPageInner() {
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => parseMapListingSource(searchParams));
     const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => parseShowLatestOnly(searchParams));
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+    const mapBoundsRef = useRef<MapBounds | null>(null);
     const [listingsViewMode, setListingsViewMode] = useState<"map" | "list">(() => parseListingsViewMode(searchParams));
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -232,7 +233,9 @@ function MapPageInner() {
                 }
             } else if (areaType === "neighborhood") {
                 try {
-                    const data = await searchNeighborhoods({ p_query: areaInput }, { signal: controller.signal });
+                    const b = mapBoundsRef.current;
+                    const mapCenter = b ? { p_lat: (b.south + b.north) / 2, p_lng: (b.west + b.east) / 2 } : {};
+                    const data = await searchNeighborhoods({ p_query: areaInput, ...mapCenter }, { signal: controller.signal });
                     if (!cancelled) {
                         setAreaSuggestions(data.map((r) => ({ kind: "neighborhood" as const, ...r })));
                         setShowSuggestions(true);
@@ -243,7 +246,9 @@ function MapPageInner() {
                 }
             } else if (areaType === "msa") {
                 try {
-                    const data = await searchMsas({ p_query: areaInput }, { signal: controller.signal });
+                    const b = mapBoundsRef.current;
+                    const mapCenter = b ? { p_lat: (b.south + b.north) / 2, p_lng: (b.west + b.east) / 2 } : {};
+                    const data = await searchMsas({ p_query: areaInput, ...mapCenter }, { signal: controller.signal });
                     if (!cancelled) {
                         setAreaSuggestions(data.map((r) => ({ kind: "msa" as const, ...r })));
                         setShowSuggestions(true);
@@ -498,6 +503,7 @@ function MapPageInner() {
     );
 
     const handleBoundsChange = useCallback((bounds: MapBounds) => {
+        mapBoundsRef.current = bounds;
         if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
         boundsTimerRef.current = setTimeout(() => {
             setMapBounds(bounds);
