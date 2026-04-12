@@ -72,7 +72,7 @@ loopnet_scrape_job = define_asset_job(
 weekly_loopnet_scrape_schedule = ScheduleDefinition(
     name="weekly_loopnet_scrape",
     job=loopnet_scrape_job,
-    cron_schedule="0 7 * * 1",  # Every Monday at 7am UTC
+    cron_schedule="0 7 * * 2",  # Every Tuesday at 7am UTC
 )
 
 
