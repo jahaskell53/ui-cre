@@ -49,7 +49,7 @@ describe("GET /api/listings/zillow", () => {
 
         expect(res.status).toBe(200);
         expect(body).toEqual(SAMPLE_ROWS);
-        expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=259200, stale-while-revalidate=43200");
+        expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=604800, stale-while-revalidate=86400");
     });
 
     it("passes params correctly to rpc", async () => {
