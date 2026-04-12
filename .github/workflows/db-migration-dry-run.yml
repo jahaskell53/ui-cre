@@ -24,30 +24,26 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
-      - name: Repair orphaned remote migrations
-        run: |
-          # Find remote migrations that have no matching local file and mark them
-          # as reverted so that db push / db push --dry-run does not abort.
-          ORPHANED=$(supabase migration list --linked 2>/dev/null \
-            | awk -F'│' 'NR>2 {
-                local=$1; gsub(/[[:space:]]/, "", local)
-                remote=$2; gsub(/[[:space:]]/, "", remote)
-                if (local == "" && remote ~ /^[0-9]{14}$/) print remote
-              }')
-          for version in $ORPHANED; do
-            echo "Repairing orphaned remote migration: $version"
-            supabase migration repair --status reverted "$version" --linked
-          done
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-
-      - name: Run migration dry run
+      - name: Run migration dry run (with auto-repair)
         id: dry-run
         run: |
           set +e
           supabase db push --dry-run --linked > /tmp/dry-run-output.txt 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          EXIT=$?
+
+          if [ $EXIT -ne 0 ] && grep -q "Remote migration versions not found" /tmp/dry-run-output.txt; then
+            # Extract versions Supabase tells us to repair and mark them as reverted
+            VERSIONS=$(grep -oP '(?<=migration repair --status reverted )\d+' /tmp/dry-run-output.txt)
+            for version in $VERSIONS; do
+              echo "Repairing orphaned remote migration: $version"
+              supabase migration repair --status reverted "$version" --linked
+            done
+            # Retry after repair
+            supabase db push --dry-run --linked > /tmp/dry-run-output.txt 2>&1
+            EXIT=$?
+          fi
+
+          echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
