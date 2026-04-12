@@ -4,6 +4,7 @@ from typing import Optional
 from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy, asset
 
 from zillow_pipeline.resources.supabase import SupabaseResource
+from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 
 
 class CleanedLoopnetListingsConfig(Config):
@@ -165,6 +166,7 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
 
 
 @asset(
+    deps=[raw_loopnet_detail_scrapes],
     retry_policy=RetryPolicy(
         max_retries=3,
         delay=30,

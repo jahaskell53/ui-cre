@@ -6,6 +6,7 @@ from dagster import AssetExecutionContext, Backoff, Config, Failure, Output, Ret
 
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
+from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes
 
 
 class LoopnetDetailScrapeConfig(Config):
@@ -13,6 +14,7 @@ class LoopnetDetailScrapeConfig(Config):
 
 
 @asset(
+    deps=[raw_loopnet_search_scrapes],
     retry_policy=RetryPolicy(
         max_retries=3,
         delay=30,
