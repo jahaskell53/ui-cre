@@ -156,7 +156,8 @@ export default function TrendsPage() {
         suggestTimerRef.current = setTimeout(async () => {
             if (areaType === "MSA" && !addressMode) {
                 try {
-                    const data = await searchMsas({ p_query: address }, { signal: controller.signal });
+                    const proximity = userCoordsRef.current ?? undefined;
+                    const data = await searchMsas({ p_query: address, p_lat: proximity?.lat, p_lng: proximity?.lng }, { signal: controller.signal });
                     if (!cancelled) {
                         setMsaSuggestions(data);
                         setShowSuggestions(true);
@@ -167,7 +168,8 @@ export default function TrendsPage() {
                 }
             } else if (areaType === "Neighborhood" && !addressMode) {
                 try {
-                    const data = await searchNeighborhoods({ p_query: address }, { signal: controller.signal });
+                    const proximity = userCoordsRef.current ?? undefined;
+                    const data = await searchNeighborhoods({ p_query: address, p_lat: proximity?.lat, p_lng: proximity?.lng }, { signal: controller.signal });
                     if (!cancelled) {
                         setNhSuggestions(data);
                         setShowSuggestions(true);

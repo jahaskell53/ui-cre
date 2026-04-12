@@ -183,6 +183,34 @@ describe("search_neighborhoods", () => {
         const rows = data as unknown[];
         expect(rows).toHaveLength(0);
     });
+
+    it("accepts optional p_lat and p_lng parameters without error", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("search_neighborhoods", {
+            p_query: "Mission",
+            p_lat: MISSION_LAT,
+            p_lng: MISSION_LNG,
+        });
+        expect(error).toBeNull();
+        const rows = data as { id: number; name: string; city: string; state: string }[];
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows.length).toBeLessThanOrEqual(8);
+    });
+
+    it("ranks the Mission neighborhood first when proximity matches SF coords", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("search_neighborhoods", {
+            p_query: "Mission",
+            p_lat: MISSION_LAT,
+            p_lng: MISSION_LNG,
+        });
+        expect(error).toBeNull();
+        const rows = data as { id: number; name: string; city: string; state: string }[];
+        expect(rows.length).toBeGreaterThan(0);
+        const first = rows[0];
+        expect(/Mission/i.test(first.name)).toBe(true);
+        expect(/San Francisco/i.test(first.city)).toBe(true);
+    });
 });
 
 // ── search_msas ───────────────────────────────────────────────────────────────
@@ -236,6 +264,32 @@ describe("search_msas", () => {
         expect(error).toBeNull();
         const rows = data as unknown[];
         expect(rows).toHaveLength(0);
+    });
+
+    it("accepts optional p_lat and p_lng parameters without error", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("search_msas", {
+            p_query: "San Francisco",
+            p_lat: MISSION_LAT,
+            p_lng: MISSION_LNG,
+        });
+        expect(error).toBeNull();
+        const rows = data as { id: number; name: string; name_lsad: string; geoid: string }[];
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows.length).toBeLessThanOrEqual(8);
+    });
+
+    it("ranks the SF Bay Area MSA first when proximity matches SF coords", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("search_msas", {
+            p_query: "San Francisco",
+            p_lat: MISSION_LAT,
+            p_lng: MISSION_LNG,
+        });
+        expect(error).toBeNull();
+        const rows = data as { id: number; name: string; name_lsad: string; geoid: string }[];
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows[0].geoid).toBe(sfBayAreaGeoid);
     });
 });
 
