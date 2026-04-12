@@ -19,3 +19,6 @@ dependencies = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: requires live Supabase (SUPABASE_URL + SUPABASE_SERVICE_KEY)",
+]
