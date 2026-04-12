@@ -22,26 +22,26 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
-      - name: Repair orphaned remote migrations
+      - name: Apply migrations to production (with auto-repair)
         run: |
-          # Find remote migrations that have no matching local file and mark them
-          # as reverted so that db push does not abort.
-          ORPHANED=$(supabase migration list --linked 2>/dev/null \
-            | awk -F'│' 'NR>2 {
-                local=$1; gsub(/[[:space:]]/, "", local)
-                remote=$2; gsub(/[[:space:]]/, "", remote)
-                if (local == "" && remote ~ /^[0-9]{14}$/) print remote
-              }')
-          for version in $ORPHANED; do
-            echo "Repairing orphaned remote migration: $version"
-            supabase migration repair --status reverted "$version" --linked
-          done
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          set +e
+          OUTPUT=$(supabase db push --linked 2>&1)
+          EXIT=$?
+          echo "$OUTPUT"
 
-      - name: Apply migrations to production
-        run: supabase db push --linked
+          if [ $EXIT -ne 0 ] && echo "$OUTPUT" | grep -q "Remote migration versions not found"; then
+            VERSIONS=$(echo "$OUTPUT" | grep -oP '(?<=migration repair --status reverted )\d+')
+            for version in $VERSIONS; do
+              echo "Repairing orphaned remote migration: $version"
+              supabase migration repair --status reverted "$version" --linked
+            done
+            # Retry after repair
+            set -e
+            supabase db push --linked
+          else
+            set -e
+            [ $EXIT -eq 0 ] || exit $EXIT
+          fi
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
