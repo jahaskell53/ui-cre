@@ -115,7 +115,6 @@ jobs:
         run: pip install dagster-cloud
       - name: Close branch deployment
         run: |
-          dagster-cloud ci branch-deployment \
+          dagster-cloud ci branch-deployment pipeline/dagster \
             --organization openmidmarket \
-            --project-dir pipeline/dagster \
             --mark-closed
