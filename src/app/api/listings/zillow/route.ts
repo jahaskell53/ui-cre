@@ -3,6 +3,7 @@ import { type ZillowMapListingRow } from "@/lib/map-listings";
 import { createAdminClient } from "@/utils/supabase/admin";
 
 const ZILLOW_MAP_RPC_MAX_ATTEMPTS = 3;
+const ZILLOW_MAP_CACHE_CONTROL = "public, s-maxage=604800, stale-while-revalidate=86400";
 
 function isStatementTimeoutMessage(message: string): boolean {
     const m = message.toLowerCase();
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(rows, {
             headers: {
-                "Cache-Control": "public, s-maxage=259200, stale-while-revalidate=43200",
+                "Cache-Control": ZILLOW_MAP_CACHE_CONTROL,
                 "Server-Timing": serverTiming((tSerialize - tRpcDone).toFixed(1)),
             },
         });
