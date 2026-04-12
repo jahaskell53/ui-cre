@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 
 CREATE INDEX IF NOT EXISTS idx_neighborhoods_search_text_trgm
     ON public.neighborhoods
-    USING gin ((((name || ' ' || city || ' ' || state)::text) gin_trgm_ops));
+    USING gin (((name || ' ' || city || ' ' || state)::text) gin_trgm_ops);
 
 CREATE OR REPLACE FUNCTION public.search_neighborhoods(p_query text)
 RETURNS TABLE(id integer, name character varying, city character varying, state character varying)
