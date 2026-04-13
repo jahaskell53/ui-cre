@@ -13,6 +13,16 @@ class LoopnetDetailScrapeConfig(Config):
     run_id: Optional[str] = None  # if None, uses the latest run
 
 
+def _strip_null_bytes(value):
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, list):
+        return [_strip_null_bytes(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _strip_null_bytes(item) for key, item in value.items()}
+    return value
+
+
 @asset(
     deps=[raw_loopnet_search_scrapes],
     retry_policy=RetryPolicy(
@@ -88,12 +98,13 @@ def raw_loopnet_detail_scrapes(
         context.log.info(f"Scraping detail: {listing_url}")
         try:
             raw_json = apify.run_loopnet_detail(listing_url)
+            sanitized_raw_json = _strip_null_bytes(raw_json)
             client.table("raw_loopnet_detail_scrapes").insert(
                 {
                     "run_id": run_id,
                     "scraped_at": scraped_at,
                     "listing_url": listing_url,
-                    "raw_json": raw_json,
+                    "raw_json": sanitized_raw_json,
                 }
             ).execute()
             inserted += 1
