@@ -29,7 +29,7 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 
 ### Dagster pipeline (pipeline/dagster/)
 
-- **Runtime**: Python 3.12 + uv. Both `uv` and a uv-managed Python are installed via the update script; `~/.local/bin` and the uv Python bin directory are on PATH.
+- **Runtime**: Python 3.12 + uv. Both `uv` and a uv-managed Python are installed via the update script; `~/.local/bin` and the uv Python bin directory are on PATH. The `dg` CLI (`dagster-dg-cli`) is also installed globally via `uv tool install dagster-dg-cli`.
 - **Install deps**: `cd pipeline/dagster && uv pip install dagster dagster-webserver dagster-cloud supabase apify-client python-dotenv pytest && uv pip install --no-deps -e .` — the `postal` C extension is excluded because libpostal is not available in Cloud VMs. Tests mock `normalize_address` so they pass without it.
 - **Run tests**: `cd pipeline/dagster && .venv/bin/pytest` (56 tests, all mocked, no external services needed).
 - **Run dev server**: `cd pipeline/dagster && uv run dagster dev` (requires Supabase + Apify env vars; see `pipeline/dagster/.env.example`).
