@@ -299,3 +299,39 @@ class TestRawLoopnetDetailScrapes:
 
         apify.run_loopnet_detail.assert_not_called()
         assert meta(output, "listings_found") == 0
+
+    def test_sanitizes_null_bytes_before_insert(self):
+        supabase, client = make_supabase()
+        apify = make_apify()
+
+        url = "https://www.loopnet.com/Listing/1/"
+        search_rows_mock = MagicMock()
+        search_rows_mock.data = self._make_search_rows([url])
+        already_mock = MagicMock()
+        already_mock.data = []
+
+        client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
+            search_rows_mock, already_mock
+        ]
+        apify.run_loopnet_detail.return_value = [
+            {
+                "title": "A\x00B",
+                "nested": {"desc": "Hello\x00World"},
+                "arr": ["x\x00y", 1, None],
+            }
+        ]
+
+        with build_asset_context() as ctx:
+            output = raw_loopnet_detail_scrapes(
+                context=ctx,
+                config=LoopnetDetailScrapeConfig(run_id="run-1"),
+                apify=apify,
+                supabase=supabase,
+            )
+
+        inserted_payload = client.table.return_value.insert.call_args[0][0]
+        inserted_raw_json = inserted_payload["raw_json"]
+        assert inserted_raw_json[0]["title"] == "AB"
+        assert inserted_raw_json[0]["nested"]["desc"] == "HelloWorld"
+        assert inserted_raw_json[0]["arr"][0] == "xy"
+        assert output.value == 1
