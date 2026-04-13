@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy, asset
+from dateutil.parser import parse as parse_date
 
 from zillow_pipeline.resources.supabase import SupabaseResource
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
@@ -18,26 +19,17 @@ def _parse_date(val: str | None) -> str | None:
     val = val.strip()
     if not val:
         return None
-    if len(val) >= 10:
-        slash_date = val[:10]
-        # Handle DD/MM/YYYY explicitly for LoopNet values like 31/03/2026.
-        if slash_date[2] == "/" and slash_date[5] == "/":
-            first = slash_date[:2]
-            second = slash_date[3:5]
-            if first.isdigit() and second.isdigit() and int(first) > 12:
-                try:
-                    return datetime.strptime(slash_date, "%d/%m/%Y").strftime("%Y-%m-%d")
-                except ValueError:
-                    pass
-    for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S"):
-        try:
-            return datetime.strptime(val[:10], fmt[:8] if "T" not in val else fmt).strftime("%Y-%m-%d")
-        except ValueError:
-            pass
-    # Accept a valid ISO date prefix only.
-    iso_prefix = val[:10]
     try:
-        return datetime.strptime(iso_prefix, "%Y-%m-%d").strftime("%Y-%m-%d")
+        return parse_date(val, yearfirst=True, fuzzy=False).date().isoformat()
+    except (ValueError, TypeError):
+        pass
+    # Fallback for explicit day-first slash dates from LoopNet (e.g. 31/03/2026).
+    try:
+        return parse_date(val, dayfirst=True, yearfirst=False, fuzzy=False).date().isoformat()
+    except (ValueError, TypeError):
+        pass
+    try:
+        return datetime.strptime(val[:10], "%Y-%m-%d").strftime("%Y-%m-%d")
     except ValueError:
         return None
 
