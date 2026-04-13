@@ -162,11 +162,9 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
         expect(midOnly.every((p) => !p.is_reit)).toBe(true);
     });
 
-    it("unit_count is consistent between p_latest_only=true and p_latest_only=false (OPE-105)", async () => {
-        // Regression test: without the fix, p_latest_only=false inflated unit_count
-        // by the number of historical scrape runs because all historical unit rows
-        // were counted. With the fix, unit_count is always derived from the latest
-        // run per building regardless of p_latest_only.
+    it("historical unit_count is >= latest-only and includes at least one strict increase (OPE-105)", async () => {
+        // latest_only=true should represent active units in the latest scrape run.
+        // latest_only=false should represent historical units across runs.
         const client = makeClient();
         const { data: latestData, error: latestError } = await client.rpc(
             "get_zillow_map_listings",
@@ -185,13 +183,20 @@ describe("get_zillow_map_listings RPC — ZIP 94610 (Oakland)", () => {
         // Build a map of building id -> unit_count for the latest-only result
         const latestById = new Map(latestPins.map((p) => [p.id, p.unit_count]));
 
-        // Every building that appears in both results must have the same unit_count.
-        // (allPins may contain buildings not in latestPins if scrapes span different runs.)
+        // Every building present in both results should have historical >= latest-only.
+        // (allPins may include buildings absent from latestPins depending on scrape coverage.)
+        let hasStrictIncrease = false;
         for (const pin of allPins) {
             if (latestById.has(pin.id)) {
-                expect(pin.unit_count).toBe(latestById.get(pin.id));
+                const latestUnitCount = latestById.get(pin.id)!;
+                expect(pin.unit_count).toBeGreaterThanOrEqual(latestUnitCount);
+                if (pin.unit_count > latestUnitCount) {
+                    hasStrictIncrease = true;
+                }
             }
         }
+
+        expect(hasStrictIncrease).toBe(true);
 
         // unit_mix total must match unit_count
         for (const pin of allPins) {
