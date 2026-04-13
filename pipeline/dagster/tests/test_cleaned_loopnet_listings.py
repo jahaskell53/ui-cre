@@ -117,6 +117,9 @@ class TestParseDate:
     def test_mm_dd_yyyy(self):
         assert _parse_date("12/10/2025") == "2025-12-10"
 
+    def test_dd_mm_yyyy(self):
+        assert _parse_date("31/03/2026") == "2026-03-31"
+
     def test_iso_date(self):
         assert _parse_date("2025-12-10T12:00:00-05:00") == "2025-12-10"
 

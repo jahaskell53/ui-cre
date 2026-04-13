@@ -18,15 +18,27 @@ def _parse_date(val: str | None) -> str | None:
     val = val.strip()
     if not val:
         return None
-    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S"):
+    if len(val) >= 10:
+        slash_date = val[:10]
+        # Handle DD/MM/YYYY explicitly for LoopNet values like 31/03/2026.
+        if slash_date[2] == "/" and slash_date[5] == "/":
+            first = slash_date[:2]
+            second = slash_date[3:5]
+            if first.isdigit() and second.isdigit() and int(first) > 12:
+                try:
+                    return datetime.strptime(slash_date, "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
+    for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S"):
         try:
             return datetime.strptime(val[:10], fmt[:8] if "T" not in val else fmt).strftime("%Y-%m-%d")
         except ValueError:
             pass
-    # Try splitting on T for ISO
+    # Accept a valid ISO date prefix only.
+    iso_prefix = val[:10]
     try:
-        return val[:10]  # take YYYY-MM-DD prefix
-    except Exception:
+        return datetime.strptime(iso_prefix, "%Y-%m-%d").strftime("%Y-%m-%d")
+    except ValueError:
         return None
 
 
