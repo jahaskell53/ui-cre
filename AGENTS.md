@@ -62,6 +62,8 @@ When it would help reviewers or future readers (for example UI changes, flows, o
 ### Dagster pipeline (pipeline/dagster/)
 
 - **Runtime**: Python 3.12 + uv. Both `uv` and a uv-managed Python are installed via the update script; `~/.local/bin` and the uv Python bin directory are on PATH.
+- **Dagster CLI**: `dg` should be available in Cloud VMs. If it is missing, run `source "$HOME/.local/bin/env" && uv tool install dagster-dg-cli`.
+- **If `uv` is missing**: run `curl -LsSf https://astral.sh/uv/install.sh | sh` and then `source "$HOME/.local/bin/env"`.
 - **Install deps**: `cd pipeline/dagster && uv pip install dagster dagster-webserver dagster-cloud supabase apify-client python-dotenv pytest && uv pip install --no-deps -e .` — the `postal` C extension is excluded because libpostal is not available in Cloud VMs. Tests mock `normalize_address` so they pass without it.
 - **Run tests**: `cd pipeline/dagster && .venv/bin/pytest` (56 tests, all mocked, no external services needed).
 - **Run dev server**: `cd pipeline/dagster && uv run dagster dev` (requires Supabase + Apify env vars; see `pipeline/dagster/.env.example`).
