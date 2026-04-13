@@ -1,7 +1,9 @@
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
 from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy, asset
+from dateutil.parser import parse as parse_date
 
 from zillow_pipeline.resources.supabase import SupabaseResource
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
@@ -18,15 +20,17 @@ def _parse_date(val: str | None) -> str | None:
     val = val.strip()
     if not val:
         return None
-    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S"):
-        try:
-            return datetime.strptime(val[:10], fmt[:8] if "T" not in val else fmt).strftime("%Y-%m-%d")
-        except ValueError:
-            pass
-    # Try splitting on T for ISO
+
     try:
-        return val[:10]  # take YYYY-MM-DD prefix
-    except Exception:
+        if re.fullmatch(r"\d{2}/\d{2}/\d{4}", val):
+            first = int(val[:2])
+            second = int(val[3:5])
+            if first > 12 and second <= 12:
+                return parse_date(val, dayfirst=True, yearfirst=False, fuzzy=False).date().isoformat()
+            return parse_date(val, dayfirst=False, yearfirst=False, fuzzy=False).date().isoformat()
+
+        return parse_date(val, dayfirst=False, yearfirst=True, fuzzy=False).date().isoformat()
+    except (ValueError, TypeError, OverflowError):
         return None
 
 
