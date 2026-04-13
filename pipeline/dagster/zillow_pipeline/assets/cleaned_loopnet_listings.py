@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -19,18 +20,17 @@ def _parse_date(val: str | None) -> str | None:
     val = val.strip()
     if not val:
         return None
+
     try:
-        return parse_date(val, yearfirst=True, fuzzy=False).date().isoformat()
-    except (ValueError, TypeError):
-        pass
-    # Fallback for explicit day-first slash dates from LoopNet (e.g. 31/03/2026).
-    try:
-        return parse_date(val, dayfirst=True, yearfirst=False, fuzzy=False).date().isoformat()
-    except (ValueError, TypeError):
-        pass
-    try:
-        return datetime.strptime(val[:10], "%Y-%m-%d").strftime("%Y-%m-%d")
-    except ValueError:
+        if re.fullmatch(r"\d{2}/\d{2}/\d{4}", val):
+            first = int(val[:2])
+            second = int(val[3:5])
+            if first > 12 and second <= 12:
+                return parse_date(val, dayfirst=True, yearfirst=False, fuzzy=False).date().isoformat()
+            return parse_date(val, dayfirst=False, yearfirst=False, fuzzy=False).date().isoformat()
+
+        return parse_date(val, dayfirst=False, yearfirst=True, fuzzy=False).date().isoformat()
+    except (ValueError, TypeError, OverflowError):
         return None
 
 
