@@ -221,7 +221,7 @@ def cleaned_loopnet_listings(
     context.log.info(f"Using loopnet_listings run_id: {int_run_id}")
 
     scraped_at = datetime.now(timezone.utc).isoformat()
-    inserted = failed = skipped = 0
+    inserted = failed = skipped = existing = 0
     records = []
 
     for row in raw_rows:
@@ -240,9 +240,18 @@ def cleaned_loopnet_listings(
     for start in range(0, len(records), batch_size):
         batch = records[start : start + batch_size]
         try:
-            client.table("loopnet_listings").insert(batch).execute()
-            inserted += len(batch)
-            context.log.info(f"Inserted rows {start + 1}–{start + len(batch)}")
+            response = (
+                client.table("loopnet_listings")
+                .upsert(batch, on_conflict="listing_url", ignore_duplicates=True)
+                .execute()
+            )
+            inserted_count = len(response.data or [])
+            inserted += inserted_count
+            existing += len(batch) - inserted_count
+            context.log.info(
+                f"Processed rows {start + 1}–{start + len(batch)} "
+                f"(inserted={inserted_count}, existing={len(batch) - inserted_count})"
+            )
         except Exception as e:
             context.log.error(f"Batch {start}–{start + len(batch)} failed: {e}")
             failed += len(batch)
@@ -257,6 +266,7 @@ def cleaned_loopnet_listings(
             "loopnet_run_id": int_run_id,
             "records_built": len(records),
             "inserted": inserted,
+            "existing": existing,
             "failed": failed,
             "skipped": skipped,
         },

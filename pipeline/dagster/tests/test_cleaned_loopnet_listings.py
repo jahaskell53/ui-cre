@@ -19,6 +19,7 @@ def make_supabase():
     mock = MagicMock()
     client = MagicMock()
     mock.get_client.return_value = client
+    client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[])
     return mock, client
 
 
@@ -272,6 +273,7 @@ class TestCleanedLoopnetListings:
     def test_inserts_valid_records(self):
         supabase, client = make_supabase()
         self._setup_client(client, [SAMPLE_ITEM])
+        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[{"listing_url": SAMPLE_ITEM["inputUrl"]}])
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -283,10 +285,30 @@ class TestCleanedLoopnetListings:
         assert output.value == 1
         assert meta(output, "inserted") == 1
         assert meta(output, "failed") == 0
+        client.table.return_value.upsert.assert_called_once()
+
+    def test_duplicate_listing_url_is_ignored_via_upsert(self):
+        supabase, client = make_supabase()
+        self._setup_client(client, [SAMPLE_ITEM])
+        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[])
+
+        with build_asset_context() as ctx:
+            output = cleaned_loopnet_listings(
+                context=ctx,
+                config=CleanedLoopnetListingsConfig(run_id="dagster-run-1"),
+                supabase=supabase,
+            )
+
+        kwargs = client.table.return_value.upsert.call_args.kwargs
+        assert kwargs["ignore_duplicates"] is True
+        assert kwargs["on_conflict"] == "listing_url"
+        assert output.value == 0
+        assert meta(output, "existing") == 1
 
     def test_skips_items_without_url(self):
         supabase, client = make_supabase()
         self._setup_client(client, [{"address": "No URL item"}, SAMPLE_ITEM])
+        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[{"listing_url": SAMPLE_ITEM["inputUrl"]}])
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -314,7 +336,7 @@ class TestCleanedLoopnetListings:
     def test_batch_insert_failure_raises(self):
         supabase, client = make_supabase()
         self._setup_client(client, [SAMPLE_ITEM])
-        client.table.return_value.insert.return_value.execute.side_effect = RuntimeError("DB error")
+        client.table.return_value.upsert.return_value.execute.side_effect = RuntimeError("DB error")
 
         with build_asset_context() as ctx:
             with pytest.raises(Exception, match="records failed to insert"):
