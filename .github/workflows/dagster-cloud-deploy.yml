@@ -11,10 +11,6 @@ on:
     paths:
       - 'pipeline/**'
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
   DAGSTER_BUILD_STATEDIR: /tmp/dagster-state
@@ -24,6 +20,10 @@ jobs:
     name: Dagster+ Production Deploy
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # No cancel-in-progress: every merge to main that touches pipeline/** must deploy.
+    concurrency:
+      group: dagster-prod-deploy
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
@@ -43,7 +43,7 @@ jobs:
       - name: Initialize build session
         run: |
           dagster-cloud ci init \
-            --organization openmidmarket \
+            --organization [REDACTED] \
             --deployment prod \
             --project-dir pipeline/dagster \
             --statedir $DAGSTER_BUILD_STATEDIR
@@ -62,6 +62,10 @@ jobs:
     name: Dagster+ Branch Deploy
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    # Cancel in-progress branch deploys for the same PR when a new commit is pushed.
+    concurrency:
+      group: dagster-branch-deploy-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     permissions:
       contents: read
       packages: read
@@ -81,7 +85,7 @@ jobs:
       - name: Initialize build session
         run: |
           dagster-cloud ci init \
-            --organization openmidmarket \
+            --organization [REDACTED] \
             --project-dir pipeline/dagster \
             --statedir $DAGSTER_BUILD_STATEDIR
       - name: Build Docker image
@@ -116,5 +120,5 @@ jobs:
       - name: Close branch deployment
         run: |
           dagster-cloud ci branch-deployment pipeline/dagster \
-            --organization openmidmarket \
+            --organization [REDACTED] \
             --mark-closed
