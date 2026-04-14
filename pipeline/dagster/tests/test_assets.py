@@ -281,7 +281,7 @@ class TestCleanedListings:
         select_mock.eq.return_value = eq_chain
         client.table.return_value.select.return_value = select_mock
 
-        # First RPC call fails, second succeeds
+        # First RPC call fails, second succeeds — 50% failure rate, still under threshold
         client.rpc.return_value.execute.side_effect = [RuntimeError("DB error"), MagicMock()]
 
         with patch("zillow_pipeline.assets.cleaned_listings.normalize_address",
@@ -295,6 +295,48 @@ class TestCleanedListings:
 
         assert meta(output, "inserted") == 1
         assert meta(output, "failed") == 1
+
+    def test_raises_when_all_listings_fail(self):
+        supabase, client = make_supabase()
+
+        latest_mock = MagicMock()
+        latest_mock.data = [{"run_id": "run-1", "scraped_at": "2024-01-01T00:00:00Z"}]
+
+        raw_rows_mock = MagicMock()
+        raw_rows_mock.data = [
+            {
+                "id": "row-1",
+                "zip_code": "94102",
+                "scraped_at": "2024-01-01T00:00:00Z",
+                "raw_json": [
+                    {"zpid": "1", "address": "123 Main St"},
+                    {"zpid": "2", "address": "456 Oak Ave"},
+                    {"zpid": "3", "address": "789 Pine St"},
+                ],
+            }
+        ]
+
+        order_chain = MagicMock()
+        order_chain.limit.return_value.execute.return_value = latest_mock
+        eq_chain = MagicMock()
+        eq_chain.execute.return_value = raw_rows_mock
+        select_mock = MagicMock()
+        select_mock.order.return_value = order_chain
+        select_mock.eq.return_value = eq_chain
+        client.table.return_value.select.return_value = select_mock
+
+        # All RPC calls fail
+        client.rpc.return_value.execute.side_effect = RuntimeError("DB error")
+
+        with patch("zillow_pipeline.assets.cleaned_listings.normalize_address",
+                   return_value={"house_number": "123", "road": "Main St"}):
+            with build_asset_context() as ctx:
+                with pytest.raises(Exception, match="failed"):
+                    cleaned_listings(
+                        context=ctx,
+                        config=CleaningConfig(),
+                        supabase=supabase,
+                    )
 
     def test_skips_townhouse_and_multifamily_listings(self):
         supabase, client = make_supabase()
