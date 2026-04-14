@@ -1,11 +1,11 @@
 from dagster import Definitions, EnvVar, load_assets_from_modules
 
-from zillow_pipeline.assets import cleaned_listings, zip_codes, zillow_scrape, zillow_building_scrape, cleaned_building_units, loopnet_search_scrape, loopnet_detail_scrape, cleaned_loopnet_listings
+from zillow_pipeline.assets import cleaned_listings, zip_codes, zillow_scrape, zillow_building_scrape, cleaned_building_units, refresh_unit_breakdown_views, loopnet_search_scrape, loopnet_detail_scrape, cleaned_loopnet_listings
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
 from zillow_pipeline.schedules import weekly_scrape_schedule, weekly_loopnet_scrape_schedule, zillow_cleaning_job, zillow_scrape_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, trigger_cleaning_job_after_scrape, trigger_building_job_after_cleaning, trigger_loopnet_cleaning_after_scrape, alert_on_pipeline_failure, alert_on_pipeline_success
 
-all_assets = load_assets_from_modules([zip_codes, zillow_scrape, cleaned_listings, zillow_building_scrape, cleaned_building_units, loopnet_search_scrape, loopnet_detail_scrape, cleaned_loopnet_listings])
+all_assets = load_assets_from_modules([zip_codes, zillow_scrape, cleaned_listings, zillow_building_scrape, cleaned_building_units, refresh_unit_breakdown_views, loopnet_search_scrape, loopnet_detail_scrape, cleaned_loopnet_listings])
 
 defs = Definitions(
     assets=all_assets,
