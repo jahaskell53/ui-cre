@@ -84,9 +84,7 @@ async function callZillowMapListingsRpc(params: {
     return rows as ZillowMapListingRow[];
 }
 
-async function callZillowMapListingsRpcWithRetry(
-    params: Parameters<typeof callZillowMapListingsRpc>[0],
-): Promise<ZillowMapListingRow[]> {
+async function callZillowMapListingsRpcWithRetry(params: Parameters<typeof callZillowMapListingsRpc>[0]): Promise<ZillowMapListingRow[]> {
     let lastError: unknown;
 
     for (let attempt = 0; attempt < ZILLOW_MAP_RPC_MAX_ATTEMPTS; attempt++) {

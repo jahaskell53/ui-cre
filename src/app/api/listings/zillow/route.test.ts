@@ -112,9 +112,7 @@ describe("GET /api/listings/zillow", () => {
 
     it("retries db.execute on statement timeout then succeeds", async () => {
         vi.useFakeTimers();
-        mockDbExecute
-            .mockRejectedValueOnce(new Error("canceling statement due to statement timeout"))
-            .mockResolvedValueOnce(SAMPLE_ROWS);
+        mockDbExecute.mockRejectedValueOnce(new Error("canceling statement due to statement timeout")).mockResolvedValueOnce(SAMPLE_ROWS);
 
         const p = GET(makeGet({ zip: "94610" }));
         await vi.advanceTimersByTimeAsync(500);
