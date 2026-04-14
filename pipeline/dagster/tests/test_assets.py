@@ -256,7 +256,7 @@ class TestCleanedListings:
 
         assert meta(output, "total_processed") == 3
 
-    def test_individual_listing_failure_does_not_abort_run(self):
+    def test_low_failure_rate_does_not_abort_run(self):
         supabase, client = make_supabase()
 
         latest_mock = MagicMock()
@@ -268,7 +268,12 @@ class TestCleanedListings:
                 "id": "row-1",
                 "zip_code": "94102",
                 "scraped_at": "2024-01-01T00:00:00Z",
-                "raw_json": [{"zpid": "1", "address": "123 Main St"}, {"zpid": "2", "address": "456 Oak Ave"}],
+                "raw_json": [
+                    {"zpid": "1", "address": "123 Main St"},
+                    {"zpid": "2", "address": "456 Oak Ave"},
+                    {"zpid": "3", "address": "789 Pine St"},
+                    {"zpid": "4", "address": "321 Elm St"},
+                ],
             }
         ]
 
@@ -281,8 +286,8 @@ class TestCleanedListings:
         select_mock.eq.return_value = eq_chain
         client.table.return_value.select.return_value = select_mock
 
-        # First RPC call fails, second succeeds — 50% failure rate, still under threshold
-        client.rpc.return_value.execute.side_effect = [RuntimeError("DB error"), MagicMock()]
+        # 1 out of 4 fails = 25%, under the 33% threshold
+        client.rpc.return_value.execute.side_effect = [RuntimeError("DB error"), MagicMock(), MagicMock(), MagicMock()]
 
         with patch("zillow_pipeline.assets.cleaned_listings.normalize_address",
                    return_value={"house_number": "123", "road": "Main St"}):
@@ -293,8 +298,50 @@ class TestCleanedListings:
                     supabase=supabase,
                 )
 
-        assert meta(output, "inserted") == 1
+        assert meta(output, "inserted") == 3
         assert meta(output, "failed") == 1
+
+    def test_raises_when_failure_rate_exceeds_threshold(self):
+        supabase, client = make_supabase()
+
+        latest_mock = MagicMock()
+        latest_mock.data = [{"run_id": "run-1", "scraped_at": "2024-01-01T00:00:00Z"}]
+
+        raw_rows_mock = MagicMock()
+        raw_rows_mock.data = [
+            {
+                "id": "row-1",
+                "zip_code": "94102",
+                "scraped_at": "2024-01-01T00:00:00Z",
+                "raw_json": [
+                    {"zpid": "1", "address": "123 Main St"},
+                    {"zpid": "2", "address": "456 Oak Ave"},
+                    {"zpid": "3", "address": "789 Pine St"},
+                ],
+            }
+        ]
+
+        order_chain = MagicMock()
+        order_chain.limit.return_value.execute.return_value = latest_mock
+        eq_chain = MagicMock()
+        eq_chain.execute.return_value = raw_rows_mock
+        select_mock = MagicMock()
+        select_mock.order.return_value = order_chain
+        select_mock.eq.return_value = eq_chain
+        client.table.return_value.select.return_value = select_mock
+
+        # 2 out of 3 fail = 67%, over the 33% threshold
+        client.rpc.return_value.execute.side_effect = [RuntimeError("DB error"), RuntimeError("DB error"), MagicMock()]
+
+        with patch("zillow_pipeline.assets.cleaned_listings.normalize_address",
+                   return_value={"house_number": "123", "road": "Main St"}):
+            with build_asset_context() as ctx:
+                with pytest.raises(Exception, match="failed"):
+                    cleaned_listings(
+                        context=ctx,
+                        config=CleaningConfig(),
+                        supabase=supabase,
+                    )
 
     def test_raises_when_all_listings_fail(self):
         supabase, client = make_supabase()
