@@ -40,6 +40,7 @@ from zillow_pipeline.assets.zip_codes import ba_zip_codes
 from zillow_pipeline.assets.zillow_scrape import raw_zillow_scrapes
 from zillow_pipeline.assets.zillow_building_scrape import raw_building_scrapes
 from zillow_pipeline.assets.cleaned_building_units import cleaned_building_units
+from zillow_pipeline.assets.refresh_unit_breakdown_views import refresh_unit_breakdown_views
 from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
@@ -62,7 +63,7 @@ zillow_cleaning_job = define_asset_job(
 
 zillow_building_job = define_asset_job(
     name="zillow_building_job",
-    selection=AssetSelection.assets(raw_building_scrapes, cleaned_building_units),
+    selection=AssetSelection.assets(raw_building_scrapes, cleaned_building_units, refresh_unit_breakdown_views),
 )
 
 loopnet_scrape_job = define_asset_job(

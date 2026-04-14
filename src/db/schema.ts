@@ -11,6 +11,7 @@ import {
     integer,
     jsonb,
     numeric,
+    pgMaterializedView,
     pgPolicy,
     pgSchema,
     pgSequence,
@@ -1333,3 +1334,21 @@ export const newsletterArticles = pgTable(
         unique("newsletter_articles_newsletter_id_article_id_key").on(table.newsletterId, table.articleId),
     ],
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Materialized views — unit breakdown by building (OPE-116)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Unit mix for the most-recent scrape run only (p_latest_only = true). */
+export const mvUnitBreakdownLatest = pgMaterializedView("mv_unit_breakdown_latest", {
+    buildingZpid: text("building_zpid").notNull(),
+    unitCount: integer("unit_count").notNull(),
+    unitMix: jsonb("unit_mix").notNull(),
+}).existing();
+
+/** Unit mix across all scrape runs, deduplicated per zpid (p_latest_only = false). */
+export const mvUnitBreakdownHistorical = pgMaterializedView("mv_unit_breakdown_historical", {
+    buildingZpid: text("building_zpid").notNull(),
+    unitCount: integer("unit_count").notNull(),
+    unitMix: jsonb("unit_mix").notNull(),
+}).existing();
