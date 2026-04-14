@@ -165,9 +165,9 @@ def cleaned_listings(
 
     context.log.info(f"Done. inserted={inserted}, failed={failed}")
 
-    if failed > 0 and inserted == 0:
+    if total_processed > 0 and failed / total_processed > 0.33:
         raise Exception(
-            f"All {failed} listings failed to insert (0 succeeded). "
+            f"{failed}/{total_processed} listings failed to insert ({inserted} succeeded). "
             "Check logs for per-listing errors."
         )
 
