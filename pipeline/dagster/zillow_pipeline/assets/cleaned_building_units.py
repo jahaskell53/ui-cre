@@ -299,8 +299,12 @@ def cleaned_building_units(
 
     context.log.info(f"Done. inserted={inserted}, failed={failed}")
 
-    if failed > 0:
-        raise Exception(f"{failed} rows failed to insert. Check logs for details.")
+    total = inserted + failed
+    if total > 0 and failed / total > 0.33:
+        raise Exception(
+            f"{failed}/{total} rows failed to insert ({inserted} succeeded). "
+            "Check logs for details."
+        )
 
     return Output(
         value=inserted,

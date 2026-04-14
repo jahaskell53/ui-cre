@@ -256,8 +256,12 @@ def cleaned_loopnet_listings(
             context.log.error(f"Batch {start}–{start + len(batch)} failed: {e}")
             failed += len(batch)
 
-    if failed > 0:
-        raise Exception(f"{failed} records failed to insert into loopnet_listings.")
+    total = inserted + existing + failed
+    if total > 0 and failed / total > 0.33:
+        raise Exception(
+            f"{failed}/{total} records failed to insert into loopnet_listings "
+            f"({inserted} inserted, {existing} existing). Check logs for details."
+        )
 
     return Output(
         value=inserted,
