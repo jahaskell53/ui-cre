@@ -972,9 +972,7 @@ function MapPageInner() {
                                 setShowSuggestions(false);
                             }}
                         >
-                            <SelectTrigger
-                                className="!h-10 w-[min(38%,11rem)] shrink-0 rounded-none rounded-l-lg border-0 border-r bg-muted/30 shadow-none focus:z-10"
-                            >
+                            <SelectTrigger className="!h-10 w-[min(38%,11rem)] shrink-0 rounded-none rounded-l-lg border-0 border-r bg-muted/30 shadow-none focus:z-10">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
