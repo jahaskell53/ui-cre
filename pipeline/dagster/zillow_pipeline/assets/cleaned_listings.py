@@ -165,6 +165,12 @@ def cleaned_listings(
 
     context.log.info(f"Done. inserted={inserted}, failed={failed}")
 
+    if failed > 0 and inserted == 0:
+        raise Exception(
+            f"All {failed} listings failed to insert (0 succeeded). "
+            "Check logs for per-listing errors."
+        )
+
     return Output(
         value=inserted,
         metadata={
