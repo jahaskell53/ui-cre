@@ -14,6 +14,7 @@ on:
 env:
   DAGSTER_CLOUD_API_TOKEN: ${{ secrets.DAGSTER_CLOUD_API_TOKEN }}
   DAGSTER_BUILD_STATEDIR: /tmp/dagster-state
+  DAGSTER_CLOUD_ORG: openmidmarket # pragma: allowlist secret
 
 jobs:
   prod-deploy:
@@ -43,7 +44,7 @@ jobs:
       - name: Initialize build session
         run: |
           dagster-cloud ci init \
-            --organization [REDACTED] \
+            --organization "$DAGSTER_CLOUD_ORG" \
             --deployment prod \
             --project-dir pipeline/dagster \
             --statedir $DAGSTER_BUILD_STATEDIR
@@ -85,7 +86,7 @@ jobs:
       - name: Initialize build session
         run: |
           dagster-cloud ci init \
-            --organization [REDACTED] \
+            --organization "$DAGSTER_CLOUD_ORG" \
             --project-dir pipeline/dagster \
             --statedir $DAGSTER_BUILD_STATEDIR
       - name: Build Docker image
@@ -120,5 +121,5 @@ jobs:
       - name: Close branch deployment
         run: |
           dagster-cloud ci branch-deployment pipeline/dagster \
-            --organization [REDACTED] \
+            --organization "$DAGSTER_CLOUD_ORG" \
             --mark-closed
