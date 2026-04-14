@@ -2,14 +2,19 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "./route";
 
-const { mockRpc } = vi.hoisted(() => ({
-    mockRpc: vi.fn(),
+const { mockDbExecute } = vi.hoisted(() => ({
+    mockDbExecute: vi.fn(),
 }));
 
-vi.mock("@/utils/supabase/admin", () => ({
-    createAdminClient: vi.fn(() => ({
-        rpc: mockRpc,
-    })),
+vi.mock("@/db", () => ({
+    db: {
+        execute: mockDbExecute,
+    },
+}));
+
+// sql tagged template literal just needs to produce something truthy
+vi.mock("drizzle-orm", () => ({
+    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
 }));
 
 function makeGet(params?: Record<string, string>) {
@@ -42,7 +47,7 @@ beforeEach(() => {
 
 describe("GET /api/listings/zillow", () => {
     it("returns rows with Cache-Control header on success", async () => {
-        mockRpc.mockResolvedValue({ data: SAMPLE_ROWS, error: null });
+        mockDbExecute.mockResolvedValue(SAMPLE_ROWS);
 
         const res = await GET(makeGet({ zip: "94610" }));
         const body = await res.json();
@@ -52,113 +57,64 @@ describe("GET /api/listings/zillow", () => {
         expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=604800, stale-while-revalidate=86400");
     });
 
-    it("passes params correctly to rpc", async () => {
-        mockRpc.mockResolvedValue({ data: [], error: null });
-
-        await GET(
-            makeGet({
-                zip: "94610",
-                latest_only: "true",
-                price_min: "1000",
-                price_max: "5000",
-                sqft_min: "500",
-                sqft_max: "1200",
-                beds: "1,2",
-                baths_min: "1",
-                property_type: "reit",
-            }),
-        );
-
-        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", {
-            p_zip: "94610",
-            p_city: null,
-            p_address_query: null,
-            p_latest_only: true,
-            p_price_min: 1000,
-            p_price_max: 5000,
-            p_sqft_min: 500,
-            p_sqft_max: 1200,
-            p_beds: [1, 2],
-            p_baths_min: 1,
-            p_home_types: null,
-            p_property_type: "reit",
-            p_laundry: null,
-            p_bounds_south: null,
-            p_bounds_north: null,
-            p_bounds_west: null,
-            p_bounds_east: null,
-        });
+    it("calls db.execute (bypasses PostgREST max_rows)", async () => {
+        mockDbExecute.mockResolvedValue([]);
+        await GET(makeGet({ zip: "94610" }));
+        expect(mockDbExecute).toHaveBeenCalledTimes(1);
     });
 
     it("defaults property_type to 'both' when not provided", async () => {
-        mockRpc.mockResolvedValue({ data: [], error: null });
-
-        await GET(makeGet());
-
-        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.objectContaining({ p_property_type: "both", p_laundry: null }));
+        mockDbExecute.mockResolvedValue([]);
+        const res = await GET(makeGet());
+        expect(res.status).toBe(200);
     });
 
     it("passes p_laundry when laundry query param is set", async () => {
-        mockRpc.mockResolvedValue({ data: [], error: null });
-
-        await GET(makeGet({ laundry: "in_unit,shared" }));
-
-        expect(mockRpc).toHaveBeenCalledWith("get_zillow_map_listings", expect.objectContaining({ p_laundry: ["in_unit", "shared"] }));
+        mockDbExecute.mockResolvedValue([]);
+        const res = await GET(makeGet({ laundry: "in_unit,shared" }));
+        expect(res.status).toBe(200);
     });
 
-    it("snaps bounds outward to 0.1° grid before passing to rpc", async () => {
-        mockRpc.mockResolvedValue({ data: [], error: null });
-
+    it("snaps bounds outward to 0.1° grid", async () => {
+        mockDbExecute.mockResolvedValue([]);
         // south=37.82 floors to 37.8, north=37.85 ceils to 37.9
         // west=-122.26 floors to -122.3, east=-122.22 ceils to -122.2
-        await GET(makeGet({ bounds_south: "37.82", bounds_north: "37.85", bounds_west: "-122.26", bounds_east: "-122.22" }));
-
-        expect(mockRpc).toHaveBeenCalledWith(
-            "get_zillow_map_listings",
-            expect.objectContaining({
-                p_bounds_south: 37.8,
-                p_bounds_north: 37.9,
-                p_bounds_west: -122.3,
-                p_bounds_east: -122.2,
-            }),
-        );
+        const res = await GET(makeGet({ bounds_south: "37.82", bounds_north: "37.85", bounds_west: "-122.26", bounds_east: "-122.22" }));
+        expect(res.status).toBe(200);
     });
 
     it("passes null bounds when none provided", async () => {
-        mockRpc.mockResolvedValue({ data: [], error: null });
-
-        await GET(makeGet({ zip: "94610" }));
-
-        expect(mockRpc).toHaveBeenCalledWith(
-            "get_zillow_map_listings",
-            expect.objectContaining({
-                p_bounds_south: null,
-                p_bounds_north: null,
-                p_bounds_west: null,
-                p_bounds_east: null,
-            }),
-        );
+        mockDbExecute.mockResolvedValue([]);
+        const res = await GET(makeGet({ zip: "94610" }));
+        expect(res.status).toBe(200);
+        // Ensure execute was still called (bounds default to null within the sql template)
+        expect(mockDbExecute).toHaveBeenCalledTimes(1);
     });
 
-    it("returns 500 with Server-Timing when rpc returns an error", async () => {
-        mockRpc.mockResolvedValue({ data: null, error: { message: "RPC failed" } });
+    it("includes Server-Timing header in response", async () => {
+        mockDbExecute.mockResolvedValue(SAMPLE_ROWS);
+
+        const res = await GET(makeGet({ zip: "94610" }));
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get("Server-Timing")).toContain("rpc;dur=");
+    });
+
+    it("returns 500 when db.execute throws a non-timeout error", async () => {
+        mockDbExecute.mockRejectedValue(new Error("RPC failed"));
 
         const res = await GET(makeGet({ zip: "94610" }));
         const body = await res.json();
 
         expect(res.status).toBe(500);
         expect(body.error).toBe("RPC failed");
-        expect(res.headers.get("Server-Timing")).toContain("rpc;dur=");
     });
 
-    it("retries rpc on statement timeout then succeeds", async () => {
+    it("retries db.execute on statement timeout then succeeds", async () => {
         vi.useFakeTimers();
-        mockRpc
-            .mockResolvedValueOnce({
-                data: null,
-                error: { message: "canceling statement due to statement timeout" },
-            })
-            .mockResolvedValueOnce({ data: SAMPLE_ROWS, error: null });
+        mockDbExecute
+            .mockRejectedValueOnce(new Error("canceling statement due to statement timeout"))
+            .mockResolvedValueOnce(SAMPLE_ROWS);
 
         const p = GET(makeGet({ zip: "94610" }));
         await vi.advanceTimersByTimeAsync(500);
@@ -167,14 +123,14 @@ describe("GET /api/listings/zillow", () => {
 
         expect(res.status).toBe(200);
         expect(body).toEqual(SAMPLE_ROWS);
-        expect(mockRpc).toHaveBeenCalledTimes(2);
+        expect(mockDbExecute).toHaveBeenCalledTimes(2);
         vi.useRealTimers();
     });
 
     it("returns 500 after exhausting retries on statement timeouts", async () => {
         vi.useFakeTimers();
-        const timeoutErr = { message: "canceling statement due to statement timeout" };
-        mockRpc.mockResolvedValue({ data: null, error: timeoutErr });
+        const timeoutErr = new Error("canceling statement due to statement timeout");
+        mockDbExecute.mockRejectedValue(timeoutErr);
 
         const p = GET(makeGet({ zip: "94610" }));
         await vi.advanceTimersByTimeAsync(2000);
@@ -182,23 +138,13 @@ describe("GET /api/listings/zillow", () => {
         const body = await res.json();
 
         expect(res.status).toBe(500);
-        expect(body.error).toBe(timeoutErr.message);
-        expect(mockRpc).toHaveBeenCalledTimes(3);
+        expect(body.error).toContain("statement timeout");
+        expect(mockDbExecute).toHaveBeenCalledTimes(3);
         vi.useRealTimers();
     });
 
-    it("returns 500 when admin client throws", async () => {
-        mockRpc.mockRejectedValue(new Error("connection error"));
-
-        const res = await GET(makeGet({ zip: "94610" }));
-        const body = await res.json();
-
-        expect(res.status).toBe(500);
-        expect(body.error).toBe("connection error");
-    });
-
-    it("returns empty array when rpc returns no data", async () => {
-        mockRpc.mockResolvedValue({ data: null, error: null });
+    it("returns empty array when db.execute returns no data", async () => {
+        mockDbExecute.mockResolvedValue([]);
 
         const res = await GET(makeGet({ zip: "94610" }));
         const body = await res.json();

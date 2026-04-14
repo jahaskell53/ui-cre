@@ -47,21 +47,24 @@ import { boundsContainedIn, expandBounds, getUncoveredBounds, snapBounds } from 
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
-async function fetchZillowListings(params: {
-    zip: string | null;
-    city: string | null;
-    addressQuery: string | null;
-    latestOnly: boolean;
-    priceMin: number | null;
-    priceMax: number | null;
-    sqftMin: number | null;
-    sqftMax: number | null;
-    beds: number[] | null;
-    bathsMin: number | null;
-    laundry: ("in_unit" | "shared" | "none")[] | null;
-    propertyType: "both" | "reit" | "mid";
-    bounds: MapBounds | null;
-}): Promise<ZillowMapListingRow[]> {
+async function fetchZillowListings(
+    params: {
+        zip: string | null;
+        city: string | null;
+        addressQuery: string | null;
+        latestOnly: boolean;
+        priceMin: number | null;
+        priceMax: number | null;
+        sqftMin: number | null;
+        sqftMax: number | null;
+        beds: number[] | null;
+        bathsMin: number | null;
+        laundry: ("in_unit" | "shared" | "none")[] | null;
+        propertyType: "both" | "reit" | "mid";
+        bounds: MapBounds | null;
+    },
+    signal?: AbortSignal,
+): Promise<ZillowMapListingRow[]> {
     const sp = new URLSearchParams();
     if (params.zip) sp.set("zip", params.zip);
     if (params.city) sp.set("city", params.city);
@@ -83,7 +86,7 @@ async function fetchZillowListings(params: {
         sp.set("bounds_east", String(snappedBounds.east));
     }
 
-    const response = await fetch(`/api/listings/zillow?${sp.toString()}`);
+    const response = await fetch(`/api/listings/zillow?${sp.toString()}`, { signal });
     if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${response.status}`);
@@ -184,6 +187,14 @@ function MapPageInner() {
             }
         >
     >(new Map());
+
+    // Generation counter to detect stale fetch responses. Each fetchProperties call
+    // increments this and captures its own value. If a slower fetch completes after a
+    // newer one has already written results, the stale response is discarded.
+    const fetchGenerationRef = useRef(0);
+    // AbortController for in-flight Zillow fetch requests so they can be cancelled
+    // when a newer fetch supersedes them.
+    const zillowFetchAbortRef = useRef<AbortController | null>(null);
 
     const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
 
@@ -431,9 +442,20 @@ function MapPageInner() {
             }
 
             if (source === "zillow") {
+                // Cancel any in-flight Zillow requests from a previous fetchProperties call
+                // so their stale responses cannot overwrite the results of this newer call.
+                zillowFetchAbortRef.current?.abort();
+                const abortController = new AbortController();
+                zillowFetchAbortRef.current = abortController;
+
+                // Capture this call's generation so we can discard a response if an even
+                // newer call has already written results while this one was in flight.
+                const generation = ++fetchGenerationRef.current;
+
                 const effectiveBounds = activeAreaFilter?.bbox ?? bounds;
                 try {
                     const filterKey = buildZillowFilterKey(activeAreaFilter, currentFilters, latestOnly);
+                    // Snapshot the cache entry at call time (before any awaits).
                     const existing = zillowCacheRef.current.get(filterKey);
                     const requestedBounds = effectiveBounds ? snapBounds(effectiveBounds) : null;
                     const boundsToFetch = requestedBounds
@@ -444,31 +466,47 @@ function MapPageInner() {
                     const deltaBoundsToFetch = boundsToFetch.filter((deltaBounds): deltaBounds is MapBounds => deltaBounds !== null);
 
                     if (boundsToFetch.length === 0) {
-                        setAllZillowRows(existing?.rows ?? []);
-                        setLoading(false);
+                        // Already covered — no network request needed.
+                        if (generation === fetchGenerationRef.current) {
+                            setAllZillowRows(existing?.rows ?? []);
+                            setLoading(false);
+                        }
                         return;
                     }
 
                     const responses = await Promise.all(
                         boundsToFetch.map((deltaBounds) =>
-                            fetchZillowListings({
-                                zip: activeAreaFilter?.zipCode ?? null,
-                                city: activeAreaFilter?.cityName ?? null,
-                                addressQuery: activeAreaFilter?.addressQuery ?? null,
-                                latestOnly,
-                                priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
-                                priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
-                                sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
-                                sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
-                                beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
-                                bathsMin: currentFilters.bathsMin ?? null,
-                                laundry: currentFilters.laundry.length > 0 ? currentFilters.laundry : null,
-                                propertyType: currentFilters.propertyType,
-                                bounds: deltaBounds,
-                            }),
+                            fetchZillowListings(
+                                {
+                                    zip: activeAreaFilter?.zipCode ?? null,
+                                    city: activeAreaFilter?.cityName ?? null,
+                                    addressQuery: activeAreaFilter?.addressQuery ?? null,
+                                    latestOnly,
+                                    priceMin: currentFilters.priceMin ? parseFloat(currentFilters.priceMin) || null : null,
+                                    priceMax: currentFilters.priceMax ? parseFloat(currentFilters.priceMax) || null : null,
+                                    sqftMin: currentFilters.sqftMin ? parseFloat(currentFilters.sqftMin) || null : null,
+                                    sqftMax: currentFilters.sqftMax ? parseFloat(currentFilters.sqftMax) || null : null,
+                                    beds: currentFilters.beds.length > 0 ? currentFilters.beds : null,
+                                    bathsMin: currentFilters.bathsMin ?? null,
+                                    laundry: currentFilters.laundry.length > 0 ? currentFilters.laundry : null,
+                                    propertyType: currentFilters.propertyType,
+                                    bounds: deltaBounds,
+                                },
+                                abortController.signal,
+                            ),
                         ),
                     );
 
+                    // Discard stale responses: if a newer fetchProperties call has already
+                    // completed (generation advanced), do not overwrite its results.
+                    if (generation !== fetchGenerationRef.current) {
+                        return;
+                    }
+
+                    // Re-read cache at merge time — another call may have updated it
+                    // between our snapshot above and now. We use our snapshotted `existing`
+                    // for the merge base because we only fetched the delta relative to it;
+                    // using a different cache entry here would cause duplicate or missing rows.
                     const seen = new Set(existing?.rows.map((row) => row.id) ?? []);
                     const merged = [...(existing?.rows ?? [])];
 
@@ -490,10 +528,18 @@ function MapPageInner() {
 
                     setAllZillowRows(merged);
                 } catch (error) {
+                    if (error instanceof Error && error.name === "AbortError") {
+                        // Request was cancelled because a newer fetch superseded this one — ignore.
+                        return;
+                    }
                     console.error("Error fetching zillow map listings:", error);
-                    setAllZillowRows([]);
+                    if (generation === fetchGenerationRef.current) {
+                        setAllZillowRows([]);
+                    }
                 }
-                setLoading(false);
+                if (generation === fetchGenerationRef.current) {
+                    setLoading(false);
+                }
                 return;
             }
 

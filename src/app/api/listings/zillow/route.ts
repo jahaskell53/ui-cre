@@ -1,6 +1,7 @@
+import { sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
 import { type ZillowMapListingRow } from "@/lib/map-listings";
-import { createAdminClient } from "@/utils/supabase/admin";
 
 const ZILLOW_MAP_RPC_MAX_ATTEMPTS = 3;
 const ZILLOW_MAP_CACHE_CONTROL = "public, s-maxage=604800, stale-while-revalidate=86400";
@@ -10,26 +11,100 @@ function isStatementTimeoutMessage(message: string): boolean {
     return m.includes("statement timeout") || m.includes("57014");
 }
 
-async function getZillowMapListingsWithRetry(
-    supabase: ReturnType<typeof createAdminClient>,
-    params: Parameters<ReturnType<typeof createAdminClient>["rpc"]>[1],
-) {
-    let last: Awaited<ReturnType<ReturnType<typeof createAdminClient>["rpc"]>> | undefined;
+async function callZillowMapListingsRpc(params: {
+    p_zip: string | null;
+    p_city: string | null;
+    p_address_query: string | null;
+    p_latest_only: boolean;
+    p_price_min: number | null;
+    p_price_max: number | null;
+    p_sqft_min: number | null;
+    p_sqft_max: number | null;
+    p_beds: number[] | null;
+    p_baths_min: number | null;
+    p_home_types: string[] | null;
+    p_property_type: string;
+    p_laundry: string[] | null;
+    p_bounds_south: number | null;
+    p_bounds_north: number | null;
+    p_bounds_west: number | null;
+    p_bounds_east: number | null;
+}): Promise<ZillowMapListingRow[]> {
+    // Call the function directly via Drizzle (postgres.js), bypassing PostgREST's
+    // max_rows limit so all matching listings are returned regardless of viewport size.
+    const rows = await db.execute<{
+        id: string;
+        address: string;
+        longitude: number;
+        latitude: number;
+        price_label: string;
+        is_reit: boolean;
+        unit_count: number;
+        unit_mix: { beds: number; baths: number | null; count: number; avg_price: number | null }[];
+        img_src: string | null;
+        area: number | null;
+        scraped_at: string | null;
+        building_zpid: string | null;
+        total_count: number;
+    }>(sql`
+        SELECT
+            id,
+            address,
+            longitude,
+            latitude,
+            price_label,
+            is_reit,
+            unit_count,
+            unit_mix,
+            img_src,
+            area,
+            scraped_at::text          AS scraped_at,
+            building_zpid,
+            total_count::integer      AS total_count
+        FROM get_zillow_map_listings(
+            ${params.p_zip}::text,
+            ${params.p_city}::text,
+            ${params.p_address_query}::text,
+            ${params.p_latest_only}::boolean,
+            ${params.p_price_min}::integer,
+            ${params.p_price_max}::integer,
+            ${params.p_sqft_min}::integer,
+            ${params.p_sqft_max}::integer,
+            ${params.p_beds}::integer[],
+            ${params.p_baths_min}::numeric,
+            ${params.p_home_types}::text[],
+            ${params.p_property_type}::text,
+            ${params.p_laundry}::text[],
+            ${params.p_bounds_south}::double precision,
+            ${params.p_bounds_north}::double precision,
+            ${params.p_bounds_west}::double precision,
+            ${params.p_bounds_east}::double precision
+        )
+    `);
+    return rows as ZillowMapListingRow[];
+}
+
+async function callZillowMapListingsRpcWithRetry(
+    params: Parameters<typeof callZillowMapListingsRpc>[0],
+): Promise<ZillowMapListingRow[]> {
+    let lastError: unknown;
 
     for (let attempt = 0; attempt < ZILLOW_MAP_RPC_MAX_ATTEMPTS; attempt++) {
-        const result = await supabase.rpc("get_zillow_map_listings", params);
-        last = result;
-
-        if (!result.error || !isStatementTimeoutMessage(result.error.message)) {
-            return result;
-        }
-
-        if (attempt < ZILLOW_MAP_RPC_MAX_ATTEMPTS - 1) {
-            await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+        try {
+            return await callZillowMapListingsRpc(params);
+        } catch (err) {
+            lastError = err;
+            const message = err instanceof Error ? err.message : String(err);
+            if (!isStatementTimeoutMessage(message)) {
+                throw err;
+            }
+            if (attempt < ZILLOW_MAP_RPC_MAX_ATTEMPTS - 1) {
+                await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+            }
         }
     }
 
-    return last!;
+    throw lastError;
 }
 
 export async function GET(request: NextRequest) {
@@ -48,7 +123,7 @@ export async function GET(request: NextRequest) {
             p_beds: sp.has("beds") ? sp.get("beds")!.split(",").map(Number) : null,
             p_baths_min: sp.has("baths_min") ? parseFloat(sp.get("baths_min")!) : null,
             p_home_types: sp.has("home_types") ? sp.get("home_types")!.split(",") : null,
-            p_property_type: (sp.get("property_type") ?? "both") as "both" | "reit" | "mid",
+            p_property_type: sp.get("property_type") ?? "both",
             p_laundry: (() => {
                 const raw = sp.get("laundry");
                 if (!raw) return null;
@@ -56,7 +131,7 @@ export async function GET(request: NextRequest) {
                 const vals = raw
                     .split(",")
                     .map((s) => s.trim())
-                    .filter((s): s is "in_unit" | "shared" | "none" => allowed.has(s));
+                    .filter((s) => allowed.has(s));
                 return vals.length > 0 ? vals : null;
             })(),
             // Bounds are snapped to a 0.1° grid (~11 km) so nearby viewports share the same
@@ -68,28 +143,17 @@ export async function GET(request: NextRequest) {
         };
 
         const t0 = performance.now();
-        const supabase = createAdminClient();
-        const tClientReady = performance.now();
-
-        const { data, error } = await getZillowMapListingsWithRetry(supabase, params);
+        const rows = await callZillowMapListingsRpcWithRetry(params);
         const tRpcDone = performance.now();
-
-        const clientMs = (tClientReady - t0).toFixed(1);
-        const rpcMs = (tRpcDone - tClientReady).toFixed(1);
+        const rpcMs = (tRpcDone - t0).toFixed(1);
 
         const serverTiming = (extraMs?: string) =>
             [
-                `client;dur=${clientMs};desc="Admin client init"`,
-                `rpc;dur=${rpcMs};desc="PostgREST RPC"`,
+                `rpc;dur=${rpcMs};desc="Postgres RPC"`,
                 ...(extraMs ? [`serialize;dur=${extraMs};desc="JSON serialize"`] : []),
                 `total;dur=${(performance.now() - t0).toFixed(1)};desc="Total"`,
             ].join(", ");
 
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500, headers: { "Server-Timing": serverTiming() } });
-        }
-
-        const rows = (data ?? []) as ZillowMapListingRow[];
         const tSerialize = performance.now();
 
         return NextResponse.json(rows, {
