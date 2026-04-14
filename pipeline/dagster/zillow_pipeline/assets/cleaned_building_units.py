@@ -302,6 +302,13 @@ def cleaned_building_units(
     if failed > 0:
         raise Exception(f"{failed} rows failed to insert. Check logs for details.")
 
+    context.log.info("Refreshing zillow_map_listings_mv...")
+    try:
+        client.rpc("refresh_zillow_map_listings_mv", {}).execute()
+        context.log.info("zillow_map_listings_mv refreshed successfully.")
+    except Exception as e:
+        context.log.warning(f"MV refresh failed (non-fatal): {e}")
+
     return Output(
         value=inserted,
         metadata={
