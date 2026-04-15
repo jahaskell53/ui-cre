@@ -216,7 +216,7 @@ export const PropertyMap = ({
                 data: propertiesToGeoJSON(propertiesRef.current),
                 cluster: true,
                 clusterMaxZoom: 11,
-                clusterRadius: 35,
+                clusterRadius: 50,
             });
 
             // Cluster circles
