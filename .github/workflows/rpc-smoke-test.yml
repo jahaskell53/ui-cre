@@ -1,0 +1,43 @@
+name: RPC Smoke Test
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+
+jobs:
+  rpc-smoke-test:
+    name: PostgREST RPC resolution
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Patch initial dump for local Supabase compatibility
+        run: |
+          sed -i \
+            -e '/^\\restrict /d' \
+            -e '/^\\unrestrict /d' \
+            -e 's/^CREATE SCHEMA public;/CREATE SCHEMA IF NOT EXISTS public;/' \
+            supabase/migrations/20260410010908_initial_schema.sql
+
+      - name: Enable PostGIS before migrations
+        run: |
+          cat > supabase/migrations/00000000000000_enable_postgis.sql <<'EOF'
+          CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
+          EOF
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Run RPC smoke tests
+        run: SKIP_SUPABASE_LIFECYCLE=1 ./scripts/rpc-smoke-test.sh
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop
