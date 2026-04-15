@@ -301,7 +301,7 @@ class TestCleanedLoopnetListings:
 
         kwargs = client.table.return_value.upsert.call_args.kwargs
         assert kwargs["ignore_duplicates"] is True
-        assert kwargs["on_conflict"] == "listing_url"
+        assert kwargs["on_conflict"] == "listing_url,run_id"
         assert output.value == 0
         assert meta(output, "existing") == 1
 

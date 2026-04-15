@@ -339,7 +339,7 @@ export const loopnetListings = pgTable(
     },
     (table) => [
         index("idx_loopnet_listings_listing_url").using("btree", table.listingUrl.asc().nullsLast().op("text_ops")),
-        uniqueIndex("loopnet_listings_listing_url_key").using("btree", table.listingUrl.asc().nullsLast().op("text_ops")),
+        uniqueIndex("loopnet_listings_listing_url_run_id_key").on(table.listingUrl, table.runId),
         pgPolicy("Enable read access for all users", { as: "permissive", for: "select", to: ["public"], using: sql`true` }),
     ],
 );
