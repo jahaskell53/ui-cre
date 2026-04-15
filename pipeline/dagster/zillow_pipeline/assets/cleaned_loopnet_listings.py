@@ -242,7 +242,7 @@ def cleaned_loopnet_listings(
         try:
             response = (
                 client.table("loopnet_listings")
-                .upsert(batch, on_conflict="listing_url", ignore_duplicates=True)
+                .upsert(batch, on_conflict="listing_url,run_id", ignore_duplicates=True)
                 .execute()
             )
             inserted_count = len(response.data or [])
