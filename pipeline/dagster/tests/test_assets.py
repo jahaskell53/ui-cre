@@ -388,7 +388,7 @@ class TestCleanedListings:
                         supabase=supabase,
                     )
 
-    def test_only_processes_apartment_listings(self):
+    def test_only_processes_apartment_and_condo_listings(self):
         supabase, client = make_supabase()
 
         latest_mock = MagicMock()
@@ -404,8 +404,8 @@ class TestCleanedListings:
                     {"zpid": "1", "address": "123 Main St", "hdpData": {"homeInfo": {"homeType": "TOWNHOUSE"}}},
                     {"zpid": "2", "address": "456 Oak Ave", "hdpData": {"homeInfo": {"homeType": "MULTI_FAMILY"}}},
                     {"zpid": "3", "address": "789 Pine St", "hdpData": {"homeInfo": {"homeType": "SINGLE_FAMILY"}}},
-                    {"zpid": "4", "address": "321 Elm St", "hdpData": {"homeInfo": {"homeType": "CONDO"}}},
-                    {"zpid": "5", "address": "654 Oak St"},
+                    {"zpid": "4", "address": "654 Oak St"},
+                    {"zpid": "5", "address": "321 Condo Dr", "hdpData": {"homeInfo": {"homeType": "CONDO"}}},
                     {"zpid": "6", "address": "999 Apt Blvd", "hdpData": {"homeInfo": {"homeType": "APARTMENT"}}},
                 ],
             }
@@ -429,9 +429,9 @@ class TestCleanedListings:
                     supabase=supabase,
                 )
 
-        assert meta(output, "inserted") == 1
-        assert meta(output, "total_processed") == 1
-        assert client.rpc.call_count == 1
+        assert meta(output, "inserted") == 2
+        assert meta(output, "total_processed") == 2
+        assert client.rpc.call_count == 2
 
 
 # ─── raw_building_scrapes ────────────────────────────────────────────────────
