@@ -112,7 +112,7 @@ def cleaned_listings(
 
             home_info = (listing.get("hdpData") or {}).get("homeInfo", {})
             home_type = (home_info.get("homeType") or "").upper()
-            if home_type not in {"APARTMENT", "CONDO"}:
+            if home_type not in {"APARTMENT", "CONDO", "TOWNHOUSE"}:
                 continue
 
             total_processed += 1
