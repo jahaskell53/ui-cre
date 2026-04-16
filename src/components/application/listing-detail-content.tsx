@@ -155,6 +155,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
     const [units, setUnits] = useState<UnitRow[] | null>(null);
     const [unitsLatestOnly, setUnitsLatestOnly] = useState(true);
     const [unitsPage, setUnitsPage] = useState(1);
+    const UNITS_PAGE_SIZE = 10;
     const [heroImages, setHeroImages] = useState<string[] | null>(null);
     const [heroIndex, setHeroIndex] = useState(0);
     const [offMarketDate, setOffMarketDate] = useState<string | null>(null);
@@ -776,7 +777,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {units.slice((unitsPage - 1) * 25, unitsPage * 25).map((unit) => (
+                                        {units.slice((unitsPage - 1) * UNITS_PAGE_SIZE, unitsPage * UNITS_PAGE_SIZE).map((unit) => (
                                             <tr
                                                 key={unit.id}
                                                 className="border-b border-gray-50 transition-colors hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30"
@@ -799,8 +800,13 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     </tbody>
                                 </table>
                             </div>
-                            {units.length > 25 && (
-                                <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / 25)} onPageChange={setUnitsPage} align="center" />
+                            {units.length > UNITS_PAGE_SIZE && (
+                                <PaginationButtonGroup
+                                    page={unitsPage}
+                                    total={Math.ceil(units.length / UNITS_PAGE_SIZE)}
+                                    onPageChange={setUnitsPage}
+                                    align="center"
+                                />
                             )}
                         </>
                     )}
