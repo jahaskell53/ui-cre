@@ -6,7 +6,7 @@ from apify_client.errors import ApifyApiError
 from dagster import build_asset_context, Failure
 
 from zillow_pipeline.assets.zip_codes import ba_zip_codes
-from zillow_pipeline.assets.zillow_scrape import raw_zillow_scrapes
+from zillow_pipeline.assets.zillow_scrape import raw_zillow_scrapes, ZillowScrapeConfig
 from zillow_pipeline.assets.cleaned_listings import cleaned_listings, CleaningConfig
 from zillow_pipeline.assets.zillow_building_scrape import raw_building_scrapes, BuildingScrapeConfig
 from zillow_pipeline.assets.cleaned_building_units import cleaned_building_units, CleanedBuildingUnitsConfig
@@ -81,6 +81,7 @@ class TestRawZillowScrapes:
         with build_asset_context() as ctx:
             output = raw_zillow_scrapes(
                 context=ctx,
+                config=ZillowScrapeConfig(),
                 ba_zip_codes=["94102", "94103"],
                 apify=apify,
                 supabase=supabase,
@@ -102,6 +103,7 @@ class TestRawZillowScrapes:
         with build_asset_context() as ctx:
             output = raw_zillow_scrapes(
                 context=ctx,
+                config=ZillowScrapeConfig(),
                 ba_zip_codes=["94102", "94103"],
                 apify=apify,
                 supabase=supabase,
@@ -110,6 +112,26 @@ class TestRawZillowScrapes:
         # Only 94103 should be scraped
         apify.run_zillow_search.assert_called_once_with("94103")
         assert output.value == 2
+
+    def test_explicit_run_id_is_used_for_skip_and_insert(self):
+        supabase, client = make_supabase()
+        apify = make_apify()
+
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+        apify.run_zillow_search.return_value = [{"zpid": "123"}]
+
+        with build_asset_context() as ctx:
+            output = raw_zillow_scrapes(
+                context=ctx,
+                config=ZillowScrapeConfig(run_id="old-run-abc"),
+                ba_zip_codes=["94102"],
+                apify=apify,
+                supabase=supabase,
+            )
+
+        assert meta(output, "run_id") == "old-run-abc"
+        insert_call = client.table.return_value.insert.call_args[0][0]
+        assert insert_call["run_id"] == "old-run-abc"
 
     def test_credit_limit_error_raises_failure_no_retry(self):
         supabase, client = make_supabase()
@@ -122,6 +144,7 @@ class TestRawZillowScrapes:
             with pytest.raises(Failure) as exc_info:
                 raw_zillow_scrapes(
                     context=ctx,
+                    config=ZillowScrapeConfig(),
                     ba_zip_codes=["94102"],
                     apify=apify,
                     supabase=supabase,
@@ -141,6 +164,7 @@ class TestRawZillowScrapes:
             with pytest.raises(Failure) as exc_info:
                 raw_zillow_scrapes(
                     context=ctx,
+                    config=ZillowScrapeConfig(),
                     ba_zip_codes=["94102"],
                     apify=apify,
                     supabase=supabase,
@@ -159,6 +183,7 @@ class TestRawZillowScrapes:
             with pytest.raises(Exception, match="zip codes failed"):
                 raw_zillow_scrapes(
                     context=ctx,
+                    config=ZillowScrapeConfig(),
                     ba_zip_codes=["94102"],
                     apify=apify,
                     supabase=supabase,
@@ -176,6 +201,7 @@ class TestRawZillowScrapes:
             with pytest.raises(Exception, match="1 zip codes failed"):
                 raw_zillow_scrapes(
                     context=ctx,
+                    config=ZillowScrapeConfig(),
                     ba_zip_codes=["94102", "94103"],
                     apify=apify,
                     supabase=supabase,
