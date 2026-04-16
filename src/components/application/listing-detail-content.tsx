@@ -813,6 +813,43 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                 </section>
             )}
 
+            {/* Unit Mix (loopnet only) */}
+            {listing.source === "loopnet" && listing.unit_mix && listing.unit_mix.length > 0 && (
+                <section className="rounded-xl border border-gray-200 bg-white p-5 md:col-span-2 dark:border-gray-700 dark:bg-gray-800">
+                    <div className="mb-4 flex items-center gap-2">
+                        <Building2 className="size-4 text-gray-900 dark:text-gray-100" />
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                            Unit Mix
+                            <span className="ml-1 text-sm font-normal text-gray-500">
+                                ({listing.unit_mix.length} type{listing.unit_mix.length !== 1 ? "s" : ""})
+                            </span>
+                        </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-700/30">
+                                    <th className="px-3 py-2 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase">Type</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Units</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Rent</th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold tracking-wider text-gray-500 uppercase">Sq Ft</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {listing.unit_mix.map((row, i) => (
+                                    <tr key={i} className="border-b border-gray-50 dark:border-gray-700/50">
+                                        <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">{row.description || "—"}</td>
+                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.count || "—"}</td>
+                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.rent || "—"}</td>
+                                        <td className="px-3 py-2 text-right text-gray-700 dark:text-gray-300">{row.sqft || "—"}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            )}
+
             {/* Listing Details (loopnet only) */}
             {listing.source === "loopnet" && (
                 <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">

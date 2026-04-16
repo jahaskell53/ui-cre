@@ -62,6 +62,7 @@ describe("listing-detail helpers", () => {
             thumbnail_url: null,
             listing_url: null,
             created_at: null,
+            unit_mix: null,
         };
 
         expect(getListingDisplayAddress(zillowListing)).toBe("123 Main St, Oakland, CA, 94612");

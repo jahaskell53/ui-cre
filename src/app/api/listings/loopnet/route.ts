@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
                     listingUrl: loopnetListings.listingUrl,
                     createdAt: loopnetListings.createdAt,
                     runId: loopnetListings.runId,
+                    unitMix: loopnetListings.unitMix,
                 })
                 .from(loopnetListings)
                 .where(eq(loopnetListings.id, id))
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
                 listing_url: r.listingUrl,
                 created_at: r.createdAt,
                 run_id: r.runId,
+                unit_mix: Array.isArray(r.unitMix) && r.unitMix.length > 0 ? r.unitMix : null,
             });
         }
 
