@@ -66,7 +66,6 @@ const BED_OPTIONS = [
     { beds: 3, label: "3BR" },
 ];
 
-
 const AREA_TYPES = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
 const MAP_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
@@ -1035,7 +1034,6 @@ export default function TrendsPage() {
                         </div>
                     </>
                 )}
-
             </div>
 
             {/* ── Map display (rent only) ── */}
