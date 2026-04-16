@@ -66,14 +66,6 @@ const BED_OPTIONS = [
     { beds: 3, label: "3BR" },
 ];
 
-const PROPERTY_TYPE_OPTIONS = [
-    { value: null, label: "All" },
-    { value: "Multifamily", label: "Multifamily" },
-    { value: "Office", label: "Office" },
-    { value: "Retail", label: "Retail" },
-    { value: "Industrial", label: "Industrial" },
-    { value: "Land", label: "Land" },
-];
 
 const AREA_TYPES = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
@@ -124,7 +116,6 @@ export default function TrendsPage() {
         if (raw === "both" || raw === "reit") return raw;
         return "mid";
     });
-    const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [salesLoading, setSalesLoading] = useState(false);
 
@@ -371,16 +362,15 @@ export default function TrendsPage() {
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
-            const p = { p_property_type: selectedPropertyType };
             const call = isNh
-                ? getSalesTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!], ...p })
+                ? getSalesTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!] })
                 : isCity
-                  ? getSalesTrendsByCity({ p_city: area.cityName!, p_state: area.cityState!, ...p })
+                  ? getSalesTrendsByCity({ p_city: area.cityName!, p_state: area.cityState! })
                   : isCounty
-                    ? getSalesTrendsByCounty({ p_county_name: area.countyName!, p_state: area.countyState!, ...p })
+                    ? getSalesTrendsByCounty({ p_county_name: area.countyName!, p_state: area.countyState! })
                     : isMsa
-                      ? getSalesTrendsByMsa({ p_geoid: area.msaGeoid!, ...p })
-                      : getSalesTrends({ p_zip: area.id, ...p });
+                      ? getSalesTrendsByMsa({ p_geoid: area.msaGeoid! })
+                      : getSalesTrends({ p_zip: area.id });
             return call.catch((error) => {
                 console.error(error);
                 return [] as SalesTrendRow[];
@@ -393,7 +383,7 @@ export default function TrendsPage() {
             for (const r of results) next[r.id] = r.rows;
             setSalesResults(next);
         });
-    }, [selectedAreas, selectedPropertyType]);
+    }, [selectedAreas]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress("");
@@ -1046,17 +1036,6 @@ export default function TrendsPage() {
                     </>
                 )}
 
-                {/* Sales-only filters */}
-                {dataTab === "sales" && (
-                    <div className="flex items-center gap-4">
-                        <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Property type</span>
-                        <div className="flex flex-wrap gap-2">
-                            {PROPERTY_TYPE_OPTIONS.map((opt) =>
-                                segmentToggle(opt.label, selectedPropertyType === opt.value, () => setSelectedPropertyType(opt.value)),
-                            )}
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* ── Map display (rent only) ── */}

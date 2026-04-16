@@ -1,11 +1,10 @@
 -- Sales trends RPC functions using loopnet_listings.
 -- Bucketed by month (commercial listings are sparse compared to weekly rental scrapes).
 -- Returns: month_start, median_price, avg_cap_rate, listing_count
--- p_property_type: NULL = all categories, otherwise filters by building_category (ILIKE).
+-- All data is multifamily/apartment so no property type filter is needed.
 
 CREATE OR REPLACE FUNCTION public.get_sales_trends(
-  p_zip text DEFAULT NULL,
-  p_property_type text DEFAULT NULL
+  p_zip text DEFAULT NULL
 )
 RETURNS TABLE(month_start date, median_price numeric, avg_cap_rate numeric, listing_count bigint)
 LANGUAGE sql
@@ -20,15 +19,13 @@ AS $function$
   WHERE
     price_numeric IS NOT NULL AND price_numeric > 0
     AND (p_zip IS NULL OR zip = p_zip)
-    AND (p_property_type IS NULL OR building_category ILIKE p_property_type)
   GROUP BY 1
   ORDER BY 1;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.get_sales_trends_by_city(
   p_city text,
-  p_state text,
-  p_property_type text DEFAULT NULL
+  p_state text
 )
 RETURNS TABLE(month_start date, median_price numeric, avg_cap_rate numeric, listing_count bigint)
 LANGUAGE sql
@@ -44,15 +41,13 @@ AS $function$
     price_numeric IS NOT NULL AND price_numeric > 0
     AND city ILIKE p_city
     AND state ILIKE p_state
-    AND (p_property_type IS NULL OR building_category ILIKE p_property_type)
   GROUP BY 1
   ORDER BY 1;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.get_sales_trends_by_county(
   p_county_name text,
-  p_state text,
-  p_property_type text DEFAULT NULL
+  p_state text
 )
 RETURNS TABLE(month_start date, median_price numeric, avg_cap_rate numeric, listing_count bigint)
 LANGUAGE sql
@@ -71,14 +66,12 @@ AS $function$
     AND ll.latitude IS NOT NULL AND ll.longitude IS NOT NULL
     AND cb.name ILIKE p_county_name
     AND cb.state = p_state
-    AND (p_property_type IS NULL OR ll.building_category ILIKE p_property_type)
   GROUP BY 1
   ORDER BY 1;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.get_sales_trends_by_msa(
-  p_geoid text,
-  p_property_type text DEFAULT NULL
+  p_geoid text
 )
 RETURNS TABLE(month_start date, median_price numeric, avg_cap_rate numeric, listing_count bigint)
 LANGUAGE sql
@@ -96,14 +89,12 @@ AS $function$
     ll.price_numeric IS NOT NULL AND ll.price_numeric > 0
     AND ll.latitude IS NOT NULL AND ll.longitude IS NOT NULL
     AND mb.geoid = p_geoid
-    AND (p_property_type IS NULL OR ll.building_category ILIKE p_property_type)
   GROUP BY 1
   ORDER BY 1;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.get_sales_trends_by_neighborhood(
-  p_neighborhood_ids integer[],
-  p_property_type text DEFAULT NULL
+  p_neighborhood_ids integer[]
 )
 RETURNS TABLE(month_start date, median_price numeric, avg_cap_rate numeric, listing_count bigint)
 LANGUAGE sql
@@ -121,7 +112,6 @@ AS $function$
     ll.price_numeric IS NOT NULL AND ll.price_numeric > 0
     AND ll.latitude IS NOT NULL AND ll.longitude IS NOT NULL
     AND n.id = ANY(p_neighborhood_ids)
-    AND (p_property_type IS NULL OR ll.building_category ILIKE p_property_type)
   GROUP BY 1
   ORDER BY 1;
 $function$;

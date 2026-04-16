@@ -18,26 +18,22 @@ async function rpc<T>(fn: string, params: object): Promise<T[]> {
     return res.json();
 }
 
-interface BaseSalesTrendsParams {
-    p_property_type: string | null;
-}
-
-export async function getSalesTrends(params: BaseSalesTrendsParams & { p_zip: string }): Promise<SalesTrendRow[]> {
+export async function getSalesTrends(params: { p_zip: string }): Promise<SalesTrendRow[]> {
     return rpc("get_sales_trends", params);
 }
 
-export async function getSalesTrendsByNeighborhood(params: BaseSalesTrendsParams & { p_neighborhood_ids: number[] }): Promise<SalesTrendRow[]> {
+export async function getSalesTrendsByNeighborhood(params: { p_neighborhood_ids: number[] }): Promise<SalesTrendRow[]> {
     return rpc("get_sales_trends_by_neighborhood", params);
 }
 
-export async function getSalesTrendsByCity(params: BaseSalesTrendsParams & { p_city: string; p_state: string }): Promise<SalesTrendRow[]> {
+export async function getSalesTrendsByCity(params: { p_city: string; p_state: string }): Promise<SalesTrendRow[]> {
     return rpc("get_sales_trends_by_city", params);
 }
 
-export async function getSalesTrendsByCounty(params: BaseSalesTrendsParams & { p_county_name: string; p_state: string }): Promise<SalesTrendRow[]> {
+export async function getSalesTrendsByCounty(params: { p_county_name: string; p_state: string }): Promise<SalesTrendRow[]> {
     return rpc("get_sales_trends_by_county", params);
 }
 
-export async function getSalesTrendsByMsa(params: BaseSalesTrendsParams & { p_geoid: string }): Promise<SalesTrendRow[]> {
+export async function getSalesTrendsByMsa(params: { p_geoid: string }): Promise<SalesTrendRow[]> {
     return rpc("get_sales_trends_by_msa", params);
 }
