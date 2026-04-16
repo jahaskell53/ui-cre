@@ -801,7 +801,12 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                 </table>
                             </div>
                             {units.length > UNITS_PAGE_SIZE && (
-                                <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / UNITS_PAGE_SIZE)} onPageChange={setUnitsPage} align="center" />
+                                <PaginationButtonGroup
+                                    page={unitsPage}
+                                    total={Math.ceil(units.length / UNITS_PAGE_SIZE)}
+                                    onPageChange={setUnitsPage}
+                                    align="center"
+                                />
                             )}
                         </>
                     )}
