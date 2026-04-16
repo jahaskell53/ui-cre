@@ -44,6 +44,7 @@ from zillow_pipeline.assets.refresh_unit_breakdown_views import refresh_unit_bre
 from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
+from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
 
 zillow_scrape_job = define_asset_job(
     name="zillow_weekly_scrape_job",
@@ -76,6 +77,11 @@ loopnet_cleaning_job = define_asset_job(
     selection=AssetSelection.assets(cleaned_loopnet_listings),
 )
 
+loopnet_om_job = define_asset_job(
+    name="loopnet_om_job",
+    selection=AssetSelection.assets(download_om_pdfs),
+)
+
 weekly_loopnet_scrape_schedule = ScheduleDefinition(
     name="weekly_loopnet_scrape",
     job=loopnet_scrape_job,
@@ -84,7 +90,7 @@ weekly_loopnet_scrape_schedule = ScheduleDefinition(
 
 
 @run_failure_sensor(
-    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job],
+    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, loopnet_om_job],
 )
 def alert_on_pipeline_failure(context: RunFailureSensorContext):
     error_msg = str(context.failure_event.message) if context.failure_event else None
@@ -93,7 +99,7 @@ def alert_on_pipeline_failure(context: RunFailureSensorContext):
 
 @run_status_sensor(
     run_status=DagsterRunStatus.SUCCESS,
-    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job],
+    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, loopnet_om_job],
 )
 def alert_on_pipeline_success(context: RunStatusSensorContext):
     _send_run_alert(context.dagster_run.job_name, context.dagster_run.run_id, success=True)
@@ -123,4 +129,13 @@ def trigger_building_job_after_cleaning(context: RunStatusSensorContext):
     request_job=loopnet_cleaning_job,
 )
 def trigger_loopnet_cleaning_after_scrape(context: RunStatusSensorContext):
+    return RunRequest()
+
+
+@run_status_sensor(
+    run_status=DagsterRunStatus.SUCCESS,
+    monitored_jobs=[loopnet_cleaning_job],
+    request_job=loopnet_om_job,
+)
+def trigger_om_download_after_cleaning(context: RunStatusSensorContext):
     return RunRequest()

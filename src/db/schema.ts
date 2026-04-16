@@ -336,6 +336,7 @@ export const loopnetListings = pgTable(
         propertyTaxes: jsonb("property_taxes"),
         scrapedAt: timestamp("scraped_at", { withTimezone: true, mode: "string" }).defaultNow().notNull(),
         runId: integer("run_id"),
+        omUrl: text("om_url"),
     },
     (table) => [
         index("idx_loopnet_listings_listing_url").using("btree", table.listingUrl.asc().nullsLast().op("text_ops")),
