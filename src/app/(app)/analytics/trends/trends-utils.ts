@@ -1,3 +1,10 @@
+export interface SalesTrendRow {
+    month_start: string;
+    median_price: number;
+    avg_cap_rate: number | null;
+    listing_count: number;
+}
+
 export interface TrendRow {
     week_start: string;
     beds: number;
@@ -255,6 +262,41 @@ export function buildMultiAreaRentData(
                     const key = multibed ? `${area.id}:${beds}` : area.id;
                     const row = (aggregated[area.id] ?? []).find((r) => r.beds === beds && r.week_start === w);
                     if (row) point[key] = Math.round(row.median_rent);
+                }
+            }
+            return point;
+        });
+}
+
+export function formatMonthLabel(dateStr: string): string {
+    const d = new Date(dateStr + "T00:00:00Z");
+    return d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
+}
+
+export function formatMillions(n: number): string {
+    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+    return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+export function buildMultiAreaSalesData(
+    areaResults: Record<string, SalesTrendRow[]>,
+    areas: AreaSelection[],
+    metric: "median_price" | "avg_cap_rate" | "listing_count",
+): Array<Record<string, string | number>> {
+    const allMonths = new Set<string>();
+    for (const area of areas) {
+        (areaResults[area.id] ?? []).forEach((r) => allMonths.add(r.month_start));
+    }
+    return Array.from(allMonths)
+        .sort()
+        .map((m) => {
+            const point: Record<string, string | number> = { month: m, monthLabel: formatMonthLabel(m) };
+            for (const area of areas) {
+                const row = (areaResults[area.id] ?? []).find((r) => r.month_start === m);
+                if (row) {
+                    const val = row[metric];
+                    if (val != null) point[area.id] = typeof val === "number" ? val : Number(val);
                 }
             }
             return point;
