@@ -776,7 +776,7 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {units.slice((unitsPage - 1) * 25, unitsPage * 25).map((unit) => (
+                                        {units.slice((unitsPage - 1) * 10, unitsPage * 10).map((unit) => (
                                             <tr
                                                 key={unit.id}
                                                 className="border-b border-gray-50 transition-colors hover:bg-gray-50 dark:border-gray-700/50 dark:hover:bg-gray-700/30"
@@ -799,8 +799,8 @@ export function ListingDetailContent({ id: rawId, backHref }: { id: string; back
                                     </tbody>
                                 </table>
                             </div>
-                            {units.length > 25 && (
-                                <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / 25)} onPageChange={setUnitsPage} align="center" />
+                            {units.length > 10 && (
+                                <PaginationButtonGroup page={unitsPage} total={Math.ceil(units.length / 10)} onPageChange={setUnitsPage} align="center" />
                             )}
                         </>
                     )}
