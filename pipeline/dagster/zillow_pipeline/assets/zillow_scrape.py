@@ -1,10 +1,15 @@
 import time
 from datetime import datetime, timezone
+from typing import Optional
 
 from apify_client.errors import ApifyApiError
-from dagster import AssetExecutionContext, Backoff, Failure, Output, RetryPolicy, asset
+from dagster import AssetExecutionContext, Backoff, Config, Failure, Output, RetryPolicy, asset
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
+
+
+class ZillowScrapeConfig(Config):
+    run_id: Optional[str] = None  # if set, resumes a previous run under that run_id
 
 
 @asset(
@@ -16,10 +21,12 @@ from zillow_pipeline.resources.supabase import SupabaseResource
 )
 def raw_zillow_scrapes(
     context: AssetExecutionContext,
+    config: ZillowScrapeConfig,
     ba_zip_codes: list[str],
     apify: ApifyResource,
     supabase: SupabaseResource,
 ) -> Output[int]:
+    run_id = config.run_id if config.run_id else context.run_id
     scraped_at = datetime.now(timezone.utc).isoformat()
     client = supabase.get_client()
     inserted = 0
@@ -28,7 +35,7 @@ def raw_zillow_scrapes(
     existing = (
         client.table("raw_zillow_scrapes")
         .select("zip_code")
-        .eq("run_id", context.run_id)
+        .eq("run_id", run_id)
         .execute()
     ).data
     already_scraped = {row["zip_code"] for row in existing}
@@ -47,7 +54,7 @@ def raw_zillow_scrapes(
                 {
                     "zip_code": zip_code,
                     "scraped_at": scraped_at,
-                    "run_id": context.run_id,
+                    "run_id": run_id,
                     "raw_json": data,
                 }
             ).execute()
@@ -77,6 +84,6 @@ def raw_zillow_scrapes(
             "inserted": inserted,
             "failed": len(failed),
             "scraped_at": scraped_at,
-            "run_id": context.run_id,
+            "run_id": run_id,
         },
     )

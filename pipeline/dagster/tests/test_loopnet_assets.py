@@ -5,7 +5,7 @@ import pytest
 from apify_client.errors import ApifyApiError
 from dagster import build_asset_context, Failure
 
-from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes
+from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes, LoopnetSearchScrapeConfig
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes, LoopnetDetailScrapeConfig
 
 
@@ -45,10 +45,13 @@ class TestRawLoopnetSearchScrapes:
             {"url": "https://www.loopnet.com/Listing/1/", "name": "123 Main St"},
             {"url": "https://www.loopnet.com/Listing/2/", "name": "456 Oak Ave"},
         ]
+        # No existing row for this run_id
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
 
         with build_asset_context() as ctx:
             output = raw_loopnet_search_scrapes(
                 context=ctx,
+                config=LoopnetSearchScrapeConfig(),
                 apify=apify,
                 supabase=supabase,
             )
@@ -61,10 +64,12 @@ class TestRawLoopnetSearchScrapes:
         supabase, client = make_supabase()
         apify = make_apify()
         apify.run_loopnet_search.return_value = []
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
 
         with build_asset_context() as ctx:
             output = raw_loopnet_search_scrapes(
                 context=ctx,
+                config=LoopnetSearchScrapeConfig(),
                 apify=apify,
                 supabase=supabase,
             )
@@ -72,15 +77,44 @@ class TestRawLoopnetSearchScrapes:
         assert output.value == 0
         assert meta(output, "listings_found") == 0
 
+    def test_skips_apify_call_when_already_scraped_for_run_id(self):
+        supabase, client = make_supabase()
+        apify = make_apify()
+
+        existing_id_mock = MagicMock()
+        existing_id_mock.data = [{"id": "row-1"}]
+        existing_json_mock = MagicMock()
+        existing_json_mock.data = [
+            {"raw_json": [{"url": "https://www.loopnet.com/Listing/1/"}, {"url": "https://www.loopnet.com/Listing/2/"}]}
+        ]
+        client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
+            existing_id_mock,
+            existing_json_mock,
+        ]
+
+        with build_asset_context() as ctx:
+            output = raw_loopnet_search_scrapes(
+                context=ctx,
+                config=LoopnetSearchScrapeConfig(run_id="old-run-id"),
+                apify=apify,
+                supabase=supabase,
+            )
+
+        apify.run_loopnet_search.assert_not_called()
+        assert output.value == 2
+        assert meta(output, "run_id") == "old-run-id"
+
     def test_credit_limit_raises_failure_no_retry(self):
         supabase, client = make_supabase()
         apify = make_apify()
         apify.run_loopnet_search.side_effect = make_apify_rate_limit_error(status_code=402)
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
 
         with build_asset_context() as ctx:
             with pytest.raises(Failure) as exc_info:
                 raw_loopnet_search_scrapes(
                     context=ctx,
+                    config=LoopnetSearchScrapeConfig(),
                     apify=apify,
                     supabase=supabase,
                 )
@@ -93,11 +127,13 @@ class TestRawLoopnetSearchScrapes:
         apify.run_loopnet_search.side_effect = make_apify_rate_limit_error(
             status_code=403, error_type="actor_hard_limit_exceeded"
         )
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
 
         with build_asset_context() as ctx:
             with pytest.raises(Failure) as exc_info:
                 raw_loopnet_search_scrapes(
                     context=ctx,
+                    config=LoopnetSearchScrapeConfig(),
                     apify=apify,
                     supabase=supabase,
                 )
@@ -108,11 +144,13 @@ class TestRawLoopnetSearchScrapes:
         supabase, client = make_supabase()
         apify = make_apify()
         apify.run_loopnet_search.side_effect = RuntimeError("network timeout")
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
 
         with build_asset_context() as ctx:
             with pytest.raises(RuntimeError, match="network timeout"):
                 raw_loopnet_search_scrapes(
                     context=ctx,
+                    config=LoopnetSearchScrapeConfig(),
                     apify=apify,
                     supabase=supabase,
                 )
