@@ -26,6 +26,13 @@ export interface ZillowListing {
     laundry: string | null;
 }
 
+export interface LoopnetUnitMixRow {
+    description: string | null;
+    count: string | null;
+    rent: string | null;
+    sqft: string | null;
+}
+
 export interface LoopnetListing {
     source: "loopnet";
     id: string;
@@ -39,6 +46,7 @@ export interface LoopnetListing {
     thumbnail_url: string | null;
     listing_url: string | null;
     created_at: string | null;
+    unit_mix: LoopnetUnitMixRow[] | null;
 }
 
 export type Listing = ZillowListing | LoopnetListing;
