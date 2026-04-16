@@ -32,3 +32,4 @@ export * from "./map-rent-trends";
 export * from "./comps";
 export * from "./geo";
 export * from "./map-listings";
+export * from "./sales-trends";

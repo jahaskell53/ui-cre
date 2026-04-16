@@ -17,6 +17,11 @@ import {
     getRentTrendsByCounty,
     getRentTrendsByMsa,
     getRentTrendsByNeighborhood,
+    getSalesTrends,
+    getSalesTrendsByCity,
+    getSalesTrendsByCounty,
+    getSalesTrendsByMsa,
+    getSalesTrendsByNeighborhood,
     searchMsas,
     searchNeighborhoods,
 } from "@/db/rpc";
@@ -30,11 +35,14 @@ import {
 } from "@/lib/analytics/trends-page";
 import { MarketActivitySection } from "./market-activity-section";
 import { RentTrendsSection } from "./rent-trends-section";
+import { SalesStatsTile, SalesTrendsSection } from "./sales-trends-section";
 import { TrendsTableSection } from "./trends-table-section";
-import { AREA_COLORS, ActivityRow, AreaSelection, BED_DASH, BED_KEYS, TrendRow, formatDollars, pctChange } from "./trends-utils";
+import { AREA_COLORS, ActivityRow, AreaSelection, BED_DASH, BED_KEYS, SalesTrendRow, TrendRow, formatDollars, pctChange } from "./trends-utils";
 import { ZipTrendsMap } from "./zip-trends-map";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
+
+type DataTab = "rent" | "sales";
 
 interface MapboxFeature {
     id: string;
@@ -58,6 +66,15 @@ const BED_OPTIONS = [
     { beds: 3, label: "3BR" },
 ];
 
+const PROPERTY_TYPE_OPTIONS = [
+    { value: null, label: "All" },
+    { value: "Multifamily", label: "Multifamily" },
+    { value: "Office", label: "Office" },
+    { value: "Retail", label: "Retail" },
+    { value: "Industrial", label: "Industrial" },
+    { value: "Land", label: "Land" },
+];
+
 const AREA_TYPES = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const ENABLED_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
 const MAP_AREA_TYPES = new Set(["ZIP Code", "Neighborhood", "City", "County", "MSA"]);
@@ -70,6 +87,8 @@ interface AreaResult {
 export default function TrendsPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
+
+    const [dataTab, setDataTab] = useState<DataTab>((searchParams.get("dataTab") as DataTab) ?? "rent");
 
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
@@ -88,6 +107,7 @@ export default function TrendsPage() {
     const [display, setDisplay] = useState<"chart" | "table" | "map">((searchParams.get("display") as "chart" | "table" | "map") ?? "chart");
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>(() => parseSerializedAreas(searchParams.get("areas")));
     const [areaResults, setAreaResults] = useState<Record<string, AreaResult>>({});
+    const [salesResults, setSalesResults] = useState<Record<string, SalesTrendRow[]>>({});
     const [showAddInput, setShowAddInput] = useState(false);
 
     const [selectedBeds, setSelectedBeds] = useState<number[]>(() => {
@@ -104,18 +124,21 @@ export default function TrendsPage() {
         if (raw === "both" || raw === "reit") return raw;
         return "mid";
     });
+    const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [salesLoading, setSalesLoading] = useState(false);
 
-    // Sync persisted state to URL (shallow push, no navigation)
+    // Sync persisted state to URL
     useEffect(() => {
         const params = new URLSearchParams();
+        params.set("dataTab", dataTab);
         params.set("areaType", areaType);
         params.set("display", display);
         params.set("beds", selectedBeds.join(","));
         params.set("segment", selectedSegment);
         if (selectedAreas.length > 0) params.set("areas", serializeAreasParam(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [areaType, display, selectedAreas, selectedBeds, selectedSegment]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [dataTab, areaType, display, selectedAreas, selectedBeds, selectedSegment]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
@@ -248,7 +271,7 @@ export default function TrendsPage() {
             .catch(() => setPendingMsa(null));
     }, [pendingFeature]);
 
-    // Fetch when areas or filters change
+    // Fetch rent data when areas or rent filters change
     useEffect(() => {
         if (selectedAreas.length === 0) {
             setAreaResults({});
@@ -335,13 +358,49 @@ export default function TrendsPage() {
         });
     }, [selectedAreas, selectedBeds, selectedSegment]);
 
+    // Fetch sales data when areas or property type change
+    useEffect(() => {
+        if (selectedAreas.length === 0) {
+            setSalesResults({});
+            return;
+        }
+        setSalesLoading(true);
+
+        const fetchSales = (area: AreaSelection): Promise<SalesTrendRow[]> => {
+            const isNh = area.neighborhoodId != null;
+            const isCity = area.cityName != null;
+            const isCounty = area.countyName != null;
+            const isMsa = area.msaGeoid != null;
+            const p = { p_property_type: selectedPropertyType };
+            const call = isNh
+                ? getSalesTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!], ...p })
+                : isCity
+                  ? getSalesTrendsByCity({ p_city: area.cityName!, p_state: area.cityState!, ...p })
+                  : isCounty
+                    ? getSalesTrendsByCounty({ p_county_name: area.countyName!, p_state: area.countyState!, ...p })
+                    : isMsa
+                      ? getSalesTrendsByMsa({ p_geoid: area.msaGeoid!, ...p })
+                      : getSalesTrends({ p_zip: area.id, ...p });
+            return call.catch((error) => {
+                console.error(error);
+                return [] as SalesTrendRow[];
+            });
+        };
+
+        Promise.all(selectedAreas.map((area) => fetchSales(area).then((rows) => ({ id: area.id, rows })))).then((results) => {
+            setSalesLoading(false);
+            const next: Record<string, SalesTrendRow[]> = {};
+            for (const r of results) next[r.id] = r.rows;
+            setSalesResults(next);
+        });
+    }, [selectedAreas, selectedPropertyType]);
+
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress("");
         setSuggestions([]);
         setShowSuggestions(false);
         setActiveSuggestionIndex(-1);
 
-        // Address mode always shows granularity picker first, regardless of areaType
         if (addressMode) {
             setPendingFeature(feature);
             return;
@@ -377,7 +436,6 @@ export default function TrendsPage() {
             return;
         }
 
-        // ZIP Code: add directly
         const postcodeCtx = feature.context?.find((c) => c.id.startsWith("postcode."))?.text;
         const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
         if (!zip) return;
@@ -410,7 +468,6 @@ export default function TrendsPage() {
         setShowAddInput(false);
         setAreaType(granularity);
 
-        // When replacing an existing address area, reuse its color and slot
         const replaceId = featureOverride ? lastAddressAreaIdRef.current : null;
         const replaceArea = replaceId ? selectedAreas.find((a) => a.id === replaceId) : null;
         const color = replaceArea?.color ?? AREA_COLORS[selectedAreas.length % AREA_COLORS.length];
@@ -419,6 +476,11 @@ export default function TrendsPage() {
             if (replaceId) {
                 setSelectedAreas((prev) => prev.map((a) => (a.id === replaceId ? area : a)));
                 setAreaResults((prev) => {
+                    const next = { ...prev };
+                    if (replaceId !== id) delete next[replaceId];
+                    return next;
+                });
+                setSalesResults((prev) => {
                     const next = { ...prev };
                     if (replaceId !== id) delete next[replaceId];
                     return next;
@@ -561,6 +623,11 @@ export default function TrendsPage() {
             delete next[`${id}:reit`];
             return next;
         });
+        setSalesResults((prev) => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
     };
 
     const multiSource = selectedSegment === "both";
@@ -569,6 +636,7 @@ export default function TrendsPage() {
 
     const hasData = displayAreas.some((a) => (displayRentResults[a.id]?.length ?? 0) > 0);
     const hasActivity = displayAreas.some((a) => (displayActivityResults[a.id]?.length ?? 0) > 0);
+    const hasSalesData = selectedAreas.some((a) => (salesResults[a.id]?.length ?? 0) > 0);
 
     const segmentToggle = (label: string, active: boolean, onClick: () => void) => (
         <button
@@ -590,7 +658,25 @@ export default function TrendsPage() {
         <div className="mx-auto w-full max-w-7xl flex-1 overflow-auto p-6">
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Rent Trends</h3>
+                {/* Rent / Sales data tab */}
+                <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
+                    <button
+                        type="button"
+                        onClick={() => setDataTab("rent")}
+                        className={`rounded-md px-4 py-1.5 font-medium whitespace-nowrap transition-colors ${dataTab === "rent" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                    >
+                        Rent
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setDataTab("sales")}
+                        className={`rounded-md px-4 py-1.5 font-medium whitespace-nowrap transition-colors ${dataTab === "sales" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                    >
+                        Sales
+                    </button>
+                </div>
+
+                {/* Display mode — hide map for sales for now */}
                 <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
                     <button
                         type="button"
@@ -599,35 +685,39 @@ export default function TrendsPage() {
                     >
                         <BarChart2 className="size-3.5" /> Chart
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => setDisplay("table")}
-                        className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "table" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
-                    >
-                        <Table2 className="size-3.5" /> Table
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setDisplay("map");
-                            if (!MAP_AREA_TYPES.has(areaType)) {
-                                setAreaType("ZIP Code");
-                                setSelectedAreas([]);
-                            }
-                            setAddress("");
-                            setSuggestions([]);
-                            setNhSuggestions([]);
-                        }}
-                        className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "map" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
-                    >
-                        <Map className="size-3.5" /> Map
-                    </button>
+                    {dataTab === "rent" && (
+                        <button
+                            type="button"
+                            onClick={() => setDisplay("table")}
+                            className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "table" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                        >
+                            <Table2 className="size-3.5" /> Table
+                        </button>
+                    )}
+                    {dataTab === "rent" && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setDisplay("map");
+                                if (!MAP_AREA_TYPES.has(areaType)) {
+                                    setAreaType("ZIP Code");
+                                    setSelectedAreas([]);
+                                }
+                                setAddress("");
+                                setSuggestions([]);
+                                setNhSuggestions([]);
+                            }}
+                            className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "map" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                        >
+                            <Map className="size-3.5" /> Map
+                        </button>
+                    )}
                 </div>
             </div>
 
             {/* Filter panel */}
             <div className="mb-6 space-y-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-                {/* Area type — in map mode only show map-supported types */}
+                {/* Area type */}
                 {(display === "chart" || display === "table" || display === "map") && (
                     <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                         <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Area type</span>
@@ -672,7 +762,6 @@ export default function TrendsPage() {
                 <div className="flex items-start gap-4">
                     <span className="w-24 shrink-0 pt-2 text-sm text-gray-500 dark:text-gray-400">Area</span>
                     <div className="flex-1 space-y-2">
-                        {/* Chips + add button */}
                         {selectedAreas.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2">
                                 {selectedAreas.map((area) => (
@@ -703,7 +792,6 @@ export default function TrendsPage() {
                                 )}
                             </div>
                         )}
-                        {/* Granularity picker — shown after selecting an address in address mode */}
                         {pendingFeature && addressMode && (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -761,7 +849,6 @@ export default function TrendsPage() {
                                 </div>
                             </div>
                         )}
-                        {/* Search input — shown when no pending feature and either first area or add mode */}
                         {!pendingFeature && (selectedAreas.length === 0 || showAddInput || addressMode) && (
                             <div className="flex items-center gap-2">
                                 <div className="relative flex-1" ref={inputWrapperRef}>
@@ -915,51 +1002,65 @@ export default function TrendsPage() {
                     </div>
                 </div>
 
-                {/* Bedrooms — multi-select for cross-bedroom comparison */}
-                <div className="flex items-center gap-4">
-                    <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Bedrooms</span>
-                    <div className="flex flex-wrap gap-2">
-                        {BED_OPTIONS.map((opt) =>
-                            segmentToggle(opt.label, selectedBeds.includes(opt.beds), () =>
-                                setSelectedBeds((prev) => {
-                                    if (prev.includes(opt.beds)) {
-                                        // Don't allow deselecting the last one
-                                        if (prev.length === 1) return prev;
-                                        return prev.filter((b) => b !== opt.beds);
-                                    }
-                                    return [...prev, opt.beds].sort((a, b) => a - b);
-                                }),
-                            ),
-                        )}
-                    </div>
-                </div>
+                {/* Rent-only filters */}
+                {dataTab === "rent" && (
+                    <>
+                        <div className="flex items-center gap-4">
+                            <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Bedrooms</span>
+                            <div className="flex flex-wrap gap-2">
+                                {BED_OPTIONS.map((opt) =>
+                                    segmentToggle(opt.label, selectedBeds.includes(opt.beds), () =>
+                                        setSelectedBeds((prev) => {
+                                            if (prev.includes(opt.beds)) {
+                                                if (prev.length === 1) return prev;
+                                                return prev.filter((b) => b !== opt.beds);
+                                            }
+                                            return [...prev, opt.beds].sort((a, b) => a - b);
+                                        }),
+                                    ),
+                                )}
+                            </div>
+                        </div>
 
-                {/* Segment */}
-                <div className="flex items-center gap-4">
-                    <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Segment</span>
-                    <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                        {(
-                            [
-                                { label: "All", value: "both" },
-                                { label: "Mid-market", value: "mid" },
-                                { label: "REIT", value: "reit" },
-                            ] as { label: string; value: "both" | "mid" | "reit" }[]
-                        ).map(({ label, value }) => (
-                            <button
-                                key={value}
-                                type="button"
-                                onClick={() => setSelectedSegment(value)}
-                                className={`rounded-md px-3 py-1 font-medium whitespace-nowrap capitalize transition-colors ${selectedSegment === value ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
-                            >
-                                {label}
-                            </button>
-                        ))}
+                        <div className="flex items-center gap-4">
+                            <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Segment</span>
+                            <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
+                                {(
+                                    [
+                                        { label: "All", value: "both" },
+                                        { label: "Mid-market", value: "mid" },
+                                        { label: "REIT", value: "reit" },
+                                    ] as { label: string; value: "both" | "mid" | "reit" }[]
+                                ).map(({ label, value }) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setSelectedSegment(value)}
+                                        className={`rounded-md px-3 py-1 font-medium whitespace-nowrap capitalize transition-colors ${selectedSegment === value ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Sales-only filters */}
+                {dataTab === "sales" && (
+                    <div className="flex items-center gap-4">
+                        <span className="w-24 shrink-0 text-sm text-gray-500 dark:text-gray-400">Property type</span>
+                        <div className="flex flex-wrap gap-2">
+                            {PROPERTY_TYPE_OPTIONS.map((opt) =>
+                                segmentToggle(opt.label, selectedPropertyType === opt.value, () => setSelectedPropertyType(opt.value)),
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* Map display */}
-            {display === "map" && (
+            {/* ── Map display (rent only) ── */}
+            {dataTab === "rent" && display === "map" && (
                 <ZipTrendsMap
                     areaType={areaType as "ZIP Code" | "Neighborhood" | "City" | "County" | "MSA"}
                     selectedBeds={selectedBeds[0]}
@@ -973,153 +1074,189 @@ export default function TrendsPage() {
                 />
             )}
 
-            {/* Empty state — chart/table display with no areas selected */}
-            {(display === "chart" || display === "table") && selectedAreas.length === 0 && (
+            {/* ── Empty state ── */}
+            {(display === "chart" || display === "table" || dataTab === "sales") && selectedAreas.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-16 text-center dark:border-gray-700 dark:bg-gray-800">
                     <TrendingUp className="mb-3 size-10 text-gray-300" />
-                    <p className="text-gray-500 dark:text-gray-400">Search an address, zip code, or neighborhood above to see rent trends</p>
+                    <p className="text-gray-500 dark:text-gray-400">
+                        {dataTab === "rent"
+                            ? "Search an address, zip code, or neighborhood above to see rent trends"
+                            : "Search an address, zip code, city, or area above to see sales trends"}
+                    </p>
                     <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Add up to {MAX_TREND_AREAS} areas to compare</p>
                 </div>
             )}
 
-            {/* Charts — shown in both views when areas are selected */}
-            {
-                selectedAreas.length > 0 && (
-                    <>
-                        {/* Loading */}
-                        {selectedAreas.length > 0 && loading && (
-                            <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-16 dark:border-gray-700 dark:bg-gray-800">
-                                <p className="text-sm text-gray-400">Loading…</p>
-                            </div>
-                        )}
+            {/* ── Rent content ── */}
+            {dataTab === "rent" && selectedAreas.length > 0 && (display === "chart" || display === "table") && (
+                <>
+                    {loading && (
+                        <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-16 dark:border-gray-700 dark:bg-gray-800">
+                            <p className="text-sm text-gray-400">Loading…</p>
+                        </div>
+                    )}
 
-                        {/* No data */}
-                        {selectedAreas.length > 0 && !loading && !hasData && (
-                            <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-16 text-center dark:border-gray-700 dark:bg-gray-800">
-                                <TrendingUp className="mb-3 size-10 text-gray-300" />
-                                <p className="text-gray-500 dark:text-gray-400">No data for the selected areas and bedroom type</p>
-                            </div>
-                        )}
+                    {!loading && !hasData && (
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-16 text-center dark:border-gray-700 dark:bg-gray-800">
+                            <TrendingUp className="mb-3 size-10 text-gray-300" />
+                            <p className="text-gray-500 dark:text-gray-400">No data for the selected areas and bedroom type</p>
+                        </div>
+                    )}
 
-                        {/* Grid dashboard */}
-                        {selectedAreas.length > 0 && !loading && hasData && display === "chart" && (
-                            <div className="grid grid-cols-4 gap-4">
-                                {/* Stats tile */}
-                                <div className="col-span-1 flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-                                    {displayAreas.map((area) => (
-                                        <div key={area.id}>
-                                            <div className="mb-2 flex items-center gap-1.5">
-                                                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: area.color }} />
-                                                <span className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">{area.label}</span>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {selectedBeds.map((beds) => {
-                                                    const bedEntry = BED_KEYS.find((b) => b.beds === beds)!;
-                                                    const rows = (displayRentResults[area.id] ?? [])
-                                                        .filter((r) => r.beds === beds)
-                                                        .sort((a, b) => a.week_start.localeCompare(b.week_start));
-                                                    const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
-                                                    const first = rows.length > 0 ? rows[0].median_rent : undefined;
-                                                    const change = rows.length >= 2 ? pctChange(first, latest) : null;
-                                                    return (
-                                                        <div key={beds}>
-                                                            {selectedBeds.length > 1 && (
-                                                                <p className="mb-0.5 text-xs text-gray-400 dark:text-gray-500">{bedEntry.label}</p>
-                                                            )}
-                                                            {latest != null ? (
-                                                                <>
-                                                                    <p className="text-lg font-semibold" style={{ color: area.color }}>
-                                                                        {formatDollars(latest)}
-                                                                    </p>
-                                                                    {selectedBeds.length === 1 && (
-                                                                        <p className="mt-0.5 text-xs text-gray-400">{bedEntry.label} · latest week</p>
-                                                                    )}
-                                                                    {change != null && (
-                                                                        <div
-                                                                            className={`mt-0.5 flex items-center gap-1 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}
-                                                                        >
-                                                                            {change >= 0 ? (
-                                                                                <ArrowUpRight className="size-3.5" />
-                                                                            ) : (
-                                                                                <ArrowDownRight className="size-3.5" />
-                                                                            )}
-                                                                            {Math.abs(change).toFixed(1)}% over period
-                                                                        </div>
-                                                                    )}
-                                                                </>
-                                                            ) : (
-                                                                <p className="text-lg font-semibold text-gray-400">—</p>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
+                    {!loading && hasData && display === "chart" && (
+                        <div className="grid grid-cols-4 gap-4">
+                            {/* Stats tile */}
+                            <div className="col-span-1 flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                                {displayAreas.map((area) => (
+                                    <div key={area.id}>
+                                        <div className="mb-2 flex items-center gap-1.5">
+                                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: area.color }} />
+                                            <span className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">{area.label}</span>
                                         </div>
-                                    ))}
-                                </div>
-
-                                {/* Rent chart — spans both left tiles */}
-                                <div className="col-span-3 row-span-2">
-                                    <RentTrendsSection areas={displayAreas} areaResults={displayRentResults} selectedBeds={selectedBeds} />
-                                </div>
-
-                                {/* Legend tile */}
-                                <div className="col-span-1 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
-                                    <div className="space-y-2">
-                                        {displayAreas.map((area) => (
-                                            <div key={area.id} className="flex items-center gap-1.5">
-                                                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: area.color }} />
-                                                <span className="truncate text-xs text-gray-600 dark:text-gray-400">{area.label}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {selectedBeds.length > 1 && (
-                                        <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+                                        <div className="space-y-2">
                                             {selectedBeds.map((beds) => {
                                                 const bedEntry = BED_KEYS.find((b) => b.beds === beds)!;
-                                                const dash = BED_DASH[beds] ?? "";
+                                                const rows = (displayRentResults[area.id] ?? [])
+                                                    .filter((r) => r.beds === beds)
+                                                    .sort((a, b) => a.week_start.localeCompare(b.week_start));
+                                                const latest = rows.length > 0 ? rows[rows.length - 1].median_rent : undefined;
+                                                const first = rows.length > 0 ? rows[0].median_rent : undefined;
+                                                const change = rows.length >= 2 ? pctChange(first, latest) : null;
                                                 return (
-                                                    <div key={beds} className="flex items-center gap-2">
-                                                        <svg width="28" height="10" viewBox="0 0 28 10" className="shrink-0 text-gray-400 dark:text-gray-500">
-                                                            <line
-                                                                x1="0"
-                                                                y1="5"
-                                                                x2="28"
-                                                                y2="5"
-                                                                stroke="currentColor"
-                                                                strokeWidth="2"
-                                                                strokeDasharray={dash || undefined}
-                                                            />
-                                                        </svg>
-                                                        <span className="text-sm text-gray-500 dark:text-gray-400">{bedEntry.label}</span>
+                                                    <div key={beds}>
+                                                        {selectedBeds.length > 1 && (
+                                                            <p className="mb-0.5 text-xs text-gray-400 dark:text-gray-500">{bedEntry.label}</p>
+                                                        )}
+                                                        {latest != null ? (
+                                                            <>
+                                                                <p className="text-lg font-semibold" style={{ color: area.color }}>
+                                                                    {formatDollars(latest)}
+                                                                </p>
+                                                                {selectedBeds.length === 1 && (
+                                                                    <p className="mt-0.5 text-xs text-gray-400">{bedEntry.label} · latest week</p>
+                                                                )}
+                                                                {change != null && (
+                                                                    <div
+                                                                        className={`mt-0.5 flex items-center gap-1 text-xs font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}
+                                                                    >
+                                                                        {change >= 0 ? (
+                                                                            <ArrowUpRight className="size-3.5" />
+                                                                        ) : (
+                                                                            <ArrowDownRight className="size-3.5" />
+                                                                        )}
+                                                                        {Math.abs(change).toFixed(1)}% over period
+                                                                    </div>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <p className="text-lg font-semibold text-gray-400">—</p>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                ))}
+                            </div>
 
-                                {/* Activity chart */}
-                                {hasActivity && (
-                                    <div className="col-span-4 mb-8">
-                                        <MarketActivitySection areas={displayAreas} areaResults={displayActivityResults} selectedBeds={selectedBeds} />
+                            {/* Rent chart */}
+                            <div className="col-span-3 row-span-2">
+                                <RentTrendsSection areas={displayAreas} areaResults={displayRentResults} selectedBeds={selectedBeds} />
+                            </div>
+
+                            {/* Legend tile */}
+                            <div className="col-span-1 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                                <div className="space-y-2">
+                                    {displayAreas.map((area) => (
+                                        <div key={area.id} className="flex items-center gap-1.5">
+                                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: area.color }} />
+                                            <span className="truncate text-xs text-gray-600 dark:text-gray-400">{area.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {selectedBeds.length > 1 && (
+                                    <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+                                        {selectedBeds.map((beds) => {
+                                            const bedEntry = BED_KEYS.find((b) => b.beds === beds)!;
+                                            const dash = BED_DASH[beds] ?? "";
+                                            return (
+                                                <div key={beds} className="flex items-center gap-2">
+                                                    <svg width="28" height="10" viewBox="0 0 28 10" className="shrink-0 text-gray-400 dark:text-gray-500">
+                                                        <line
+                                                            x1="0"
+                                                            y1="5"
+                                                            x2="28"
+                                                            y2="5"
+                                                            stroke="currentColor"
+                                                            strokeWidth="2"
+                                                            strokeDasharray={dash || undefined}
+                                                        />
+                                                    </svg>
+                                                    <span className="text-sm text-gray-500 dark:text-gray-400">{bedEntry.label}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
-                        )}
 
-                        {/* Table view */}
-                        {selectedAreas.length > 0 && !loading && hasData && display === "table" && (
-                            <TrendsTableSection
-                                areas={displayAreas}
-                                rentResults={displayRentResults}
-                                activityResults={displayActivityResults}
-                                selectedBeds={selectedBeds[0]}
-                            />
-                        )}
-                    </>
-                ) /* end chart view */
-            }
+                            {hasActivity && (
+                                <div className="col-span-4 mb-8">
+                                    <MarketActivitySection areas={displayAreas} areaResults={displayActivityResults} selectedBeds={selectedBeds} />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {!loading && hasData && display === "table" && (
+                        <TrendsTableSection
+                            areas={displayAreas}
+                            rentResults={displayRentResults}
+                            activityResults={displayActivityResults}
+                            selectedBeds={selectedBeds[0]}
+                        />
+                    )}
+                </>
+            )}
+
+            {/* ── Sales content ── */}
+            {dataTab === "sales" && selectedAreas.length > 0 && (
+                <>
+                    {salesLoading && (
+                        <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-16 dark:border-gray-700 dark:bg-gray-800">
+                            <p className="text-sm text-gray-400">Loading…</p>
+                        </div>
+                    )}
+
+                    {!salesLoading && !hasSalesData && (
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-16 text-center dark:border-gray-700 dark:bg-gray-800">
+                            <TrendingUp className="mb-3 size-10 text-gray-300" />
+                            <p className="text-gray-500 dark:text-gray-400">No for-sale listings data for the selected area</p>
+                            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Try a broader area type (City, County, or MSA)</p>
+                        </div>
+                    )}
+
+                    {!salesLoading && hasSalesData && (
+                        <div className="grid grid-cols-4 gap-4">
+                            <SalesStatsTile areas={selectedAreas} areaResults={salesResults} />
+                            <div className="col-span-3">
+                                <SalesTrendsSection areas={selectedAreas} areaResults={salesResults} />
+                            </div>
+                            {/* Legend */}
+                            <div className="col-span-1 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                                <div className="space-y-2">
+                                    {selectedAreas.map((area) => (
+                                        <div key={area.id} className="flex items-center gap-1.5">
+                                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: area.color }} />
+                                            <span className="truncate text-xs text-gray-600 dark:text-gray-400">{area.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
         </div>
     );
 }
