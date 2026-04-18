@@ -144,7 +144,7 @@ export function SalesTrendsSection({ areas, areaResults }: Props) {
                                         : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                                 }`}
                             >
-                                %
+                                {metric === "avg_cap_rate" ? "Δ%" : "%"}
                             </button>
                             <button
                                 onClick={() => setYView("abs")}
