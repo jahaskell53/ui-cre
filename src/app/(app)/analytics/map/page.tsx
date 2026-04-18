@@ -887,7 +887,7 @@ function MapPageInner() {
         areaFilter && (areaFilter.type !== "address" || areaFilter.bbox) ? (
             <div className="flex min-h-10 min-w-0 flex-1 items-center gap-1.5 border-l border-input bg-blue-50/80 px-3 py-2 text-sm text-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
                 <MapPin className="size-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                <span className="min-w-0 flex-1 truncate">{areaFilter.label}</span>
+                <span className="min-w-0 truncate">{areaFilter.label}</span>
                 <button
                     type="button"
                     onClick={clearAreaFilter}
@@ -1006,7 +1006,7 @@ function MapPageInner() {
                         </div>
                     </div>
 
-                    <div className="flex w-full min-w-0 rounded-lg border border-input shadow-xs">
+                    <div className="flex w-full max-w-lg min-w-0 rounded-lg border border-input shadow-xs">
                         <Select
                             value={areaType}
                             onValueChange={(v) => {
