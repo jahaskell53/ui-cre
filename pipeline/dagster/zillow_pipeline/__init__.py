@@ -21,7 +21,7 @@ defs = Definitions(
     resources={
         "supabase": SupabaseResource(
             url=EnvVar("SUPABASE_URL"),
-            service_key=EnvVar("SUPABASE_SERVICE_KEY"),
+            service_key=EnvVar("SUPABASE_SERVICE_ROLE_KEY"),
         ),
         "apify": ApifyResource(
             api_token=EnvVar("APIFY_API_TOKEN"),

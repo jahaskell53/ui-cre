@@ -32,7 +32,7 @@ uv run dagster dev
 | Variable | Description |
 |---|---|
 | `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | Supabase service role key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `APIFY_API_TOKEN` | Apify API token |
 | `APIFY_ACTOR_ID` | Zillow ZIP search actor ID |
 | `APIFY_DETAIL_ACTOR_ID` | Zillow building detail actor ID |

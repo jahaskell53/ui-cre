@@ -94,7 +94,7 @@ Two `@ConfigurableResource` classes configured via environment variables:
 
 | Resource | Env vars |
 |---|---|
-| `SupabaseResource` | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` |
+| `SupabaseResource` | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
 | `ApifyResource` | `APIFY_API_TOKEN`, `APIFY_ACTOR_ID` |
 
 ---

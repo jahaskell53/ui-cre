@@ -11,7 +11,7 @@ from supabase import create_client
 load_dotenv()
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
+SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 PAGE_SIZE = 500
 
