@@ -1,1 +1,1 @@
-ALTER TABLE "loopnet_listings" ADD COLUMN "om_url" text;
+ALTER TABLE "loopnet_listings" ADD COLUMN IF NOT EXISTS "om_url" text;
