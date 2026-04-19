@@ -10,10 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-      pull-requests: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,12 +37,8 @@ jobs:
       - name: Check application build
         run: bun run build
 
-      - name: Run tests with coverage
-        run: bun run test:coverage
-
-      - name: Post coverage report
-        uses: davelosert/vitest-coverage-report-action@v2
-        if: always()
+      - name: Run unit tests
+        run: bun run test
 
       - name: Run DB integration tests
         run: bun run test:db
