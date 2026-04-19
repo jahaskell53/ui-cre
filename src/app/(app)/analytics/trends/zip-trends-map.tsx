@@ -96,6 +96,7 @@ export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas,
 
     // Fetch data when params change
     useEffect(() => {
+        let cancelled = false;
         setLoading(true);
         setData([]);
         const params = { p_beds: selectedBeds, p_weeks_back: weeksBack, p_reits_only: reitsOnly };
@@ -111,10 +112,17 @@ export function ZipTrendsMap({ areaType, selectedBeds, reitsOnly, selectedAreas,
                       : () => getMapRentTrends(params);
         fetcher()
             .then((rows) => {
+                if (cancelled) return;
                 setLoading(false);
                 setData(rows);
             })
-            .catch(() => setLoading(false));
+            .catch(() => {
+                if (cancelled) return;
+                setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [areaType, selectedBeds, weeksBack, reitsOnly]);
 
