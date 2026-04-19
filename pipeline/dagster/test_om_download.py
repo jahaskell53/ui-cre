@@ -7,7 +7,6 @@ Usage:
 Defaults to the known-failing 1745 Market St listing.
 """
 
-import base64
 import os
 import sys
 
@@ -28,7 +27,7 @@ def test_download(listing_url: str, document_url: str) -> None:
 
     page_function = """
 async function pageFunction(context) {
-    const { page, request, log } = context;
+    const { page, request, log, Actor } = context;
     const documentUrl = request.userData.documentUrl;
 
     log.info('Listing page loaded, waiting for cookies to settle...');
@@ -38,6 +37,7 @@ async function pageFunction(context) {
     try {
         const apiResponse = await page.context().request.get(documentUrl, {
             headers: { 'Accept': 'application/pdf,*/*;q=0.9' },
+            timeout: 120000,
         });
 
         if (!apiResponse.ok()) {
@@ -46,8 +46,13 @@ async function pageFunction(context) {
         }
 
         const body = await apiResponse.body();
-        log.info('Document downloaded — ' + body.length + ' bytes');
-        return { base64: body.toString('base64'), size: body.length };
+        log.info('Document downloaded — ' + body.length + ' bytes, saving to key-value store...');
+
+        const kvStore = await Actor.openKeyValueStore();
+        await kvStore.setValue('document', body, { contentType: 'application/pdf' });
+
+        log.info('Saved to key-value store');
+        return { stored: true, size: body.length };
     } catch (e) {
         log.error('Document fetch error: ' + e.toString());
         return { error: e.toString() };
@@ -96,13 +101,9 @@ async function pageFunction(context) {
     print("\n=== DATASET ITEMS ===")
     items = list(client.dataset(run["defaultDatasetId"]).iterate_items())
     for item in items:
-        if "base64" in item and item["base64"]:
-            pdf_bytes = base64.b64decode(item["base64"])
-            print(f"  SUCCESS: Got PDF — {len(pdf_bytes)} bytes")
-            with open("test_om.pdf", "wb") as f:
-                f.write(pdf_bytes)
-            print("  Saved to test_om.pdf")
-        elif "error" in item:
+        if item.get("stored"):
+            print(f"  Dataset confirms stored: size={item.get('size')} bytes")
+        elif item.get("error"):
             print(f"  ERROR: {item.get('error')}")
         elif item.get("#error"):
             msgs = item.get("#debug", {}).get("errorMessages", [])
@@ -110,10 +111,22 @@ async function pageFunction(context) {
         else:
             print(f"  Item: {item}")
 
-    if not items:
-        print("  No items in dataset!")
-    elif not any(i.get("base64") for i in items):
-        print("\n  FAILED — no PDF data returned")
+    success = [item for item in items if item.get("stored")]
+    if not success:
+        print("\n  FAILED — no PDF data stored")
+        sys.exit(1)
+
+    print("\n=== RETRIEVING FROM KEY-VALUE STORE ===")
+    kv_store_id = run["defaultKeyValueStoreId"]
+    record = client.key_value_store(kv_store_id).get_record("document")
+    if record and record.get("value"):
+        pdf_bytes = record["value"]
+        print(f"  SUCCESS: Got PDF — {len(pdf_bytes)} bytes")
+        with open("test_om.pdf", "wb") as f:
+            f.write(pdf_bytes)
+        print("  Saved to test_om.pdf")
+    else:
+        print("  FAILED — key-value store record empty")
         sys.exit(1)
 
 

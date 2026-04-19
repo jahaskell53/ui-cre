@@ -20,9 +20,10 @@ class ApifyResource(ConfigurableResource):
         then use Playwright's APIRequestContext (page.context().request) to fetch
         the document. This shares cookies with the browser but runs at the Node.js
         level, bypassing CORS restrictions between origins.
-        """
-        import base64
 
+        The PDF is saved to the Apify key-value store (not the dataset) to avoid
+        the ~9 MB dataset item size limit — OM PDFs can be 20+ MB.
+        """
         client = ApifyClient(self.api_token)
 
         # page.context().request.get() uses Playwright's APIRequestContext which
@@ -30,9 +31,13 @@ class ApifyResource(ConfigurableResource):
         # bypassing CORS. A plain page.evaluate(fetch(...)) fails because the CDN
         # (images1.loopnet.com) is cross-origin from the listing page
         # (www.loopnet.com) and doesn't set Access-Control-Allow-Origin.
+        #
+        # The PDF is saved to the key-value store instead of being returned via
+        # the dataset, because Apify datasets have a ~9 MB item size limit and
+        # base64-encoded PDFs easily exceed that.
         page_function = """
 async function pageFunction(context) {
-    const { page, request, log } = context;
+    const { page, request, log, Actor } = context;
     const documentUrl = request.userData.documentUrl;
 
     log.info('Listing page loaded, waiting for cookies to settle...');
@@ -42,19 +47,25 @@ async function pageFunction(context) {
     try {
         const apiResponse = await page.context().request.get(documentUrl, {
             headers: { 'Accept': 'application/pdf,*/*;q=0.9' },
+            timeout: 120000,
         });
 
         if (!apiResponse.ok()) {
             log.error('Document fetch HTTP ' + apiResponse.status() + ' ' + apiResponse.statusText());
-            return null;
+            return { error: 'HTTP ' + apiResponse.status() };
         }
 
         const body = await apiResponse.body();
-        log.info('Document downloaded — ' + body.length + ' bytes');
-        return { base64: body.toString('base64') };
+        log.info('Document downloaded — ' + body.length + ' bytes, saving to key-value store...');
+
+        const kvStore = await Actor.openKeyValueStore();
+        await kvStore.setValue('document', body, { contentType: 'application/pdf' });
+
+        log.info('Saved to key-value store');
+        return { stored: true, size: body.length };
     } catch (e) {
         log.error('Document fetch error: ' + e.toString());
-        return null;
+        return { error: e.toString() };
     }
 }
 """
@@ -83,11 +94,21 @@ async function pageFunction(context) {
             timeout_secs=300,
         )
 
-        items = [item for item in client.dataset(run["defaultDatasetId"]).iterate_items() if item.get("base64")]
-        if not items:
-            raise ValueError(f"Playwright scraper returned no data for {document_url}")
+        items = list(client.dataset(run["defaultDatasetId"]).iterate_items())
+        success = [item for item in items if item.get("stored")]
+        if not success:
+            errors = [item.get("error", "unknown") for item in items if item.get("error")]
+            raise ValueError(
+                f"Playwright scraper returned no data for {document_url}"
+                + (f" (errors: {errors})" if errors else "")
+            )
 
-        return base64.b64decode(items[0]["base64"])
+        kv_store_id = run["defaultKeyValueStoreId"]
+        record = client.key_value_store(kv_store_id).get_record("document")
+        if not record or not record.get("value"):
+            raise ValueError(f"Key-value store record empty for {document_url}")
+
+        return record["value"]
 
     def run_zillow_search(self, zip_code: str) -> list[dict]:
         client = ApifyClient(self.api_token)
