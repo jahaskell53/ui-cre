@@ -1,20 +1,19 @@
 """
-Download Offering Memorandum PDFs from loopnet_listings and upload them to S3.
+Download all LoopNet listing attachments (PDFs) and upload them to S3.
 
-For each listing that has an attachment whose description contains "om",
-"offering memo", or "offering memorandum" (case-insensitive), we:
-  1. Download the PDF via Apify's playwright-scraper actor.
-     Plain HTTP requests (even through residential proxies) return 403 from
-     Akamai because the CDN requires valid LoopNet session cookies. The
-     playwright actor visits the listing page first to establish the session,
-     then fetches the document URL in the same browser context.
-  2. Upload the PDF to S3 under the key `om/{listing_id}.pdf`.
-  3. Write the public S3 URL back to `loopnet_listings.om_url`.
+For each listing attachment that has a document URL (`link` or `url`), we:
+  1. Download the file via Apify's playwright-scraper actor (LoopNet CDN needs session cookies).
+  2. Upload to S3 under `attachments/{listing_id}/{sha256_prefix}.pdf`.
+  3. Replace `loopnet_listings.attachment_urls` with a JSON array:
+     `[{ "source_url": "<original>", "url": "<s3 public url>", "description": "<optional>" }, ...]`.
 
-Listings that already have `om_url` set are skipped.
+`om_url` is set to the first uploaded URL when at least one attachment succeeds (for older clients).
+
+Listings whose `attachment_urls` already fully cover every current attachment URL are skipped.
 """
 
-import re
+import hashlib
+import json
 
 from dagster import AssetExecutionContext, Backoff, Output, RetryPolicy, asset
 
@@ -24,22 +23,39 @@ from zillow_pipeline.resources.s3 import S3Resource
 from zillow_pipeline.resources.supabase import SupabaseResource
 
 
-_OM_KEYWORDS = re.compile(r"offering\s*memo(randum)?|\bom\b", re.IGNORECASE)
-
-
-def _is_om_attachment(attachment: dict) -> bool:
-    description = attachment.get("description") or ""
-    return bool(_OM_KEYWORDS.search(description.strip()))
-
-
-def _find_om_url(attachments: list) -> str | None:
-    """Return the first attachment link that looks like an OM, or None."""
+def _attachment_source_urls(attachments: list) -> list[tuple[str, str | None]]:
+    """Return ordered (source_url, description) for each attachment that has a URL."""
+    out: list[tuple[str, str | None]] = []
+    seen: set[str] = set()
     for att in attachments or []:
-        if _is_om_attachment(att):
-            link = att.get("link") or att.get("url") or ""
-            if link:
-                return link
-    return None
+        if not isinstance(att, dict):
+            continue
+        raw = (att.get("link") or att.get("url") or "").strip()
+        if not raw:
+            continue
+        if raw in seen:
+            continue
+        seen.add(raw)
+        desc = att.get("description")
+        out.append((raw, str(desc).strip() if desc else None))
+    return out
+
+
+def _urls_fully_cached(source_urls: list[str], cached: object) -> bool:
+    """True when every source URL already has a matching entry in `attachment_urls`."""
+    if not source_urls:
+        return False
+    if not isinstance(cached, list):
+        return False
+    indexed: dict[str, str] = {}
+    for item in cached:
+        if not isinstance(item, dict):
+            continue
+        su = item.get("source_url")
+        u = item.get("url")
+        if isinstance(su, str) and isinstance(u, str) and su.strip() and u.strip():
+            indexed[su.strip()] = u.strip()
+    return all(s in indexed and bool(indexed[s].strip()) for s in source_urls)
 
 
 @asset(
@@ -60,69 +76,99 @@ def download_om_pdfs(
 
     rows = (
         client.table("loopnet_listings")
-        .select("id, listing_url, attachments, om_url")
+        .select("id, listing_url, attachments, om_url, attachment_urls")
         .execute()
     ).data
 
-    uploaded = skipped = failed = already_done = 0
+    uploaded_files = skipped = failed = already_done = listings_updated = 0
 
     for row in rows:
         listing_id = row["id"]
         listing_url = row.get("listing_url", "")
 
-        if row.get("om_url"):
-            already_done += 1
-            context.log.debug(f"Already has om_url, skipping: {listing_url}")
-            continue
-
         attachments = row.get("attachments") or []
-        om_source_url = _find_om_url(attachments)
+        pairs = _attachment_source_urls(attachments if isinstance(attachments, list) else [])
+        source_only = [u for u, _ in pairs]
 
-        if not om_source_url:
+        cached = row.get("attachment_urls")
+        if isinstance(cached, str):
+            try:
+                cached = json.loads(cached)
+            except json.JSONDecodeError:
+                cached = []
+
+        if _urls_fully_cached(source_only, cached):
+            already_done += 1
+            context.log.debug(f"Attachments already cached, skipping: {listing_url}")
+            continue
+
+        if not pairs:
             skipped += 1
-            context.log.debug(f"No OM attachment found for: {listing_url}")
+            context.log.debug(f"No attachment URLs for: {listing_url}")
             continue
 
-        context.log.info(f"Downloading OM for {listing_url} from {om_source_url}")
-        try:
-            pdf_bytes = apify.download_loopnet_document(listing_url, om_source_url)
-        except Exception as e:
-            context.log.error(f"Failed to download OM for {listing_url}: {e}")
-            failed += 1
+        built: list[dict[str, str]] = []
+        listing_failed = 0
+        for source_url, description in pairs:
+            digest = hashlib.sha256(source_url.encode("utf-8")).hexdigest()[:16]
+            s3_key = f"attachments/{listing_id}/{digest}.pdf"
+            context.log.info(f"Downloading attachment for {listing_url} from {source_url}")
+            try:
+                pdf_bytes = apify.download_loopnet_document(listing_url, source_url)
+            except Exception as e:
+                context.log.error(f"Failed to download attachment for {listing_url}: {e}")
+                failed += 1
+                listing_failed += 1
+                continue
+
+            try:
+                s3_url = s3.upload_bytes(s3_key, pdf_bytes, content_type="application/pdf")
+            except Exception as e:
+                context.log.error(f"Failed to upload attachment to S3 for {listing_url}: {e}")
+                failed += 1
+                listing_failed += 1
+                continue
+
+            uploaded_files += 1
+            entry: dict[str, str] = {"source_url": source_url, "url": s3_url}
+            if description:
+                entry["description"] = description
+            built.append(entry)
+
+        if not built:
+            context.log.warning(f"No attachments uploaded for {listing_url} ({listing_failed} failure(s))")
             continue
 
-        s3_key = f"om/{listing_id}.pdf"
-        try:
-            s3_url = s3.upload_bytes(s3_key, pdf_bytes, content_type="application/pdf")
-        except Exception as e:
-            context.log.error(f"Failed to upload OM to S3 for {listing_url}: {e}")
-            failed += 1
-            continue
+        first_url = built[0]["url"]
+        payload = {"attachment_urls": built, "om_url": first_url}
 
         try:
-            client.table("loopnet_listings").update({"om_url": s3_url}).eq("id", listing_id).execute()
-            context.log.info(f"Stored OM URL {s3_url} for {listing_url}")
-            uploaded += 1
+            client.table("loopnet_listings").update(payload).eq("id", listing_id).execute()
+            context.log.info(f"Stored {len(built)} attachment URL(s) for {listing_url}")
+            listings_updated += 1
         except Exception as e:
-            context.log.error(f"Failed to write om_url to DB for {listing_url}: {e}")
+            context.log.error(f"Failed to write attachment_urls for {listing_url}: {e}")
             failed += 1
 
     context.log.info(
-        f"OM download complete — uploaded={uploaded}, skipped={skipped}, "
+        f"Attachment download complete — listings_updated={listings_updated}, "
+        f"files_uploaded={uploaded_files}, skipped={skipped}, "
         f"already_done={already_done}, failed={failed}"
     )
 
     if failed > 0:
         raise Exception(
-            f"{failed} OM(s) failed to download/upload "
-            f"({uploaded} uploaded, {skipped} skipped, {already_done} already done). "
+            f"{failed} attachment operation(s) failed "
+            f"({uploaded_files} file(s) uploaded, {listings_updated} listing(s) updated, "
+            f"{skipped} skipped, {already_done} already done). "
             f"Check logs above for the specific errors."
         )
 
     return Output(
-        value=uploaded,
+        value=listings_updated,
         metadata={
-            "uploaded": uploaded,
+            "listings_updated": listings_updated,
+            "files_uploaded": uploaded_files,
             "skipped": skipped,
             "already_done": already_done,
             "failed": failed,

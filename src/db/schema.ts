@@ -337,6 +337,8 @@ export const loopnetListings = pgTable(
         scrapedAt: timestamp("scraped_at", { withTimezone: true, mode: "string" }).defaultNow().notNull(),
         runId: integer("run_id"),
         omUrl: text("om_url"),
+        /** Cached S3 URLs for LoopNet listing attachments: `[{ source_url, url, description? }]` */
+        attachmentUrls: jsonb("attachment_urls").default(sql`'[]'::jsonb`),
     },
     (table) => [
         index("idx_loopnet_listings_listing_url").using("btree", table.listingUrl.asc().nullsLast().op("text_ops")),

@@ -33,6 +33,13 @@ export interface LoopnetUnitMixRow {
     sqft: string | null;
 }
 
+/** Cached S3 document from a LoopNet listing attachment. */
+export interface LoopnetAttachmentUrl {
+    source_url: string;
+    url: string;
+    description?: string | null;
+}
+
 export interface LoopnetListing {
     source: "loopnet";
     id: string;
@@ -48,6 +55,8 @@ export interface LoopnetListing {
     om_url: string | null;
     created_at: string | null;
     unit_mix: LoopnetUnitMixRow[] | null;
+    /** Cached S3 URLs for all downloaded listing attachments. */
+    attachment_urls?: LoopnetAttachmentUrl[] | null;
 }
 
 export type Listing = ZillowListing | LoopnetListing;

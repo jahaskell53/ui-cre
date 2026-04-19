@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
                     createdAt: loopnetListings.createdAt,
                     runId: loopnetListings.runId,
                     unitMix: loopnetListings.unitMix,
+                    attachmentUrls: loopnetListings.attachmentUrls,
                 })
                 .from(loopnetListings)
                 .where(eq(loopnetListings.id, id))
@@ -37,6 +38,22 @@ export async function GET(request: NextRequest) {
             }
 
             const r = rows[0];
+            const attachmentUrlsRaw = r.attachmentUrls;
+            const attachment_urls =
+                Array.isArray(attachmentUrlsRaw) && attachmentUrlsRaw.length > 0
+                    ? attachmentUrlsRaw
+                          .map((item) => {
+                              if (!item || typeof item !== "object") return null;
+                              const o = item as Record<string, unknown>;
+                              const url = typeof o.url === "string" ? o.url.trim() : "";
+                              const source_url = typeof o.source_url === "string" ? o.source_url.trim() : "";
+                              if (!url || !source_url) return null;
+                              const description = typeof o.description === "string" ? o.description : null;
+                              return { source_url, url, ...(description ? { description } : {}) };
+                          })
+                          .filter(Boolean)
+                    : null;
+
             return NextResponse.json({
                 id: r.id,
                 address: r.address,
@@ -52,6 +69,7 @@ export async function GET(request: NextRequest) {
                 created_at: r.createdAt,
                 run_id: r.runId,
                 unit_mix: Array.isArray(r.unitMix) && r.unitMix.length > 0 ? r.unitMix : null,
+                attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,
             });
         }
 
@@ -84,7 +102,16 @@ export async function GET(request: NextRequest) {
         const conditions: SQL[] = [isNotNull(loopnetListings.latitude), isNotNull(loopnetListings.longitude)];
 
         if (hasOm) {
-            conditions.push(and(isNotNull(loopnetListings.omUrl), sql`trim(both from ${loopnetListings.omUrl}) <> ''`)!);
+            conditions.push(
+                or(
+                    and(isNotNull(loopnetListings.omUrl), sql`trim(both from ${loopnetListings.omUrl}) <> ''`)!,
+                    and(
+                        isNotNull(loopnetListings.attachmentUrls),
+                        sql`jsonb_typeof(${loopnetListings.attachmentUrls}) = 'array'`,
+                        sql`jsonb_array_length(${loopnetListings.attachmentUrls}) > 0`,
+                    )!,
+                )!,
+            );
         }
 
         if (latestOnly) {
@@ -159,22 +186,41 @@ export async function GET(request: NextRequest) {
             .where(and(...conditions))
             .orderBy(desc(loopnetListings.createdAt));
 
-        const result = rows.map((r) => ({
-            id: r.id,
-            address: r.address,
-            headline: r.headline,
-            location: r.location,
-            price: r.price,
-            cap_rate: r.capRate,
-            building_category: r.buildingCategory,
-            square_footage: r.squareFootage,
-            thumbnail_url: r.thumbnailUrl,
-            listing_url: r.listingUrl,
-            created_at: r.createdAt,
-            run_id: r.runId,
-            latitude: r.latitude,
-            longitude: r.longitude,
-        }));
+        const result = rows.map((r) => {
+            const attachmentUrlsRaw = r.attachmentUrls;
+            const attachment_urls =
+                Array.isArray(attachmentUrlsRaw) && attachmentUrlsRaw.length > 0
+                    ? attachmentUrlsRaw
+                          .map((item) => {
+                              if (!item || typeof item !== "object") return null;
+                              const o = item as Record<string, unknown>;
+                              const url = typeof o.url === "string" ? o.url.trim() : "";
+                              const source_url = typeof o.source_url === "string" ? o.source_url.trim() : "";
+                              if (!url || !source_url) return null;
+                              const description = typeof o.description === "string" ? o.description : null;
+                              return { source_url, url, ...(description ? { description } : {}) };
+                          })
+                          .filter(Boolean)
+                    : null;
+
+            return {
+                id: r.id,
+                address: r.address,
+                headline: r.headline,
+                location: r.location,
+                price: r.price,
+                cap_rate: r.capRate,
+                building_category: r.buildingCategory,
+                square_footage: r.squareFootage,
+                thumbnail_url: r.thumbnailUrl,
+                listing_url: r.listingUrl,
+                created_at: r.createdAt,
+                run_id: r.runId,
+                latitude: r.latitude,
+                longitude: r.longitude,
+                attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,
+            };
+        });
 
         return NextResponse.json({ data: result, count: result.length });
     } catch (error: any) {
