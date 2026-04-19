@@ -27,6 +27,7 @@ describe("analytics map-page helpers", () => {
             capRateMax: "",
             sqftMin: "900",
             sqftMax: "",
+            hasOm: false,
             beds: [1, 2],
             bathsMin: 1.5,
             laundry: [],
@@ -163,6 +164,27 @@ describe("analytics map-page helpers", () => {
         expect(countActiveMapFilters(filters, "zillow")).toBe(5);
         // loopnet: priceMin, capRateMin = 2 (beds/bathsMin/laundry/propertyType are zillow-only)
         expect(countActiveMapFilters(filters, "loopnet")).toBe(2);
+    });
+
+    it("counts hasOm for loopnet only", () => {
+        const filters = { ...createDefaultMapFilters(), hasOm: true };
+        expect(countActiveMapFilters(filters, "loopnet")).toBe(1);
+        expect(countActiveMapFilters(filters, "zillow")).toBe(0);
+    });
+
+    it("parses hasOm from url and round-trips in buildMapSearchParams", () => {
+        const params = new URLSearchParams("hasOm=1");
+        const filters = parseMapFilters(params);
+        expect(filters.hasOm).toBe(true);
+
+        const out = buildMapSearchParams({
+            filters,
+            mapListingSource: "loopnet",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+        });
+        expect(out.get("hasOm")).toBe("1");
     });
 
     it("parses laundry from url and round-trips in buildMapSearchParams", () => {

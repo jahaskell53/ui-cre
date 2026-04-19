@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
     getCityGeojson,
     getCountyGeojson,
@@ -422,6 +423,7 @@ function MapPageInner() {
                 if (currentFilters.capRateMax) params.set("cap_rate_max", currentFilters.capRateMax);
                 if (currentFilters.sqftMin) params.set("sqft_min", currentFilters.sqftMin);
                 if (currentFilters.sqftMax) params.set("sqft_max", currentFilters.sqftMax);
+                if (currentFilters.hasOm) params.set("has_om", "1");
                 if (effectiveBounds) {
                     params.set("bounds_west", String(effectiveBounds.west));
                     params.set("bounds_east", String(effectiveBounds.east));
@@ -877,6 +879,14 @@ function MapPageInner() {
                                 className="h-8 text-xs"
                             />
                         </div>
+                    </div>
+                )}
+                {mapListingSource === "loopnet" && (
+                    <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="sales-has-om" className="text-xs font-normal">
+                            Has OM
+                        </Label>
+                        <Switch id="sales-has-om" checked={filters.hasOm} onCheckedChange={(checked) => setFilters((prev) => ({ ...prev, hasOm: checked }))} />
                     </div>
                 )}
             </div>

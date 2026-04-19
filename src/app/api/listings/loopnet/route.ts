@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, isNotNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
 import { SQL } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
@@ -77,8 +77,13 @@ export async function GET(request: NextRequest) {
         const boundsEast = searchParams.get("bounds_east");
         const boundsSouth = searchParams.get("bounds_south");
         const boundsNorth = searchParams.get("bounds_north");
+        const hasOm = searchParams.get("has_om") === "1";
 
         const conditions: SQL[] = [isNotNull(loopnetListings.latitude), isNotNull(loopnetListings.longitude)];
+
+        if (hasOm) {
+            conditions.push(and(isNotNull(loopnetListings.omUrl), sql`trim(both from ${loopnetListings.omUrl}) <> ''`)!);
+        }
 
         if (latestOnly) {
             const latestRows = await db.select({ runId: loopnetListings.runId }).from(loopnetListings).orderBy(desc(loopnetListings.runId)).limit(1);
