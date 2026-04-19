@@ -7,6 +7,8 @@ from dagster import build_asset_context
 from zillow_pipeline.assets.download_om_pdfs import (
     download_om_pdfs,
     _attachment_source_urls,
+    _looks_like_om,
+    _pick_om_s3_url,
     _urls_fully_cached,
 )
 
@@ -69,6 +71,39 @@ class TestAttachmentSourceUrls:
             ]
         )
         assert pairs == []
+
+
+class TestLooksLikeOm:
+    def test_description_offering_memorandum(self):
+        assert _looks_like_om("https://x/floor.pdf", "Offering Memorandum") is True
+
+    def test_description_floorplan_only(self):
+        assert _looks_like_om("https://x/floor.pdf", "Floorplan") is False
+
+    def test_url_path_contains_om_token(self):
+        assert _looks_like_om("https://cdn.example.com/docs/OM_Signed.pdf", None) is True
+
+    def test_url_path_offering_memo_slug(self):
+        assert _looks_like_om("https://cdn.example.com/listing/offering-memorandum.pdf", None) is True
+
+
+class TestPickOmS3Url:
+    def test_prefers_second_when_only_second_matches(self):
+        built = [
+            {"source_url": "https://a/floor.pdf", "url": "https://s3/floor.pdf", "description": "Floorplan"},
+            {
+                "source_url": "https://a/om.pdf",
+                "url": "https://s3/om.pdf",
+                "description": "Offering Memorandum",
+            },
+        ]
+        assert _pick_om_s3_url(built) == "https://s3/om.pdf"
+
+    def test_returns_none_when_no_match(self):
+        built = [
+            {"source_url": "https://a/a.pdf", "url": "https://s3/a.pdf", "description": "Brochure"},
+        ]
+        assert _pick_om_s3_url(built) is None
 
 
 class TestUrlsFullyCached:
@@ -151,8 +186,8 @@ class TestDownloadOmPdfs:
                 "id": "uuid-3",
                 "listing_url": "https://www.loopnet.com/Listing/3/",
                 "attachments": [
-                    {"link": "https://cdn.example.com/one.pdf", "description": "First"},
-                    {"link": "https://cdn.example.com/two.pdf", "description": "Second"},
+                    {"link": "https://cdn.example.com/one.pdf", "description": "Floorplan"},
+                    {"link": "https://cdn.example.com/two.pdf", "description": "Offering Memorandum"},
                 ],
                 "om_url": None,
                 "attachment_urls": [],
@@ -183,7 +218,36 @@ class TestDownloadOmPdfs:
         assert "attachment_urls" in update_kw
         assert len(update_kw["attachment_urls"]) == 2
         assert update_kw["attachment_urls"][0]["source_url"] == "https://cdn.example.com/one.pdf"
-        assert update_kw["attachment_urls"][0]["description"] == "First"
+        assert update_kw["attachment_urls"][0]["description"] == "Floorplan"
+        assert update_kw["om_url"] == update_kw["attachment_urls"][1]["url"]
+
+    def test_om_url_falls_back_to_first_when_no_om_match(self):
+        rows = [
+            {
+                "id": "uuid-3b",
+                "listing_url": "https://www.loopnet.com/Listing/3b/",
+                "attachments": [
+                    {"link": "https://cdn.example.com/brochure.pdf", "description": "Brochure"},
+                    {"link": "https://cdn.example.com/rent_roll.pdf", "description": "Rent roll"},
+                ],
+                "om_url": None,
+                "attachment_urls": [],
+            }
+        ]
+        supabase, client = make_supabase(rows=rows)
+        s3 = make_s3()
+        apify = make_apify()
+        apify.download_loopnet_document.return_value = b"%PDF-1.4"
+
+        def upload_side_effect(key, data, content_type="application/pdf"):
+            return f"https://bucket.s3.us-east-1.amazonaws.com/{key}"
+
+        s3.upload_bytes.side_effect = upload_side_effect
+
+        with build_asset_context() as ctx:
+            download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
+
+        update_kw = client.table.return_value.update.call_args[0][0]
         assert update_kw["om_url"] == update_kw["attachment_urls"][0]["url"]
 
     def test_download_failure_raises(self):
