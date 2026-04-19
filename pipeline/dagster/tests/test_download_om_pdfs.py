@@ -1,5 +1,5 @@
 """Tests for the download_om_pdfs asset and helper functions."""
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from dagster import build_asset_context
@@ -180,13 +180,17 @@ class TestDownloadOmPdfs:
         apify = make_apify()
 
         fake_pdf = b"%PDF-1.4 fake content"
-        with patch("zillow_pipeline.assets.download_om_pdfs._download", return_value=fake_pdf):
-            with build_asset_context() as ctx:
-                output = download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
+        apify.download_loopnet_document.return_value = fake_pdf
+
+        with build_asset_context() as ctx:
+            output = download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
 
         assert output.value == 1
         assert meta(output, "uploaded") == 1
         assert meta(output, "failed") == 0
+        apify.download_loopnet_document.assert_called_once_with(
+            "https://www.loopnet.com/Listing/3/", "https://cdn.example.com/om.pdf"
+        )
         s3.upload_bytes.assert_called_once_with(
             "om/uuid-3.pdf", fake_pdf, content_type="application/pdf"
         )
@@ -206,11 +210,11 @@ class TestDownloadOmPdfs:
         supabase, client = make_supabase(rows=rows)
         s3 = make_s3()
         apify = make_apify()
+        apify.download_loopnet_document.side_effect = ConnectionError("timeout")
 
-        with patch("zillow_pipeline.assets.download_om_pdfs._download", side_effect=ConnectionError("timeout")):
-            with build_asset_context() as ctx:
-                with pytest.raises(Exception, match="1 OM"):
-                    download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
+        with build_asset_context() as ctx:
+            with pytest.raises(Exception, match="1 OM"):
+                download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
 
         s3.upload_bytes.assert_not_called()
 
@@ -227,12 +231,11 @@ class TestDownloadOmPdfs:
         s3 = make_s3()
         s3.upload_bytes.side_effect = RuntimeError("S3 error")
         apify = make_apify()
+        apify.download_loopnet_document.return_value = b"%PDF fake"
 
-        fake_pdf = b"%PDF fake"
-        with patch("zillow_pipeline.assets.download_om_pdfs._download", return_value=fake_pdf):
-            with build_asset_context() as ctx:
-                with pytest.raises(Exception, match="1 OM"):
-                    download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
+        with build_asset_context() as ctx:
+            with pytest.raises(Exception, match="1 OM"):
+                download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
 
         client.table.return_value.update.assert_not_called()
 
@@ -261,11 +264,10 @@ class TestDownloadOmPdfs:
         supabase, _ = make_supabase(rows=rows)
         s3 = make_s3()
         apify = make_apify()
+        apify.download_loopnet_document.return_value = b"%PDF fake"
 
-        fake_pdf = b"%PDF fake"
-        with patch("zillow_pipeline.assets.download_om_pdfs._download", return_value=fake_pdf):
-            with build_asset_context() as ctx:
-                output = download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
+        with build_asset_context() as ctx:
+            output = download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
 
         assert meta(output, "already_done") == 1
         assert meta(output, "skipped") == 1

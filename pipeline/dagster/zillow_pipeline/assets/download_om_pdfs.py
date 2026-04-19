@@ -3,9 +3,11 @@ Download Offering Memorandum PDFs from loopnet_listings and upload them to S3.
 
 For each listing that has an attachment whose description contains "om",
 "offering memo", or "offering memorandum" (case-insensitive), we:
-  1. Download the PDF from the LoopNet CDN URL stored in `attachments`.
-     Downloads are routed through Apify residential proxies since the LoopNet
-     CDN (Akamai) blocks direct data-center requests.
+  1. Download the PDF via Apify's playwright-scraper actor.
+     Plain HTTP requests (even through residential proxies) return 403 from
+     Akamai because the CDN requires valid LoopNet session cookies. The
+     playwright actor visits the listing page first to establish the session,
+     then fetches the document URL in the same browser context.
   2. Upload the PDF to S3 under the key `om/{listing_id}.pdf`.
   3. Write the public S3 URL back to `loopnet_listings.om_url`.
 
@@ -13,8 +15,6 @@ Listings that already have `om_url` set are skipped.
 """
 
 import re
-
-import requests
 
 from dagster import AssetExecutionContext, Backoff, Output, RetryPolicy, asset
 
@@ -25,16 +25,6 @@ from zillow_pipeline.resources.supabase import SupabaseResource
 
 
 _OM_KEYWORDS = re.compile(r"offering\s*memo(randum)?|\bom\b", re.IGNORECASE)
-
-_DOWNLOAD_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": "application/pdf,*/*;q=0.9",
-    "Accept-Language": "en-US,en;q=0.9",
-}
 
 
 def _is_om_attachment(attachment: dict) -> bool:
@@ -52,19 +42,6 @@ def _find_om_url(attachments: list) -> str | None:
     return None
 
 
-def _download(url: str, proxy_url: str | None = None, timeout: int = 60) -> bytes:
-    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
-    response = requests.get(
-        url,
-        headers=_DOWNLOAD_HEADERS,
-        proxies=proxies,
-        timeout=timeout,
-        allow_redirects=True,
-    )
-    response.raise_for_status()
-    return response.content
-
-
 @asset(
     deps=[cleaned_loopnet_listings],
     retry_policy=RetryPolicy(
@@ -80,7 +57,6 @@ def download_om_pdfs(
     apify: ApifyResource,
 ) -> Output[int]:
     client = supabase.get_client()
-    proxy_url = apify.get_proxy_url()
 
     rows = (
         client.table("loopnet_listings")
@@ -109,7 +85,7 @@ def download_om_pdfs(
 
         context.log.info(f"Downloading OM for {listing_url} from {om_source_url}")
         try:
-            pdf_bytes = _download(om_source_url, proxy_url=proxy_url)
+            pdf_bytes = apify.download_loopnet_document(listing_url, om_source_url)
         except Exception as e:
             context.log.error(f"Failed to download OM for {listing_url}: {e}")
             failed += 1

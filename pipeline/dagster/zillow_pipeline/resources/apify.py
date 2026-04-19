@@ -10,12 +10,55 @@ class ApifyResource(ConfigurableResource):
     loopnet_search_actor_id: str
     loopnet_detail_actor_id: str
 
-    def get_proxy_url(self, country: str = "US") -> str:
-        """Return an Apify residential HTTPS proxy URL for use with requests."""
+    def download_loopnet_document(self, listing_url: str, document_url: str) -> bytes:
+        """
+        Download a LoopNet CDN document (e.g. OM PDF) using a real browser session.
+
+        A plain HTTP request to images1.loopnet.com is blocked by Akamai with 403
+        even through residential proxies, because it requires valid LoopNet session
+        cookies. We use the Apify playwright-scraper actor to visit the listing page
+        first (which sets the cookies), then fetch the document URL in the same
+        browser context and return the raw bytes.
+        """
         client = ApifyClient(self.api_token)
-        user = client.user().get()
-        proxy_password = user["proxy"]["password"]
-        return f"http://groups-RESIDENTIAL,country-{country}:{proxy_password}@proxy.apify.com:8000"
+
+        page_function = """
+async function pageFunction(context) {
+    const { page, request } = context;
+    const data = request.userData;
+
+    if (data.phase === 'listing') {
+        // Just load the listing page to establish session cookies, then navigate to doc
+        await page.waitForTimeout(2000);
+        const response = await page.goto(data.documentUrl, { waitUntil: 'networkidle', timeout: 60000 });
+        const buffer = await response.buffer();
+        return { base64: buffer.toString('base64') };
+    }
+}
+"""
+
+        run = client.actor("apify/playwright-scraper").call(
+            run_input={
+                "startUrls": [{"url": listing_url, "userData": {"phase": "listing", "documentUrl": document_url}}],
+                "pageFunction": page_function,
+                "proxyConfiguration": {
+                    "useApifyProxy": True,
+                    "apifyProxyGroups": ["RESIDENTIAL"],
+                    "apifyProxyCountry": "US",
+                },
+                "launchContext": {
+                    "launchOptions": {"headless": True},
+                },
+                "maxRequestsPerCrawl": 1,
+            }
+        )
+
+        items = list(client.dataset(run["defaultDatasetId"]).iterate_items())
+        if not items or not items[0].get("base64"):
+            raise ValueError(f"Playwright scraper returned no data for {document_url}")
+
+        import base64
+        return base64.b64decode(items[0]["base64"])
 
     def run_zillow_search(self, zip_code: str) -> list[dict]:
         client = ApifyClient(self.api_token)
