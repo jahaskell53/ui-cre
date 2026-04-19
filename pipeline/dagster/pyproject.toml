@@ -16,6 +16,8 @@ dependencies = [
     "postal",
     "pytest",
     "python-dateutil>=2.9.0.post0",
+    "boto3",
+    "requests",
 ]
 
 [tool.dg]

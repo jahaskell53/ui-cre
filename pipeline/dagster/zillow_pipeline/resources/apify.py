@@ -10,6 +10,13 @@ class ApifyResource(ConfigurableResource):
     loopnet_search_actor_id: str
     loopnet_detail_actor_id: str
 
+    def get_proxy_url(self, country: str = "US") -> str:
+        """Return an Apify residential HTTPS proxy URL for use with requests."""
+        client = ApifyClient(self.api_token)
+        user = client.user().get()
+        proxy_password = user["proxy"]["password"]
+        return f"http://groups-RESIDENTIAL,country-{country}:{proxy_password}@proxy.apify.com:8000"
+
     def run_zillow_search(self, zip_code: str) -> list[dict]:
         client = ApifyClient(self.api_token)
         run = client.actor(self.actor_id).call(
