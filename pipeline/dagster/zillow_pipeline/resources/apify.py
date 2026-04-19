@@ -15,49 +15,69 @@ class ApifyResource(ConfigurableResource):
         Download a LoopNet CDN document (e.g. OM PDF) using a real browser session.
 
         A plain HTTP request to images1.loopnet.com is blocked by Akamai with 403
-        even through residential proxies, because it requires valid LoopNet session
-        cookies. We use the Apify playwright-scraper actor to visit the listing page
-        first (which sets the cookies), then fetch the document URL in the same
-        browser context and return the raw bytes.
+        even through residential proxies, because the CDN requires valid LoopNet
+        session cookies. We visit the listing page first to establish those cookies,
+        then use page.evaluate() to fetch the document URL from inside the browser
+        (which automatically sends the cookies), and return the raw bytes.
         """
+        import base64
+
         client = ApifyClient(self.api_token)
 
         page_function = """
 async function pageFunction(context) {
-    const { page, request } = context;
-    const data = request.userData;
+    const { page, request, log } = context;
+    const documentUrl = request.userData.documentUrl;
 
-    if (data.phase === 'listing') {
-        // Just load the listing page to establish session cookies, then navigate to doc
-        await page.waitForTimeout(2000);
-        const response = await page.goto(data.documentUrl, { waitUntil: 'networkidle', timeout: 60000 });
-        const buffer = await response.buffer();
-        return { base64: buffer.toString('base64') };
+    // Listing page is already loaded — wait for cookies to settle
+    await page.waitForTimeout(3000);
+
+    // Fetch the PDF from inside the browser so session cookies are included
+    const base64 = await page.evaluate(async (url) => {
+        try {
+            const resp = await fetch(url, {
+                credentials: 'include',
+                headers: { 'Accept': 'application/pdf,*/*;q=0.9' },
+            });
+            if (!resp.ok) return null;
+            const buf = await resp.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            let bin = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                bin += String.fromCharCode(bytes[i]);
+            }
+            return btoa(bin);
+        } catch (e) {
+            return null;
+        }
+    }, documentUrl);
+
+    if (!base64) {
+        log.error('Browser fetch returned null for: ' + documentUrl);
+        return null;
     }
+
+    return { base64 };
 }
 """
 
         run = client.actor("apify/playwright-scraper").call(
             run_input={
-                "startUrls": [{"url": listing_url, "userData": {"phase": "listing", "documentUrl": document_url}}],
+                "startUrls": [{"url": listing_url, "userData": {"documentUrl": document_url}}],
                 "pageFunction": page_function,
                 "proxyConfiguration": {
                     "useApifyProxy": True,
                     "apifyProxyGroups": ["RESIDENTIAL"],
                     "apifyProxyCountry": "US",
                 },
-                "launchContext": {
-                    "launchOptions": {"headless": True},
-                },
                 "maxRequestsPerCrawl": 1,
             }
         )
 
-        items = list(client.dataset(run["defaultDatasetId"]).iterate_items())
-        if not items or not items[0].get("base64"):
+        items = [item for item in client.dataset(run["defaultDatasetId"]).iterate_items() if item.get("base64")]
+        if not items:
             raise ValueError(f"Playwright scraper returned no data for {document_url}")
 
-        import base64
         return base64.b64decode(items[0]["base64"])
 
     def run_zillow_search(self, zip_code: str) -> list[dict]:
