@@ -45,6 +45,7 @@ export interface LoopnetListing {
     square_footage: string | null;
     thumbnail_url: string | null;
     listing_url: string | null;
+    om_url: string | null;
     created_at: string | null;
     unit_mix: LoopnetUnitMixRow[] | null;
 }
