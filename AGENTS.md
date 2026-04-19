@@ -22,6 +22,7 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 3. Review the generated SQL to confirm it is correct and additive (see backward compatibility rule below).
 4. Commit both the schema change and the migration file in the same PR.
 5. On PR open/update, CI runs `supabase db push --dry-run` and posts the SQL as a PR comment so reviewers can see exactly what will run in production.
+5a. *(Recommended for non-trivial migrations)* Add the `validate-migration` label to the PR to trigger a full local apply (`supabase db reset`) in CI. This is the strongest pre-merge validation available and catches errors the dry-run misses.
 6. On merge to main, CI runs `supabase db push` to apply the migration before the Vercel deployment completes.
 
 **Do not apply schema changes via the Supabase MCP or the Supabase dashboard SQL editor.** All schema changes must go through the Drizzle → migration file → CI pipeline path described above so they remain version-controlled and reproducible.
@@ -35,9 +36,10 @@ Migrations must be **additive only** (new columns with defaults or nullable, new
 
 ### CI/CD: Database migrations
 
-Two GitHub Actions workflows manage schema changes automatically:
+Three GitHub Actions workflows manage schema changes automatically:
 
 - **`db-migration-dry-run.yml`** — triggers on every PR targeting `main`. Runs `supabase db push --dry-run` and posts the pending SQL as a comment on the PR so reviewers can inspect what will run against production. Requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_ID` as GitHub Actions secrets.
+- **`db-migration-validate.yml`** — opt-in, stronger validation. Triggers when the **`validate-migration` label** is added to a PR, or via manual `workflow_dispatch`. Starts an ephemeral local Supabase stack (Postgres in Docker) and applies every migration from scratch using `supabase db reset`. This catches SQL errors, missing extensions, type conflicts, and constraint violations that the dry-run cannot detect. No extra secrets needed — runs entirely locally. Posts pass/fail output as a PR comment. Use this for any PR that adds new migrations.
 - **`db-migration-apply.yml`** — triggers on every push to `main`. Runs `supabase db push` to apply pending migrations to production before the Vercel deployment completes. Same secrets required.
 
 This ordering guarantees that the database schema is always ahead of the application code.
