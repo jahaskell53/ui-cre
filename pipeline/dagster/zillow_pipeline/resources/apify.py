@@ -17,61 +17,70 @@ class ApifyResource(ConfigurableResource):
         A plain HTTP request to images1.loopnet.com is blocked by Akamai with 403
         even through residential proxies, because the CDN requires valid LoopNet
         session cookies. We visit the listing page first to establish those cookies,
-        then use page.evaluate() to fetch the document URL from inside the browser
-        (which automatically sends the cookies), and return the raw bytes.
+        then use Playwright's APIRequestContext (page.context().request) to fetch
+        the document. This shares cookies with the browser but runs at the Node.js
+        level, bypassing CORS restrictions between origins.
         """
         import base64
 
         client = ApifyClient(self.api_token)
 
+        # page.context().request.get() uses Playwright's APIRequestContext which
+        # shares cookies with the browser but makes requests at the Node.js level,
+        # bypassing CORS. A plain page.evaluate(fetch(...)) fails because the CDN
+        # (images1.loopnet.com) is cross-origin from the listing page
+        # (www.loopnet.com) and doesn't set Access-Control-Allow-Origin.
         page_function = """
 async function pageFunction(context) {
     const { page, request, log } = context;
     const documentUrl = request.userData.documentUrl;
 
-    // Listing page is already loaded — wait for cookies to settle
+    log.info('Listing page loaded, waiting for cookies to settle...');
     await page.waitForTimeout(3000);
+    log.info('Fetching document via APIRequestContext: ' + documentUrl);
 
-    // Fetch the PDF from inside the browser so session cookies are included
-    const base64 = await page.evaluate(async (url) => {
-        try {
-            const resp = await fetch(url, {
-                credentials: 'include',
-                headers: { 'Accept': 'application/pdf,*/*;q=0.9' },
-            });
-            if (!resp.ok) return null;
-            const buf = await resp.arrayBuffer();
-            const bytes = new Uint8Array(buf);
-            let bin = '';
-            for (let i = 0; i < bytes.byteLength; i++) {
-                bin += String.fromCharCode(bytes[i]);
-            }
-            return btoa(bin);
-        } catch (e) {
+    try {
+        const apiResponse = await page.context().request.get(documentUrl, {
+            headers: { 'Accept': 'application/pdf,*/*;q=0.9' },
+        });
+
+        if (!apiResponse.ok()) {
+            log.error('Document fetch HTTP ' + apiResponse.status() + ' ' + apiResponse.statusText());
             return null;
         }
-    }, documentUrl);
 
-    if (!base64) {
-        log.error('Browser fetch returned null for: ' + documentUrl);
+        const body = await apiResponse.body();
+        log.info('Document downloaded — ' + body.length + ' bytes');
+        return { base64: body.toString('base64') };
+    } catch (e) {
+        log.error('Document fetch error: ' + e.toString());
         return null;
     }
-
-    return { base64 };
 }
 """
+
+        pre_navigation_hooks = """[
+    async ({ request, session }, goToOptions) => {
+        goToOptions.waitUntil = 'domcontentloaded';
+    }
+]"""
 
         run = client.actor("apify/playwright-scraper").call(
             run_input={
                 "startUrls": [{"url": listing_url, "userData": {"documentUrl": document_url}}],
                 "pageFunction": page_function,
+                "preNavigationHooks": pre_navigation_hooks,
                 "proxyConfiguration": {
                     "useApifyProxy": True,
                     "apifyProxyGroups": ["RESIDENTIAL"],
                     "apifyProxyCountry": "US",
                 },
                 "maxRequestsPerCrawl": 1,
-            }
+                "maxRequestRetries": 8,
+                "useSessionPool": True,
+                "sessionPoolOptions": {"maxPoolSize": 1},
+            },
+            timeout_secs=300,
         )
 
         items = [item for item in client.dataset(run["defaultDatasetId"]).iterate_items() if item.get("base64")]
