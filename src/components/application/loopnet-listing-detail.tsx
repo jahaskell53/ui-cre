@@ -136,6 +136,19 @@ export function LoopnetListingDetail({ listing, backHref }: { listing: LoopnetLi
                             </a>
                         </div>
                     )}
+                    {listing.om_url && (
+                        <div className="pt-2">
+                            <a
+                                href={listing.om_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline dark:text-blue-400"
+                            >
+                                View Offering Memorandum
+                                <ExternalLink className="size-3.5" />
+                            </a>
+                        </div>
+                    )}
                 </dl>
             </section>
 

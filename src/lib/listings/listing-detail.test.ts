@@ -61,6 +61,7 @@ describe("listing-detail helpers", () => {
             square_footage: null,
             thumbnail_url: null,
             listing_url: null,
+            om_url: null,
             created_at: null,
             unit_mix: null,
         };
