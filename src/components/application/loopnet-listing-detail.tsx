@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, DollarSign, ExternalLink, Home, MapPin } from "lucide-react";
+import { Building2, DollarSign, ExternalLink, FileText, Home, MapPin } from "lucide-react";
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
 import { type LoopnetListing, getListingDisplayAddress } from "@/lib/listings/listing-detail";
 import { cn } from "@/lib/utils";
@@ -138,6 +138,33 @@ export function LoopnetListingDetail({ listing, backHref }: { listing: LoopnetLi
                     )}
                 </dl>
             </section>
+
+            {listing.attachment_urls && listing.attachment_urls.length > 0 && (
+                <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
+                        <FileText className="size-4" />
+                        Documents
+                        <span className="ml-1 text-sm font-normal text-gray-500">
+                            ({listing.attachment_urls.length} file{listing.attachment_urls.length !== 1 ? "s" : ""})
+                        </span>
+                    </h3>
+                    <ul className="space-y-2 text-sm">
+                        {listing.attachment_urls.map((att, i) => (
+                            <li key={`${att.source_url}-${i}`}>
+                                <a
+                                    href={att.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-blue-600 hover:underline dark:text-blue-400"
+                                >
+                                    {att.description?.trim() || `Document ${i + 1}`}
+                                    <ExternalLink className="size-3.5 shrink-0" />
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
 
             {/* Unit Mix */}
             {listing.unit_mix && listing.unit_mix.length > 0 && (

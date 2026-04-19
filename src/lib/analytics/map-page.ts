@@ -32,7 +32,7 @@ export interface Filters {
     capRateMax: string;
     sqftMin: string;
     sqftMax: string;
-    /** LoopNet (sales) only: listing has a non-empty offering memorandum URL. */
+    /** LoopNet (sales) only: listing has cached documents (`om_url` and/or `attachment_urls`). */
     hasOm: boolean;
     beds: number[];
     bathsMin: number | null;
