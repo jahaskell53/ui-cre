@@ -32,6 +32,8 @@ export interface Filters {
     capRateMax: string;
     sqftMin: string;
     sqftMax: string;
+    /** LoopNet (sales) only: listing has a non-empty offering memorandum URL. */
+    hasOm: boolean;
     beds: number[];
     bathsMin: number | null;
     laundry: LaundryFilterValue[];
@@ -90,6 +92,7 @@ export function createDefaultMapFilters(): Filters {
         capRateMax: "",
         sqftMin: "",
         sqftMax: "",
+        hasOm: false,
         beds: [],
         bathsMin: null,
         laundry: [],
@@ -102,6 +105,7 @@ export function parseMapFilters(searchParams: SearchParamSource): Filters {
     const bathsMin = searchParams.get("bathsMin");
     const laundryParam = searchParams.get("laundry");
     const propertyType = searchParams.get("propertyType");
+    const hasOmParam = searchParams.get("hasOm");
 
     const laundryValues = new Set<LaundryFilterValue>(["in_unit", "shared", "none"]);
     const laundry: LaundryFilterValue[] = laundryParam
@@ -118,6 +122,7 @@ export function parseMapFilters(searchParams: SearchParamSource): Filters {
         capRateMax: searchParams.get("capRateMax") ?? "",
         sqftMin: searchParams.get("sqftMin") ?? "",
         sqftMax: searchParams.get("sqftMax") ?? "",
+        hasOm: hasOmParam === "1" || hasOmParam === "true",
         beds: beds
             ? beds
                   .split(",")
@@ -209,6 +214,7 @@ export function countActiveMapFilters(filters: Filters, source: MapListingSource
 
     if (filters.priceMin || filters.priceMax) count++;
     if (source === "loopnet" && (filters.capRateMin || filters.capRateMax)) count++;
+    if (source === "loopnet" && filters.hasOm) count++;
     if (filters.sqftMin || filters.sqftMax) count++;
     if (source === "zillow" && filters.beds.length > 0) count++;
     if (source === "zillow" && filters.bathsMin !== null) count++;
@@ -305,6 +311,8 @@ export function buildMapSearchParams({
     else params.delete("sqftMin");
     if (filters.sqftMax) params.set("sqftMax", filters.sqftMax);
     else params.delete("sqftMax");
+    if (filters.hasOm) params.set("hasOm", "1");
+    else params.delete("hasOm");
     if (filters.beds.length > 0) params.set("beds", filters.beds.join(","));
     else params.delete("beds");
     if (filters.bathsMin !== null) params.set("bathsMin", String(filters.bathsMin));
