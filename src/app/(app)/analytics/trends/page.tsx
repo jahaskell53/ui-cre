@@ -479,10 +479,29 @@ export default function TrendsPage() {
             }
         };
 
+        const removeOldIfReplacing = () => {
+            if (replaceId) {
+                setSelectedAreas((prev) => prev.filter((a) => a.id !== replaceId));
+                setAreaResults((prev) => {
+                    const next = { ...prev };
+                    delete next[replaceId];
+                    return next;
+                });
+                setSalesResults((prev) => {
+                    const next = { ...prev };
+                    delete next[replaceId];
+                    return next;
+                });
+            }
+        };
+
         if (granularity === "ZIP Code") {
             const postcodeCtx = feature.context?.find((c) => c.id.startsWith("postcode."))?.text;
             const zip = feature.id.startsWith("postcode") ? feature.text : (postcodeCtx ?? null);
-            if (!zip) return;
+            if (!zip) {
+                removeOldIfReplacing();
+                return;
+            }
             if (!replaceId && (selectedAreas.find((a) => a.id === zip) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             const placeCtx = feature.context?.find((c) => c.id.startsWith("place."))?.text;
             const label = placeCtx ? `${zip} · ${placeCtx}` : zip;
@@ -497,7 +516,10 @@ export default function TrendsPage() {
             applyArea(key, { id: key, label, color, cityName, cityState: stateCode });
         } else if (granularity === "County") {
             const countyName = feature.context?.find((c) => c.id.startsWith("district."))?.text;
-            if (!countyName) return;
+            if (!countyName) {
+                removeOldIfReplacing();
+                return;
+            }
             const regionCtx = feature.context?.find((c) => c.id.startsWith("region."));
             const stateCode = ((regionCtx as typeof regionCtx & { short_code?: string })?.short_code ?? "").replace("US-", "");
             const key = `county:${countyName}:${stateCode}`;
@@ -508,7 +530,10 @@ export default function TrendsPage() {
             const [lng, lat] = feature.center;
             const rows = await getNeighborhoodAtPoint({ p_lat: lat, p_lng: lng });
             const nh = rows[0];
-            if (!nh) return;
+            if (!nh) {
+                removeOldIfReplacing();
+                return;
+            }
             const key = `nh:${nh.id}`;
             if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             applyArea(key, { id: key, label: `${nh.name} · ${nh.city}`, color, neighborhoodId: nh.id });
@@ -516,7 +541,10 @@ export default function TrendsPage() {
             const [lng, lat] = feature.center;
             const msaRows = await getMsaAtPoint({ p_lat: lat, p_lng: lng });
             const msa = msaRows[0];
-            if (!msa) return;
+            if (!msa) {
+                removeOldIfReplacing();
+                return;
+            }
             const key = `msa:${msa.geoid}`;
             if (!replaceId && (selectedAreas.find((a) => a.id === key) || selectedAreas.length >= MAX_TREND_AREAS)) return;
             applyArea(key, { id: key, label: msa.name, color, msaGeoid: msa.geoid });
