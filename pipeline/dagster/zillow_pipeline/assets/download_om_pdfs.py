@@ -136,6 +136,13 @@ def download_om_pdfs(
         f"already_done={already_done}, failed={failed}"
     )
 
+    if failed > 0:
+        raise Exception(
+            f"{failed} OM(s) failed to download/upload "
+            f"({uploaded} uploaded, {skipped} skipped, {already_done} already done). "
+            f"Check logs above for the specific errors."
+        )
+
     return Output(
         value=uploaded,
         metadata={

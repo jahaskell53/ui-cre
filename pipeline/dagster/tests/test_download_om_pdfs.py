@@ -194,7 +194,7 @@ class TestDownloadOmPdfs:
             {"om_url": "https://bucket.s3.us-east-1.amazonaws.com/om/uuid-3.pdf"}
         )
 
-    def test_download_failure_counted_as_failed(self):
+    def test_download_failure_raises(self):
         rows = [
             {
                 "id": "uuid-4",
@@ -209,13 +209,12 @@ class TestDownloadOmPdfs:
 
         with patch("zillow_pipeline.assets.download_om_pdfs._download", side_effect=ConnectionError("timeout")):
             with build_asset_context() as ctx:
-                output = download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
+                with pytest.raises(Exception, match="1 OM"):
+                    download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
 
-        assert output.value == 0
-        assert meta(output, "failed") == 1
         s3.upload_bytes.assert_not_called()
 
-    def test_s3_upload_failure_counted_as_failed(self):
+    def test_s3_upload_failure_raises(self):
         rows = [
             {
                 "id": "uuid-5",
@@ -232,10 +231,9 @@ class TestDownloadOmPdfs:
         fake_pdf = b"%PDF fake"
         with patch("zillow_pipeline.assets.download_om_pdfs._download", return_value=fake_pdf):
             with build_asset_context() as ctx:
-                output = download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
+                with pytest.raises(Exception, match="1 OM"):
+                    download_om_pdfs(context=ctx, supabase=supabase, s3=s3, apify=apify)
 
-        assert output.value == 0
-        assert meta(output, "failed") == 1
         client.table.return_value.update.assert_not_called()
 
     def test_mixed_rows(self):
