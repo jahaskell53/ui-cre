@@ -1006,7 +1006,7 @@ function MapPageInner() {
                         </div>
                     </div>
 
-                    <div className="flex w-full min-w-0 rounded-lg border border-input shadow-xs">
+                    <div className="flex w-full max-w-lg min-w-0 rounded-lg border border-input shadow-xs">
                         <Select
                             value={areaType}
                             onValueChange={(v) => {
