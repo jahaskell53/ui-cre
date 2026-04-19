@@ -290,6 +290,7 @@ export function ZillowListingDetail({ listing, backHref }: { listing: ZillowList
                 <>
                     <MapPin className="size-3.5" />
                     {[listing.address_city, listing.address_state].filter(Boolean).join(", ")}
+                    {zillowRawDetails?.neighborhood && <span className="text-gray-500 dark:text-gray-400">· {zillowRawDetails.neighborhood}</span>}
                 </>
             }
             headerBadge={
