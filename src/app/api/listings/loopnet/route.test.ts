@@ -29,6 +29,8 @@ describe("GET /api/listings/loopnet", () => {
             address: "1 Main St",
             headline: null,
             location: "SF, CA",
+            latitude: 37.7749,
+            longitude: -122.4194,
             price: "$1M",
             capRate: "5%",
             buildingCategory: "Multifamily",
@@ -56,6 +58,8 @@ describe("GET /api/listings/loopnet", () => {
             { source_url: "https://cdn/a.pdf", url: "https://s3/a.pdf", description: "OM" },
             { source_url: "https://cdn/b.pdf", url: "https://s3/b.pdf" },
         ]);
+        expect(body.latitude).toBe(37.7749);
+        expect(body.longitude).toBe(-122.4194);
     });
 
     it("returns empty map payload when no rows (latest_only)", async () => {

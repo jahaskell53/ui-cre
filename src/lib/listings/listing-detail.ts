@@ -46,6 +46,8 @@ export interface LoopnetListing {
     address: string | null;
     headline: string | null;
     location: string | null;
+    latitude: number | null;
+    longitude: number | null;
     price: string | null;
     cap_rate: string | null;
     building_category: string | null;
