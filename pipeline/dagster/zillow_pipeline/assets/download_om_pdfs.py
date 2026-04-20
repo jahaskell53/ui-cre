@@ -7,7 +7,11 @@ For each listing attachment that has a document URL (`link` or `url`), we:
   3. Replace `loopnet_listings.attachment_urls` with a JSON array:
      `[{ "source_url": "<original>", "url": "<s3 public url>", "description": "<optional>" }, ...]`.
 
-`om_url` is set to the first uploaded URL when at least one attachment succeeds (for older clients).
+`om_url` is set to the S3 URL of the first attachment that looks like an offering memorandum:
+description matches the legacy regex, or the source URL path/filename suggests an OM
+(whole-word / token "om" in the path, or "offering memo" style text in the URL).
+
+If none qualify, `om_url` falls back to the first uploaded attachment URL.
 
 Listings whose `attachment_urls` already fully cover every current attachment URL are skipped.
 """
@@ -18,6 +22,7 @@ import json
 from dagster import AssetExecutionContext, Backoff, Output, RetryPolicy, asset
 
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
+from zillow_pipeline.lib.loopnet_om_selection import pick_om_s3_url
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.s3 import S3Resource
 from zillow_pipeline.resources.supabase import SupabaseResource
@@ -139,8 +144,9 @@ def download_om_pdfs(
             context.log.warning(f"No attachments uploaded for {listing_url} ({listing_failed} failure(s))")
             continue
 
-        first_url = built[0]["url"]
-        payload = {"attachment_urls": built, "om_url": first_url}
+        om_pick = pick_om_s3_url(built)
+        om_url = om_pick if om_pick else built[0]["url"]
+        payload = {"attachment_urls": built, "om_url": om_url}
 
         try:
             client.table("loopnet_listings").update(payload).eq("id", listing_id).execute()
