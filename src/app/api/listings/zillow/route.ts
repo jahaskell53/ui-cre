@@ -6,6 +6,11 @@ import { type ZillowMapListingRow } from "@/lib/map-listings";
 const ZILLOW_MAP_RPC_MAX_ATTEMPTS = 3;
 const ZILLOW_MAP_CACHE_CONTROL = "public, s-maxage=604800, stale-while-revalidate=86400";
 
+function toPostgresIntegerArrayLiteral(values: number[] | null): string | null {
+    if (!values || values.length === 0) return null;
+    return `{${values.join(",")}}`;
+}
+
 function isStatementTimeoutMessage(message: string): boolean {
     const m = message.toLowerCase();
     return m.includes("statement timeout") || m.includes("57014");
@@ -30,6 +35,8 @@ async function callZillowMapListingsRpc(params: {
     p_bounds_west: number | null;
     p_bounds_east: number | null;
 }): Promise<ZillowMapListingRow[]> {
+    const bedsParam = toPostgresIntegerArrayLiteral(params.p_beds);
+
     // Call the function directly via Drizzle (postgres.js), bypassing PostgREST's
     // max_rows limit so all matching listings are returned regardless of viewport size.
     const rows = await db.execute<{
@@ -70,7 +77,7 @@ async function callZillowMapListingsRpc(params: {
             ${params.p_price_max}::integer,
             ${params.p_sqft_min}::integer,
             ${params.p_sqft_max}::integer,
-            ${params.p_beds}::integer[],
+            ${bedsParam}::integer[],
             ${params.p_baths_min}::numeric,
             ${params.p_home_types}::text[],
             ${params.p_property_type}::text,
@@ -118,7 +125,13 @@ export async function GET(request: NextRequest) {
             p_price_max: sp.has("price_max") ? parseFloat(sp.get("price_max")!) : null,
             p_sqft_min: sp.has("sqft_min") ? parseFloat(sp.get("sqft_min")!) : null,
             p_sqft_max: sp.has("sqft_max") ? parseFloat(sp.get("sqft_max")!) : null,
-            p_beds: sp.has("beds") ? sp.get("beds")!.split(",").map(Number) : null,
+            p_beds: sp.has("beds")
+                ? sp
+                      .get("beds")!
+                      .split(",")
+                      .map(Number)
+                      .filter((v) => !Number.isNaN(v))
+                : null,
             p_baths_min: sp.has("baths_min") ? parseFloat(sp.get("baths_min")!) : null,
             p_home_types: sp.has("home_types") ? sp.get("home_types")!.split(",") : null,
             p_property_type: sp.get("property_type") ?? "both",
