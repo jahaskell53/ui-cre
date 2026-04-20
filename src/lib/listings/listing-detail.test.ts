@@ -55,6 +55,8 @@ describe("listing-detail helpers", () => {
             address: null,
             headline: "Downtown Asset",
             location: null,
+            latitude: null,
+            longitude: null,
             price: null,
             cap_rate: null,
             building_category: null,
