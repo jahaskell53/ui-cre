@@ -14,51 +14,16 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import {
-    classifyIntegrationVitest,
-    classifyUnitVitest,
-} from "./vitest-changes-classifier.mjs";
+import { getGithubChangedPaths } from "./git-changed-paths.mjs";
+import { classifyIntegrationVitest, classifyUnitVitest } from "./vitest-changes-classifier.mjs";
 
 const mode = process.argv[2];
 if (mode !== "unit" && mode !== "integration") {
-    console.error('Usage: run-vitest-for-changes.mjs <unit|integration>');
+    console.error("Usage: run-vitest-for-changes.mjs <unit|integration>");
     process.exit(2);
 }
 
 const REPO_ROOT = process.cwd();
-
-function git(args) {
-    return execSync(`git ${args}`, { encoding: "utf8", cwd: REPO_ROOT }).trimEnd();
-}
-
-function diffNameOnly(threeDotRange) {
-    try {
-        return git(`diff --name-only --diff-filter=ACMRTUXB ${threeDotRange}`)
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean);
-    } catch {
-        return null;
-    }
-}
-
-function getChangedPaths() {
-    const event = process.env.GITHUB_EVENT_NAME;
-    if (event === "pull_request") {
-        const base = process.env.GITHUB_PR_BASE_SHA;
-        const head = process.env.GITHUB_PR_HEAD_SHA;
-        if (!base || !head) return null;
-        return diffNameOnly(`${base}...${head}`);
-    }
-    if (event === "push") {
-        const before = process.env.GITHUB_PUSH_BEFORE;
-        const after = process.env.GITHUB_SHA;
-        if (!after) return null;
-        if (!before || /^0+$/.test(before)) return null;
-        return diffNameOnly(`${before}...${after}`);
-    }
-    return null;
-}
 
 function existingSrcPaths(paths) {
     return paths.filter((p) => p.startsWith("src/") && fs.existsSync(path.join(REPO_ROOT, p)));
@@ -69,7 +34,7 @@ function run(cmd) {
     execSync(cmd, { stdio: "inherit", cwd: REPO_ROOT });
 }
 
-const changed = getChangedPaths();
+const changed = getGithubChangedPaths();
 
 if (changed === null) {
     console.log("No git range (local or unknown event): running full Vitest suite.");

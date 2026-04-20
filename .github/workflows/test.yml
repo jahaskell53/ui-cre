@@ -39,11 +39,14 @@ jobs:
             - name: Check Prettier formatting
               run: bun run format:check
 
-            - name: Check application build
-              run: bun run build
+            - name: Check application build (skip when only pipeline or workflow paths changed)
+              run: node scripts/ci/run-next-build-if-needed.mjs
 
             - name: Verify CI Vitest change classifier
               run: node --test scripts/ci/vitest-changes-classifier.test.mjs
+
+            - name: Verify CI Next build change classifier
+              run: node --test scripts/ci/next-build-changes-classifier.test.mjs
 
             - name: Run unit tests (full or Vitest related to changed paths)
               run: node scripts/ci/run-vitest-for-changes.mjs unit
