@@ -7,10 +7,9 @@ from dagster import build_asset_context
 from zillow_pipeline.assets.download_om_pdfs import (
     download_om_pdfs,
     _attachment_source_urls,
-    _looks_like_om,
-    _pick_om_s3_url,
     _urls_fully_cached,
 )
+from zillow_pipeline.lib.loopnet_om_selection import looks_like_om, pick_om_s3_url
 
 
 def make_supabase(rows=None):
@@ -75,16 +74,16 @@ class TestAttachmentSourceUrls:
 
 class TestLooksLikeOm:
     def test_description_offering_memorandum(self):
-        assert _looks_like_om("https://x/floor.pdf", "Offering Memorandum") is True
+        assert looks_like_om("https://x/floor.pdf", "Offering Memorandum") is True
 
     def test_description_floorplan_only(self):
-        assert _looks_like_om("https://x/floor.pdf", "Floorplan") is False
+        assert looks_like_om("https://x/floor.pdf", "Floorplan") is False
 
     def test_url_path_contains_om_token(self):
-        assert _looks_like_om("https://cdn.example.com/docs/OM_Signed.pdf", None) is True
+        assert looks_like_om("https://cdn.example.com/docs/OM_Signed.pdf", None) is True
 
     def test_url_path_offering_memo_slug(self):
-        assert _looks_like_om("https://cdn.example.com/listing/offering-memorandum.pdf", None) is True
+        assert looks_like_om("https://cdn.example.com/listing/offering-memorandum.pdf", None) is True
 
 
 class TestPickOmS3Url:
@@ -97,13 +96,13 @@ class TestPickOmS3Url:
                 "description": "Offering Memorandum",
             },
         ]
-        assert _pick_om_s3_url(built) == "https://s3/om.pdf"
+        assert pick_om_s3_url(built) == "https://s3/om.pdf"
 
     def test_returns_none_when_no_match(self):
         built = [
             {"source_url": "https://a/a.pdf", "url": "https://s3/a.pdf", "description": "Brochure"},
         ]
-        assert _pick_om_s3_url(built) is None
+        assert pick_om_s3_url(built) is None
 
 
 class TestUrlsFullyCached:
