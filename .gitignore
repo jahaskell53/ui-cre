@@ -10,6 +10,7 @@
 !.yarn/releases
 !.yarn/versions
 *.mjs
+!scripts/ci/*.mjs
 har/
 test-emails/
 screenshots/
