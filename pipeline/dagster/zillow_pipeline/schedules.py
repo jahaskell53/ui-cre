@@ -45,6 +45,7 @@ from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scra
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
 from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
+from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
 
 zillow_scrape_job = define_asset_job(
     name="zillow_weekly_scrape_job",
@@ -90,7 +91,15 @@ weekly_loopnet_scrape_schedule = ScheduleDefinition(
 
 
 @run_failure_sensor(
-    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, loopnet_om_job],
+    monitored_jobs=[
+        zillow_scrape_job,
+        zillow_cleaning_job,
+        zillow_building_job,
+        loopnet_scrape_job,
+        loopnet_cleaning_job,
+        loopnet_om_job,
+        backfill_loopnet_om_url_job,
+    ],
 )
 def alert_on_pipeline_failure(context: RunFailureSensorContext):
     error_msg = str(context.failure_event.message) if context.failure_event else None
@@ -99,7 +108,15 @@ def alert_on_pipeline_failure(context: RunFailureSensorContext):
 
 @run_status_sensor(
     run_status=DagsterRunStatus.SUCCESS,
-    monitored_jobs=[zillow_scrape_job, zillow_cleaning_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, loopnet_om_job],
+    monitored_jobs=[
+        zillow_scrape_job,
+        zillow_cleaning_job,
+        zillow_building_job,
+        loopnet_scrape_job,
+        loopnet_cleaning_job,
+        loopnet_om_job,
+        backfill_loopnet_om_url_job,
+    ],
 )
 def alert_on_pipeline_success(context: RunStatusSensorContext):
     _send_run_alert(context.dagster_run.job_name, context.dagster_run.run_id, success=True)
