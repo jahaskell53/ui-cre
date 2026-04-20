@@ -75,6 +75,16 @@ describe("GET /api/listings/zillow", () => {
         expect(res.status).toBe(200);
     });
 
+    it("serializes beds as a postgres int[] literal", async () => {
+        mockDbExecute.mockResolvedValue([]);
+
+        const res = await GET(makeGet({ beds: "2,1" }));
+        const query = mockDbExecute.mock.calls[0]?.[0] as { values?: unknown[] };
+
+        expect(res.status).toBe(200);
+        expect(query.values?.[8]).toBe("{2,1}");
+    });
+
     it("snaps bounds outward to 0.1° grid", async () => {
         mockDbExecute.mockResolvedValue([]);
         // south=37.82 floors to 37.8, north=37.85 ceils to 37.9
