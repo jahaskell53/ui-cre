@@ -18,24 +18,14 @@ Listings whose `attachment_urls` already fully cover every current attachment UR
 
 import hashlib
 import json
-import re
-from urllib.parse import unquote, urlparse
 
 from dagster import AssetExecutionContext, Backoff, Output, RetryPolicy, asset
 
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
+from zillow_pipeline.lib.loopnet_om_selection import pick_om_s3_url
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.s3 import S3Resource
 from zillow_pipeline.resources.supabase import SupabaseResource
-
-# Description: legacy LoopNet OM phrasing (case-insensitive).
-_OM_DESCRIPTION = re.compile(r"offering\s*memo(randum)?|\bom\b", re.IGNORECASE)
-# URL path / filename: offering memo(randum) with spaces/hyphens/underscores between words;
-# whole-word "om"; or "om" as a path token (e.g. .../OM_Signed.pdf).
-_OM_IN_URL = re.compile(
-    r"offering[-\s._]*memo(?:randum)?|\bom\b|(?<=[/._\-])om(?=[/._\-?#&]|$)",
-    re.IGNORECASE,
-)
 
 
 def _attachment_source_urls(attachments: list) -> list[tuple[str, str | None]]:
@@ -71,35 +61,6 @@ def _urls_fully_cached(source_urls: list[str], cached: object) -> bool:
         if isinstance(su, str) and isinstance(u, str) and su.strip() and u.strip():
             indexed[su.strip()] = u.strip()
     return all(s in indexed and bool(indexed[s].strip()) for s in source_urls)
-
-
-def _looks_like_om(source_url: str, description: str | None) -> bool:
-    """True if attachment description or document URL suggests an offering memorandum."""
-    desc = (description or "").strip()
-    if desc and _OM_DESCRIPTION.search(desc):
-        return True
-    try:
-        path = unquote(urlparse(source_url).path or "")
-    except Exception:
-        path = source_url
-    path = path.strip()
-    if not path:
-        return False
-    basename = path.rsplit("/", 1)[-1] if "/" in path else path
-    combined = f"{path} {basename}"
-    return bool(_OM_IN_URL.search(combined))
-
-
-def _pick_om_s3_url(built: list[dict[str, str]]) -> str | None:
-    """First uploaded S3 URL whose source attachment looks like an OM, else None."""
-    for entry in built:
-        source = entry.get("source_url") or ""
-        desc = entry.get("description")
-        if _looks_like_om(source, desc if isinstance(desc, str) else None):
-            url = entry.get("url") or ""
-            if url.strip():
-                return url.strip()
-    return None
 
 
 @asset(
@@ -183,7 +144,7 @@ def download_om_pdfs(
             context.log.warning(f"No attachments uploaded for {listing_url} ({listing_failed} failure(s))")
             continue
 
-        om_pick = _pick_om_s3_url(built)
+        om_pick = pick_om_s3_url(built)
         om_url = om_pick if om_pick else built[0]["url"]
         payload = {"attachment_urls": built, "om_url": om_url}
 
