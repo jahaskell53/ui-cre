@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Building2, DollarSign, ExternalLink, FileText, Home, MapPin } from "lucide-react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { PropertyDetailLayout } from "@/components/application/property-detail-layout";
 import { type LoopnetListing, getListingDisplayAddress } from "@/lib/listings/listing-detail";
 import { cn } from "@/lib/utils";
 
+const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
+
 export function LoopnetListingDetail({ listing, backHref }: { listing: LoopnetListing; backHref?: string }) {
     const [offMarketDate, setOffMarketDate] = useState<string | null>(null);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapInstance = useRef<mapboxgl.Map | null>(null);
 
     useEffect(() => {
         async function checkOffMarket() {
@@ -22,6 +28,31 @@ export function LoopnetListingDetail({ listing, backHref }: { listing: LoopnetLi
             }
         }
         checkOffMarket();
+    }, [listing]);
+
+    useEffect(() => {
+        const { latitude: lat, longitude: lng } = listing;
+        if (!lat || !lng || !mapContainerRef.current || mapInstance.current) return;
+
+        const map = new mapboxgl.Map({
+            container: mapContainerRef.current,
+            style: "mapbox://styles/mapbox/light-v11",
+            center: [lng, lat],
+            zoom: 14,
+            accessToken: MAPBOX_TOKEN,
+            interactive: false,
+            attributionControl: false,
+        });
+
+        map.on("load", () => {
+            new mapboxgl.Marker({ color: "#f97316" }).setLngLat([lng, lat]).addTo(map);
+        });
+
+        mapInstance.current = map;
+        return () => {
+            mapInstance.current?.remove();
+            mapInstance.current = null;
+        };
     }, [listing]);
 
     const displayAddress = getListingDisplayAddress(listing);
@@ -151,6 +182,17 @@ export function LoopnetListingDetail({ listing, backHref }: { listing: LoopnetLi
                     )}
                 </dl>
             </section>
+
+            {/* Map */}
+            {listing.latitude && listing.longitude && (
+                <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                    <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-700">
+                        <MapPin className="size-4 text-gray-500" />
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Location</h3>
+                    </div>
+                    <div ref={mapContainerRef} className="h-full min-h-48 w-full" />
+                </section>
+            )}
 
             {listing.attachment_urls && listing.attachment_urls.length > 0 && (
                 <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
