@@ -44,6 +44,18 @@ def _safe_int(val) -> int | None:
         return None
 
 
+def _normalize_address_parts(raw: str) -> dict[str, str]:
+    """Parse a free-form address with libpostal; empty dict if unavailable or blank."""
+    if not raw or not str(raw).strip():
+        return {}
+    try:
+        from postal.parser import parse_address
+    except ImportError:
+        return {}
+    parts = parse_address(str(raw).strip())
+    return {label: value for value, label in parts}
+
+
 def _get(d: dict, *keys, default=None):
     """Safely traverse nested dict keys."""
     for key in keys:
@@ -107,16 +119,51 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
     # Email from brokerDetails
     broker_email = primary_broker.get("email") or None
 
+    street_line = (item.get("address") or header.get("headerAddress") or "").strip()
+    city = (item.get("city") or "").strip()
+    state = (item.get("state") or "").strip()
+    zip_code = (item.get("zip") or "").strip()
+    city_state = ", ".join(p for p in (city, state) if p)
+    if city_state and zip_code:
+        locality_line = f"{city_state} {zip_code}"
+    elif city_state:
+        locality_line = city_state
+    else:
+        locality_line = zip_code
+
+    if street_line and locality_line:
+        address_raw = f"{street_line}, {locality_line}"
+    elif street_line:
+        address_raw = street_line
+    elif locality_line:
+        address_raw = locality_line
+    else:
+        address_raw = (header.get("location") or "").strip()
+
+    parsed = _normalize_address_parts(address_raw) if address_raw else {}
+    street_from_postal = " ".join(
+        p for p in (parsed.get("house_number", "").strip(), parsed.get("road", "").strip()) if p
+    )
+    address_street = (street_from_postal.title() if street_from_postal else street_line) or ""
+    address_city = (parsed.get("city") or city or "").strip() or ""
+    address_state = (parsed.get("state") or state or "").strip() or ""
+    address_zip = (parsed.get("postcode") or zip_code or "").strip() or ""
+
     return {
         "listing_url":          listing_url,
         "thumbnail_url":        thumbnail_url,
         "broker_logo_url":      broker_logo_url,
-        "address":              item.get("address") or header.get("headerAddress") or "",
+        "address":              street_line,
+        "address_raw":          address_raw,
+        "address_street":       address_street,
+        "address_city":         address_city,
+        "address_state":        address_state,
+        "address_zip":          address_zip,
         "headline":             header.get("subtext") or "",
         "location":             header.get("location") or "",
-        "city":                 item.get("city") or "",
-        "state":                item.get("state") or "",
-        "zip":                  item.get("zip") or "",
+        "city":                 city,
+        "state":                state,
+        "zip":                  zip_code,
         "price":                price_str,
         "price_numeric":        price_numeric,
         "cap_rate":             cap_rate,

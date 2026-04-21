@@ -26,6 +26,15 @@ describe("mapLoopnetRow", () => {
         expect(result.listingSource).toBe("loopnet");
     });
 
+    it("prefers address_raw for pin address when present", () => {
+        const result = mapLoopnetRow({
+            ...base,
+            address: "123 Main St",
+            address_raw: "123 Main St, San Francisco, CA 94102",
+        });
+        expect(result.address).toBe("123 Main St, San Francisco, CA 94102");
+    });
+
     it("sets coordinates as [longitude, latitude]", () => {
         const result = mapLoopnetRow(base);
         expect(result.coordinates).toEqual([-122.41, 37.77]);

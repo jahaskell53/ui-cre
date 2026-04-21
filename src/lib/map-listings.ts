@@ -7,10 +7,11 @@ export type LoopnetRow = Record<string, unknown>;
 export type PropertyWithDate = Property & { _createdAt?: string };
 
 export function mapLoopnetRow(item: LoopnetRow): PropertyWithDate {
+    const displayAddress = (typeof item.address_raw === "string" && item.address_raw.trim()) || (typeof item.address === "string" && item.address.trim()) || "";
     return {
         id: item.id as string | number,
         name: (item.headline || item.address || "Building") as string,
-        address: (item.address || "Address not listed") as string,
+        address: (displayAddress || "Address not listed") as string,
         location: (item.location as string) ?? undefined,
         units: item.square_footage ? Math.floor(parseInt(String(item.square_footage).replace(/[^0-9]/g, "") || "0") / 500) || null : null,
         price: (item.price as string) || "TBD",

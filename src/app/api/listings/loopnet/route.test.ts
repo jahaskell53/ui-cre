@@ -27,6 +27,11 @@ describe("GET /api/listings/loopnet", () => {
         const row = {
             id: "ln-1",
             address: "1 Main St",
+            addressRaw: "1 Main St, San Francisco, CA 94102",
+            addressStreet: "1 Main St",
+            addressCity: "San Francisco",
+            addressState: "CA",
+            addressZip: "94102",
             headline: null,
             location: "SF, CA",
             latitude: 37.7749,
@@ -54,6 +59,11 @@ describe("GET /api/listings/loopnet", () => {
         const body = await res.json();
 
         expect(res.status).toBe(200);
+        expect(body.address_raw).toBe("1 Main St, San Francisco, CA 94102");
+        expect(body.address_street).toBe("1 Main St");
+        expect(body.address_city).toBe("San Francisco");
+        expect(body.address_state).toBe("CA");
+        expect(body.address_zip).toBe("94102");
         expect(body.attachment_urls).toEqual([
             { source_url: "https://cdn/a.pdf", url: "https://s3/a.pdf", description: "OM" },
             { source_url: "https://cdn/b.pdf", url: "https://s3/b.pdf" },
