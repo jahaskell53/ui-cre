@@ -344,6 +344,10 @@ export const loopnetListings = pgTable(
         omUrl: text("om_url"),
         /** Cached S3 URLs for LoopNet listing attachments: `[{ source_url, url, description? }]` */
         attachmentUrls: jsonb("attachment_urls").default(sql`'[]'::jsonb`),
+        /** Full text (markdown) of the OM PDF, produced by convert_om_to_text. */
+        omText: text("om_text"),
+        /** Timestamp of last successful OM PDF-to-text conversion. */
+        omTextExtractedAt: timestamp("om_text_extracted_at", { withTimezone: true, mode: "string" }),
         /** Cap rate extracted from the OM PDF (e.g. "5.25%"). */
         omCapRate: text("om_cap_rate"),
         /** Cost per door extracted from the OM PDF (e.g. "$150,000"). */
