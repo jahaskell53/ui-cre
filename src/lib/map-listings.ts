@@ -13,7 +13,7 @@ export function mapLoopnetRow(item: LoopnetRow): PropertyWithDate {
         name: (item.headline || item.address || "Building") as string,
         address: (displayAddress || "Address not listed") as string,
         location: (item.location as string) ?? undefined,
-        units: item.square_footage ? Math.floor(parseInt(String(item.square_footage).replace(/[^0-9]/g, "") || "0") / 500) || null : null,
+        units: null,
         price: (item.price as string) || "TBD",
         coordinates: [item.longitude as number, item.latitude as number],
         thumbnailUrl: (item.thumbnail_url as string | null) ?? undefined,

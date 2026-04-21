@@ -63,14 +63,9 @@ describe("mapLoopnetRow", () => {
         expect(result.price).toBe("TBD");
     });
 
-    it("estimates units from square_footage / 500", () => {
-        const result = mapLoopnetRow({ ...base, square_footage: "5000" });
-        expect(result.units).toBe(10);
-    });
-
-    it("returns null units when square_footage is missing", () => {
-        const result = mapLoopnetRow({ ...base, square_footage: null });
-        expect(result.units).toBeNull();
+    it("does not derive units from square footage (Loopnet has no unit count on map)", () => {
+        expect(mapLoopnetRow({ ...base, square_footage: "5000" }).units).toBeNull();
+        expect(mapLoopnetRow({ ...base, square_footage: null }).units).toBeNull();
     });
 });
 
