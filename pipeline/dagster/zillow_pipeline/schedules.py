@@ -45,6 +45,7 @@ from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scra
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
 from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
+from zillow_pipeline.assets.extract_om_metrics import extract_om_metrics
 from zillow_pipeline.jobs.backfill_loopnet_address_fields import backfill_loopnet_address_fields_job
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
 
@@ -84,6 +85,11 @@ loopnet_om_job = define_asset_job(
     selection=AssetSelection.assets(download_om_pdfs),
 )
 
+loopnet_om_metrics_job = define_asset_job(
+    name="loopnet_om_metrics_job",
+    selection=AssetSelection.assets(extract_om_metrics),
+)
+
 weekly_loopnet_scrape_schedule = ScheduleDefinition(
     name="weekly_loopnet_scrape",
     job=loopnet_scrape_job,
@@ -99,6 +105,7 @@ weekly_loopnet_scrape_schedule = ScheduleDefinition(
         loopnet_scrape_job,
         loopnet_cleaning_job,
         loopnet_om_job,
+        loopnet_om_metrics_job,
         backfill_loopnet_om_url_job,
         backfill_loopnet_address_fields_job,
     ],
@@ -117,6 +124,7 @@ def alert_on_pipeline_failure(context: RunFailureSensorContext):
         loopnet_scrape_job,
         loopnet_cleaning_job,
         loopnet_om_job,
+        loopnet_om_metrics_job,
         backfill_loopnet_om_url_job,
         backfill_loopnet_address_fields_job,
     ],
@@ -158,4 +166,13 @@ def trigger_loopnet_cleaning_after_scrape(context: RunStatusSensorContext):
     request_job=loopnet_om_job,
 )
 def trigger_om_download_after_cleaning(context: RunStatusSensorContext):
+    return RunRequest()
+
+
+@run_status_sensor(
+    run_status=DagsterRunStatus.SUCCESS,
+    monitored_jobs=[loopnet_om_job],
+    request_job=loopnet_om_metrics_job,
+)
+def trigger_om_metrics_after_om_download(context: RunStatusSensorContext):
     return RunRequest()
