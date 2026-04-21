@@ -350,7 +350,9 @@ export const loopnetListings = pgTable(
         index("idx_loopnet_listings_listing_url").using("btree", table.listingUrl.asc().nullsLast().op("text_ops")),
         index("idx_loopnet_listings_address_city_state_lower").using("btree", sql`lower(address_city)`, sql`lower(address_state)`),
         uniqueIndex("loopnet_listings_listing_url_run_id_key").on(table.listingUrl, table.runId),
-        index("idx_loopnet_listings_geom").using("gist", table.geom.asc().nullsLast().op("gist_geometry_ops_2d")).where(sql`(geom IS NOT NULL)`),
+        index("idx_loopnet_listings_geom")
+            .using("gist", table.geom.asc().nullsLast().op("gist_geometry_ops_2d"))
+            .where(sql`(geom IS NOT NULL)`),
         pgPolicy("Enable read access for all users", { as: "permissive", for: "select", to: ["public"], using: sql`true` }),
     ],
 );
