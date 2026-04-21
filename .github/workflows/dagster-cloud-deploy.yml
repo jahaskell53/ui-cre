@@ -70,6 +70,8 @@ jobs:
     permissions:
       contents: read
       packages: read
+      # dagster-cloud ci notify creates/updates a PR comment via GITHUB_TOKEN.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
