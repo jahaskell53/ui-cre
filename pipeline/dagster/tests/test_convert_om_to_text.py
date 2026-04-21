@@ -5,6 +5,7 @@ import pytest
 from dagster import build_asset_context
 
 from zillow_pipeline.assets.convert_om_to_text import (
+    ConvertOmToTextConfig,
     _convert_pdf_to_text,
     _fetch_pdf_bytes,
     convert_om_to_text,
@@ -26,6 +27,7 @@ def make_supabase(rows=None):
     table_mock.select.return_value = table_mock
     table_mock.not_ = table_mock
     table_mock.is_.return_value = table_mock
+    table_mock.eq.return_value = table_mock   # select-chain .eq() stays chainable
     table_mock.execute.return_value = MagicMock(data=rows or [])
     table_mock.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
 
@@ -181,3 +183,60 @@ class TestConvertOmToTextAsset:
             with build_asset_context() as ctx:
                 with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
                     convert_om_to_text(context=ctx, supabase=supabase)
+
+    def test_listing_id_filters_to_single_row(self):
+        rows = [
+            {"id": "uuid-target", "listing_url": "https://loopnet.com/1/", "om_url": "https://s3/a.pdf", "om_text_extracted_at": None},
+            {"id": "uuid-other", "listing_url": "https://loopnet.com/2/", "om_url": "https://s3/b.pdf", "om_text_extracted_at": None},
+        ]
+        supabase, client = make_supabase(rows=rows)
+
+        # Make the Supabase query chain also handle .eq() for listing_id filtering.
+        # The mock returns all rows regardless, so we rely on the asset's slice logic
+        # to honour the filter — in real Supabase the server does the filter.
+        # Here we simulate the server returning only the matching row.
+        target_row = [rows[0]]
+        table_mock = client.table.return_value
+        table_mock.execute.return_value = MagicMock(data=target_row)
+
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "fake-key"}), patch(
+            "zillow_pipeline.assets.convert_om_to_text._fetch_pdf_bytes", return_value=b"%PDF-1.4"
+        ), patch(
+            "zillow_pipeline.assets.convert_om_to_text._convert_pdf_to_text",
+            return_value="# OM text",
+        ):
+            with build_asset_context() as ctx:
+                output = convert_om_to_text(
+                    context=ctx,
+                    config=ConvertOmToTextConfig(listing_id="uuid-target"),
+                    supabase=supabase,
+                )
+
+        assert output.value == 1
+        assert meta(output, "total_rows") == 1
+        # Confirm .eq("id", ...) was called somewhere in the chain
+        table_mock.eq.assert_called_with("id", "uuid-target")
+
+    def test_limit_caps_rows_processed(self):
+        rows = [
+            {"id": f"uuid-{i}", "listing_url": f"https://loopnet.com/{i}/", "om_url": f"https://s3/{i}.pdf", "om_text_extracted_at": None}
+            for i in range(5)
+        ]
+        supabase, client = make_supabase(rows=rows)
+
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "fake-key"}), patch(
+            "zillow_pipeline.assets.convert_om_to_text._fetch_pdf_bytes", return_value=b"%PDF-1.4"
+        ), patch(
+            "zillow_pipeline.assets.convert_om_to_text._convert_pdf_to_text",
+            return_value="# OM text",
+        ):
+            with build_asset_context() as ctx:
+                output = convert_om_to_text(
+                    context=ctx,
+                    config=ConvertOmToTextConfig(limit=1),
+                    supabase=supabase,
+                )
+
+        assert output.value == 1
+        assert meta(output, "total_rows") == 1
+        assert client.table.return_value.update.call_count == 1

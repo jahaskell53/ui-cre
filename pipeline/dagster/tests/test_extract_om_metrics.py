@@ -6,6 +6,7 @@ import pytest
 from dagster import build_asset_context
 
 from zillow_pipeline.assets.extract_om_metrics import (
+    ExtractOmMetricsConfig,
     _extract_metrics_from_text,
     extract_om_metrics,
 )
@@ -26,6 +27,7 @@ def make_supabase(rows=None):
     table_mock.select.return_value = table_mock
     table_mock.not_ = table_mock
     table_mock.is_.return_value = table_mock
+    table_mock.eq.return_value = table_mock   # select-chain .eq() stays chainable
     table_mock.execute.return_value = MagicMock(data=rows or [])
     table_mock.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
 
@@ -175,6 +177,53 @@ class TestExtractOmMetricsAsset:
             with build_asset_context() as ctx:
                 with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
                     extract_om_metrics(context=ctx, supabase=supabase)
+
+    def test_listing_id_filters_to_single_row(self):
+        rows = [{"id": "uuid-target", "listing_url": "https://loopnet.com/1/", "om_text": _SAMPLE_OM_TEXT, "om_metrics_extracted_at": None}]
+        supabase, client = make_supabase(rows=rows)
+
+        table_mock = client.table.return_value
+        table_mock.execute.return_value = MagicMock(data=rows)
+
+        metric_payload = {"cap_rate": "5.0%", "cost_per_door": None, "coc_return": None, "grm": None}
+
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "fake-key"}), patch(
+            "zillow_pipeline.assets.extract_om_metrics._extract_metrics_from_text",
+            return_value=metric_payload,
+        ):
+            with build_asset_context() as ctx:
+                output = extract_om_metrics(
+                    context=ctx,
+                    config=ExtractOmMetricsConfig(listing_id="uuid-target"),
+                    supabase=supabase,
+                )
+
+        assert output.value == 1
+        table_mock.eq.assert_called_with("id", "uuid-target")
+
+    def test_limit_caps_rows_processed(self):
+        rows = [
+            {"id": f"uuid-{i}", "listing_url": f"https://loopnet.com/{i}/", "om_text": _SAMPLE_OM_TEXT, "om_metrics_extracted_at": None}
+            for i in range(5)
+        ]
+        supabase, client = make_supabase(rows=rows)
+
+        metric_payload = {"cap_rate": "5.0%", "cost_per_door": None, "coc_return": None, "grm": None}
+
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "fake-key"}), patch(
+            "zillow_pipeline.assets.extract_om_metrics._extract_metrics_from_text",
+            return_value=metric_payload,
+        ):
+            with build_asset_context() as ctx:
+                output = extract_om_metrics(
+                    context=ctx,
+                    config=ExtractOmMetricsConfig(limit=1),
+                    supabase=supabase,
+                )
+
+        assert output.value == 1
+        assert meta(output, "total_rows") == 1
+        assert client.table.return_value.update.call_count == 1
 
     def test_partial_null_metrics_still_updates(self):
         rows = [

@@ -45,10 +45,9 @@ from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scra
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
 from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
-from zillow_pipeline.assets.convert_om_to_text import convert_om_to_text
-from zillow_pipeline.assets.extract_om_metrics import extract_om_metrics
 from zillow_pipeline.jobs.backfill_loopnet_address_fields import backfill_loopnet_address_fields_job
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
+from zillow_pipeline.jobs.loopnet_om_jobs import loopnet_om_text_job, loopnet_om_metrics_job
 
 zillow_scrape_job = define_asset_job(
     name="zillow_weekly_scrape_job",
@@ -86,15 +85,6 @@ loopnet_om_job = define_asset_job(
     selection=AssetSelection.assets(download_om_pdfs),
 )
 
-loopnet_om_text_job = define_asset_job(
-    name="loopnet_om_text_job",
-    selection=AssetSelection.assets(convert_om_to_text),
-)
-
-loopnet_om_metrics_job = define_asset_job(
-    name="loopnet_om_metrics_job",
-    selection=AssetSelection.assets(extract_om_metrics),
-)
 
 weekly_loopnet_scrape_schedule = ScheduleDefinition(
     name="weekly_loopnet_scrape",
