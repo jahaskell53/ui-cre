@@ -4,6 +4,7 @@ from zillow_pipeline.assets import cleaned_listings, zip_codes, zillow_scrape, z
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.s3 import S3Resource
 from zillow_pipeline.resources.supabase import SupabaseResource
+from zillow_pipeline.jobs.backfill_loopnet_address_fields import backfill_loopnet_address_fields_job
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
 from zillow_pipeline.schedules import (
     weekly_scrape_schedule,
@@ -37,6 +38,7 @@ defs = Definitions(
         loopnet_cleaning_job,
         loopnet_om_job,
         backfill_loopnet_om_url_job,
+        backfill_loopnet_address_fields_job,
     ],
     schedules=[weekly_scrape_schedule, weekly_loopnet_scrape_schedule],
     sensors=[

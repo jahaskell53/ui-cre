@@ -175,6 +175,26 @@ class TestBuildRecord:
     def test_returns_none_when_no_url(self):
         assert _build_record({}, "run-1", "2025-01-01T00:00:00Z") is None
 
+    def test_maps_address_fields(self):
+        record = _build_record(SAMPLE_ITEM, "run-1", "2025-01-01T00:00:00Z")
+        assert record is not None
+        assert record["address_raw"] == "1532 Howard St, San Francisco, CA 94103"
+        assert record["address"] == "1532 Howard St"
+        assert record["address_street"] == "1532 Howard St"
+        assert record["address_city"] == "San Francisco"
+        assert record["address_state"] == "CA"
+        assert record["address_zip"] == "94103"
+
+    def test_address_raw_falls_back_to_header_location(self):
+        item = {
+            "listingUrl": "https://www.loopnet.com/x/1/",
+            "header": {"location": "Oakland, CA 94612"},
+        }
+        record = _build_record(item, "run-1", "2025-01-01T00:00:00Z")
+        assert record is not None
+        assert record["address_raw"] == "Oakland, CA 94612"
+        assert record["address"] == ""
+
     def test_maps_basic_fields(self):
         record = _build_record(SAMPLE_ITEM, "run-1", "2025-01-01T00:00:00Z")
         assert record is not None

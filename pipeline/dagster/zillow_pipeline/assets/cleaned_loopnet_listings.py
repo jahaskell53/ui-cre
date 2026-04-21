@@ -8,6 +8,7 @@ from dateutil.parser import parse as parse_date
 from zillow_pipeline.resources.supabase import SupabaseResource
 from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes
 from zillow_pipeline.assets.loopnet_detail_scrape import loopnet_listing_details
+from zillow_pipeline.lib.loopnet_address_fields import build_address_fields_from_row
 
 
 class CleanedLoopnetListingsConfig(Config):
@@ -108,16 +109,29 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
     # Email from brokerDetails
     broker_email = primary_broker.get("email") or None
 
+    street_line = (item.get("address") or header.get("headerAddress") or "").strip()
+    city = (item.get("city") or "").strip()
+    state = (item.get("state") or "").strip()
+    zip_code = (item.get("zip") or "").strip()
+    addr_fields = build_address_fields_from_row(
+        street_line,
+        header.get("location") or "",
+        city,
+        state,
+        zip_code,
+    )
+
     return {
         "listing_url":          listing_url,
         "thumbnail_url":        thumbnail_url,
         "broker_logo_url":      broker_logo_url,
-        "address":              item.get("address") or header.get("headerAddress") or "",
+        "address":              street_line,
+        **addr_fields,
         "headline":             header.get("subtext") or "",
         "location":             header.get("location") or "",
-        "city":                 item.get("city") or "",
-        "state":                item.get("state") or "",
-        "zip":                  item.get("zip") or "",
+        "city":                 city,
+        "state":                state,
+        "zip":                  zip_code,
         "price":                price_str,
         "price_numeric":        price_numeric,
         "cap_rate":             cap_rate,
