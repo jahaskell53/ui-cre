@@ -6,7 +6,8 @@ from dagster import AssetExecutionContext, Backoff, Config, Output, RetryPolicy,
 from dateutil.parser import parse as parse_date
 
 from zillow_pipeline.resources.supabase import SupabaseResource
-from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
+from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes
+from zillow_pipeline.assets.loopnet_detail_scrape import loopnet_listing_details
 
 
 class CleanedLoopnetListingsConfig(Config):
@@ -170,7 +171,7 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
 
 
 @asset(
-    deps=[raw_loopnet_detail_scrapes],
+    deps=[raw_loopnet_search_scrapes, loopnet_listing_details],
     retry_policy=RetryPolicy(
         max_retries=3,
         delay=30,
@@ -188,25 +189,54 @@ def cleaned_loopnet_listings(
         dagster_run_id = config.run_id
     else:
         result = (
-            client.table("raw_loopnet_detail_scrapes")
+            client.table("raw_loopnet_search_scrapes")
             .select("run_id")
             .order("scraped_at", desc=True)
             .limit(1)
             .execute()
         )
         if not result.data:
-            context.log.warning("No raw_loopnet_detail_scrapes found.")
+            context.log.warning("No raw_loopnet_search_scrapes found.")
             return Output(value=0, metadata={"inserted": 0, "failed": 0})
         dagster_run_id = result.data[0]["run_id"]
 
-    context.log.info(f"Cleaning LoopNet detail scrapes for run_id: {dagster_run_id}")
+    context.log.info(f"Building loopnet_listings snapshot for search run_id: {dagster_run_id}")
 
-    raw_rows = (
-        client.table("raw_loopnet_detail_scrapes")
+    search_rows = (
+        client.table("raw_loopnet_search_scrapes")
         .select("raw_json")
         .eq("run_id", dagster_run_id)
         .execute()
     ).data
+
+    seen_urls: list[str] = []
+    url_set: set[str] = set()
+    for row in search_rows:
+        for item in row["raw_json"] or []:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url")
+            if url and url not in url_set:
+                url_set.add(url)
+                seen_urls.append(url)
+
+    detail_by_url: dict[str, list] = {}
+    chunk_size = 150
+    for start in range(0, len(seen_urls), chunk_size):
+        chunk = seen_urls[start : start + chunk_size]
+        if not chunk:
+            continue
+        resp = (
+            client.table("loopnet_listing_details")
+            .select("listing_url, raw_json")
+            .in_("listing_url", chunk)
+            .execute()
+        ).data
+        for drow in resp or []:
+            u = drow.get("listing_url")
+            rj = drow.get("raw_json")
+            if u and isinstance(rj, list):
+                detail_by_url[u] = rj
 
     # Determine next integer run_id for loopnet_listings
     run_id_result = (
@@ -221,11 +251,19 @@ def cleaned_loopnet_listings(
     context.log.info(f"Using loopnet_listings run_id: {int_run_id}")
 
     scraped_at = datetime.now(timezone.utc).isoformat()
-    inserted = failed = skipped = existing = 0
+    inserted = failed = skipped = existing = missing_detail = 0
     records = []
 
-    for row in raw_rows:
-        for item in row.get("raw_json") or []:
+    for listing_url in seen_urls:
+        items = detail_by_url.get(listing_url)
+        if not items:
+            context.log.warning(f"No loopnet_listing_details row for {listing_url}; skipping snapshot row.")
+            missing_detail += 1
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                skipped += 1
+                continue
             record = _build_record(item, dagster_run_id, scraped_at)
             if record is None:
                 skipped += 1
@@ -273,5 +311,6 @@ def cleaned_loopnet_listings(
             "existing": existing,
             "failed": failed,
             "skipped": skipped,
+            "missing_detail": missing_detail,
         },
     )

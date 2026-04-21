@@ -684,6 +684,23 @@ export const rawLoopnetDetailScrapes = pgTable("raw_loopnet_detail_scrapes", {
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).defaultNow(),
 });
 
+/** Latest Apify LoopNet detail JSON per listing URL (not tied to snapshot run_id). */
+export const loopnetListingDetails = pgTable(
+    "loopnet_listing_details",
+    {
+        id: uuid().defaultRandom().primaryKey().notNull(),
+        listingUrl: text("listing_url").notNull(),
+        scrapedAt: timestamp("scraped_at", { withTimezone: true, mode: "string" }).notNull(),
+        rawJson: jsonb("raw_json").notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).defaultNow().notNull(),
+        updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).defaultNow().notNull(),
+    },
+    (table) => [
+        uniqueIndex("loopnet_listing_details_listing_url_key").on(table.listingUrl),
+        pgPolicy("Enable read access for all users", { as: "permissive", for: "select", to: ["public"], using: sql`true` }),
+    ],
+);
+
 export const rawBuildingDetails = pgTable("raw_building_details", {
     id: uuid().defaultRandom().primaryKey().notNull(),
     runId: text("run_id").notNull(),

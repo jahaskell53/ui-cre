@@ -5,7 +5,24 @@ from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.s3 import S3Resource
 from zillow_pipeline.resources.supabase import SupabaseResource
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
-from zillow_pipeline.schedules import weekly_scrape_schedule, weekly_loopnet_scrape_schedule, zillow_cleaning_job, zillow_scrape_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, loopnet_om_job, trigger_cleaning_job_after_scrape, trigger_building_job_after_cleaning, trigger_loopnet_cleaning_after_scrape, trigger_om_download_after_cleaning, alert_on_pipeline_failure, alert_on_pipeline_success
+from zillow_pipeline.schedules import (
+    weekly_scrape_schedule,
+    weekly_loopnet_scrape_schedule,
+    zillow_cleaning_job,
+    zillow_scrape_job,
+    zillow_building_job,
+    loopnet_scrape_job,
+    loopnet_listing_details_job,
+    loopnet_cleaning_job,
+    loopnet_om_job,
+    trigger_cleaning_job_after_scrape,
+    trigger_building_job_after_cleaning,
+    trigger_loopnet_details_after_search,
+    trigger_loopnet_cleaning_after_listing_details,
+    trigger_om_download_after_cleaning,
+    alert_on_pipeline_failure,
+    alert_on_pipeline_success,
+)
 
 all_assets = load_assets_from_modules([zip_codes, zillow_scrape, cleaned_listings, zillow_building_scrape, cleaned_building_units, refresh_unit_breakdown_views, loopnet_search_scrape, loopnet_detail_scrape, cleaned_loopnet_listings, download_om_pdfs])
 
@@ -16,6 +33,7 @@ defs = Definitions(
         zillow_cleaning_job,
         zillow_building_job,
         loopnet_scrape_job,
+        loopnet_listing_details_job,
         loopnet_cleaning_job,
         loopnet_om_job,
         backfill_loopnet_om_url_job,
@@ -24,7 +42,8 @@ defs = Definitions(
     sensors=[
         trigger_cleaning_job_after_scrape,
         trigger_building_job_after_cleaning,
-        trigger_loopnet_cleaning_after_scrape,
+        trigger_loopnet_details_after_search,
+        trigger_loopnet_cleaning_after_listing_details,
         trigger_om_download_after_cleaning,
         alert_on_pipeline_failure,
         alert_on_pipeline_success,  # remove this to only alert on failures

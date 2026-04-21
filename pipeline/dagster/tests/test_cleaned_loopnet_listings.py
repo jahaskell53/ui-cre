@@ -1,5 +1,5 @@
 """Tests for the cleaned_loopnet_listings asset and helper functions."""
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 from dagster import build_asset_context
@@ -21,6 +21,24 @@ def make_supabase():
     mock.get_client.return_value = client
     client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[])
     return mock, client
+
+
+def make_routed_supabase():
+    mock, client = make_supabase()
+    tables: dict[str, MagicMock] = {}
+
+    def table(name: str):
+        if name not in tables:
+            t = MagicMock()
+            if name == "loopnet_listings":
+                t.upsert.return_value.execute.return_value = MagicMock(data=[])
+            tables[name] = t
+        return tables[name]
+
+    client.table.side_effect = table
+    for _t in ("raw_loopnet_search_scrapes", "loopnet_listing_details", "loopnet_listings"):
+        table(_t)
+    return mock, client, tables
 
 
 def meta(output, key):
@@ -242,24 +260,29 @@ class TestBuildRecord:
 # ─── Asset-level tests ───────────────────────────────────────────────────────
 
 class TestCleanedLoopnetListings:
-    def _setup_client(self, client, raw_data, last_run_id=0):
+    def _setup_tables(self, tables, search_urls: list[str], detail_rows: list[dict], last_run_id=0):
         """
-        When run_id is passed explicitly in the config, the asset skips the
-        'latest dagster run_id' order query and only calls order().limit() once
-        to fetch the last loopnet integer run_id.
+        search_urls: URLs in raw_loopnet_search_scrapes raw_json for this run.
+        detail_rows: rows from loopnet_listing_details.in_ (listing_url, raw_json).
         """
-        raw_rows_mock = MagicMock()
-        raw_rows_mock.data = [{"raw_json": raw_data}]
+        search_json = [{"url": u, "name": f"N {i}"} for i, u in enumerate(search_urls)]
+        search_rows_mock = MagicMock()
+        search_rows_mock.data = [{"raw_json": search_json}]
 
         loopnet_run_id_mock = MagicMock()
         loopnet_run_id_mock.data = [{"run_id": last_run_id}] if last_run_id else []
 
-        client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = loopnet_run_id_mock
-        client.table.return_value.select.return_value.eq.return_value.execute.return_value = raw_rows_mock
+        tables["raw_loopnet_search_scrapes"].select.return_value.eq.return_value.execute.return_value = search_rows_mock
+        tables["loopnet_listings"].select.return_value.order.return_value.limit.return_value.execute.return_value = (
+            loopnet_run_id_mock
+        )
+        tables["loopnet_listing_details"].select.return_value.in_.return_value.execute.return_value = MagicMock(
+            data=detail_rows
+        )
 
-    def test_no_detail_scrapes_returns_zero(self):
-        supabase, client = make_supabase()
-        client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value.data = []
+    def test_no_search_scrapes_returns_zero(self):
+        supabase, client, tables = make_routed_supabase()
+        tables["raw_loopnet_search_scrapes"].select.return_value.order.return_value.limit.return_value.execute.return_value.data = []
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -271,9 +294,10 @@ class TestCleanedLoopnetListings:
         assert output.value == 0
 
     def test_inserts_valid_records(self):
-        supabase, client = make_supabase()
-        self._setup_client(client, [SAMPLE_ITEM])
-        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[{"listing_url": SAMPLE_ITEM["inputUrl"]}])
+        supabase, client, tables = make_routed_supabase()
+        url = SAMPLE_ITEM["inputUrl"]
+        self._setup_tables(tables, [url], [{"listing_url": url, "raw_json": [SAMPLE_ITEM]}])
+        tables["loopnet_listings"].upsert.return_value.execute.return_value = MagicMock(data=[{"listing_url": url}])
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -285,12 +309,13 @@ class TestCleanedLoopnetListings:
         assert output.value == 1
         assert meta(output, "inserted") == 1
         assert meta(output, "failed") == 0
-        client.table.return_value.upsert.assert_called_once()
+        tables["loopnet_listings"].upsert.assert_called_once()
 
     def test_duplicate_listing_url_is_ignored_via_upsert(self):
-        supabase, client = make_supabase()
-        self._setup_client(client, [SAMPLE_ITEM])
-        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[])
+        supabase, client, tables = make_routed_supabase()
+        url = SAMPLE_ITEM["inputUrl"]
+        self._setup_tables(tables, [url], [{"listing_url": url, "raw_json": [SAMPLE_ITEM]}])
+        tables["loopnet_listings"].upsert.return_value.execute.return_value = MagicMock(data=[])
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -299,16 +324,21 @@ class TestCleanedLoopnetListings:
                 supabase=supabase,
             )
 
-        kwargs = client.table.return_value.upsert.call_args.kwargs
+        kwargs = tables["loopnet_listings"].upsert.call_args.kwargs
         assert kwargs["ignore_duplicates"] is True
         assert kwargs["on_conflict"] == "listing_url,run_id"
         assert output.value == 0
         assert meta(output, "existing") == 1
 
     def test_skips_items_without_url(self):
-        supabase, client = make_supabase()
-        self._setup_client(client, [{"address": "No URL item"}, SAMPLE_ITEM])
-        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[{"listing_url": SAMPLE_ITEM["inputUrl"]}])
+        supabase, client, tables = make_routed_supabase()
+        url = SAMPLE_ITEM["inputUrl"]
+        self._setup_tables(
+            tables,
+            [url],
+            [{"listing_url": url, "raw_json": [{"address": "No URL item"}, SAMPLE_ITEM]}],
+        )
+        tables["loopnet_listings"].upsert.return_value.execute.return_value = MagicMock(data=[{"listing_url": url}])
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -321,8 +351,9 @@ class TestCleanedLoopnetListings:
         assert meta(output, "inserted") == 1
 
     def test_increments_integer_run_id(self):
-        supabase, client = make_supabase()
-        self._setup_client(client, [SAMPLE_ITEM], last_run_id=5)
+        supabase, client, tables = make_routed_supabase()
+        url = SAMPLE_ITEM["inputUrl"]
+        self._setup_tables(tables, [url], [{"listing_url": url, "raw_json": [SAMPLE_ITEM]}], last_run_id=5)
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -334,9 +365,10 @@ class TestCleanedLoopnetListings:
         assert meta(output, "loopnet_run_id") == 6
 
     def test_batch_insert_failure_raises(self):
-        supabase, client = make_supabase()
-        self._setup_client(client, [SAMPLE_ITEM])
-        client.table.return_value.upsert.return_value.execute.side_effect = RuntimeError("DB error")
+        supabase, client, tables = make_routed_supabase()
+        url = SAMPLE_ITEM["inputUrl"]
+        self._setup_tables(tables, [url], [{"listing_url": url, "raw_json": [SAMPLE_ITEM]}])
+        tables["loopnet_listings"].upsert.return_value.execute.side_effect = RuntimeError("DB error")
 
         with build_asset_context() as ctx:
             with pytest.raises(Exception, match="records failed to insert"):
@@ -347,15 +379,19 @@ class TestCleanedLoopnetListings:
                 )
 
     def test_uses_explicit_run_id(self):
-        supabase, client = make_supabase()
+        supabase, client, tables = make_routed_supabase()
 
-        raw_rows_mock = MagicMock()
-        raw_rows_mock.data = [{"raw_json": [SAMPLE_ITEM]}]
+        url = SAMPLE_ITEM["inputUrl"]
+        search_rows_mock = MagicMock()
+        search_rows_mock.data = [{"raw_json": [{"url": url}]}]
         run_id_mock = MagicMock()
         run_id_mock.data = []
+        detail_mock = MagicMock()
+        detail_mock.data = [{"listing_url": url, "raw_json": [SAMPLE_ITEM]}]
 
-        client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = run_id_mock
-        client.table.return_value.select.return_value.eq.return_value.execute.return_value = raw_rows_mock
+        tables["raw_loopnet_search_scrapes"].select.return_value.eq.return_value.execute.return_value = search_rows_mock
+        tables["loopnet_listings"].select.return_value.order.return_value.limit.return_value.execute.return_value = run_id_mock
+        tables["loopnet_listing_details"].select.return_value.in_.return_value.execute.return_value = detail_mock
 
         with build_asset_context() as ctx:
             output = cleaned_loopnet_listings(
@@ -365,4 +401,19 @@ class TestCleanedLoopnetListings:
             )
 
         assert meta(output, "dagster_run_id") == "explicit-run-abc"
-        client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.assert_called_once()
+        tables["loopnet_listings"].select.return_value.order.return_value.limit.return_value.execute.assert_called_once()
+
+    def test_missing_detail_increments_metadata(self):
+        supabase, client, tables = make_routed_supabase()
+        url = SAMPLE_ITEM["inputUrl"]
+        self._setup_tables(tables, [url], [])
+
+        with build_asset_context() as ctx:
+            output = cleaned_loopnet_listings(
+                context=ctx,
+                config=CleanedLoopnetListingsConfig(run_id="dagster-run-1"),
+                supabase=supabase,
+            )
+
+        assert meta(output, "missing_detail") == 1
+        assert meta(output, "records_built") == 0
