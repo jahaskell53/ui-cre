@@ -24,7 +24,7 @@ from dagster import AssetExecutionContext, Backoff, Output, RetryPolicy, asset
 from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
 from zillow_pipeline.resources.supabase import SupabaseResource
 
-_GEMINI_MODEL = "gemini-2.0-flash"
+_GEMINI_MODEL = "gemini-2.5-flash"
 
 _EXTRACTION_PROMPT = """
 You are a commercial real estate analyst. Extract the following investment metrics
