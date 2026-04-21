@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from supabase import Client
+
+_ADDRESS_KEYS = ("address_raw", "address_street", "address_city", "address_state", "address_zip")
+
 
 def normalize_address_parts(raw: str) -> dict[str, str]:
     """Parse a free-form address with libpostal; empty dict if unavailable or blank."""
@@ -67,4 +71,90 @@ def build_address_fields_from_row(
         "address_city": address_city,
         "address_state": address_state,
         "address_zip": address_zip,
+    }
+
+
+def _row_address_fields_match(row: dict, desired: dict[str, str]) -> bool:
+    for k in _ADDRESS_KEYS:
+        cur = (row.get(k) or "") or ""
+        nxt = desired.get(k) or ""
+        if cur != nxt:
+            return False
+    return True
+
+
+def run_loopnet_address_backfill(
+    client: Client,
+    *,
+    run_id: int | None = None,
+    dry_run: bool = False,
+    page_size: int = 200,
+    limit: int | None = None,
+) -> dict[str, int]:
+    """
+    Recompute address_* on loopnet_listings from address, location, city, state, zip.
+
+    Returns counts: scanned, updated, unchanged, skipped_empty, errors.
+    """
+    page_size = max(1, page_size)
+    scanned = updated = unchanged = skipped_empty = errors = 0
+    offset = 0
+
+    while True:
+        q = (
+            client.table("loopnet_listings")
+            .select("id,address,location,city,state,zip,address_raw,address_street,address_city,address_state,address_zip")
+            .order("id")
+        )
+        if run_id is not None:
+            q = q.eq("run_id", run_id)
+        result = q.range(offset, offset + page_size - 1).execute()
+        rows = result.data or []
+        if not rows:
+            break
+
+        for row in rows:
+            if limit is not None and scanned >= limit:
+                break
+
+            scanned += 1
+            rid = row.get("id")
+            addr = row.get("address")
+            loc = row.get("location")
+            city = row.get("city")
+            state = row.get("state")
+            z = row.get("zip")
+
+            if not (str(addr or "").strip() or str(loc or "").strip() or str(city or "").strip()):
+                skipped_empty += 1
+                continue
+
+            desired = build_address_fields_from_row(addr, loc, city, state, z)
+            if _row_address_fields_match(row, desired):
+                unchanged += 1
+                continue
+
+            if dry_run:
+                updated += 1
+                continue
+
+            try:
+                client.table("loopnet_listings").update(desired).eq("id", rid).execute()
+                updated += 1
+            except Exception:
+                errors += 1
+
+        if limit is not None and scanned >= limit:
+            break
+
+        if len(rows) < page_size:
+            break
+        offset += page_size
+
+    return {
+        "scanned": scanned,
+        "updated": updated,
+        "unchanged": unchanged,
+        "skipped_empty": skipped_empty,
+        "errors": errors,
     }

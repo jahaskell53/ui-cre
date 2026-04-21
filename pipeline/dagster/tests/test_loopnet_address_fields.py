@@ -1,8 +1,8 @@
 """Tests for loopnet_address_fields (shared with backfill and Dagster asset)."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from zillow_pipeline.lib.loopnet_address_fields import build_address_fields_from_row
+from zillow_pipeline.lib.loopnet_address_fields import build_address_fields_from_row, run_loopnet_address_backfill
 
 
 class TestBuildAddressFieldsFromRow:
@@ -60,3 +60,49 @@ class TestBuildAddressFieldsFromRow:
         assert out["address_city"] == "san francisco"
         assert out["address_state"] == "ca"
         assert out["address_zip"] == "94103"
+
+
+def test_run_loopnet_address_backfill_updates_when_differs():
+    rows = [
+        {
+            "id": "u1",
+            "address": "1 Main",
+            "location": "San Francisco, CA 94102",
+            "city": "",
+            "state": "",
+            "zip": "",
+            "address_raw": None,
+            "address_street": None,
+            "address_city": None,
+            "address_state": None,
+            "address_zip": None,
+        }
+    ]
+
+    client = MagicMock()
+    t = MagicMock()
+    sel_exec = MagicMock()
+    sel_exec.execute.return_value = MagicMock(data=rows)
+    after_eq = MagicMock()
+    after_eq.range.return_value = sel_exec
+    after_order = MagicMock()
+    after_order.eq.return_value = after_eq
+    select_result = MagicMock()
+    select_result.order.return_value = after_order
+    t.select.return_value = select_result
+    upd_exec = MagicMock()
+    upd_exec.execute.return_value = MagicMock(data=[])
+    t.update.return_value.eq.return_value = upd_exec
+    client.table.return_value = t
+
+    stats = run_loopnet_address_backfill(client, run_id=2, page_size=50)
+
+    assert stats["scanned"] == 1
+    assert stats["updated"] == 1
+    assert stats["unchanged"] == 0
+    assert stats["skipped_empty"] == 0
+    assert stats["errors"] == 0
+    after_order.eq.assert_called_once_with("run_id", 2)
+    t.update.assert_called_once()
+    payload = t.update.call_args[0][0]
+    assert payload["address_raw"] == "1 Main, San Francisco, CA 94102"
