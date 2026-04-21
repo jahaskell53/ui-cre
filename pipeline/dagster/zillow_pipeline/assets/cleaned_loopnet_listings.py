@@ -224,8 +224,49 @@ def cleaned_loopnet_listings(
     inserted = failed = skipped = existing = 0
     records = []
 
+    from_search_only_urls: list[str] = []
+    seen_fs: set[str] = set()
     for row in raw_rows:
         for item in row.get("raw_json") or []:
+            if not isinstance(item, dict) or not item.get("fromSearchOnly"):
+                continue
+            u = item.get("inputUrl") or item.get("listingUrl") or ""
+            if u and u not in seen_fs:
+                seen_fs.add(u)
+                from_search_only_urls.append(u)
+
+    carry_by_url: dict[str, dict] = {}
+    chunk_size = 100
+    for start in range(0, len(from_search_only_urls), chunk_size):
+        chunk = from_search_only_urls[start : start + chunk_size]
+        resp = client.table("loopnet_listings").select("*").in_("listing_url", chunk).execute()
+        for prow in resp.data or []:
+            u = prow.get("listing_url")
+            if not u:
+                continue
+            prev = carry_by_url.get(u)
+            pr = prow.get("run_id")
+            if prev is None or (pr is not None and pr > (prev.get("run_id") or 0)):
+                carry_by_url[u] = prow
+
+    for row in raw_rows:
+        for item in row.get("raw_json") or []:
+            if not isinstance(item, dict):
+                skipped += 1
+                continue
+            listing_url = item.get("inputUrl") or item.get("listingUrl") or ""
+            if item.get("fromSearchOnly") and listing_url:
+                prev_row = carry_by_url.get(listing_url)
+                if prev_row:
+                    record = {k: v for k, v in prev_row.items() if k != "id"}
+                    record["run_id"] = int_run_id
+                    record["scraped_at"] = scraped_at
+                    records.append(record)
+                    continue
+                context.log.warning(
+                    f"fromSearchOnly row has no prior loopnet_listings row for {listing_url}; "
+                    "building minimal record from search snapshot."
+                )
             record = _build_record(item, dagster_run_id, scraped_at)
             if record is None:
                 skipped += 1

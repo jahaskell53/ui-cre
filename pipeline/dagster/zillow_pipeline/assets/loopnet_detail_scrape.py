@@ -63,17 +63,29 @@ def raw_loopnet_detail_scrapes(
         .execute()
     ).data
 
-    # Collect unique listing URLs from the search results
+    # Collect unique listing URLs from the search results (first hit wins for metadata)
     seen_urls: set[str] = set()
-    listing_urls: list[str] = []
+    listing_entries: list[tuple[str, dict]] = []
     for row in search_rows:
         for item in row["raw_json"] or []:
             url = item.get("url")
             if url and url not in seen_urls:
                 seen_urls.add(url)
-                listing_urls.append(url)
+                listing_entries.append((url, item if isinstance(item, dict) else {}))
 
-    context.log.info(f"Found {len(listing_urls)} unique listing URLs in run {run_id}")
+    context.log.info(f"Found {len(listing_entries)} unique listing URLs in run {run_id}")
+
+    known_rows = (
+        client.table("loopnet_listings").select("listing_url").execute()
+    ).data
+    known_listing_urls = {
+        row["listing_url"] for row in (known_rows or []) if row.get("listing_url")
+    }
+    if known_listing_urls:
+        context.log.info(
+            f"{len(known_listing_urls)} listing URLs already in loopnet_listings "
+            "(detail scrape will run only for URLs not in that set)."
+        )
 
     # Skip listings already scraped in this run
     existing = (
@@ -87,12 +99,39 @@ def raw_loopnet_detail_scrapes(
         context.log.info(f"Skipping {len(already_scraped)} already-scraped listings.")
 
     scraped_at = datetime.now(timezone.utc).isoformat()
-    inserted = failed = skipped = 0
+    inserted = failed = skipped = skipped_known = 0
 
-    for listing_url in listing_urls:
+    for listing_url, search_item in listing_entries:
         if listing_url in already_scraped:
             context.log.info(f"Skipping already-scraped: {listing_url}")
             skipped += 1
+            continue
+
+        if listing_url in known_listing_urls:
+            label = (search_item.get("name") or search_item.get("title") or "").strip()
+            synthetic = _strip_null_bytes(
+                [
+                    {
+                        "inputUrl": listing_url,
+                        "listingUrl": listing_url,
+                        "fromSearchOnly": True,
+                        "address": label,
+                    }
+                ]
+            )
+            client.table("raw_loopnet_detail_scrapes").insert(
+                {
+                    "run_id": run_id,
+                    "scraped_at": scraped_at,
+                    "listing_url": listing_url,
+                    "raw_json": synthetic,
+                }
+            ).execute()
+            inserted += 1
+            skipped_known += 1
+            context.log.info(
+                f"Skipping Apify detail (known listing), stored search snapshot: {listing_url}"
+            )
             continue
 
         context.log.info(f"Scraping detail: {listing_url}")
@@ -128,8 +167,9 @@ def raw_loopnet_detail_scrapes(
         value=inserted,
         metadata={
             "run_id": run_id,
-            "listings_found": len(listing_urls),
+            "listings_found": len(listing_entries),
             "skipped": skipped,
+            "skipped_known_listing": skipped_known,
             "inserted": inserted,
             "failed": failed,
         },

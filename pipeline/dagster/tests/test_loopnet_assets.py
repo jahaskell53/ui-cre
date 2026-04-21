@@ -15,6 +15,8 @@ def make_supabase():
     mock = MagicMock()
     client = MagicMock()
     mock.get_client.return_value = client
+    # loopnet_detail_scrape: loopnet_listings uses select("listing_url").execute() (no .eq)
+    client.table.return_value.select.return_value.execute.return_value = MagicMock(data=[])
     return mock, client
 
 
@@ -373,3 +375,37 @@ class TestRawLoopnetDetailScrapes:
         assert inserted_raw_json[0]["nested"]["desc"] == "HelloWorld"
         assert inserted_raw_json[0]["arr"][0] == "xy"
         assert output.value == 1
+
+    def test_skips_apify_when_listing_already_in_loopnet_listings(self):
+        supabase, client = make_supabase()
+        apify = make_apify()
+
+        url = "https://www.loopnet.com/Listing/1/"
+        search_rows_mock = MagicMock()
+        search_rows_mock.data = self._make_search_rows([url])
+        already_mock = MagicMock()
+        already_mock.data = []
+
+        client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
+            search_rows_mock,
+            already_mock,
+        ]
+        # Between those two .eq() queries, loopnet_listings is loaded with .select().execute()
+        client.table.return_value.select.return_value.execute.return_value = MagicMock(
+            data=[{"listing_url": url}]
+        )
+
+        with build_asset_context() as ctx:
+            output = raw_loopnet_detail_scrapes(
+                context=ctx,
+                config=LoopnetDetailScrapeConfig(run_id="run-1"),
+                apify=apify,
+                supabase=supabase,
+            )
+
+        apify.run_loopnet_detail.assert_not_called()
+        assert output.value == 1
+        assert meta(output, "skipped_known_listing") == 1
+        insert_kw = client.table.return_value.insert.call_args[0][0]
+        assert insert_kw["listing_url"] == url
+        assert insert_kw["raw_json"][0].get("fromSearchOnly") is True

@@ -366,3 +366,51 @@ class TestCleanedLoopnetListings:
 
         assert meta(output, "dagster_run_id") == "explicit-run-abc"
         client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.assert_called_once()
+
+    def test_from_search_only_carries_prior_loopnet_listing_row(self):
+        """Known listings skip Apify; cleaning copies the latest prior row for the new integer run_id."""
+        supabase, client = make_supabase()
+        url = SAMPLE_ITEM["inputUrl"]
+        prior = _build_record(SAMPLE_ITEM, "old-dagster", "2025-06-01T00:00:00Z")
+        assert prior is not None
+        prior = {**prior, "id": 42, "run_id": 3}
+
+        search_only_item = {
+            "fromSearchOnly": True,
+            "inputUrl": url,
+            "listingUrl": url,
+            "address": "1532 Howard St",
+        }
+
+        raw_rows_mock = MagicMock()
+        raw_rows_mock.data = [{"raw_json": [search_only_item]}]
+        loopnet_run_id_mock = MagicMock()
+        loopnet_run_id_mock.data = [{"run_id": 10}]
+        carry_mock = MagicMock()
+        carry_mock.data = [prior]
+
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value = raw_rows_mock
+        client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = (
+            loopnet_run_id_mock
+        )
+        client.table.return_value.select.return_value.in_.return_value.execute.return_value = carry_mock
+
+        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(
+            data=[{"listing_url": url}]
+        )
+
+        with build_asset_context() as ctx:
+            output = cleaned_loopnet_listings(
+                context=ctx,
+                config=CleanedLoopnetListingsConfig(run_id="dagster-run-2"),
+                supabase=supabase,
+            )
+
+        assert output.value == 1
+        assert meta(output, "loopnet_run_id") == 11
+        upsert_batch = client.table.return_value.upsert.call_args[0][0]
+        assert len(upsert_batch) == 1
+        assert upsert_batch[0]["listing_url"] == url
+        assert upsert_batch[0]["run_id"] == 11
+        assert upsert_batch[0]["city"] == "San Francisco"
+        assert "id" not in upsert_batch[0]
