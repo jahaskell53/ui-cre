@@ -48,6 +48,9 @@ jobs:
             - name: Verify CI Next build change classifier
               run: node --test scripts/ci/next-build-changes-classifier.test.mjs
 
+            - name: Verify Vercel ignore-build script guard cases
+              run: node --test scripts/ci/vercel-ignore-build.test.mjs
+
             - name: Run unit tests (full or Vitest related to changed paths)
               run: node scripts/ci/run-vitest-for-changes.mjs unit
 
