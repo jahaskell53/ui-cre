@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
                 .select({
                     id: loopnetListings.id,
                     address: loopnetListings.address,
+                    addressRaw: loopnetListings.addressRaw,
+                    addressStreet: loopnetListings.addressStreet,
+                    addressCity: loopnetListings.addressCity,
+                    addressState: loopnetListings.addressState,
+                    addressZip: loopnetListings.addressZip,
                     headline: loopnetListings.headline,
                     location: loopnetListings.location,
                     latitude: loopnetListings.latitude,
@@ -59,6 +64,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 id: r.id,
                 address: r.address,
+                address_raw: r.addressRaw,
+                address_street: r.addressStreet,
+                address_city: r.addressCity,
+                address_state: r.addressState,
+                address_zip: r.addressZip,
                 headline: r.headline,
                 location: r.location,
                 latitude: r.latitude,
@@ -127,16 +137,35 @@ export async function GET(request: NextRequest) {
         }
 
         if (zipCode) {
-            conditions.push(or(ilike(loopnetListings.address, `%${zipCode}%`), ilike(loopnetListings.location, `%${zipCode}%`))!);
+            conditions.push(
+                or(
+                    ilike(loopnetListings.address, `%${zipCode}%`),
+                    ilike(loopnetListings.addressZip, `%${zipCode}%`),
+                    ilike(loopnetListings.addressRaw, `%${zipCode}%`),
+                    ilike(loopnetListings.location, `%${zipCode}%`),
+                )!,
+            );
         } else if (cityName) {
-            conditions.push(ilike(loopnetListings.location, `%${cityName}%`));
+            conditions.push(or(ilike(loopnetListings.location, `%${cityName}%`), ilike(loopnetListings.addressCity, `%${cityName}%`))!);
         } else if (countyName) {
-            conditions.push(or(ilike(loopnetListings.address, `%${countyName}%`), ilike(loopnetListings.location, `%${countyName}%`))!);
+            conditions.push(
+                or(
+                    ilike(loopnetListings.address, `%${countyName}%`),
+                    ilike(loopnetListings.addressRaw, `%${countyName}%`),
+                    ilike(loopnetListings.addressCity, `%${countyName}%`),
+                    ilike(loopnetListings.location, `%${countyName}%`),
+                )!,
+            );
         } else if (addressQuery) {
             conditions.push(
                 or(
                     ilike(loopnetListings.headline, `%${addressQuery}%`),
                     ilike(loopnetListings.address, `%${addressQuery}%`),
+                    ilike(loopnetListings.addressRaw, `%${addressQuery}%`),
+                    ilike(loopnetListings.addressStreet, `%${addressQuery}%`),
+                    ilike(loopnetListings.addressCity, `%${addressQuery}%`),
+                    ilike(loopnetListings.addressState, `%${addressQuery}%`),
+                    ilike(loopnetListings.addressZip, `%${addressQuery}%`),
                     ilike(loopnetListings.location, `%${addressQuery}%`),
                 )!,
             );
@@ -210,6 +239,11 @@ export async function GET(request: NextRequest) {
             return {
                 id: r.id,
                 address: r.address,
+                address_raw: r.addressRaw,
+                address_street: r.addressStreet,
+                address_city: r.addressCity,
+                address_state: r.addressState,
+                address_zip: r.addressZip,
                 headline: r.headline,
                 location: r.location,
                 price: r.price,
