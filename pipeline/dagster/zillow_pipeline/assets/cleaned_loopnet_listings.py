@@ -14,6 +14,16 @@ class CleanedLoopnetListingsConfig(Config):
     run_id: Optional[str] = None  # if None, uses the latest run
 
 
+def _make_geom(lng, lat) -> str | None:
+    """Return a WKT Point string accepted by Supabase PostGIS, or None."""
+    try:
+        if lng is None or lat is None:
+            return None
+        return f"POINT({float(lng)} {float(lat)})"
+    except (TypeError, ValueError):
+        return None
+
+
 def _parse_date(val: str | None) -> str | None:
     """Convert MM/DD/YYYY or ISO strings to YYYY-MM-DD, or return None."""
     if not val:
@@ -138,6 +148,7 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
         "square_footage":       item.get("buildingSize") or pf.get("BuildingSize") or "",
         "latitude":             item.get("latitude"),
         "longitude":            item.get("longitude"),
+        "geom":                 _make_geom(item.get("longitude"), item.get("latitude")),
         "description":          item.get("description") or "",
         "date_on_market":       date_on_market,
         "date_listed":          date_listed,
