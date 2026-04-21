@@ -15,12 +15,10 @@ from typing import Optional
 from dagster import Config, OpExecutionContext, job, op
 
 from zillow_pipeline.assets.convert_om_to_text import (
-    ConvertOmToTextConfig,
     _convert_pdf_to_text,
     _fetch_pdf_bytes,
 )
 from zillow_pipeline.assets.extract_om_metrics import (
-    ExtractOmMetricsConfig,
     _extract_metrics_from_text,
 )
 
