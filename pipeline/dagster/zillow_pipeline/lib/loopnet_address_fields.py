@@ -19,40 +19,58 @@ def normalize_address_parts(raw: str) -> dict[str, str]:
     return {label: value for value, label in parts}
 
 
+def _parse_city_state_zip_from_location(location: str) -> tuple[str, str, str]:
+    """
+    Extract city, state, zip from a locality string like "San Francisco, CA 94103".
+
+    Returns (city, state, zip) as strings; empty strings when not parseable.
+    Libpostal is tried first; a simple heuristic is used as fallback.
+    """
+    loc = (location or "").strip()
+    if not loc:
+        return "", "", ""
+
+    parsed = normalize_address_parts(loc)
+    if parsed:
+        return (
+            (parsed.get("city") or "").strip(),
+            (parsed.get("state") or "").strip(),
+            (parsed.get("postcode") or "").strip(),
+        )
+
+    # Heuristic: "City, ST ZIP" or "City, ST" — common LoopNet header format.
+    # Split on the last comma to separate city from "ST[ ZIP]".
+    parts = loc.rsplit(",", 1)
+    if len(parts) == 2:
+        city_part = parts[0].strip()
+        rest = parts[1].strip().split()
+        state_part = rest[0] if rest else ""
+        zip_part = rest[1] if len(rest) > 1 else ""
+        return city_part, state_part, zip_part
+
+    return "", "", ""
+
+
 def build_address_fields_from_row(
     address: str | None,
     location: str | None,
-    city: str | None,
-    state: str | None,
     zip_code: str | None,
 ) -> dict[str, str]:
     """
     Build address_raw, address_street, address_city, address_state, address_zip
-    from loopnet_listing_details column values (same rules as cleaned_loopnet_listings
-    raw JSON mapping).
+    from loopnet_listing_details column values.
+
+    City and state are derived from ``location`` (and libpostal when available)
+    rather than from the raw scraper ``city``/``state`` columns.
     """
     street_line = (address or "").strip()
-    city_s = (city or "").strip()
-    state_s = (state or "").strip()
-    zip_s = (zip_code or "").strip()
-    city_state = ", ".join(p for p in (city_s, state_s) if p)
-    if city_state and zip_s:
-        locality_line = f"{city_state} {zip_s}"
-    elif city_state:
-        locality_line = city_state
-    else:
-        locality_line = zip_s
-
     loc_line = (location or "").strip()
-    if street_line and locality_line:
-        address_raw = f"{street_line}, {locality_line}"
-    elif street_line and loc_line:
-        # e.g. run_id 2: street in `address`, locality in `location` ("City, ST ZIP"), no city/state/zip columns
+    zip_s = (zip_code or "").strip()
+
+    if street_line and loc_line:
         address_raw = f"{street_line}, {loc_line}"
     elif street_line:
         address_raw = street_line
-    elif locality_line:
-        address_raw = locality_line
     else:
         address_raw = loc_line
 
@@ -61,9 +79,17 @@ def build_address_fields_from_row(
         p for p in (parsed.get("house_number", "").strip(), parsed.get("road", "").strip()) if p
     )
     address_street = (street_from_postal.title() if street_from_postal else street_line) or ""
-    address_city = (parsed.get("city") or city_s or "").strip() or ""
-    address_state = (parsed.get("state") or state_s or "").strip() or ""
-    address_zip = (parsed.get("postcode") or zip_s or "").strip() or ""
+
+    # Prefer libpostal output from the full address_raw; fall back to parsing location directly.
+    if parsed.get("city") or parsed.get("state"):
+        address_city = (parsed.get("city") or "").strip()
+        address_state = (parsed.get("state") or "").strip()
+        address_zip = (parsed.get("postcode") or zip_s).strip()
+    else:
+        loc_city, loc_state, loc_zip = _parse_city_state_zip_from_location(loc_line)
+        address_city = loc_city
+        address_state = loc_state
+        address_zip = (parsed.get("postcode") or loc_zip or zip_s).strip()
 
     return {
         "address_raw": address_raw,
@@ -91,7 +117,11 @@ def run_loopnet_address_backfill(
     limit: int | None = None,
 ) -> dict[str, int]:
     """
-    Recompute address_* on loopnet_listing_details from address, location, city, state, zip.
+    Recompute address_* on loopnet_listing_details from address, location, and zip.
+
+    City and state are derived from location (via libpostal or heuristic), not from the
+    raw city/state columns — making this job independent of those columns so they can be
+    dropped in a follow-up migration.
 
     Returns counts: scanned, updated, unchanged, skipped_empty, errors.
     """
@@ -102,7 +132,7 @@ def run_loopnet_address_backfill(
     while True:
         q = (
             client.table("loopnet_listing_details")
-            .select("id,address,location,city,state,zip,address_raw,address_street,address_city,address_state,address_zip")
+            .select("id,address,location,zip,address_raw,address_street,address_city,address_state,address_zip")
             .order("id")
         )
         result = q.range(offset, offset + page_size - 1).execute()
@@ -118,15 +148,13 @@ def run_loopnet_address_backfill(
             rid = row.get("id")
             addr = row.get("address")
             loc = row.get("location")
-            city = row.get("city")
-            state = row.get("state")
             z = row.get("zip")
 
-            if not (str(addr or "").strip() or str(loc or "").strip() or str(city or "").strip()):
+            if not (str(addr or "").strip() or str(loc or "").strip()):
                 skipped_empty += 1
                 continue
 
-            desired = build_address_fields_from_row(addr, loc, city, state, z)
+            desired = build_address_fields_from_row(addr, loc, z)
             if _row_address_fields_match(row, desired):
                 unchanged += 1
                 continue

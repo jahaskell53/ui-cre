@@ -6,13 +6,12 @@ from zillow_pipeline.lib.loopnet_address_fields import build_address_fields_from
 
 
 class TestBuildAddressFieldsFromRow:
-    def test_street_city_state_zip_concat(self):
+    def test_street_and_location_concat(self):
+        """Street + location are joined; city/state parsed from location via heuristic."""
         out = build_address_fields_from_row(
             "1532 Howard St",
+            "San Francisco, CA 94103",
             None,
-            "San Francisco",
-            "CA",
-            "94103",
         )
         assert out["address_raw"] == "1532 Howard St, San Francisco, CA 94103"
         assert out["address_street"] == "1532 Howard St"
@@ -20,28 +19,32 @@ class TestBuildAddressFieldsFromRow:
         assert out["address_state"] == "CA"
         assert out["address_zip"] == "94103"
 
-    def test_fallback_to_location_when_no_structured(self):
-        out = build_address_fields_from_row("", "Oakland, CA 94612", "", "", "")
+    def test_location_only_no_street(self):
+        """location-only row: address_raw equals location; city/state parsed from it."""
+        out = build_address_fields_from_row("", "Oakland, CA 94612", "")
         assert out["address_raw"] == "Oakland, CA 94612"
         assert out["address_street"] == ""
-        assert out["address_city"] == ""
-        assert out["address_state"] == ""
-        assert out["address_zip"] == ""
+        assert out["address_city"] == "Oakland"
+        assert out["address_state"] == "CA"
+        assert out["address_zip"] == "94612"
 
-    def test_street_plus_location_when_no_city_state_zip(self):
-        """Typical run 2: street in `address`, locality in `location` column."""
+    def test_street_plus_location(self):
+        """Typical run 2: street in address, locality in location column."""
         out = build_address_fields_from_row(
             "1532 Howard St",
             "San Francisco, CA 94103",
-            "",
-            "",
             "",
         )
         assert out["address_raw"] == "1532 Howard St, San Francisco, CA 94103"
         assert out["address_street"] == "1532 Howard St"
 
+    def test_zip_fallback_when_location_has_no_zip(self):
+        """Standalone zip_code arg is used when location string has no zip."""
+        out = build_address_fields_from_row("100 Pine St", "New York, NY", "10005")
+        assert out["address_zip"] == "10005"
+
     @patch("zillow_pipeline.lib.loopnet_address_fields.normalize_address_parts")
-    def test_libpostal_overrides_city_state_zip(self, mock_norm):
+    def test_libpostal_provides_city_state(self, mock_norm):
         mock_norm.return_value = {
             "house_number": "1532",
             "road": "howard street",
@@ -52,8 +55,6 @@ class TestBuildAddressFieldsFromRow:
         out = build_address_fields_from_row(
             "1532 Howard St",
             "San Francisco, CA 94103",
-            "",
-            "",
             "",
         )
         mock_norm.assert_called_once_with("1532 Howard St, San Francisco, CA 94103")
@@ -68,8 +69,6 @@ def test_run_loopnet_address_backfill_updates_when_differs():
             "id": "u1",
             "address": "1 Main",
             "location": "San Francisco, CA 94102",
-            "city": "",
-            "state": "",
             "zip": "",
             "address_raw": None,
             "address_street": None,

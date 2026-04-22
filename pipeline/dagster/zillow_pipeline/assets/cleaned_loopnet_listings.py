@@ -125,8 +125,6 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
     addr_fields = build_address_fields_from_row(
         street_line,
         header.get("location") or "",
-        city,
-        state,
         zip_code,
     )
 
