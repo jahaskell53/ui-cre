@@ -131,11 +131,12 @@ async function pageFunction(context) {
         )
         return list(client.dataset(run["defaultDatasetId"]).iterate_items())
 
-    def run_loopnet_search(self, search_url: str) -> list[dict]:
+    def run_loopnet_search(self, search_urls: list[str]) -> list[dict]:
+        """Scrape one or more LoopNet search-results pages and return all items."""
         client = ApifyClient(self.api_token)
         run = client.actor(self.loopnet_search_actor_id).call(
             run_input={
-                "urls": [search_url],
+                "urls": search_urls,
                 "ignore_url_failures": True,
                 "max_retries_per_url": 2,
                 "proxy": {
