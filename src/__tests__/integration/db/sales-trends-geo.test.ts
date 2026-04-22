@@ -48,27 +48,27 @@ function assertSalesTrendRows(rows: SalesTrendRow[], label: string) {
     }
 }
 
-describe("get_sales_trends_by_city (Los Angeles, CA)", () => {
-    it("returns sales rows for Los Angeles", async () => {
+describe("get_sales_trends_by_city (Oakland, CA)", () => {
+    it("returns sales rows for Oakland", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_sales_trends_by_city", {
             p_city: CITY,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_city LA");
+        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_city Oakland");
     });
 });
 
-describe("get_sales_trends_by_county (Los Angeles County, CA)", () => {
-    it("returns sales rows for Los Angeles County", async () => {
+describe("get_sales_trends_by_county (Alameda County, CA)", () => {
+    it("returns sales rows for Alameda County", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_sales_trends_by_county", {
             p_county_name: COUNTY_NAME,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_county LA County");
+        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_county Alameda County");
     });
 });
 
