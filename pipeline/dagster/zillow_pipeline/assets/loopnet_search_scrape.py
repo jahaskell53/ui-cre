@@ -22,6 +22,7 @@ LOOPNET_SEARCH_MAX_PAGES = 5
 
 class LoopnetSearchScrapeConfig(Config):
     run_id: Optional[str] = None  # if set, resumes a previous run under that run_id
+    max_pages: Optional[int] = None  # override page count; set to 1 for a smoke test
 
 
 def _build_search_urls(max_pages: int = LOOPNET_SEARCH_MAX_PAGES) -> list[str]:
@@ -71,13 +72,12 @@ def raw_loopnet_search_scrapes(
             value=listings_found,
             metadata={
                 "run_id": run_id,
-                "search_urls": _build_search_urls(),
                 "listings_found": listings_found,
                 "scraped_at": scraped_at,
             },
         )
 
-    search_urls = _build_search_urls()
+    search_urls = _build_search_urls(config.max_pages if config.max_pages else LOOPNET_SEARCH_MAX_PAGES)
     context.log.info(
         f"Scraping LoopNet search across {len(search_urls)} pages (list view, no map)"
     )

@@ -165,6 +165,29 @@ class TestRawLoopnetSearchScrapes:
         assert output.value == 2
         assert meta(output, "run_id") == "old-run-id"
 
+    def test_max_pages_config_overrides_default(self):
+        """Setting max_pages=1 sends only one URL to the actor (smoke test mode)."""
+        supabase, client = make_supabase()
+        apify = make_apify()
+        apify.run_loopnet_search.return_value = [
+            {"url": "https://www.loopnet.com/Listing/1/", "name": "123 Main St"},
+        ]
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+
+        with build_asset_context() as ctx:
+            output = raw_loopnet_search_scrapes(
+                context=ctx,
+                config=LoopnetSearchScrapeConfig(max_pages=1),
+                apify=apify,
+                supabase=supabase,
+            )
+
+        call_args = apify.run_loopnet_search.call_args
+        urls_arg = call_args[0][0]
+        assert len(urls_arg) == 1
+        assert "/1/" in urls_arg[0]
+        assert output.value == 1
+
     def test_credit_limit_raises_failure_no_retry(self):
         supabase, client = make_supabase()
         apify = make_apify()
