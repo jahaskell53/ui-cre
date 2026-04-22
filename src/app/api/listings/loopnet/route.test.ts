@@ -73,25 +73,15 @@ describe("GET /api/listings/loopnet", () => {
     });
 
     it("returns empty map payload when no rows (latest_only)", async () => {
-        let call = 0;
-        mockDbSelect.mockImplementation(() => {
-            call += 1;
-            if (call === 1) {
-                const mockLimit = vi.fn().mockResolvedValue([{ runId: 1 }]);
-                const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
-                return { from: vi.fn().mockReturnValue({ orderBy: mockOrderBy }) };
-            }
-            const mockOrderBy2 = vi.fn().mockResolvedValue([]);
-            const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy2 });
-            return { from: vi.fn().mockReturnValue({ where: mockWhere }) };
-        });
+        const mockOrderBy = vi.fn().mockResolvedValue([]);
+        const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+        mockDbSelect.mockReturnValue({ from: vi.fn().mockReturnValue({ where: mockWhere }) });
 
         const res = await GET(makeGet({ latest_only: "1" }));
         const body = await res.json();
 
         expect(res.status).toBe(200);
         expect(body).toEqual({ data: [], count: 0 });
-        expect(call).toBe(2);
     });
 
     it("returns latest_run_id", async () => {
