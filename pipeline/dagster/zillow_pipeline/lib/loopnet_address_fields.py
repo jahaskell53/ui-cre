@@ -86,13 +86,12 @@ def _row_address_fields_match(row: dict, desired: dict[str, str]) -> bool:
 def run_loopnet_address_backfill(
     client: Client,
     *,
-    run_id: int | None = None,
     dry_run: bool = False,
     page_size: int = 200,
     limit: int | None = None,
 ) -> dict[str, int]:
     """
-    Recompute address_* on loopnet_listings from address, location, city, state, zip.
+    Recompute address_* on loopnet_listing_details from address, location, city, state, zip.
 
     Returns counts: scanned, updated, unchanged, skipped_empty, errors.
     """

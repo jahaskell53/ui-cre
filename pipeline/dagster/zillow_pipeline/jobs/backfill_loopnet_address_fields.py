@@ -8,7 +8,6 @@ from zillow_pipeline.lib.loopnet_address_fields import run_loopnet_address_backf
 class BackfillLoopnetAddressFieldsConfig(Config):
     """Launch config for backfill_loopnet_address_fields_job (set in Dagster UI)."""
 
-    run_id: Optional[int] = None
     dry_run: bool = False
     page_size: int = 200
     limit: Optional[int] = None
@@ -19,11 +18,10 @@ def backfill_loopnet_address_fields_op(
     context: OpExecutionContext,
     config: BackfillLoopnetAddressFieldsConfig,
 ) -> dict[str, int]:
-    """Recompute loopnet_listings address_* from address/location/city/state/zip (libpostal when installed)."""
+    """Recompute loopnet_listing_details address_* from address/location/city/state/zip (libpostal when installed)."""
     client = context.resources.supabase.get_client()
     stats = run_loopnet_address_backfill(
         client,
-        run_id=config.run_id,
         dry_run=config.dry_run,
         page_size=config.page_size,
         limit=config.limit,

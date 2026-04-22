@@ -54,13 +54,12 @@ def _geom_wkt(lng: float, lat: float) -> str:
 def run_loopnet_geom_backfill(
     client: Client,
     *,
-    run_id: int | None = None,
     dry_run: bool = False,
     page_size: int = 200,
     limit: int | None = None,
     geocode_delay: float = 0.2,
 ) -> dict[str, int]:
-    """Populate geom on loopnet_listings rows where it is NULL.
+    """Populate geom on loopnet_listing_details rows where it is NULL.
 
     Two passes:
     1. Rows that already have latitude/longitude — update geom from those values
