@@ -183,8 +183,6 @@ class TestBuildRecord:
         assert record is not None
         assert record["listing_url"] == SAMPLE_ITEM["inputUrl"]
         assert record["address"] == "1532 Howard St"
-        assert record["city"] == "San Francisco"
-        assert record["state"] == "CA"
         assert record["zip"] == "94103"
         assert record["latitude"] == 37.772812
         assert record["longitude"] == -122.416294

@@ -119,8 +119,6 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
     broker_email = primary_broker.get("email") or None
 
     street_line = (item.get("address") or header.get("headerAddress") or "").strip()
-    city = (item.get("city") or "").strip()
-    state = (item.get("state") or "").strip()
     zip_code = (item.get("zip") or "").strip()
     addr_fields = build_address_fields_from_row(
         street_line,
@@ -136,8 +134,6 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
         **addr_fields,
         "headline":             header.get("subtext") or "",
         "location":             header.get("location") or "",
-        "city":                 city,
-        "state":                state,
         "zip":                  zip_code,
         "price":                price_str,
         "price_numeric":        price_numeric,
