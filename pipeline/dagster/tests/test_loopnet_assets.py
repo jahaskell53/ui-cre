@@ -5,7 +5,12 @@ import pytest
 from apify_client.errors import ApifyApiError
 from dagster import build_asset_context, Failure
 
-from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scrapes, LoopnetSearchScrapeConfig
+from zillow_pipeline.assets.loopnet_search_scrape import (
+    raw_loopnet_search_scrapes,
+    LoopnetSearchScrapeConfig,
+    _build_search_urls,
+    LOOPNET_SEARCH_MAX_PAGES,
+)
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes, LoopnetDetailScrapeConfig
 
 
@@ -35,6 +40,29 @@ def make_apify_rate_limit_error(status_code: int = 402, error_type: str = "hard_
     return err
 
 
+# ─── _build_search_urls ──────────────────────────────────────────────────────
+
+class TestBuildSearchUrls:
+    def test_returns_correct_number_of_pages(self):
+        urls = _build_search_urls(max_pages=3)
+        assert len(urls) == 3
+
+    def test_page_numbers_are_sequential(self):
+        urls = _build_search_urls(max_pages=5)
+        assert "/1/" in urls[0]
+        assert "/2/" in urls[1]
+        assert "/5/" in urls[4]
+
+    def test_no_view_map_parameter(self):
+        urls = _build_search_urls()
+        for url in urls:
+            assert "view=map" not in url
+
+    def test_default_uses_max_pages_constant(self):
+        urls = _build_search_urls()
+        assert len(urls) == LOOPNET_SEARCH_MAX_PAGES
+
+
 # ─── raw_loopnet_search_scrapes ──────────────────────────────────────────────
 
 class TestRawLoopnetSearchScrapes:
@@ -59,6 +87,13 @@ class TestRawLoopnetSearchScrapes:
         assert output.value == 2
         assert meta(output, "listings_found") == 2
         client.table.return_value.insert.assert_called_once()
+        # Verify the actor was called with a list of URLs (multi-page)
+        call_args = apify.run_loopnet_search.call_args
+        urls_arg = call_args[0][0]
+        assert isinstance(urls_arg, list)
+        assert len(urls_arg) == LOOPNET_SEARCH_MAX_PAGES
+        for url in urls_arg:
+            assert "view=map" not in url
 
     def test_empty_results_inserts_empty_list(self):
         supabase, client = make_supabase()
@@ -76,6 +111,32 @@ class TestRawLoopnetSearchScrapes:
 
         assert output.value == 0
         assert meta(output, "listings_found") == 0
+
+    def test_deduplicates_cross_page_results(self):
+        """Listings appearing on multiple pages are counted only once."""
+        supabase, client = make_supabase()
+        apify = make_apify()
+        dup_url = "https://www.loopnet.com/Listing/1/"
+        apify.run_loopnet_search.return_value = [
+            {"url": dup_url, "name": "123 Main St"},
+            {"url": "https://www.loopnet.com/Listing/2/", "name": "456 Oak Ave"},
+            {"url": dup_url, "name": "123 Main St"},  # duplicate from page 2
+        ]
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+
+        with build_asset_context() as ctx:
+            output = raw_loopnet_search_scrapes(
+                context=ctx,
+                config=LoopnetSearchScrapeConfig(),
+                apify=apify,
+                supabase=supabase,
+            )
+
+        assert output.value == 2
+        assert meta(output, "listings_found") == 2
+        # Verify the inserted raw_json only has 2 unique items
+        insert_call = client.table.return_value.insert.call_args[0][0]
+        assert len(insert_call["raw_json"]) == 2
 
     def test_skips_apify_call_when_already_scraped_for_run_id(self):
         supabase, client = make_supabase()
@@ -103,6 +164,29 @@ class TestRawLoopnetSearchScrapes:
         apify.run_loopnet_search.assert_not_called()
         assert output.value == 2
         assert meta(output, "run_id") == "old-run-id"
+
+    def test_max_pages_config_overrides_default(self):
+        """Setting max_pages=1 sends only one URL to the actor (smoke test mode)."""
+        supabase, client = make_supabase()
+        apify = make_apify()
+        apify.run_loopnet_search.return_value = [
+            {"url": "https://www.loopnet.com/Listing/1/", "name": "123 Main St"},
+        ]
+        client.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+
+        with build_asset_context() as ctx:
+            output = raw_loopnet_search_scrapes(
+                context=ctx,
+                config=LoopnetSearchScrapeConfig(max_pages=1),
+                apify=apify,
+                supabase=supabase,
+            )
+
+        call_args = apify.run_loopnet_search.call_args
+        urls_arg = call_args[0][0]
+        assert len(urls_arg) == 1
+        assert "/1/" in urls_arg[0]
+        assert output.value == 1
 
     def test_credit_limit_raises_failure_no_retry(self):
         supabase, client = make_supabase()

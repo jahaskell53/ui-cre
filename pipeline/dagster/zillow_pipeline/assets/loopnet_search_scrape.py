@@ -7,14 +7,30 @@ from dagster import AssetExecutionContext, Backoff, Config, Failure, Output, Ret
 from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
 
-LOOPNET_SEARCH_URL = (
-    "https://www.loopnet.com/search/apartment-buildings/for-sale/1/"
-    "?bb=37mtyq5j5O1j6ikg9D&view=map"
+# Base URL for the LoopNet apartment-buildings-for-sale search in SF County.
+# Uses list view (no &view=map) so all listings are rendered page-by-page rather
+# than in a lazy-loading map sidebar that only shows an initial subset.
+LOOPNET_SEARCH_BASE_URL = (
+    "https://www.loopnet.com/search/apartment-buildings/for-sale/{page}/"
+    "?bb=37mtyq5j5O1j6ikg9D"
 )
+
+# Number of result pages to fetch per run.  At 25 listings/page this covers up
+# to 125 listings, comfortably above the ~71 currently shown for SF County.
+LOOPNET_SEARCH_MAX_PAGES = 5
 
 
 class LoopnetSearchScrapeConfig(Config):
     run_id: Optional[str] = None  # if set, resumes a previous run under that run_id
+    max_pages: Optional[int] = None  # override page count; set to 1 for a smoke test
+
+
+def _build_search_urls(max_pages: int = LOOPNET_SEARCH_MAX_PAGES) -> list[str]:
+    """Return page URLs 1–max_pages for the SF apartment-buildings-for-sale search."""
+    return [
+        LOOPNET_SEARCH_BASE_URL.format(page=page)
+        for page in range(1, max_pages + 1)
+    ]
 
 
 @asset(
@@ -56,15 +72,17 @@ def raw_loopnet_search_scrapes(
             value=listings_found,
             metadata={
                 "run_id": run_id,
-                "search_url": LOOPNET_SEARCH_URL,
                 "listings_found": listings_found,
                 "scraped_at": scraped_at,
             },
         )
 
-    context.log.info(f"Scraping LoopNet search: {LOOPNET_SEARCH_URL}")
+    search_urls = _build_search_urls(config.max_pages if config.max_pages else LOOPNET_SEARCH_MAX_PAGES)
+    context.log.info(
+        f"Scraping LoopNet search across {len(search_urls)} pages (list view, no map)"
+    )
     try:
-        data = apify.run_loopnet_search(LOOPNET_SEARCH_URL)
+        data = apify.run_loopnet_search(search_urls)
     except ApifyApiError as e:
         context.log.error(f"Apify error: [{e.status_code}] {e.type} — {e.message}")
         if e.status_code in (402, 429) or (e.type and "hard_limit" in e.type.lower()):
@@ -74,25 +92,38 @@ def raw_loopnet_search_scrapes(
             )
         raise
 
-    context.log.info(f"Scrape returned {len(data)} listings")
+    # Deduplicate by listing URL in case the actor returns overlapping results
+    # across pages (e.g. a listing promoted on multiple pages).
+    seen: set[str] = set()
+    unique_data: list[dict] = []
+    for item in data:
+        url = item.get("url") or ""
+        if url and url in seen:
+            continue
+        seen.add(url)
+        unique_data.append(item)
+
+    context.log.info(
+        f"Scrape returned {len(data)} raw results, {len(unique_data)} unique listings"
+    )
 
     client.table("raw_loopnet_search_scrapes").insert(
         {
             "run_id": run_id,
             "scraped_at": scraped_at,
-            "search_url": LOOPNET_SEARCH_URL,
-            "raw_json": data,
+            "search_url": search_urls[0],
+            "raw_json": unique_data,
         }
     ).execute()
 
-    context.log.info(f"Inserted {len(data)} listings into raw_loopnet_search_scrapes")
+    context.log.info(f"Inserted {len(unique_data)} listings into raw_loopnet_search_scrapes")
 
     return Output(
-        value=len(data),
+        value=len(unique_data),
         metadata={
             "run_id": run_id,
-            "search_url": LOOPNET_SEARCH_URL,
-            "listings_found": len(data),
+            "search_urls": search_urls,
+            "listings_found": len(unique_data),
             "scraped_at": scraped_at,
         },
     )
