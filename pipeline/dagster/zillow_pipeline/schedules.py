@@ -72,7 +72,7 @@ zillow_building_job = define_asset_job(
 )
 
 loopnet_scrape_job = define_asset_job(
-    name="loopnet_weekly_scrape_job",
+    name="loopnet_daily_scrape_job",
     selection=AssetSelection.assets(raw_loopnet_search_scrapes, raw_loopnet_detail_scrapes),
 )
 
@@ -87,10 +87,10 @@ loopnet_om_job = define_asset_job(
 )
 
 
-weekly_loopnet_scrape_schedule = ScheduleDefinition(
-    name="weekly_loopnet_scrape",
+daily_loopnet_scrape_schedule = ScheduleDefinition(
+    name="daily_loopnet_scrape",
     job=loopnet_scrape_job,
-    cron_schedule="0 7 * * 2",  # Every Tuesday at 7am UTC
+    cron_schedule="0 7 * * *",  # Every day at 7am UTC
 )
 
 
