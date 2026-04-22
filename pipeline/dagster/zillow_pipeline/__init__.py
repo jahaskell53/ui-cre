@@ -8,7 +8,7 @@ from zillow_pipeline.jobs.backfill_loopnet_address_fields import backfill_loopne
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
 from zillow_pipeline.jobs.backfill_loopnet_geom import backfill_loopnet_geom_job
 from zillow_pipeline.jobs.loopnet_om_jobs import loopnet_om_text_job, loopnet_om_metrics_job
-from zillow_pipeline.schedules import weekly_scrape_schedule, weekly_loopnet_scrape_schedule, zillow_cleaning_job, zillow_scrape_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, loopnet_om_job, trigger_cleaning_job_after_scrape, trigger_building_job_after_cleaning, trigger_loopnet_cleaning_after_scrape, trigger_om_download_after_cleaning, trigger_om_text_after_om_download, trigger_om_metrics_after_om_text, alert_on_pipeline_failure, alert_on_pipeline_success
+from zillow_pipeline.schedules import weekly_scrape_schedule, daily_loopnet_scrape_schedule, zillow_cleaning_job, zillow_scrape_job, zillow_building_job, loopnet_scrape_job, loopnet_cleaning_job, loopnet_om_job, trigger_cleaning_job_after_scrape, trigger_building_job_after_cleaning, trigger_loopnet_cleaning_after_scrape, trigger_om_download_after_cleaning, trigger_om_text_after_om_download, trigger_om_metrics_after_om_text, alert_on_pipeline_failure, alert_on_pipeline_success
 
 all_assets = load_assets_from_modules([zip_codes, zillow_scrape, cleaned_listings, zillow_building_scrape, cleaned_building_units, refresh_unit_breakdown_views, loopnet_search_scrape, loopnet_detail_scrape, cleaned_loopnet_listings, download_om_pdfs, convert_om_to_text, extract_om_metrics])
 
@@ -27,7 +27,7 @@ defs = Definitions(
         backfill_loopnet_address_fields_job,
         backfill_loopnet_geom_job,
     ],
-    schedules=[weekly_scrape_schedule, weekly_loopnet_scrape_schedule],
+    schedules=[weekly_scrape_schedule, daily_loopnet_scrape_schedule],
     sensors=[
         trigger_cleaning_job_after_scrape,
         trigger_building_job_after_cleaning,
