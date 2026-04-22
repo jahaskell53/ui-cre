@@ -80,7 +80,7 @@ def download_om_pdfs(
     client = supabase.get_client()
 
     rows = (
-        client.table("loopnet_listings")
+        client.table("loopnet_listing_details")
         .select("id, listing_url, attachments, om_url, attachment_urls")
         .execute()
     ).data
@@ -149,7 +149,7 @@ def download_om_pdfs(
         payload = {"attachment_urls": built, "om_url": om_url}
 
         try:
-            client.table("loopnet_listings").update(payload).eq("id", listing_id).execute()
+            client.table("loopnet_listing_details").update(payload).eq("id", listing_id).execute()
             context.log.info(f"Stored {len(built)} attachment URL(s) for {listing_url}")
             listings_updated += 1
         except Exception as e:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Recompute loopnet_listings.om_url from existing attachment_urls using the same
+Recompute loopnet_listing_details.om_url from existing attachment_urls using the same
 rules as download_om_pdfs (see zillow_pipeline.lib.loopnet_om_selection).
 
 Usage (from repo root or pipeline/dagster):

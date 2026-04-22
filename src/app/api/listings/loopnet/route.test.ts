@@ -42,8 +42,8 @@ describe("GET /api/listings/loopnet", () => {
             squareFootage: "10000",
             thumbnailUrl: null,
             listingUrl: "https://loopnet.example/l/1",
+            omUrl: null,
             createdAt: "2024-01-01T00:00:00Z",
-            runId: 1,
             unitMix: null,
             attachmentUrls: [
                 { source_url: "https://cdn/a.pdf", url: "https://s3/a.pdf", description: "OM" },

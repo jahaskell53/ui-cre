@@ -83,10 +83,8 @@ def test_run_loopnet_address_backfill_updates_when_differs():
     t = MagicMock()
     sel_exec = MagicMock()
     sel_exec.execute.return_value = MagicMock(data=rows)
-    after_eq = MagicMock()
-    after_eq.range.return_value = sel_exec
     after_order = MagicMock()
-    after_order.eq.return_value = after_eq
+    after_order.range.return_value = sel_exec
     select_result = MagicMock()
     select_result.order.return_value = after_order
     t.select.return_value = select_result
@@ -95,14 +93,14 @@ def test_run_loopnet_address_backfill_updates_when_differs():
     t.update.return_value.eq.return_value = upd_exec
     client.table.return_value = t
 
-    stats = run_loopnet_address_backfill(client, run_id=2, page_size=50)
+    stats = run_loopnet_address_backfill(client, page_size=50)
 
     assert stats["scanned"] == 1
     assert stats["updated"] == 1
     assert stats["unchanged"] == 0
     assert stats["skipped_empty"] == 0
     assert stats["errors"] == 0
-    after_order.eq.assert_called_once_with("run_id", 2)
+    client.table.assert_called_with("loopnet_listing_details")
     t.update.assert_called_once()
     payload = t.update.call_args[0][0]
     assert payload["address_raw"] == "1 Main, San Francisco, CA 94102"

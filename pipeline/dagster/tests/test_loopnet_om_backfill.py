@@ -47,5 +47,5 @@ def test_run_backfill_updates_when_differs():
     assert stats["unchanged"] == 0
     assert stats["skipped_no_attachment_urls"] == 0
     assert stats["errors"] == 0
-    client.table.assert_called_with("loopnet_listings")
+    client.table.assert_called_with("loopnet_listing_details")
     t.update.assert_called_once_with({"om_url": "https://s3/b.pdf"})

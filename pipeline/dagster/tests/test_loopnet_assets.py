@@ -1,5 +1,5 @@
 """Tests for LoopNet scrape assets."""
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from apify_client.errors import ApifyApiError
@@ -189,10 +189,14 @@ class TestRawLoopnetDetailScrapes:
         search_rows_mock.data = self._make_search_rows(["https://www.loopnet.com/Listing/1/"])
         already_mock = MagicMock()
         already_mock.data = []
+        # loopnet_listing_details returns empty (no existing details)
+        details_mock = MagicMock()
+        details_mock.data = []
 
         client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
             search_rows_mock, already_mock
         ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
         apify.run_loopnet_detail.return_value = [{"address": "123 Main"}]
 
         with build_asset_context() as ctx:
@@ -217,10 +221,13 @@ class TestRawLoopnetDetailScrapes:
         ]
         already_mock = MagicMock()
         already_mock.data = []
+        details_mock = MagicMock()
+        details_mock.data = []
 
         client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
             search_rows_mock, already_mock
         ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
         apify.run_loopnet_detail.return_value = [{"address": "123 Main"}]
 
         with build_asset_context() as ctx:
@@ -243,10 +250,13 @@ class TestRawLoopnetDetailScrapes:
         search_rows_mock.data = self._make_search_rows([url])
         already_mock = MagicMock()
         already_mock.data = [{"listing_url": url}]
+        details_mock = MagicMock()
+        details_mock.data = []
 
         client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
             search_rows_mock, already_mock
         ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
 
         with build_asset_context() as ctx:
             output = raw_loopnet_detail_scrapes(
@@ -260,6 +270,35 @@ class TestRawLoopnetDetailScrapes:
         assert meta(output, "skipped") == 1
         assert meta(output, "inserted") == 0
 
+    def test_skips_listings_already_in_details_table(self):
+        """New listings already in loopnet_listing_details are skipped (no Apify call)."""
+        supabase, client = make_supabase()
+        apify = make_apify()
+
+        url = "https://www.loopnet.com/Listing/1/"
+        search_rows_mock = MagicMock()
+        search_rows_mock.data = self._make_search_rows([url])
+        already_mock = MagicMock()
+        already_mock.data = []  # not in raw_loopnet_detail_scrapes
+        details_mock = MagicMock()
+        details_mock.data = [{"listing_url": url}]  # already in details
+
+        client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
+            search_rows_mock, already_mock
+        ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
+
+        with build_asset_context() as ctx:
+            output = raw_loopnet_detail_scrapes(
+                context=ctx,
+                config=LoopnetDetailScrapeConfig(run_id="run-1"),
+                apify=apify,
+                supabase=supabase,
+            )
+
+        apify.run_loopnet_detail.assert_not_called()
+        assert meta(output, "skipped") == 1
+
     def test_credit_limit_raises_failure_no_retry(self):
         supabase, client = make_supabase()
         apify = make_apify()
@@ -268,10 +307,13 @@ class TestRawLoopnetDetailScrapes:
         search_rows_mock.data = self._make_search_rows(["https://www.loopnet.com/Listing/1/"])
         already_mock = MagicMock()
         already_mock.data = []
+        details_mock = MagicMock()
+        details_mock.data = []
 
         client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
             search_rows_mock, already_mock
         ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
         apify.run_loopnet_detail.side_effect = make_apify_rate_limit_error(status_code=402)
 
         with build_asset_context() as ctx:
@@ -297,10 +339,13 @@ class TestRawLoopnetDetailScrapes:
         search_rows_mock.data = self._make_search_rows(urls)
         already_mock = MagicMock()
         already_mock.data = []
+        details_mock = MagicMock()
+        details_mock.data = []
 
         client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
             search_rows_mock, already_mock
         ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
         apify.run_loopnet_detail.side_effect = [RuntimeError("timeout"), [{"address": "456 Oak"}]]
 
         with build_asset_context() as ctx:
@@ -322,10 +367,13 @@ class TestRawLoopnetDetailScrapes:
         search_rows_mock.data = [{"raw_json": [{"name": "No URL listing"}]}]
         already_mock = MagicMock()
         already_mock.data = []
+        details_mock = MagicMock()
+        details_mock.data = []
 
         client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
             search_rows_mock, already_mock
         ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
 
         with build_asset_context() as ctx:
             output = raw_loopnet_detail_scrapes(
@@ -347,10 +395,13 @@ class TestRawLoopnetDetailScrapes:
         search_rows_mock.data = self._make_search_rows([url])
         already_mock = MagicMock()
         already_mock.data = []
+        details_mock = MagicMock()
+        details_mock.data = []
 
         client.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
             search_rows_mock, already_mock
         ]
+        client.table.return_value.select.return_value.range.return_value.execute.return_value = details_mock
         apify.run_loopnet_detail.return_value = [
             {
                 "title": "A\x00B",

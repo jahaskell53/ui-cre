@@ -1,4 +1,4 @@
-"""Geocode loopnet_listings rows that are missing a geom column value.
+"""Geocode loopnet_listing_details rows that are missing a geom column value.
 
 Strategy
 --------
@@ -54,13 +54,12 @@ def _geom_wkt(lng: float, lat: float) -> str:
 def run_loopnet_geom_backfill(
     client: Client,
     *,
-    run_id: int | None = None,
     dry_run: bool = False,
     page_size: int = 200,
     limit: int | None = None,
     geocode_delay: float = 0.2,
 ) -> dict[str, int]:
-    """Populate geom on loopnet_listings rows where it is NULL.
+    """Populate geom on loopnet_listing_details rows where it is NULL.
 
     Two passes:
     1. Rows that already have latitude/longitude — update geom from those values
@@ -85,15 +84,13 @@ def run_loopnet_geom_backfill(
     offset = 0
     while True:
         q = (
-            client.table("loopnet_listings")
+            client.table("loopnet_listing_details")
             .select("id,latitude,longitude")
             .is_("geom", "null")
             .not_.is_("latitude", "null")
             .not_.is_("longitude", "null")
             .order("id")
         )
-        if run_id is not None:
-            q = q.eq("run_id", run_id)
         rows = (q.range(offset, offset + page_size - 1).execute()).data or []
         if not rows:
             break
@@ -112,7 +109,7 @@ def run_loopnet_geom_backfill(
 
             if not dry_run:
                 try:
-                    client.table("loopnet_listings").update(
+                    client.table("loopnet_listing_details").update(
                         {"geom": _geom_wkt(lng, lat)}
                     ).eq("id", rid).execute()
                 except Exception as exc:
@@ -134,14 +131,12 @@ def run_loopnet_geom_backfill(
             break
 
         q = (
-            client.table("loopnet_listings")
+            client.table("loopnet_listing_details")
             .select("id,address_raw,address,location")
             .is_("geom", "null")
             .is_("latitude", "null")
             .order("id")
         )
-        if run_id is not None:
-            q = q.eq("run_id", run_id)
         rows = (q.range(offset, offset + page_size - 1).execute()).data or []
         if not rows:
             break
@@ -172,7 +167,7 @@ def run_loopnet_geom_backfill(
 
             if not dry_run:
                 try:
-                    client.table("loopnet_listings").update(
+                    client.table("loopnet_listing_details").update(
                         {
                             "latitude": lat,
                             "longitude": lng,

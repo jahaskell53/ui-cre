@@ -78,7 +78,7 @@ def convert_om_to_text(
     client = supabase.get_client()
 
     rows = (
-        client.table("loopnet_listings")
+        client.table("loopnet_listing_details")
         .select("id, listing_url, om_url, om_text_extracted_at")
         .not_.is_("om_url", "null")
         .is_("om_text_extracted_at", "null")
@@ -116,7 +116,7 @@ def convert_om_to_text(
         }
 
         try:
-            client.table("loopnet_listings").update(payload).eq("id", listing_id).execute()
+            client.table("loopnet_listing_details").update(payload).eq("id", listing_id).execute()
             context.log.info(f"Stored om_text ({len(om_text)} chars) for {listing_url}")
             updated += 1
         except Exception as e:

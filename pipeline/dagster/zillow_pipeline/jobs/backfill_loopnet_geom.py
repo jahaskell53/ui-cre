@@ -8,7 +8,6 @@ from zillow_pipeline.lib.loopnet_geom import run_loopnet_geom_backfill
 class BackfillLoopnetGeomConfig(Config):
     """Launch config for backfill_loopnet_geom_job (set in Dagster UI)."""
 
-    run_id: Optional[int] = None
     dry_run: bool = False
     page_size: int = 200
     limit: Optional[int] = None
@@ -20,11 +19,10 @@ def backfill_loopnet_geom_op(
     context: OpExecutionContext,
     config: BackfillLoopnetGeomConfig,
 ) -> dict[str, int]:
-    """Populate loopnet_listings.geom from lat/lng (pass 1) or Mapbox geocoding (pass 2)."""
+    """Populate loopnet_listing_details.geom from lat/lng (pass 1) or Mapbox geocoding (pass 2)."""
     client = context.resources.supabase.get_client()
     stats = run_loopnet_geom_backfill(
         client,
-        run_id=config.run_id,
         dry_run=config.dry_run,
         page_size=config.page_size,
         limit=config.limit,

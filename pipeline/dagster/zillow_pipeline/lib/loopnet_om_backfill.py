@@ -1,4 +1,4 @@
-"""Recompute loopnet_listings.om_url from attachment_urls (no downloads)."""
+"""Recompute loopnet_listing_details.om_url from attachment_urls (no downloads)."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def normalize_attachment_urls(raw: object) -> list[dict[str, str]]:
 
 def run_backfill(client: Client, page_size: int = 500) -> dict[str, int]:
     """
-    Paginate loopnet_listings and set om_url from attachment_urls when it changes.
+    Paginate loopnet_listing_details and set om_url from attachment_urls when it changes.
 
     Returns counts: updated, unchanged, skipped_no_attachment_urls, errors.
     """
@@ -50,7 +50,7 @@ def run_backfill(client: Client, page_size: int = 500) -> dict[str, int]:
 
     while True:
         res = (
-            client.table("loopnet_listings")
+            client.table("loopnet_listing_details")
             .select("id, om_url, attachment_urls")
             .range(offset, offset + page_size - 1)
             .execute()
@@ -79,7 +79,7 @@ def run_backfill(client: Client, page_size: int = 500) -> dict[str, int]:
                 continue
 
             try:
-                client.table("loopnet_listings").update({"om_url": new_om}).eq("id", listing_id).execute()
+                client.table("loopnet_listing_details").update({"om_url": new_om}).eq("id", listing_id).execute()
                 updated += 1
             except Exception:
                 errors += 1

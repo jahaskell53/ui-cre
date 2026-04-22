@@ -1,8 +1,8 @@
-import { and, desc, eq, gte, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNotNull, lte, max, or, sql } from "drizzle-orm";
 import { SQL } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { loopnetListings } from "@/db/schema";
+import { loopnetListingDetails, loopnetListingSnapshots } from "@/db/schema";
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,31 +13,30 @@ export async function GET(request: NextRequest) {
         if (id) {
             const rows = await db
                 .select({
-                    id: loopnetListings.id,
-                    address: loopnetListings.address,
-                    addressRaw: loopnetListings.addressRaw,
-                    addressStreet: loopnetListings.addressStreet,
-                    addressCity: loopnetListings.addressCity,
-                    addressState: loopnetListings.addressState,
-                    addressZip: loopnetListings.addressZip,
-                    headline: loopnetListings.headline,
-                    location: loopnetListings.location,
-                    latitude: loopnetListings.latitude,
-                    longitude: loopnetListings.longitude,
-                    price: loopnetListings.price,
-                    capRate: loopnetListings.capRate,
-                    buildingCategory: loopnetListings.buildingCategory,
-                    squareFootage: loopnetListings.squareFootage,
-                    thumbnailUrl: loopnetListings.thumbnailUrl,
-                    listingUrl: loopnetListings.listingUrl,
-                    omUrl: loopnetListings.omUrl,
-                    createdAt: loopnetListings.createdAt,
-                    runId: loopnetListings.runId,
-                    unitMix: loopnetListings.unitMix,
-                    attachmentUrls: loopnetListings.attachmentUrls,
+                    id: loopnetListingDetails.id,
+                    address: loopnetListingDetails.address,
+                    addressRaw: loopnetListingDetails.addressRaw,
+                    addressStreet: loopnetListingDetails.addressStreet,
+                    addressCity: loopnetListingDetails.addressCity,
+                    addressState: loopnetListingDetails.addressState,
+                    addressZip: loopnetListingDetails.addressZip,
+                    headline: loopnetListingDetails.headline,
+                    location: loopnetListingDetails.location,
+                    latitude: loopnetListingDetails.latitude,
+                    longitude: loopnetListingDetails.longitude,
+                    price: loopnetListingDetails.price,
+                    capRate: loopnetListingDetails.capRate,
+                    buildingCategory: loopnetListingDetails.buildingCategory,
+                    squareFootage: loopnetListingDetails.squareFootage,
+                    thumbnailUrl: loopnetListingDetails.thumbnailUrl,
+                    listingUrl: loopnetListingDetails.listingUrl,
+                    omUrl: loopnetListingDetails.omUrl,
+                    createdAt: loopnetListingDetails.createdAt,
+                    unitMix: loopnetListingDetails.unitMix,
+                    attachmentUrls: loopnetListingDetails.attachmentUrls,
                 })
-                .from(loopnetListings)
-                .where(eq(loopnetListings.id, id))
+                .from(loopnetListingDetails)
+                .where(eq(loopnetListingDetails.id, id))
                 .limit(1);
 
             if (rows.length === 0) {
@@ -81,7 +80,6 @@ export async function GET(request: NextRequest) {
                 listing_url: r.listingUrl,
                 om_url: r.omUrl,
                 created_at: r.createdAt,
-                run_id: r.runId,
                 unit_mix: Array.isArray(r.unitMix) && r.unitMix.length > 0 ? r.unitMix : null,
                 attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,
             });
@@ -90,7 +88,11 @@ export async function GET(request: NextRequest) {
         // Check for latest_run_id only mode
         const latestRunOnly = searchParams.get("latest_run_id");
         if (latestRunOnly === "1") {
-            const rows = await db.select({ runId: loopnetListings.runId }).from(loopnetListings).orderBy(desc(loopnetListings.runId)).limit(1);
+            const rows = await db
+                .select({ runId: loopnetListingSnapshots.runId })
+                .from(loopnetListingSnapshots)
+                .orderBy(desc(loopnetListingSnapshots.runId))
+                .limit(1);
 
             return NextResponse.json({ run_id: rows[0]?.runId ?? null });
         }
@@ -113,87 +115,95 @@ export async function GET(request: NextRequest) {
         const boundsNorth = searchParams.get("bounds_north");
         const hasOm = searchParams.get("has_om") === "1";
 
-        const conditions: SQL[] = [isNotNull(loopnetListings.latitude), isNotNull(loopnetListings.longitude)];
+        const conditions: SQL[] = [isNotNull(loopnetListingDetails.latitude), isNotNull(loopnetListingDetails.longitude)];
 
         if (hasOm) {
             conditions.push(
                 or(
-                    and(isNotNull(loopnetListings.omUrl), sql`trim(both from ${loopnetListings.omUrl}) <> ''`)!,
+                    and(isNotNull(loopnetListingDetails.omUrl), sql`trim(both from ${loopnetListingDetails.omUrl}) <> ''`)!,
                     and(
-                        isNotNull(loopnetListings.attachmentUrls),
-                        sql`jsonb_typeof(${loopnetListings.attachmentUrls}) = 'array'`,
-                        sql`jsonb_array_length(${loopnetListings.attachmentUrls}) > 0`,
+                        isNotNull(loopnetListingDetails.attachmentUrls),
+                        sql`jsonb_typeof(${loopnetListingDetails.attachmentUrls}) = 'array'`,
+                        sql`jsonb_array_length(${loopnetListingDetails.attachmentUrls}) > 0`,
                     )!,
                 )!,
             );
         }
 
         if (latestOnly) {
-            const latestRows = await db.select({ runId: loopnetListings.runId }).from(loopnetListings).orderBy(desc(loopnetListings.runId)).limit(1);
+            const latestRows = await db
+                .select({ runId: loopnetListingSnapshots.runId })
+                .from(loopnetListingSnapshots)
+                .orderBy(desc(loopnetListingSnapshots.runId))
+                .limit(1);
             const latestRunId = latestRows[0]?.runId;
             if (latestRunId != null) {
-                conditions.push(eq(loopnetListings.runId, latestRunId));
+                conditions.push(
+                    sql`${loopnetListingDetails.listingUrl} IN (
+                        SELECT listing_url FROM loopnet_listing_snapshots WHERE run_id = ${latestRunId}
+                    )`,
+                );
             }
         }
 
         if (zipCode) {
             conditions.push(
                 or(
-                    ilike(loopnetListings.address, `%${zipCode}%`),
-                    ilike(loopnetListings.addressZip, `%${zipCode}%`),
-                    ilike(loopnetListings.addressRaw, `%${zipCode}%`),
-                    ilike(loopnetListings.location, `%${zipCode}%`),
+                    ilike(loopnetListingDetails.address, `%${zipCode}%`),
+                    ilike(loopnetListingDetails.addressZip, `%${zipCode}%`),
+                    ilike(loopnetListingDetails.addressRaw, `%${zipCode}%`),
+                    ilike(loopnetListingDetails.location, `%${zipCode}%`),
                 )!,
             );
         } else if (cityName) {
-            conditions.push(or(ilike(loopnetListings.location, `%${cityName}%`), ilike(loopnetListings.addressCity, `%${cityName}%`))!);
+            conditions.push(or(ilike(loopnetListingDetails.location, `%${cityName}%`), ilike(loopnetListingDetails.addressCity, `%${cityName}%`))!);
         } else if (countyName) {
             conditions.push(
                 or(
-                    ilike(loopnetListings.address, `%${countyName}%`),
-                    ilike(loopnetListings.addressRaw, `%${countyName}%`),
-                    ilike(loopnetListings.addressCity, `%${countyName}%`),
-                    ilike(loopnetListings.location, `%${countyName}%`),
+                    ilike(loopnetListingDetails.address, `%${countyName}%`),
+                    ilike(loopnetListingDetails.addressRaw, `%${countyName}%`),
+                    ilike(loopnetListingDetails.addressCity, `%${countyName}%`),
+                    ilike(loopnetListingDetails.location, `%${countyName}%`),
                 )!,
             );
         } else if (addressQuery) {
             conditions.push(
                 or(
-                    ilike(loopnetListings.headline, `%${addressQuery}%`),
-                    ilike(loopnetListings.address, `%${addressQuery}%`),
-                    ilike(loopnetListings.addressRaw, `%${addressQuery}%`),
-                    ilike(loopnetListings.addressStreet, `%${addressQuery}%`),
-                    ilike(loopnetListings.addressCity, `%${addressQuery}%`),
-                    ilike(loopnetListings.addressState, `%${addressQuery}%`),
-                    ilike(loopnetListings.addressZip, `%${addressQuery}%`),
-                    ilike(loopnetListings.location, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.headline, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.address, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.addressRaw, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.addressStreet, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.addressCity, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.addressState, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.addressZip, `%${addressQuery}%`),
+                    ilike(loopnetListingDetails.location, `%${addressQuery}%`),
                 )!,
             );
         }
 
         if (priceMin) {
             const v = parseFloat(priceMin);
-            if (!isNaN(v)) conditions.push(gte(loopnetListings.price, String(v)));
+            if (!isNaN(v)) conditions.push(gte(loopnetListingDetails.price, String(v)));
         }
         if (priceMax) {
             const v = parseFloat(priceMax);
-            if (!isNaN(v)) conditions.push(lte(loopnetListings.price, String(v)));
+            if (!isNaN(v)) conditions.push(lte(loopnetListingDetails.price, String(v)));
         }
         if (capRateMin) {
             const v = parseFloat(capRateMin);
-            if (!isNaN(v)) conditions.push(gte(loopnetListings.capRate, String(v)));
+            if (!isNaN(v)) conditions.push(gte(loopnetListingDetails.capRate, String(v)));
         }
         if (capRateMax) {
             const v = parseFloat(capRateMax);
-            if (!isNaN(v)) conditions.push(lte(loopnetListings.capRate, String(v)));
+            if (!isNaN(v)) conditions.push(lte(loopnetListingDetails.capRate, String(v)));
         }
         if (sqftMin) {
             const v = parseFloat(sqftMin);
-            if (!isNaN(v)) conditions.push(gte(loopnetListings.squareFootage, String(v)));
+            if (!isNaN(v)) conditions.push(gte(loopnetListingDetails.squareFootage, String(v)));
         }
         if (sqftMax) {
             const v = parseFloat(sqftMax);
-            if (!isNaN(v)) conditions.push(lte(loopnetListings.squareFootage, String(v)));
+            if (!isNaN(v)) conditions.push(lte(loopnetListingDetails.squareFootage, String(v)));
         }
 
         if (boundsWest && boundsEast && boundsSouth && boundsNorth) {
@@ -204,10 +214,10 @@ export async function GET(request: NextRequest) {
             if (!isNaN(west) && !isNaN(east) && !isNaN(south) && !isNaN(north)) {
                 conditions.push(
                     and(
-                        gte(loopnetListings.latitude, south),
-                        lte(loopnetListings.latitude, north),
-                        gte(loopnetListings.longitude, west),
-                        lte(loopnetListings.longitude, east),
+                        gte(loopnetListingDetails.latitude, south),
+                        lte(loopnetListingDetails.latitude, north),
+                        gte(loopnetListingDetails.longitude, west),
+                        lte(loopnetListingDetails.longitude, east),
                     )!,
                 );
             }
@@ -215,9 +225,9 @@ export async function GET(request: NextRequest) {
 
         const rows = await db
             .select()
-            .from(loopnetListings)
+            .from(loopnetListingDetails)
             .where(and(...conditions))
-            .orderBy(desc(loopnetListings.createdAt));
+            .orderBy(desc(loopnetListingDetails.createdAt));
 
         const result = rows.map((r) => {
             const attachmentUrlsRaw = r.attachmentUrls;
@@ -253,7 +263,6 @@ export async function GET(request: NextRequest) {
                 thumbnail_url: r.thumbnailUrl,
                 listing_url: r.listingUrl,
                 created_at: r.createdAt,
-                run_id: r.runId,
                 latitude: r.latitude,
                 longitude: r.longitude,
                 attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,

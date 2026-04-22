@@ -8,6 +8,7 @@ from zillow_pipeline.assets.cleaned_loopnet_listings import (
     cleaned_loopnet_listings,
     CleanedLoopnetListingsConfig,
     _build_record,
+    _extract_snapshot,
     _parse_date,
     _safe_int,
 )
@@ -271,22 +272,31 @@ class TestBuildRecord:
         assert "{s}" not in record["thumbnail_url"]
 
 
+# ─── Unit tests for _extract_snapshot ─────────────────────────────────────────
+
+class TestExtractSnapshot:
+    def test_extracts_volatile_fields(self):
+        record = _build_record(SAMPLE_ITEM, "run-1", "2025-01-01T00:00:00Z")
+        snap = _extract_snapshot(record)
+        assert snap["listing_url"] == SAMPLE_ITEM["inputUrl"]
+        assert snap["price_numeric"] == 4895000
+        assert snap["cap_rate"] == "6.84%"
+        assert snap["price_per_unit"] == "$326,333"
+        assert snap["scraped_at"] == "2025-01-01T00:00:00Z"
+        assert snap["run_id"] is None  # set by caller
+
+
 # ─── Asset-level tests ───────────────────────────────────────────────────────
 
 class TestCleanedLoopnetListings:
     def _setup_client(self, client, raw_data, last_run_id=0):
-        """
-        When run_id is passed explicitly in the config, the asset skips the
-        'latest dagster run_id' order query and only calls order().limit() once
-        to fetch the last loopnet integer run_id.
-        """
         raw_rows_mock = MagicMock()
         raw_rows_mock.data = [{"raw_json": raw_data}]
 
-        loopnet_run_id_mock = MagicMock()
-        loopnet_run_id_mock.data = [{"run_id": last_run_id}] if last_run_id else []
+        snapshot_run_id_mock = MagicMock()
+        snapshot_run_id_mock.data = [{"run_id": last_run_id}] if last_run_id else []
 
-        client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = loopnet_run_id_mock
+        client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.return_value = snapshot_run_id_mock
         client.table.return_value.select.return_value.eq.return_value.execute.return_value = raw_rows_mock
 
     def test_no_detail_scrapes_returns_zero(self):
@@ -315,27 +325,8 @@ class TestCleanedLoopnetListings:
             )
 
         assert output.value == 1
-        assert meta(output, "inserted") == 1
+        assert meta(output, "detail_inserted") == 1
         assert meta(output, "failed") == 0
-        client.table.return_value.upsert.assert_called_once()
-
-    def test_duplicate_listing_url_is_ignored_via_upsert(self):
-        supabase, client = make_supabase()
-        self._setup_client(client, [SAMPLE_ITEM])
-        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[])
-
-        with build_asset_context() as ctx:
-            output = cleaned_loopnet_listings(
-                context=ctx,
-                config=CleanedLoopnetListingsConfig(run_id="dagster-run-1"),
-                supabase=supabase,
-            )
-
-        kwargs = client.table.return_value.upsert.call_args.kwargs
-        assert kwargs["ignore_duplicates"] is True
-        assert kwargs["on_conflict"] == "listing_url,run_id"
-        assert output.value == 0
-        assert meta(output, "existing") == 1
 
     def test_skips_items_without_url(self):
         supabase, client = make_supabase()
@@ -350,7 +341,7 @@ class TestCleanedLoopnetListings:
             )
 
         assert meta(output, "skipped") == 1
-        assert meta(output, "inserted") == 1
+        assert meta(output, "detail_inserted") == 1
 
     def test_increments_integer_run_id(self):
         supabase, client = make_supabase()
@@ -398,3 +389,23 @@ class TestCleanedLoopnetListings:
 
         assert meta(output, "dagster_run_id") == "explicit-run-abc"
         client.table.return_value.select.return_value.order.return_value.limit.return_value.execute.assert_called_once()
+
+    def test_writes_to_both_tables(self):
+        supabase, client = make_supabase()
+        self._setup_client(client, [SAMPLE_ITEM])
+        client.table.return_value.upsert.return_value.execute.return_value = MagicMock(data=[{"listing_url": SAMPLE_ITEM["inputUrl"]}])
+
+        with build_asset_context() as ctx:
+            output = cleaned_loopnet_listings(
+                context=ctx,
+                config=CleanedLoopnetListingsConfig(run_id="dagster-run-1"),
+                supabase=supabase,
+            )
+
+        # Verify both detail and snapshot upserts happened
+        upsert_calls = client.table.return_value.upsert.call_args_list
+        assert len(upsert_calls) == 2
+        detail_call = upsert_calls[0]
+        snapshot_call = upsert_calls[1]
+        assert detail_call.kwargs.get("on_conflict") == "listing_url"
+        assert snapshot_call.kwargs.get("on_conflict") == "listing_url,run_id"
