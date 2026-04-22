@@ -1,10 +1,10 @@
 """
-Extract priority investment metrics from om_text stored in loopnet_listings.
+Extract priority investment metrics from om_text stored in loopnet_listing_details.
 
 For each row that has om_text but has not yet had metrics extracted:
   1. Send the plain text to Gemini 2.5 Flash requesting structured JSON output.
   2. Parse cap rate, cost per door, cash-on-cash return, and GRM.
-  3. Write the extracted values back to loopnet_listings and stamp om_metrics_extracted_at.
+  3. Write the extracted values back to loopnet_listing_details and stamp om_metrics_extracted_at.
 
 Listings without om_text, or whose om_metrics_extracted_at is already set,
 are skipped.  Re-extraction can be forced by nulling om_metrics_extracted_at.

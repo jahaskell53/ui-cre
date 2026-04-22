@@ -1,6 +1,6 @@
 # loopnet-bot
 
-Scrapes Bay Area multifamily listings from LoopNet and uploads them to the Supabase `loopnet_listings` table. Each run is stored as a historical snapshot so price changes and market activity can be tracked over time.
+Scrapes Bay Area multifamily listings from LoopNet and uploads them to Supabase. Static listing details are upserted into `loopnet_listing_details` (one row per URL); per-run price/cap-rate snapshots are inserted into `loopnet_listing_snapshots`.
 
 ---
 
@@ -16,8 +16,9 @@ Phase 1: search pages"| B["Listing URLs
 Phase 2: detail pages"| C["Enriched CSV
 in Downloads"]
     C -->|"upload_to_supabase.py
-geocode + insert"| D[("Supabase
-loopnet_listings")]
+geocode + upsert"| D[("Supabase
+loopnet_listing_details
+loopnet_listing_snapshots")]
 ```
 
 ---
@@ -61,18 +62,20 @@ uv run upload_to_supabase.py ~/Downloads/YYYY-MM-DD-HH-MM-SS-loopnet-bay-area-mu
 The script will:
 - Parse cap rate, building category, and square footage from the scraped fields
 - Geocode each address via Mapbox
-- Insert all rows into `loopnet_listings` (each run is a new snapshot)
+- Upsert static details into `loopnet_listing_details` (keyed on `listing_url`)
+- Insert per-run price/cap-rate snapshots into `loopnet_listing_snapshots`
 
 ---
 
 ## Querying the Latest Snapshot
 
-Since every run is stored, use `DISTINCT ON` to get the most recent version of each listing:
+Join the two tables to get the most recent snapshot for each listing:
 
 ```sql
-SELECT DISTINCT ON (listing_url) *
-FROM loopnet_listings
-ORDER BY listing_url, scraped_at DESC;
+SELECT d.*, s.price, s.cap_rate, s.scraped_at AS snapshot_at
+FROM loopnet_listing_details d
+JOIN loopnet_listing_snapshots s ON s.listing_url = d.listing_url
+WHERE s.run_id = (SELECT MAX(run_id) FROM loopnet_listing_snapshots);
 ```
 
 ---

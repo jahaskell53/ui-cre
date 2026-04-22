@@ -4,7 +4,7 @@ Download all LoopNet listing attachments (PDFs) and upload them to S3.
 For each listing attachment that has a document URL (`link` or `url`), we:
   1. Download the file via Apify's playwright-scraper actor (LoopNet CDN needs session cookies).
   2. Upload to S3 under `attachments/{listing_id}/{sha256_prefix}.pdf`.
-  3. Replace `loopnet_listings.attachment_urls` with a JSON array:
+  3. Replace `loopnet_listing_details.attachment_urls` with a JSON array:
      `[{ "source_url": "<original>", "url": "<s3 public url>", "description": "<optional>" }, ...]`.
 
 `om_url` is set to the S3 URL of the first attachment that looks like an offering memorandum:

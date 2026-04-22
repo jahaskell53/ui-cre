@@ -30,7 +30,7 @@ class OmToTextJobConfig(Config):
     """Run config for loopnet_om_text_job. All fields are optional."""
 
     listing_id: Optional[str] = None
-    """UUID of a specific loopnet_listings row to convert. Leave blank for all."""
+    """UUID of a specific loopnet_listing_details row to convert. Leave blank for all."""
 
     limit: Optional[int] = None
     """Max number of rows to process. Leave blank for all. Set to 1 to smoke-test."""
@@ -40,7 +40,7 @@ class OmMetricsJobConfig(Config):
     """Run config for loopnet_om_metrics_job. All fields are optional."""
 
     listing_id: Optional[str] = None
-    """UUID of a specific loopnet_listings row to extract metrics from. Leave blank for all."""
+    """UUID of a specific loopnet_listing_details row to extract metrics from. Leave blank for all."""
 
     limit: Optional[int] = None
     """Max number of rows to process. Leave blank for all. Set to 1 to smoke-test."""

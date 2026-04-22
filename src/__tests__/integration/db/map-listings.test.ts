@@ -11,6 +11,9 @@
  * LoopNet: SF Bay Area bbox — lat 37.70–37.89, lng -122.49–-122.20 (160 geocoded listings)
  *
  * Requires SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.
+ *
+ * Note: queries loopnet_listing_details (one row per URL) rather than the
+ * legacy loopnet_listings table.
  */
 import { type SupabaseClient, createClient } from "@supabase/supabase-js";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -252,7 +255,7 @@ describe("LoopNet map listings — SF Bay Area bbox", () => {
     beforeAll(async () => {
         const client = makeClient();
         const { data, error } = await client
-            .from("loopnet_listings")
+            .from("loopnet_listing_details")
             .select("*")
             .not("latitude", "is", null)
             .not("longitude", "is", null)
