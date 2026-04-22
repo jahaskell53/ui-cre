@@ -44,8 +44,16 @@ def test_looks_like_om_rejects_image_png():
     assert looks_like_om("https://images1.loopnet.com/d2/abc/photo.png", "Offering Memo") is False
 
 
+def test_looks_like_om_rejects_no_extension():
+    assert looks_like_om("https://images1.loopnet.com/d2/abc/document", "Offering Memorandum") is False
+
+
 def test_looks_like_om_accepts_pdf():
     assert looks_like_om("https://images1.loopnet.com/d2/abc/om.pdf", "Offering Memorandum") is True
+
+
+def test_looks_like_om_accepts_pdf_with_query_string():
+    assert looks_like_om("https://cdn.loopnet.com/d2/abc/om.pdf?v=2", "Offering Memorandum") is True
 
 
 def test_pick_om_s3_url_skips_non_pdf_source():

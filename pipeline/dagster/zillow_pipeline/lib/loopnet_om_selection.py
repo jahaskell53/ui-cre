@@ -12,19 +12,16 @@ _OM_IN_URL = re.compile(
     re.IGNORECASE,
 )
 
-_NON_PDF_EXT = re.compile(
-    r"\.(svg|doc|docx|jpg|jpeg|png|gif|webp|bmp|tiff?|xls|xlsx|ppt|pptx|txt|html?|xml|csv)(\?.*)?$",
-    re.IGNORECASE,
-)
+_PDF_EXT = re.compile(r"\.pdf(\?.*)?$", re.IGNORECASE)
 
 
 def _source_is_pdf(source_url: str) -> bool:
-    """True if the source URL does not have a known non-PDF extension."""
+    """True if the source URL has a .pdf extension."""
     try:
         path = urlparse(source_url).path or ""
     except Exception:
         path = source_url
-    return not bool(_NON_PDF_EXT.search(path))
+    return bool(_PDF_EXT.search(path))
 
 
 def looks_like_om(source_url: str, description: str | None) -> bool:
