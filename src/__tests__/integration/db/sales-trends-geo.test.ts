@@ -19,8 +19,8 @@ const OAKLAND_LNG = -122.2712;
 
 const CITY = "Oakland";
 const STATE = "CA";
-/** Stored in county_boundaries.name (no "County" suffix) */
-const COUNTY_NAME = "Alameda";
+/** Stored in county_boundaries.name_lsad (with "County" suffix, matching Mapbox output) */
+const COUNTY_NAME = "Alameda County";
 
 interface SalesTrendRow {
     month_start: string;
@@ -60,15 +60,15 @@ describe("get_sales_trends_by_city (Los Angeles, CA)", () => {
     });
 });
 
-describe("get_sales_trends_by_county (Los Angeles County, CA)", () => {
-    it("returns sales rows for Los Angeles County", async () => {
+describe("get_sales_trends_by_county (Alameda County, CA)", () => {
+    it("returns sales rows for Alameda County", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_sales_trends_by_county", {
             p_county_name: COUNTY_NAME,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_county LA County");
+        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_county Alameda County");
     });
 });
 
