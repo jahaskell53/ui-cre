@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backfill loopnet_listings.geom from existing lat/lng or Mapbox geocoding.
+Backfill loopnet_listing_details.geom from existing lat/lng or Mapbox geocoding.
 
 Pass 1: rows with latitude/longitude but no geom → set geom from coords.
 Pass 2: rows with no lat/lng and no geom → geocode via Mapbox, then set geom.
@@ -39,7 +39,7 @@ from zillow_pipeline.lib.loopnet_geom import run_loopnet_geom_backfill
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backfill loopnet_listings.geom column.")
+    parser = argparse.ArgumentParser(description="Backfill loopnet_listing_details.geom column.")
     parser.add_argument("--run-id", type=int, default=None, help="Filter to this run_id")
     parser.add_argument("--dry-run", action="store_true", help="Do not write updates")
     parser.add_argument("--page-size", type=int, default=200, help="Page size for select")

@@ -65,7 +65,7 @@ def _get(d: dict, *keys, default=None):
 
 
 def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
-    """Map a raw Phase 2 detail item to a loopnet_listings row. Returns None if no listing URL."""
+    """Map a raw Phase 2 detail item to a loopnet_listing_details row. Returns None if no listing URL."""
     listing_url = item.get("inputUrl") or item.get("listingUrl") or ""
     if not listing_url:
         return None
@@ -190,7 +190,21 @@ def _build_record(item: dict, run_id: str, scraped_at: str) -> dict | None:
         "broker_details":       broker_details,
         "property_taxes":       item.get("propertyTaxes") or {},
         "scraped_at":           scraped_at,
-        "run_id":               None,  # set by caller after resolving integer run_id
+    }
+
+
+def _extract_snapshot(record: dict) -> dict:
+    """Extract the volatile fields for loopnet_listing_snapshots."""
+    return {
+        "listing_url":      record["listing_url"],
+        "price":            record.get("price"),
+        "price_numeric":    record.get("price_numeric"),
+        "price_per_unit":   record.get("price_per_unit"),
+        "cap_rate":         record.get("cap_rate"),
+        "grm":              record.get("grm"),
+        "date_last_updated": record.get("date_last_updated"),
+        "scraped_at":       record["scraped_at"],
+        "run_id":           None,  # set by caller
     }
 
 
@@ -233,9 +247,9 @@ def cleaned_loopnet_listings(
         .execute()
     ).data
 
-    # Determine next integer run_id for loopnet_listings
+    # Determine next integer run_id for snapshots
     run_id_result = (
-        client.table("loopnet_listings")
+        client.table("loopnet_listing_snapshots")
         .select("run_id")
         .order("run_id", desc=True)
         .limit(1)
@@ -243,11 +257,12 @@ def cleaned_loopnet_listings(
     )
     last_run_id = _safe_int(run_id_result.data[0].get("run_id")) if run_id_result.data else None
     int_run_id = (last_run_id or 0) + 1
-    context.log.info(f"Using loopnet_listings run_id: {int_run_id}")
+    context.log.info(f"Using snapshot run_id: {int_run_id}")
 
     scraped_at = datetime.now(timezone.utc).isoformat()
-    inserted = failed = skipped = existing = 0
-    records = []
+    detail_inserted = detail_updated = snapshot_inserted = failed = skipped = 0
+    detail_records = []
+    snapshot_records = []
 
     for row in raw_rows:
         for item in row.get("raw_json") or []:
@@ -255,47 +270,65 @@ def cleaned_loopnet_listings(
             if record is None:
                 skipped += 1
                 continue
-            record["run_id"] = int_run_id
-            records.append(record)
+            detail_records.append(record)
+            snap = _extract_snapshot(record)
+            snap["run_id"] = int_run_id
+            snapshot_records.append(snap)
 
-    context.log.info(f"Built {len(records)} records to insert (skipped {skipped} without URL)")
+    context.log.info(f"Built {len(detail_records)} records (skipped {skipped} without URL)")
 
-    # Insert in batches of 100
+    # Upsert details (one row per listing_url, update on conflict)
     batch_size = 100
-    for start in range(0, len(records), batch_size):
-        batch = records[start : start + batch_size]
+    for start in range(0, len(detail_records), batch_size):
+        batch = detail_records[start : start + batch_size]
         try:
             response = (
-                client.table("loopnet_listings")
+                client.table("loopnet_listing_details")
+                .upsert(batch, on_conflict="listing_url")
+                .execute()
+            )
+            count = len(response.data or [])
+            detail_inserted += count
+            context.log.info(
+                f"Detail upsert rows {start + 1}–{start + len(batch)}: {count} written"
+            )
+        except Exception as e:
+            context.log.error(f"Detail batch {start}–{start + len(batch)} failed: {e}")
+            failed += len(batch)
+
+    # Insert snapshots
+    for start in range(0, len(snapshot_records), batch_size):
+        batch = snapshot_records[start : start + batch_size]
+        try:
+            response = (
+                client.table("loopnet_listing_snapshots")
                 .upsert(batch, on_conflict="listing_url,run_id", ignore_duplicates=True)
                 .execute()
             )
-            inserted_count = len(response.data or [])
-            inserted += inserted_count
-            existing += len(batch) - inserted_count
+            count = len(response.data or [])
+            snapshot_inserted += count
             context.log.info(
-                f"Processed rows {start + 1}–{start + len(batch)} "
-                f"(inserted={inserted_count}, existing={len(batch) - inserted_count})"
+                f"Snapshot upsert rows {start + 1}–{start + len(batch)}: {count} written"
             )
         except Exception as e:
-            context.log.error(f"Batch {start}–{start + len(batch)} failed: {e}")
+            context.log.error(f"Snapshot batch {start}–{start + len(batch)} failed: {e}")
             failed += len(batch)
 
-    total = inserted + existing + failed
+    total = len(detail_records) + len(snapshot_records)
     if total > 0 and failed / total > 0.33:
         raise Exception(
-            f"{failed}/{total} records failed to insert into loopnet_listings "
-            f"({inserted} inserted, {existing} existing). Check logs for details."
+            f"{failed}/{total} records failed to insert. "
+            f"(details={detail_inserted}, snapshots={snapshot_inserted}). Check logs."
         )
 
     return Output(
-        value=inserted,
+        value=detail_inserted,
         metadata={
             "dagster_run_id": dagster_run_id,
             "loopnet_run_id": int_run_id,
-            "records_built": len(records),
-            "inserted": inserted,
-            "existing": existing,
+            "records_built": len(detail_records),
+            "detail_inserted": detail_inserted,
+            "snapshot_inserted": snapshot_inserted,
             "failed": failed,
             "skipped": skipped,
         },

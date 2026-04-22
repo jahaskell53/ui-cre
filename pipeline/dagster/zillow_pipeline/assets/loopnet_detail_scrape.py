@@ -23,6 +23,29 @@ def _strip_null_bytes(value):
     return value
 
 
+def _fetch_existing_detail_urls(client, page_size: int = 1000) -> set[str]:
+    """Return all listing_url values already in loopnet_listing_details."""
+    urls: set[str] = set()
+    offset = 0
+    while True:
+        rows = (
+            client.table("loopnet_listing_details")
+            .select("listing_url")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        ).data or []
+        if not rows:
+            break
+        for row in rows:
+            u = row.get("listing_url")
+            if u:
+                urls.add(u)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+    return urls
+
+
 @asset(
     deps=[raw_loopnet_search_scrapes],
     retry_policy=RetryPolicy(
@@ -75,7 +98,7 @@ def raw_loopnet_detail_scrapes(
 
     context.log.info(f"Found {len(listing_urls)} unique listing URLs in run {run_id}")
 
-    # Skip listings already scraped in this run
+    # Skip listings already scraped in this run (raw table)
     existing = (
         client.table("raw_loopnet_detail_scrapes")
         .select("listing_url")
@@ -83,15 +106,25 @@ def raw_loopnet_detail_scrapes(
         .execute()
     ).data
     already_scraped = {row["listing_url"] for row in existing}
+
+    # Skip listings already in loopnet_listing_details (detail already captured)
+    already_detailed = _fetch_existing_detail_urls(client)
+    skip_detailed = already_detailed - already_scraped
+    if skip_detailed:
+        context.log.info(
+            f"Skipping {len(skip_detailed & set(listing_urls))} listing(s) "
+            f"already in loopnet_listing_details."
+        )
+
+    combined_skip = already_scraped | already_detailed
     if already_scraped:
-        context.log.info(f"Skipping {len(already_scraped)} already-scraped listings.")
+        context.log.info(f"Skipping {len(already_scraped)} already-scraped listings (this run).")
 
     scraped_at = datetime.now(timezone.utc).isoformat()
     inserted = failed = skipped = 0
 
     for listing_url in listing_urls:
-        if listing_url in already_scraped:
-            context.log.info(f"Skipping already-scraped: {listing_url}")
+        if listing_url in combined_skip:
             skipped += 1
             continue
 

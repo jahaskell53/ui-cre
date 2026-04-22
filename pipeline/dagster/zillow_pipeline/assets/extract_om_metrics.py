@@ -81,7 +81,7 @@ def extract_om_metrics(
     client = supabase.get_client()
 
     rows = (
-        client.table("loopnet_listings")
+        client.table("loopnet_listing_details")
         .select("id, listing_url, om_text, om_metrics_extracted_at")
         .not_.is_("om_text", "null")
         .is_("om_metrics_extracted_at", "null")
@@ -122,7 +122,7 @@ def extract_om_metrics(
         )
 
         try:
-            client.table("loopnet_listings").update(payload).eq("id", listing_id).execute()
+            client.table("loopnet_listing_details").update(payload).eq("id", listing_id).execute()
             updated += 1
         except Exception as e:
             context.log.error(f"Failed to write metrics for {listing_url}: {e}")

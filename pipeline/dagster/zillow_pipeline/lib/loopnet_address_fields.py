@@ -102,12 +102,10 @@ def run_loopnet_address_backfill(
 
     while True:
         q = (
-            client.table("loopnet_listings")
+            client.table("loopnet_listing_details")
             .select("id,address,location,city,state,zip,address_raw,address_street,address_city,address_state,address_zip")
             .order("id")
         )
-        if run_id is not None:
-            q = q.eq("run_id", run_id)
         result = q.range(offset, offset + page_size - 1).execute()
         rows = result.data or []
         if not rows:
@@ -139,7 +137,7 @@ def run_loopnet_address_backfill(
                 continue
 
             try:
-                client.table("loopnet_listings").update(desired).eq("id", rid).execute()
+                client.table("loopnet_listing_details").update(desired).eq("id", rid).execute()
                 updated += 1
             except Exception:
                 errors += 1

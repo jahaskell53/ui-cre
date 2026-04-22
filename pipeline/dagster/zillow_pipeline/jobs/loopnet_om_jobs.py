@@ -61,7 +61,7 @@ def convert_om_to_text_op(context: OpExecutionContext, config: OmToTextJobConfig
     client = context.resources.supabase.get_client()
 
     query = (
-        client.table("loopnet_listings")
+        client.table("loopnet_listing_details")
         .select("id, listing_url, om_url, om_text_extracted_at")
         .not_.is_("om_url", "null")
         .is_("om_text_extracted_at", "null")
@@ -105,7 +105,7 @@ def convert_om_to_text_op(context: OpExecutionContext, config: OmToTextJobConfig
         }
 
         try:
-            client.table("loopnet_listings").update(payload).eq("id", listing_id).execute()
+            client.table("loopnet_listing_details").update(payload).eq("id", listing_id).execute()
             context.log.info(f"Stored om_text ({len(om_text)} chars) for {listing_url}")
             updated += 1
         except Exception as e:
@@ -134,7 +134,7 @@ def extract_om_metrics_op(context: OpExecutionContext, config: OmMetricsJobConfi
     client = context.resources.supabase.get_client()
 
     query = (
-        client.table("loopnet_listings")
+        client.table("loopnet_listing_details")
         .select("id, listing_url, om_text, om_metrics_extracted_at")
         .not_.is_("om_text", "null")
         .is_("om_metrics_extracted_at", "null")
@@ -181,7 +181,7 @@ def extract_om_metrics_op(context: OpExecutionContext, config: OmMetricsJobConfi
         )
 
         try:
-            client.table("loopnet_listings").update(payload).eq("id", listing_id).execute()
+            client.table("loopnet_listing_details").update(payload).eq("id", listing_id).execute()
             updated += 1
         except Exception as e:
             context.log.error(f"Failed to write metrics for {listing_url}: {e}")
