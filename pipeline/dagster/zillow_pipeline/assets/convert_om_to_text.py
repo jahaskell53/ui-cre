@@ -1,7 +1,7 @@
 """
 Convert OM PDFs stored in S3 to plain text (markdown) via Gemini 2.5 Flash.
 
-For each loopnet_listings row that has an om_url but no om_text yet:
+For each loopnet_listing_details row that has an om_url but no om_text yet:
   1. Fetch the PDF bytes from the public S3 URL.
   2. Send to Gemini 2.5 Flash with a PDF-to-markdown conversion prompt.
   3. Store the resulting text in om_text and stamp om_text_extracted_at.

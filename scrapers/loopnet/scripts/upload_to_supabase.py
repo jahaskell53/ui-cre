@@ -7,7 +7,7 @@
 # ///
 """
 Reads the scraped LoopNet CSV, parses fields, geocodes addresses,
-and upserts into the loopnet_listings Supabase table.
+and upserts into loopnet_listing_details and loopnet_listing_snapshots.
 
 Usage:
     uv run upload_to_supabase.py <path_to_csv>
@@ -95,8 +95,8 @@ def main(csv_path):
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    # Get next sequential run_id
-    result = client.table('loopnet_listings').select('run_id').order('run_id', desc=True).limit(1).execute()
+    # Get next sequential run_id from snapshots table
+    result = client.table('loopnet_listing_snapshots').select('run_id').order('run_id', desc=True).limit(1).execute()
     last_run_id = result.data[0]['run_id'] if result.data and result.data[0]['run_id'] else 0
     run_id = last_run_id + 1
     print(f"Run ID: {run_id}")
@@ -109,7 +109,8 @@ def main(csv_path):
 
     print(f"Processing {len(rows)} listings from {csv_path}...")
 
-    records = []
+    detail_records = []
+    snapshot_records = []
     for i, row in enumerate(rows):
         detail1 = row.get('detail1', '').strip()
         detail2 = row.get('detail2', '').strip()
@@ -136,22 +137,24 @@ def main(csv_path):
             except (ValueError, TypeError):
                 return None
 
-        records.append({
-            'listing_url':      row.get('url', '').strip(),
+        listing_url = row.get('url', '').strip()
+        price = row.get('price', '').strip()
+        price_per_unit = row.get('price_per_unit', '').strip() or None
+        grm = row.get('grm', '').strip() or None
+
+        detail_records.append({
+            'listing_url':      listing_url,
             'address':          address,
             'headline':         address,
             'location':         location,
-            'price':            row.get('price', '').strip(),
-            'cap_rate':         cap_rate,
             'building_category': building_cat,
             'square_footage':   sq_ft,
             'latitude':         lat,
             'longitude':        lng,
-            # Detail page fields
             'description':      row.get('description', '').strip() or None,
             'date_on_market':   row.get('date_modified', '').strip() or None,
-            'price_per_unit':   row.get('price_per_unit', '').strip() or None,
-            'grm':              row.get('grm', '').strip() or None,
+            'price_per_unit':   price_per_unit,
+            'grm':              grm,
             'num_units':        to_int(row.get('num_units')),
             'property_subtype': row.get('property_subtype', '').strip() or None,
             'apartment_style':  row.get('apartment_style', '').strip() or None,
@@ -161,21 +164,32 @@ def main(csv_path):
             'num_stories':      to_int(row.get('num_stories')),
             'year_built':       to_int(row.get('year_built')),
             'zoning':           row.get('zoning', '').strip() or None,
-            'run_id':           run_id,
         })
 
-    print(f"\nUploading {len(records)} records to Supabase...")
+        snapshot_records.append({
+            'listing_url':   listing_url,
+            'run_id':        run_id,
+            'price':         price or None,
+            'price_per_unit': price_per_unit,
+            'cap_rate':      cap_rate or None,
+            'grm':           grm,
+        })
 
-    # Upsert in batches of 100
+    print(f"\nUploading {len(detail_records)} records to Supabase...")
+
     batch_size = 100
-    for start in range(0, len(records), batch_size):
-        batch = records[start:start + batch_size]
-        result = (
-            client.table('loopnet_listings')
-            .insert(batch)
-            .execute()
-        )
-        print(f"  ✅ Upserted rows {start+1}–{min(start+batch_size, len(records))}")
+
+    # Upsert details (one row per listing_url)
+    for start in range(0, len(detail_records), batch_size):
+        batch = detail_records[start:start + batch_size]
+        client.table('loopnet_listing_details').upsert(batch, on_conflict='listing_url').execute()
+        print(f"  ✅ Upserted details rows {start+1}–{min(start+batch_size, len(detail_records))}")
+
+    # Insert snapshots (one row per listing_url + run_id)
+    for start in range(0, len(snapshot_records), batch_size):
+        batch = snapshot_records[start:start + batch_size]
+        client.table('loopnet_listing_snapshots').upsert(batch, on_conflict='listing_url,run_id').execute()
+        print(f"  ✅ Upserted snapshot rows {start+1}–{min(start+batch_size, len(snapshot_records))}")
 
     print("\nDone!")
 

@@ -1,6 +1,6 @@
 import { type Property } from "@/components/application/map/property-map";
 
-/** A raw row from `loopnet_listings` as returned by Supabase. */
+/** A raw row from `loopnet_listing_details` as returned by Supabase. */
 export type LoopnetRow = Record<string, unknown>;
 
 /** Property extended with the internal scrape timestamp used for sorting. */

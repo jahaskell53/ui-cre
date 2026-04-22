@@ -28,7 +28,7 @@ def build_address_fields_from_row(
 ) -> dict[str, str]:
     """
     Build address_raw, address_street, address_city, address_state, address_zip
-    from loopnet_listings column values (same rules as cleaned_loopnet_listings
+    from loopnet_listing_details column values (same rules as cleaned_loopnet_listings
     raw JSON mapping).
     """
     street_line = (address or "").strip()

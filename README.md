@@ -216,9 +216,9 @@ Rental listings are scraped from Zillow via two Apify actors:
 
 The orchestration pipeline (scheduling, transformation, loading into `cleaned_listings`) lives in [`../zillow/pipeline/dagster`](../zillow/pipeline/dagster).
 
-### LoopNet (loopnet_listings)
+### LoopNet (loopnet_listing_details + loopnet_listing_snapshots)
 
-Custom browser console scraper — see [`../loopnet-bot`](../loopnet-bot/README.md). Scrapes Bay Area multifamily listings from LoopNet in two phases (search pages → detail pages), outputs a CSV, then uploads via `upload_to_supabase.py`. Each run is stored as a historical snapshot keyed by `run_id`.
+Custom browser console scraper — see [`../loopnet-bot`](../loopnet-bot/README.md). Scrapes Bay Area multifamily listings from LoopNet in two phases (search pages → detail pages), outputs a CSV, then uploads via `upload_to_supabase.py`. Static listing details are upserted into `loopnet_listing_details` (one row per URL); per-run price/cap-rate data is stored in `loopnet_listing_snapshots` (one row per URL + run_id).
 
 ## AWS Lambda Setup
 
