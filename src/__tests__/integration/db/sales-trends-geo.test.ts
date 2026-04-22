@@ -5,20 +5,22 @@
  * and get_sales_trends_by_msa return rows and use loopnet_listings.geom for
  * the spatial join (so geocoded listings with no raw lat/lng are included).
  *
- * Uses a Los Angeles area fixture which has LoopNet commercial listings.
+ * Uses an Oakland / Bay Area fixture — Alameda County has the most LoopNet
+ * commercial listings in the dataset (331 rows with valid geom + price).
  *
  * Requires SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.
  */
 import { type SupabaseClient, createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
-/** Approx. center of Downtown Los Angeles — used for neighborhood + MSA resolution. */
-const DTLA_LAT = 34.0522;
-const DTLA_LNG = -118.2437;
+/** Approx. center of downtown Oakland — used for neighborhood + MSA resolution. */
+const OAKLAND_LAT = 37.8044;
+const OAKLAND_LNG = -122.2712;
 
-const CITY = "Los Angeles";
+const CITY = "Oakland";
 const STATE = "CA";
-const COUNTY_NAME = "Los Angeles County";
+/** Stored in county_boundaries.name (no "County" suffix) */
+const COUNTY_NAME = "Alameda";
 
 interface SalesTrendRow {
     month_start: string;
@@ -70,12 +72,12 @@ describe("get_sales_trends_by_county (Los Angeles County, CA)", () => {
     });
 });
 
-describe("get_sales_trends_by_msa (Los Angeles MSA)", () => {
-    it("resolves LA MSA at DTLA point and returns sales trends", async () => {
+describe("get_sales_trends_by_msa (SF Bay Area MSA)", () => {
+    it("resolves SF Bay Area MSA at Oakland point and returns sales trends", async () => {
         const client = makeClient();
         const { data: msaRows, error: msaError } = await client.rpc("get_msa_at_point", {
-            p_lat: DTLA_LAT,
-            p_lng: DTLA_LNG,
+            p_lat: OAKLAND_LAT,
+            p_lng: OAKLAND_LNG,
         });
         expect(msaError).toBeNull();
         expect(msaRows).toBeDefined();
@@ -83,7 +85,7 @@ describe("get_sales_trends_by_msa (Los Angeles MSA)", () => {
         expect((msaRows as { geoid: string; name: string }[]).length).toBeGreaterThan(0);
 
         const msa = (msaRows as { geoid: string; name: string }[])[0];
-        expect(msa.name).toMatch(/Los Angeles/i);
+        expect(msa.name).toMatch(/San Francisco|Oakland/i);
 
         const { data, error } = await client.rpc("get_sales_trends_by_msa", {
             p_geoid: msa.geoid,
@@ -93,12 +95,12 @@ describe("get_sales_trends_by_msa (Los Angeles MSA)", () => {
     });
 });
 
-describe("get_sales_trends_by_neighborhood (DTLA area)", () => {
-    it("resolves a neighborhood at DTLA point and returns sales trends", async () => {
+describe("get_sales_trends_by_neighborhood (Oakland area)", () => {
+    it("resolves a neighborhood at Oakland point and returns sales trends", async () => {
         const client = makeClient();
         const { data: nhRows, error: nhError } = await client.rpc("get_neighborhood_at_point", {
-            p_lat: DTLA_LAT,
-            p_lng: DTLA_LNG,
+            p_lat: OAKLAND_LAT,
+            p_lng: OAKLAND_LNG,
         });
         expect(nhError).toBeNull();
         expect(Array.isArray(nhRows)).toBe(true);
