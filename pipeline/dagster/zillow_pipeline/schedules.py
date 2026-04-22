@@ -47,6 +47,7 @@ from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_list
 from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
 from zillow_pipeline.jobs.backfill_loopnet_address_fields import backfill_loopnet_address_fields_job
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
+from zillow_pipeline.jobs.backfill_loopnet_geom import backfill_loopnet_geom_job
 from zillow_pipeline.jobs.loopnet_om_jobs import loopnet_om_text_job, loopnet_om_metrics_job
 
 zillow_scrape_job = define_asset_job(
@@ -105,6 +106,7 @@ weekly_loopnet_scrape_schedule = ScheduleDefinition(
         loopnet_om_metrics_job,
         backfill_loopnet_om_url_job,
         backfill_loopnet_address_fields_job,
+        backfill_loopnet_geom_job,
     ],
 )
 def alert_on_pipeline_failure(context: RunFailureSensorContext):
@@ -125,6 +127,7 @@ def alert_on_pipeline_failure(context: RunFailureSensorContext):
         loopnet_om_metrics_job,
         backfill_loopnet_om_url_job,
         backfill_loopnet_address_fields_job,
+        backfill_loopnet_geom_job,
     ],
 )
 def alert_on_pipeline_success(context: RunStatusSensorContext):

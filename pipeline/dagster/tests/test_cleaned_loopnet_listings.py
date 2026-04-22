@@ -241,6 +241,18 @@ class TestBuildRecord:
         record = _build_record(SAMPLE_ITEM, "run-1", "2025-01-01T00:00:00Z")
         assert record["is_auction"] is False
 
+    def test_geom_set_when_coords_present(self):
+        record = _build_record(SAMPLE_ITEM, "run-1", "2025-01-01T00:00:00Z")
+        assert record["geom"] == "POINT(-122.416294 37.772812)"
+
+    def test_geom_is_none_when_no_coords(self):
+        item = dict(SAMPLE_ITEM)
+        del item["latitude"]
+        del item["longitude"]
+        record = _build_record(item, "run-1", "2025-01-01T00:00:00Z")
+        assert record is not None
+        assert record["geom"] is None
+
     def test_submarket_id(self):
         record = _build_record(SAMPLE_ITEM, "run-1", "2025-01-01T00:00:00Z")
         assert record["submarket_id"] == 9957

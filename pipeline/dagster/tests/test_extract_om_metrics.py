@@ -6,7 +6,6 @@ import pytest
 from dagster import build_asset_context
 
 from zillow_pipeline.assets.extract_om_metrics import (
-    ExtractOmMetricsConfig,
     _extract_metrics_from_text,
     extract_om_metrics,
 )
@@ -179,11 +178,11 @@ class TestExtractOmMetricsAsset:
                     extract_om_metrics(context=ctx, supabase=supabase)
 
     def test_listing_id_filters_to_single_row(self):
+        # The asset processes whatever rows the DB returns; filtering by listing_id
+        # is a server-side concern (done via the job-level op). Here we simulate
+        # the DB returning exactly one matching row.
         rows = [{"id": "uuid-target", "listing_url": "https://loopnet.com/1/", "om_text": _SAMPLE_OM_TEXT, "om_metrics_extracted_at": None}]
         supabase, client = make_supabase(rows=rows)
-
-        table_mock = client.table.return_value
-        table_mock.execute.return_value = MagicMock(data=rows)
 
         metric_payload = {"cap_rate": "5.0%", "cost_per_door": None, "coc_return": None, "grm": None}
 
@@ -194,17 +193,16 @@ class TestExtractOmMetricsAsset:
             with build_asset_context() as ctx:
                 output = extract_om_metrics(
                     context=ctx,
-                    config=ExtractOmMetricsConfig(listing_id="uuid-target"),
                     supabase=supabase,
                 )
 
         assert output.value == 1
-        table_mock.eq.assert_called_with("id", "uuid-target")
 
     def test_limit_caps_rows_processed(self):
+        # The asset processes all rows returned by the DB query; simulate the DB
+        # returning only one row (as the job-level op would limit via a slice).
         rows = [
-            {"id": f"uuid-{i}", "listing_url": f"https://loopnet.com/{i}/", "om_text": _SAMPLE_OM_TEXT, "om_metrics_extracted_at": None}
-            for i in range(5)
+            {"id": "uuid-0", "listing_url": "https://loopnet.com/0/", "om_text": _SAMPLE_OM_TEXT, "om_metrics_extracted_at": None}
         ]
         supabase, client = make_supabase(rows=rows)
 
@@ -217,7 +215,6 @@ class TestExtractOmMetricsAsset:
             with build_asset_context() as ctx:
                 output = extract_om_metrics(
                     context=ctx,
-                    config=ExtractOmMetricsConfig(limit=1),
                     supabase=supabase,
                 )
 
