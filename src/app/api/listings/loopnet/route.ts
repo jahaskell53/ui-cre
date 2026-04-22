@@ -2,7 +2,7 @@ import { and, desc, eq, gte, ilike, isNotNull, lte, max, or, sql } from "drizzle
 import { SQL } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { loopnetListingDetails, loopnetListingSnapshots } from "@/db/schema";
+import { loopnetListingDetails, rawLoopnetSearchScrapes } from "@/db/schema";
 
 export async function GET(request: NextRequest) {
     try {
@@ -89,9 +89,9 @@ export async function GET(request: NextRequest) {
         const latestRunOnly = searchParams.get("latest_run_id");
         if (latestRunOnly === "1") {
             const rows = await db
-                .select({ runId: loopnetListingSnapshots.runId })
-                .from(loopnetListingSnapshots)
-                .orderBy(desc(loopnetListingSnapshots.runId))
+                .select({ runId: rawLoopnetSearchScrapes.runId })
+                .from(rawLoopnetSearchScrapes)
+                .orderBy(desc(rawLoopnetSearchScrapes.scrapedAt))
                 .limit(1);
 
             return NextResponse.json({ run_id: rows[0]?.runId ?? null });
@@ -131,19 +131,18 @@ export async function GET(request: NextRequest) {
         }
 
         if (latestOnly) {
-            const latestRows = await db
-                .select({ runId: loopnetListingSnapshots.runId })
-                .from(loopnetListingSnapshots)
-                .orderBy(desc(loopnetListingSnapshots.runId))
-                .limit(1);
-            const latestRunId = latestRows[0]?.runId;
-            if (latestRunId != null) {
-                conditions.push(
-                    sql`${loopnetListingDetails.listingUrl} IN (
-                        SELECT listing_url FROM loopnet_listing_snapshots WHERE run_id = ${latestRunId}
-                    )`,
-                );
-            }
+            conditions.push(
+                sql`${loopnetListingDetails.listingUrl} IN (
+                    SELECT jsonb_array_elements_text(
+                        jsonb_path_query_array(raw_json, '$[*].url')
+                    )
+                    FROM raw_loopnet_search_scrapes
+                    WHERE run_id = (
+                        SELECT run_id FROM raw_loopnet_search_scrapes
+                        ORDER BY scraped_at DESC LIMIT 1
+                    )
+                )`,
+            );
         }
 
         if (zipCode) {
