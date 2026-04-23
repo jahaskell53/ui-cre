@@ -59,6 +59,11 @@ export interface LoopnetListing {
     unit_mix: LoopnetUnitMixRow[] | null;
     /** Cached S3 URLs for all downloaded listing attachments. */
     attachment_urls?: LoopnetAttachmentUrl[] | null;
+    /** OM-extracted investment metrics (null when not yet extracted). */
+    om_cap_rate?: string | null;
+    om_cost_per_door?: string | null;
+    om_coc_return?: string | null;
+    om_grm?: string | null;
 }
 
 export type Listing = ZillowListing | LoopnetListing;

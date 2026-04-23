@@ -34,6 +34,10 @@ export async function GET(request: NextRequest) {
                     createdAt: loopnetListingDetails.createdAt,
                     unitMix: loopnetListingDetails.unitMix,
                     attachmentUrls: loopnetListingDetails.attachmentUrls,
+                    omCapRate: loopnetListingDetails.omCapRate,
+                    omCostPerDoor: loopnetListingDetails.omCostPerDoor,
+                    omCocReturn: loopnetListingDetails.omCocReturn,
+                    omGrm: loopnetListingDetails.omGrm,
                 })
                 .from(loopnetListingDetails)
                 .where(eq(loopnetListingDetails.id, id))
@@ -82,6 +86,10 @@ export async function GET(request: NextRequest) {
                 created_at: r.createdAt,
                 unit_mix: Array.isArray(r.unitMix) && r.unitMix.length > 0 ? r.unitMix : null,
                 attachment_urls: attachment_urls && attachment_urls.length > 0 ? attachment_urls : null,
+                om_cap_rate: r.omCapRate,
+                om_cost_per_door: r.omCostPerDoor,
+                om_coc_return: r.omCocReturn,
+                om_grm: r.omGrm,
             });
         }
 
