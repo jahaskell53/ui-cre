@@ -183,6 +183,42 @@ export function LoopnetListingDetail({ listing, backHref }: { listing: LoopnetLi
                 </dl>
             </section>
 
+            {/* OM Stats */}
+            {(listing.om_cap_rate || listing.om_cost_per_door || listing.om_coc_return || listing.om_grm) && (
+                <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900 dark:text-gray-100">
+                        <FileText className="size-4" />
+                        OM Stats
+                    </h3>
+                    <dl className="space-y-3 text-sm">
+                        {listing.om_cap_rate && (
+                            <div className="flex justify-between">
+                                <dt className="text-gray-500 dark:text-gray-400">Cap Rate</dt>
+                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.om_cap_rate}</dd>
+                            </div>
+                        )}
+                        {listing.om_cost_per_door && (
+                            <div className="flex justify-between">
+                                <dt className="text-gray-500 dark:text-gray-400">Cost / Door</dt>
+                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.om_cost_per_door}</dd>
+                            </div>
+                        )}
+                        {listing.om_coc_return && (
+                            <div className="flex justify-between">
+                                <dt className="text-gray-500 dark:text-gray-400">CoC Return</dt>
+                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.om_coc_return}</dd>
+                            </div>
+                        )}
+                        {listing.om_grm && (
+                            <div className="flex justify-between">
+                                <dt className="text-gray-500 dark:text-gray-400">GRM</dt>
+                                <dd className="font-medium text-gray-900 dark:text-gray-100">{listing.om_grm}</dd>
+                            </div>
+                        )}
+                    </dl>
+                </section>
+            )}
+
             {/* Map */}
             {listing.latitude && listing.longitude && (
                 <section className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
