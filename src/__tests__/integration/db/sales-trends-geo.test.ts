@@ -48,15 +48,15 @@ function assertSalesTrendRows(rows: SalesTrendRow[], label: string) {
     }
 }
 
-describe("get_sales_trends_by_city (Los Angeles, CA)", () => {
-    it("returns sales rows for Los Angeles", async () => {
+describe("get_sales_trends_by_city (Oakland, CA)", () => {
+    it("returns sales rows for Oakland", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_sales_trends_by_city", {
             p_city: CITY,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_city LA");
+        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_city Oakland");
     });
 });
 

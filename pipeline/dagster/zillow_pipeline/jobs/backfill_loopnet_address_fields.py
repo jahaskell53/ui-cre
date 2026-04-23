@@ -18,7 +18,7 @@ def backfill_loopnet_address_fields_op(
     context: OpExecutionContext,
     config: BackfillLoopnetAddressFieldsConfig,
 ) -> dict[str, int]:
-    """Recompute loopnet_listing_details address_* from address/location/city/state/zip (libpostal when installed)."""
+    """Recompute loopnet_listing_details address_* from address, location, and zip (libpostal when installed)."""
     client = context.resources.supabase.get_client()
     stats = run_loopnet_address_backfill(
         client,
