@@ -47,6 +47,7 @@ This ordering guarantees that the database schema is always ahead of the applica
 - **Development approach**: Adopt test-driven development for code changes: add or update the smallest relevant failing test first, implement the minimal change to make it pass, then run the relevant tests again.
 - **Unit/integration tests**: `bun run test` (Vitest + jsdom, 65 test files / 565 tests). No external services needed — all deps are mocked.
 - **Formatting**: `npx prettier --check "src/**/*.{ts,tsx}"`. No ESLint config exists in the repo.
+- **After opening or updating a PR**: Confirm CI finished successfully using the [GitHub CLI](https://cli.github.com/) from the PR branch (requires `gh auth login` with repo access). Run `gh pr checks --watch` to wait until all checks complete and fail the session if any check fails; use `gh pr checks` for a one-shot status snapshot. Fix failures, push again, and re-check until green.
 
 ### Known caveats
 

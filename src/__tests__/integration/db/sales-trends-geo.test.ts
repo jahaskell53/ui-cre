@@ -19,8 +19,8 @@ const OAKLAND_LNG = -122.2712;
 
 const CITY = "Oakland";
 const STATE = "CA";
-/** Stored in county_boundaries.name (no "County" suffix) */
-const COUNTY_NAME = "Alameda";
+/** Stored in county_boundaries.name_lsad (with "County" suffix, matching Mapbox output) */
+const COUNTY_NAME = "Alameda County";
 
 interface SalesTrendRow {
     month_start: string;
