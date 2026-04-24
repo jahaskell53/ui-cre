@@ -6,8 +6,8 @@ const { mockFrom, mockDbUpdate } = vi.hoisted(() => ({
     mockDbUpdate: vi.fn(),
 }));
 
-vi.mock("@/utils/supabase/server", () => ({
-    createClient: vi.fn().mockResolvedValue({ from: mockFrom }),
+vi.mock("@/utils/supabase/admin", () => ({
+    createAdminClient: vi.fn().mockReturnValue({ from: mockFrom }),
 }));
 
 vi.mock("@/db", () => ({
