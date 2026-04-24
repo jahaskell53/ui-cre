@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { UsCity } from "./cities";
 
 // Helper function to validate timezone string
@@ -35,7 +35,7 @@ export interface Subscriber {
 
 export async function getActiveSubscribers(supabase?: SupabaseClient): Promise<Subscriber[]> {
     try {
-        const client = supabase ?? (await createClient());
+        const client = supabase ?? createAdminClient();
 
         const { data: subscribers, error } = await client
             .from("subscribers")
@@ -76,7 +76,7 @@ export async function getActiveSubscribers(supabase?: SupabaseClient): Promise<S
 
 export async function getSubscriberByEmail(email: string, supabase?: SupabaseClient): Promise<Subscriber | null> {
     try {
-        const client = supabase ?? (await createClient());
+        const client = supabase ?? createAdminClient();
 
         const { data: subscriber, error } = await client
             .from("subscribers")
