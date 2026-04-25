@@ -37,12 +37,13 @@ import {
     createDefaultMapFilters,
     parseAreaFilter,
     parseAreaType,
+    parseCrexiOverlayFlags,
     parseListingsViewMode,
     parseMapFilters,
     parseMapListingSource,
     parseShowLatestOnly,
 } from "@/lib/analytics/map-page";
-import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
+import { type ZillowMapListingRow, mapCrexiActiveRow, mapCrexiCompsRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 import { boundsContainedIn, expandBounds, getUncoveredBounds, snapBounds } from "@/lib/viewport-bounds";
 
@@ -155,6 +156,8 @@ function MapPageInner() {
     const [filters, setFilters] = useState<Filters>(() => parseMapFilters(searchParams));
     const [mapListingSource, setMapListingSource] = useState<MapListingSource>(() => parseMapListingSource(searchParams));
     const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => parseShowLatestOnly(searchParams));
+    const [showCrexiComps, setShowCrexiComps] = useState(() => parseCrexiOverlayFlags(searchParams).showCrexiComps);
+    const [showCrexiActive, setShowCrexiActive] = useState(() => parseCrexiOverlayFlags(searchParams).showCrexiActive);
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const mapBoundsRef = useRef<MapBounds | null>(null);
     const [listingsViewMode, setListingsViewMode] = useState<"map" | "list">(() => parseListingsViewMode(searchParams));
@@ -197,7 +200,10 @@ function MapPageInner() {
     // when a newer fetch supersedes them.
     const zillowFetchAbortRef = useRef<AbortController | null>(null);
 
-    const activeFilterCount = useMemo(() => countActiveMapFilters(filters, mapListingSource), [filters, mapListingSource]);
+    const activeFilterCount = useMemo(
+        () => countActiveMapFilters(filters, mapListingSource, { showCrexiComps, showCrexiActive }),
+        [filters, mapListingSource, showCrexiComps, showCrexiActive],
+    );
 
     const clearFilters = () => {
         setFilters(createDefaultMapFilters());
@@ -405,7 +411,14 @@ function MapPageInner() {
     };
 
     const fetchProperties = useCallback(
-        async (activeAreaFilter: AreaFilter | null, currentFilters: Filters, source: MapListingSource, bounds: MapBounds | null, latestOnly: boolean) => {
+        async (
+            activeAreaFilter: AreaFilter | null,
+            currentFilters: Filters,
+            source: MapListingSource,
+            bounds: MapBounds | null,
+            latestOnly: boolean,
+            crexi: { showCrexiComps: boolean; showCrexiActive: boolean },
+        ) => {
             setLoading(true);
 
             // Loopnet: still server-side filtered (no edge caching concern, result set is small)
@@ -430,12 +443,46 @@ function MapPageInner() {
                     params.set("bounds_south", String(effectiveBounds.south));
                     params.set("bounds_north", String(effectiveBounds.north));
                 }
+                const qs = params.toString();
                 try {
-                    const response = await fetch(`/api/listings/loopnet?${params.toString()}`);
-                    const json = response.ok ? await response.json() : { data: [], count: 0 };
-                    const rows = (json.data ?? []).map((item: Record<string, unknown>) => mapLoopnetRow(item));
-                    setProperties(rows.map(({ _createdAt: _, ...p }: any) => p));
-                    setTotalCount(json.count ?? 0);
+                    const loopnetRes = await fetch(`/api/listings/loopnet?${qs}`);
+                    const loopnetJson = loopnetRes.ok ? await loopnetRes.json() : { data: [], count: 0 };
+                    const loopnetRows = (loopnetJson.data ?? []).map((item: Record<string, unknown>) => mapLoopnetRow(item));
+                    const baseProps = loopnetRows.map(({ _createdAt: _, ...p }: { _createdAt?: string; [k: string]: unknown }) => p);
+
+                    const crexiTasks: Promise<Property[]>[] = [];
+                    if (crexi.showCrexiComps) {
+                        crexiTasks.push(
+                            fetch(`/api/listings/crexi-comps?${qs}`)
+                                .then((r) => (r.ok ? r.json() : { data: [] }))
+                                .then((j: { data?: unknown[] }) =>
+                                    (j.data ?? []).map((row) => {
+                                        const mapped = mapCrexiCompsRow(row as Parameters<typeof mapCrexiCompsRow>[0]);
+                                        const { _createdAt: __, ...p } = mapped;
+                                        return p;
+                                    }),
+                                )
+                                .catch(() => [] as Property[]),
+                        );
+                    }
+                    if (crexi.showCrexiActive) {
+                        crexiTasks.push(
+                            fetch(`/api/listings/crexi-active?${qs}`)
+                                .then((r) => (r.ok ? r.json() : { data: [] }))
+                                .then((j: { data?: unknown[] }) =>
+                                    (j.data ?? []).map((row) => {
+                                        const mapped = mapCrexiActiveRow(row as Parameters<typeof mapCrexiActiveRow>[0]);
+                                        const { _createdAt: __, ...p } = mapped;
+                                        return p;
+                                    }),
+                                )
+                                .catch(() => [] as Property[]),
+                        );
+                    }
+                    const crexiChunks = await Promise.all(crexiTasks);
+                    const merged = [...baseProps, ...crexiChunks.flat()];
+                    setProperties(merged);
+                    setTotalCount(merged.length);
                 } catch (err) {
                     console.error("Error fetching loopnet listings:", err);
                 }
@@ -509,7 +556,7 @@ function MapPageInner() {
                     // between our snapshot above and now. We use our snapshotted `existing`
                     // for the merge base because we only fetched the delta relative to it;
                     // using a different cache entry here would cause duplicate or missing rows.
-                    const seen = new Set(existing?.rows.map((row) => row.id) ?? []);
+                    const seen = new Set((existing?.rows.map((row) => row.id) ?? []) as string[]);
                     const merged = [...(existing?.rows ?? [])];
 
                     for (const rows of responses) {
@@ -569,6 +616,13 @@ function MapPageInner() {
         [router],
     );
 
+    useEffect(() => {
+        if (mapListingSource !== "loopnet") {
+            setShowCrexiComps(false);
+            setShowCrexiActive(false);
+        }
+    }, [mapListingSource]);
+
     // Sync all filter/area state to URL
     useEffect(() => {
         const params = buildMapSearchParams({
@@ -579,9 +633,10 @@ function MapPageInner() {
             areaType,
             areaFilter,
             listingsViewMode,
+            crexiOverlays: { showCrexiComps, showCrexiActive },
         });
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, listingsViewMode, router]);
+    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, listingsViewMode, showCrexiComps, showCrexiActive, router]);
 
     // Restore boundary GeoJSON when areaFilter is hydrated from URL on mount
     useEffect(() => {
@@ -651,7 +706,7 @@ function MapPageInner() {
             return;
         }
 
-        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly);
+        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly, { showCrexiComps, showCrexiActive });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
 
@@ -659,8 +714,11 @@ function MapPageInner() {
     useEffect(() => {
         if (mapListingSource !== "loopnet") return;
         if (!areaFilter && !mapBounds) return;
-        fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly);
-    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, fetchProperties]);
+        fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly, {
+            showCrexiComps,
+            showCrexiActive,
+        });
+    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, showCrexiComps, showCrexiActive, fetchProperties]);
 
     const filtersDialogInner = (
         <div className="max-h-[min(70vh,28rem)] space-y-6 overflow-y-auto pr-1">
@@ -888,6 +946,22 @@ function MapPageInner() {
                         </Label>
                         <Switch id="sales-has-om" checked={filters.hasOm} onCheckedChange={(checked) => setFilters((prev) => ({ ...prev, hasOm: checked }))} />
                     </div>
+                )}
+                {mapListingSource === "loopnet" && (
+                    <>
+                        <div className="flex items-center justify-between gap-3">
+                            <Label htmlFor="crexi-comps-mobile" className="text-xs font-normal">
+                                Crexi comps
+                            </Label>
+                            <Switch id="crexi-comps-mobile" checked={showCrexiComps} onCheckedChange={setShowCrexiComps} />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                            <Label htmlFor="crexi-active-mobile" className="text-xs font-normal">
+                                Crexi active
+                            </Label>
+                            <Switch id="crexi-active-mobile" checked={showCrexiActive} onCheckedChange={setShowCrexiActive} />
+                        </div>
+                    </>
                 )}
             </div>
         </div>
@@ -1121,6 +1195,28 @@ function MapPageInner() {
                                     </button>
                                 ))}
                             </div>
+                            {mapListingSource === "loopnet" && (
+                                <div className="flex flex-col gap-1 rounded-lg border border-border bg-background/95 p-1.5 text-xs shadow-sm backdrop-blur-sm">
+                                    <label className="flex cursor-pointer items-center gap-2 px-1 py-0.5">
+                                        <input
+                                            type="checkbox"
+                                            className="size-3.5 rounded border-input accent-purple-600"
+                                            checked={showCrexiComps}
+                                            onChange={(e) => setShowCrexiComps(e.target.checked)}
+                                        />
+                                        <span>Crexi comps</span>
+                                    </label>
+                                    <label className="flex cursor-pointer items-center gap-2 px-1 py-0.5">
+                                        <input
+                                            type="checkbox"
+                                            className="size-3.5 rounded border-input accent-green-600"
+                                            checked={showCrexiActive}
+                                            onChange={(e) => setShowCrexiActive(e.target.checked)}
+                                        />
+                                        <span>Crexi active</span>
+                                    </label>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

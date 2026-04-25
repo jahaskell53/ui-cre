@@ -1,5 +1,83 @@
 import { type Property } from "@/components/application/map/property-map";
 
+/** Row shape from GET /api/listings/crexi-comps */
+export type CrexiCompsApiRow = {
+    id: number;
+    property_name: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    zip_code: string | null;
+    sold_price: number | null;
+    closing_cap_rate: number | null;
+    asking_cap_rate: number | null;
+    building_sqft: number | null;
+    property_link: string | null;
+    latitude: number;
+    longitude: number;
+};
+
+/** Row shape from GET /api/listings/crexi-active */
+export type CrexiActiveApiRow = {
+    id: number;
+    property_name: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    asking_price: number | null;
+    cap_rate: number | null;
+    sqft: number | null;
+    property_link: string | null;
+    latitude: number;
+    longitude: number;
+};
+
+function formatUsd(n: number | null | undefined): string {
+    if (n == null || Number.isNaN(n)) return "—";
+    return `$${Math.round(n).toLocaleString()}`;
+}
+
+function formatCapPct(n: number | null | undefined): string | null {
+    if (n == null || Number.isNaN(n)) return null;
+    return `${n.toFixed(2)}% cap`;
+}
+
+export function mapCrexiCompsRow(row: CrexiCompsApiRow): Property & { _createdAt?: string } {
+    const line1 = [row.address, row.city, row.state, row.zip_code].filter(Boolean).join(", ") || "Address not listed";
+    const cap = row.closing_cap_rate ?? row.asking_cap_rate;
+    const capStr = formatCapPct(cap);
+    return {
+        id: `crexi-comp-${row.id}`,
+        name: (row.property_name?.trim() || row.address || "Property") as string,
+        address: line1,
+        price: formatUsd(row.sold_price),
+        coordinates: [row.longitude, row.latitude],
+        listingSource: "crexi_comps",
+        capRate: capStr,
+        squareFootage: row.building_sqft != null ? `${Math.round(row.building_sqft).toLocaleString()} sq ft` : undefined,
+        detailHref: row.property_link?.trim() || null,
+        _createdAt: "",
+    };
+}
+
+export function mapCrexiActiveRow(row: CrexiActiveApiRow): Property & { _createdAt?: string } {
+    const line1 = [row.address, row.city, row.state, row.zip].filter(Boolean).join(", ") || "Address not listed";
+    const capStr = formatCapPct(row.cap_rate);
+    return {
+        id: `crexi-active-${row.id}`,
+        name: (row.property_name?.trim() || row.address || "Listing") as string,
+        address: line1,
+        price: formatUsd(row.asking_price),
+        coordinates: [row.longitude, row.latitude],
+        listingSource: "crexi_active",
+        capRate: capStr,
+        squareFootage: row.sqft != null ? `${Math.round(row.sqft).toLocaleString()} sq ft` : undefined,
+        detailHref: row.property_link?.trim() || null,
+        _createdAt: "",
+    };
+}
+
 /** A raw row from `loopnet_listing_details` as returned by Supabase. */
 export type LoopnetRow = Record<string, unknown>;
 

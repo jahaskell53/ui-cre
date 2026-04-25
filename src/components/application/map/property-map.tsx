@@ -8,7 +8,7 @@ import { PropertyPopupContent } from "./property-popup-content";
 
 mapboxgl.accessToken = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
-export type ListingSource = "loopnet" | "zillow";
+export type ListingSource = "loopnet" | "zillow" | "crexi_comps" | "crexi_active";
 
 export interface UnitMixRow {
     beds: number | null;
@@ -29,6 +29,8 @@ export interface Property {
     capRate?: string | null;
     squareFootage?: string | null;
     listingSource?: ListingSource | null;
+    /** When set, map popup and sidebar use this URL instead of the default listing/building route. */
+    detailHref?: string | null;
     isReit?: boolean;
     unitMix?: UnitMixRow[];
     buildingZpid?: string | null;
@@ -73,6 +75,7 @@ function propertiesToGeoJSON(properties: Property[]): GeoJSON.FeatureCollection 
                 squareFootage: p.squareFootage ?? null,
                 thumbnailUrl: p.thumbnailUrl ?? null,
                 listingSource: p.listingSource ?? null,
+                detailHref: p.detailHref ?? null,
                 isReit: p.isReit ?? false,
                 unitMix: JSON.stringify(p.unitMix ?? []),
                 buildingZpid: p.buildingZpid ?? null,
@@ -257,7 +260,16 @@ export const PropertyMap = ({
                 source: PROPERTIES_SOURCE,
                 filter: ["!", ["has", "point_count"]],
                 paint: {
-                    "circle-color": ["case", ["==", ["get", "listingSource"], "zillow"], "#f97316", "#0ea5e9"],
+                    "circle-color": [
+                        "case",
+                        ["==", ["get", "listingSource"], "zillow"],
+                        "#f97316",
+                        ["==", ["get", "listingSource"], "crexi_comps"],
+                        "#a855f7",
+                        ["==", ["get", "listingSource"], "crexi_active"],
+                        "#22c55e",
+                        "#0ea5e9",
+                    ],
                     "circle-radius": 8,
                     "circle-stroke-width": 2,
                     "circle-stroke-color": "#fff",
@@ -298,7 +310,11 @@ export const PropertyMap = ({
                 } catch {}
 
                 const popupHref =
-                    props.isReit && props.buildingZpid ? `/analytics/building/${encodeURIComponent(props.buildingZpid)}` : `/analytics/listing/${props.id}`;
+                    props.detailHref && String(props.detailHref).trim() !== ""
+                        ? String(props.detailHref)
+                        : props.isReit && props.buildingZpid
+                          ? `/analytics/building/${encodeURIComponent(props.buildingZpid)}`
+                          : `/analytics/listing/${props.id}`;
 
                 popupRoot.current.render(
                     <PropertyPopupContent

@@ -5,6 +5,7 @@ import {
     countActiveMapFilters,
     createDefaultMapFilters,
     parseAreaFilter,
+    parseCrexiOverlayFlags,
     parseListingsViewMode,
     parseMapFilters,
     parseMapListingSource,
@@ -126,6 +127,14 @@ describe("analytics map-page helpers", () => {
         expect(parseListingsViewMode(new URLSearchParams("view=list"))).toBe("list");
     });
 
+    it("parses Crexi overlay flags from url", () => {
+        expect(parseCrexiOverlayFlags(new URLSearchParams())).toEqual({ showCrexiComps: false, showCrexiActive: false });
+        expect(parseCrexiOverlayFlags(new URLSearchParams("crexiComps=1&crexiActive=true"))).toEqual({
+            showCrexiComps: true,
+            showCrexiActive: true,
+        });
+    });
+
     it("serializes listings view mode when provided to buildMapSearchParams", () => {
         const withList = buildMapSearchParams({
             filters: createDefaultMapFilters(),
@@ -164,6 +173,7 @@ describe("analytics map-page helpers", () => {
         expect(countActiveMapFilters(filters, "zillow")).toBe(5);
         // loopnet: priceMin, capRateMin = 2 (beds/bathsMin/laundry/propertyType are zillow-only)
         expect(countActiveMapFilters(filters, "loopnet")).toBe(2);
+        expect(countActiveMapFilters(filters, "loopnet", { showCrexiComps: true, showCrexiActive: false })).toBe(3);
     });
 
     it("counts hasOm for loopnet only", () => {
@@ -200,5 +210,30 @@ describe("analytics map-page helpers", () => {
             areaFilter: null,
         });
         expect(out.get("laundry")).toBe("in_unit,none");
+    });
+
+    it("serializes Crexi overlay params on loopnet only", () => {
+        const withCrexi = buildMapSearchParams({
+            filters: createDefaultMapFilters(),
+            mapListingSource: "loopnet",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+            crexiOverlays: { showCrexiComps: true, showCrexiActive: true },
+        });
+        expect(withCrexi.get("crexiComps")).toBe("1");
+        expect(withCrexi.get("crexiActive")).toBe("1");
+
+        const zillow = buildMapSearchParams({
+            baseParams: withCrexi,
+            filters: createDefaultMapFilters(),
+            mapListingSource: "zillow",
+            showLatestOnly: true,
+            areaType: "zip",
+            areaFilter: null,
+            crexiOverlays: { showCrexiComps: true, showCrexiActive: true },
+        });
+        expect(zillow.get("crexiComps")).toBeNull();
+        expect(zillow.get("crexiActive")).toBeNull();
     });
 });

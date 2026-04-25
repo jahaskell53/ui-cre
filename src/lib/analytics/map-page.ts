@@ -143,6 +143,14 @@ export function parseShowLatestOnly(searchParams: SearchParamSource): boolean {
     return searchParams.get("latest") !== "false";
 }
 
+/** Crexi overlay toggles on the sales (LoopNet) map — read from URL. */
+export function parseCrexiOverlayFlags(searchParams: SearchParamSource): { showCrexiComps: boolean; showCrexiActive: boolean } {
+    return {
+        showCrexiComps: searchParams.get("crexiComps") === "1" || searchParams.get("crexiComps") === "true",
+        showCrexiActive: searchParams.get("crexiActive") === "1" || searchParams.get("crexiActive") === "true",
+    };
+}
+
 /** Small screens only: full-area map vs list (`view=list` in URL; default is map). On large screens both panels are shown simultaneously. */
 export function parseListingsViewMode(searchParams: SearchParamSource): "map" | "list" {
     return searchParams.get("view") === "list" ? "list" : "map";
@@ -209,7 +217,11 @@ export function parseAreaFilter(searchParams: SearchParamSource): AreaFilter | n
     return null;
 }
 
-export function countActiveMapFilters(filters: Filters, source: MapListingSource): number {
+export function countActiveMapFilters(
+    filters: Filters,
+    source: MapListingSource,
+    crexiOverlays?: { showCrexiComps: boolean; showCrexiActive: boolean },
+): number {
     let count = 0;
 
     if (filters.priceMin || filters.priceMax) count++;
@@ -220,6 +232,8 @@ export function countActiveMapFilters(filters: Filters, source: MapListingSource
     if (source === "zillow" && filters.bathsMin !== null) count++;
     if (source === "zillow" && filters.laundry.length > 0) count++;
     if (source === "zillow" && filters.propertyType !== "both") count++;
+    if (source === "loopnet" && crexiOverlays?.showCrexiComps) count++;
+    if (source === "loopnet" && crexiOverlays?.showCrexiActive) count++;
 
     return count;
 }
@@ -232,6 +246,7 @@ export function buildMapSearchParams({
     areaType,
     areaFilter,
     listingsViewMode,
+    crexiOverlays,
 }: {
     baseParams?: URLSearchParams;
     filters: Filters;
@@ -240,6 +255,7 @@ export function buildMapSearchParams({
     areaType: AreaType;
     areaFilter: AreaFilter | null;
     listingsViewMode?: "map" | "list";
+    crexiOverlays?: { showCrexiComps: boolean; showCrexiActive: boolean };
 }): URLSearchParams {
     const params = new URLSearchParams(baseParams?.toString() ?? "");
 
@@ -321,6 +337,16 @@ export function buildMapSearchParams({
     else params.delete("laundry");
     if (filters.propertyType !== "both") params.set("propertyType", filters.propertyType);
     else params.delete("propertyType");
+
+    if (crexiOverlays && mapListingSource === "loopnet") {
+        if (crexiOverlays.showCrexiComps) params.set("crexiComps", "1");
+        else params.delete("crexiComps");
+        if (crexiOverlays.showCrexiActive) params.set("crexiActive", "1");
+        else params.delete("crexiActive");
+    } else {
+        params.delete("crexiComps");
+        params.delete("crexiActive");
+    }
 
     return params;
 }
