@@ -15,6 +15,13 @@
       "when": 1776899994229,
       "tag": "0001_reflective_tomas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777083448852,
+      "tag": "0002_colorful_tattoo",
+      "breakpoints": true
     }
   ]
 }
