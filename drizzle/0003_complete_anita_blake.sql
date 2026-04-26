@@ -1,0 +1,33 @@
+CREATE TABLE "crexi_api_comps" (
+	"id" bigserial PRIMARY KEY NOT NULL,
+	"crexi_id" text,
+	"property_name" text,
+	"document_type" text,
+	"address_full" text,
+	"address_street" text,
+	"city" text,
+	"state" text,
+	"zip" text,
+	"county" text,
+	"latitude" double precision,
+	"longitude" double precision,
+	"property_type" text,
+	"property_subtype" text,
+	"building_sqft" integer,
+	"num_units" integer,
+	"address_count" integer,
+	"is_sales_comp" boolean,
+	"is_public_sales_comp" boolean,
+	"is_broker_reported_sales_comp" boolean,
+	"is_lease_comp" boolean,
+	"sale_type" text,
+	"days_on_market" integer,
+	"date_activated" text,
+	"date_updated" text,
+	"description" text,
+	"raw_json" jsonb,
+	"scraped_at" timestamp with time zone DEFAULT now(),
+	CONSTRAINT "crexi_api_comps_crexi_id_unique" UNIQUE("crexi_id")
+);
+--> statement-breakpoint
+ALTER TABLE "crexi_comps_records" ALTER COLUMN "lease_rate" SET DATA TYPE text;
