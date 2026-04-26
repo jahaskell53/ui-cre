@@ -6,6 +6,46 @@ Scrapes Bay Area Multifamily/Apartment Building comps & records from the Crexi s
 
 The Crexi website limits CSV exports to 10,000 rows. The underlying search API (`https://api.crexi.com/universal-search/v2/search`) returns up to 100k rows per geographic bounding box but requires a live authenticated browser session (Cloudflare blocks direct HTTP requests). This scraper runs JS inside Chrome on the VM to piggyback on the existing session.
 
+## Data availability & API limitations
+
+**The search API does not return price data.** Sold price, cap rate, NOI, price/sqft, APN, occupancy, and number of units are all paywalled behind a Crexi Pro subscription. Even with a valid auth token, the detail endpoints (`/assets/{id}`, `/comps/{id}`) return `"[Locked]"` for those fields.
+
+As a result, `crexi_api_comps` contains property and transaction metadata only — not financial data. Use `crexi_comps_records` (populated from CSV exports) for records that include sold price, cap rate, loan info, and other financial fields.
+
+### What the API *does* return
+
+| Field | Available |
+|-------|-----------|
+| Address, city, state, zip, county | ✅ |
+| Latitude / longitude | ✅ |
+| Property type & subtype | ✅ |
+| Building sqft, unit count, stories | ✅ |
+| Construction type, year built | ✅ (Public comps only) |
+| Lot size, parking count | ✅ (Public comps only) |
+| Days on market | ✅ |
+| Broker name & brokerage | ✅ |
+| Sale date, listing dates | ✅ |
+| **Sold price** | ❌ Locked |
+| **Cap rate / NOI / GRM** | ❌ Locked |
+| **Price per sqft** | ❌ Locked |
+| **APN / occupancy** | ❌ Locked |
+
+### Record type breakdown (~302k records total)
+
+| `salesCompType` | Count | Notes |
+|-----------------|-------|-------|
+| `Public` | ~167k | From county assessor records. Includes lot size, construction year. No broker info. |
+| `BrokerReported` | ~500 | Submitted by Crexi member brokers. Includes broker info, listing photos. Skews to smaller unit count, larger buildings. |
+| *(no transaction)* | ~83k | Property records with no associated sale or lease event. |
+| `null` (lease-only) | ~11k | Lease comps only. |
+
+Public and BrokerReported comps have the same locked financial fields — the distinction is the data *source*, not the access level.
+
+### Where to get price data
+
+- **`crexi_comps_records`** — 9,000 rows from CSV exports; includes sold price, cap rate, loan amount, lender, owner name, mailing address, parcel values. Requires a Crexi plan that allows CSV export. The 10k-row export limit means manual re-export is needed to refresh.
+- **Crexi Pro API** — a paid data feed that unlocks financial fields in the API. Not currently provisioned.
+
 ## How it works
 
 1. The Bay Area bounding box is split into a 3×3 grid of 9 cells, each with < 70k records.
