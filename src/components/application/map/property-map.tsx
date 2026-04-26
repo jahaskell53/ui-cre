@@ -8,7 +8,7 @@ import { PropertyPopupContent } from "./property-popup-content";
 
 mapboxgl.accessToken = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
-export type ListingSource = "loopnet" | "zillow" | "crexi_comps" | "crexi_active";
+export type ListingSource = "loopnet" | "zillow" | "crexi_comps" | "crexi_active" | "crexi_api_comps";
 
 export interface UnitMixRow {
     beds: number | null;
@@ -268,6 +268,8 @@ export const PropertyMap = ({
                         "#a855f7",
                         ["==", ["get", "listingSource"], "crexi_active"],
                         "#22c55e",
+                        ["==", ["get", "listingSource"], "crexi_api_comps"],
+                        "#eab308",
                         "#0ea5e9",
                     ],
                     "circle-radius": 8,

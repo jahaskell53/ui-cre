@@ -61,6 +61,40 @@ export function mapCrexiCompsRow(row: CrexiCompsApiRow): Property & { _createdAt
     };
 }
 
+/** Row shape from GET /api/listings/crexi-api-comps */
+export type CrexiApiCompsApiRow = {
+    id: number;
+    crexi_id: string | null;
+    property_name: string | null;
+    address_full: string | null;
+    address_street: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    building_sqft: number | null;
+    property_type: string | null;
+    latitude: number;
+    longitude: number;
+};
+
+export function mapCrexiApiCompsRow(row: CrexiApiCompsApiRow): Property & { _createdAt?: string } {
+    const line1 = row.address_full?.trim() || [row.address_street, row.city, row.state, row.zip].filter(Boolean).join(", ") || "" || "Address not listed";
+    const typeLabel = row.property_type?.trim();
+    const detailHref = row.crexi_id?.trim() ? `https://www.crexi.com/properties/${encodeURIComponent(row.crexi_id)}` : null;
+    return {
+        id: `crexi-api-comp-${row.id}`,
+        name: (row.property_name?.trim() || row.address_street || row.address_full || "Comp") as string,
+        address: line1,
+        price: "Crexi API",
+        coordinates: [row.longitude, row.latitude],
+        listingSource: "crexi_api_comps",
+        capRate: typeLabel ?? null,
+        squareFootage: row.building_sqft != null ? `${row.building_sqft.toLocaleString()} sq ft` : undefined,
+        detailHref,
+        _createdAt: "",
+    };
+}
+
 export function mapCrexiActiveRow(row: CrexiActiveApiRow): Property & { _createdAt?: string } {
     const line1 = [row.address, row.city, row.state, row.zip].filter(Boolean).join(", ") || "Address not listed";
     const capStr = formatCapPct(row.cap_rate);

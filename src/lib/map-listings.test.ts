@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type ZillowMapListingRow, mapCrexiActiveRow, mapCrexiCompsRow, mapLoopnetRow, mapZillowRpcRow } from "./map-listings";
+import { type ZillowMapListingRow, mapCrexiActiveRow, mapCrexiApiCompsRow, mapCrexiCompsRow, mapLoopnetRow, mapZillowRpcRow } from "./map-listings";
 
 // ── mapLoopnetRow ─────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ describe("mapLoopnetRow", () => {
     });
 });
 
-// ── mapCrexiCompsRow / mapCrexiActiveRow ───────────────────────────────────────
+// ── mapCrexiCompsRow / mapCrexiApiCompsRow / mapCrexiActiveRow ─────────────────
 
 describe("mapCrexiCompsRow", () => {
     it("maps to property with crexi_comps source and prefixed id", () => {
@@ -113,6 +113,50 @@ describe("mapCrexiCompsRow", () => {
             longitude: 0,
         });
         expect(r.capRate).toBe("6.00% cap");
+        expect(r.detailHref).toBeNull();
+    });
+});
+
+describe("mapCrexiApiCompsRow", () => {
+    it("maps to property with crexi_api_comps source and Crexi URL when crexi_id present", () => {
+        const r = mapCrexiApiCompsRow({
+            id: 99,
+            crexi_id: "abc-123",
+            property_name: "Bay MF",
+            address_full: "1 Market, SF, CA",
+            address_street: "1 Market",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94105",
+            building_sqft: 50000,
+            property_type: "Multifamily",
+            latitude: 37.79,
+            longitude: -122.4,
+        });
+        expect(r.id).toBe("crexi-api-comp-99");
+        expect(r.listingSource).toBe("crexi_api_comps");
+        expect(r.detailHref).toBe("https://www.crexi.com/properties/abc-123");
+        expect(r.capRate).toBe("Multifamily");
+        expect(r.squareFootage).toBe("50,000 sq ft");
+    });
+
+    it("uses address parts when address_full empty", () => {
+        const r = mapCrexiApiCompsRow({
+            id: 1,
+            crexi_id: null,
+            property_name: null,
+            address_full: null,
+            address_street: "2 Oak",
+            city: "Oakland",
+            state: "CA",
+            zip: "94607",
+            building_sqft: null,
+            property_type: null,
+            latitude: 0,
+            longitude: 0,
+        });
+        expect(r.name).toBe("2 Oak");
+        expect(r.address).toBe("2 Oak, Oakland, CA, 94607");
         expect(r.detailHref).toBeNull();
     });
 });

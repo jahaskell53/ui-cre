@@ -128,10 +128,15 @@ describe("analytics map-page helpers", () => {
     });
 
     it("parses Crexi overlay flags from url", () => {
-        expect(parseCrexiOverlayFlags(new URLSearchParams())).toEqual({ showCrexiComps: false, showCrexiActive: false });
-        expect(parseCrexiOverlayFlags(new URLSearchParams("crexiComps=1&crexiActive=true"))).toEqual({
+        expect(parseCrexiOverlayFlags(new URLSearchParams())).toEqual({
+            showCrexiComps: false,
+            showCrexiActive: false,
+            showCrexiApiComps: false,
+        });
+        expect(parseCrexiOverlayFlags(new URLSearchParams("crexiComps=1&crexiActive=true&crexiApiComps=1"))).toEqual({
             showCrexiComps: true,
             showCrexiActive: true,
+            showCrexiApiComps: true,
         });
     });
 
@@ -173,7 +178,7 @@ describe("analytics map-page helpers", () => {
         expect(countActiveMapFilters(filters, "zillow")).toBe(5);
         // loopnet: priceMin, capRateMin = 2 (beds/bathsMin/laundry/propertyType are zillow-only)
         expect(countActiveMapFilters(filters, "loopnet")).toBe(2);
-        expect(countActiveMapFilters(filters, "loopnet", { showCrexiComps: true, showCrexiActive: false })).toBe(3);
+        expect(countActiveMapFilters(filters, "loopnet", { showCrexiComps: true, showCrexiActive: false, showCrexiApiComps: false })).toBe(3);
     });
 
     it("counts hasOm for loopnet only", () => {
@@ -219,10 +224,11 @@ describe("analytics map-page helpers", () => {
             showLatestOnly: true,
             areaType: "zip",
             areaFilter: null,
-            crexiOverlays: { showCrexiComps: true, showCrexiActive: true },
+            crexiOverlays: { showCrexiComps: true, showCrexiActive: true, showCrexiApiComps: true },
         });
         expect(withCrexi.get("crexiComps")).toBe("1");
         expect(withCrexi.get("crexiActive")).toBe("1");
+        expect(withCrexi.get("crexiApiComps")).toBe("1");
 
         const zillow = buildMapSearchParams({
             baseParams: withCrexi,
@@ -231,9 +237,10 @@ describe("analytics map-page helpers", () => {
             showLatestOnly: true,
             areaType: "zip",
             areaFilter: null,
-            crexiOverlays: { showCrexiComps: true, showCrexiActive: true },
+            crexiOverlays: { showCrexiComps: true, showCrexiActive: true, showCrexiApiComps: true },
         });
         expect(zillow.get("crexiComps")).toBeNull();
         expect(zillow.get("crexiActive")).toBeNull();
+        expect(zillow.get("crexiApiComps")).toBeNull();
     });
 });

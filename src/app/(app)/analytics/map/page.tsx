@@ -43,7 +43,7 @@ import {
     parseMapListingSource,
     parseShowLatestOnly,
 } from "@/lib/analytics/map-page";
-import { type ZillowMapListingRow, mapCrexiActiveRow, mapCrexiCompsRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
+import { type ZillowMapListingRow, mapCrexiActiveRow, mapCrexiApiCompsRow, mapCrexiCompsRow, mapLoopnetRow, mapZillowRpcRow } from "@/lib/map-listings";
 import { cn } from "@/lib/utils";
 import { boundsContainedIn, expandBounds, getUncoveredBounds, snapBounds } from "@/lib/viewport-bounds";
 
@@ -158,6 +158,7 @@ function MapPageInner() {
     const [showLatestOnly, setShowLatestOnly] = useState<boolean>(() => parseShowLatestOnly(searchParams));
     const [showCrexiComps, setShowCrexiComps] = useState(() => parseCrexiOverlayFlags(searchParams).showCrexiComps);
     const [showCrexiActive, setShowCrexiActive] = useState(() => parseCrexiOverlayFlags(searchParams).showCrexiActive);
+    const [showCrexiApiComps, setShowCrexiApiComps] = useState(() => parseCrexiOverlayFlags(searchParams).showCrexiApiComps);
     const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
     const mapBoundsRef = useRef<MapBounds | null>(null);
     const [listingsViewMode, setListingsViewMode] = useState<"map" | "list">(() => parseListingsViewMode(searchParams));
@@ -201,8 +202,8 @@ function MapPageInner() {
     const zillowFetchAbortRef = useRef<AbortController | null>(null);
 
     const activeFilterCount = useMemo(
-        () => countActiveMapFilters(filters, mapListingSource, { showCrexiComps, showCrexiActive }),
-        [filters, mapListingSource, showCrexiComps, showCrexiActive],
+        () => countActiveMapFilters(filters, mapListingSource, { showCrexiComps, showCrexiActive, showCrexiApiComps }),
+        [filters, mapListingSource, showCrexiComps, showCrexiActive, showCrexiApiComps],
     );
 
     const clearFilters = () => {
@@ -417,7 +418,7 @@ function MapPageInner() {
             source: MapListingSource,
             bounds: MapBounds | null,
             latestOnly: boolean,
-            crexi: { showCrexiComps: boolean; showCrexiActive: boolean },
+            crexi: { showCrexiComps: boolean; showCrexiActive: boolean; showCrexiApiComps: boolean },
         ) => {
             setLoading(true);
 
@@ -472,6 +473,20 @@ function MapPageInner() {
                                 .then((j: { data?: unknown[] }) =>
                                     (j.data ?? []).map((row) => {
                                         const mapped = mapCrexiActiveRow(row as Parameters<typeof mapCrexiActiveRow>[0]);
+                                        const { _createdAt: __, ...p } = mapped;
+                                        return p;
+                                    }),
+                                )
+                                .catch(() => [] as Property[]),
+                        );
+                    }
+                    if (crexi.showCrexiApiComps) {
+                        crexiTasks.push(
+                            fetch(`/api/listings/crexi-api-comps?${qs}`)
+                                .then((r) => (r.ok ? r.json() : { data: [] }))
+                                .then((j: { data?: unknown[] }) =>
+                                    (j.data ?? []).map((row) => {
+                                        const mapped = mapCrexiApiCompsRow(row as Parameters<typeof mapCrexiApiCompsRow>[0]);
                                         const { _createdAt: __, ...p } = mapped;
                                         return p;
                                     }),
@@ -620,6 +635,7 @@ function MapPageInner() {
         if (mapListingSource !== "loopnet") {
             setShowCrexiComps(false);
             setShowCrexiActive(false);
+            setShowCrexiApiComps(false);
         }
     }, [mapListingSource]);
 
@@ -633,10 +649,10 @@ function MapPageInner() {
             areaType,
             areaFilter,
             listingsViewMode,
-            crexiOverlays: { showCrexiComps, showCrexiActive },
+            crexiOverlays: { showCrexiComps, showCrexiActive, showCrexiApiComps },
         });
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, listingsViewMode, showCrexiComps, showCrexiActive, router]);
+    }, [filters, mapListingSource, showLatestOnly, areaType, areaFilter, listingsViewMode, showCrexiComps, showCrexiActive, showCrexiApiComps, router]);
 
     // Restore boundary GeoJSON when areaFilter is hydrated from URL on mount
     useEffect(() => {
@@ -706,7 +722,11 @@ function MapPageInner() {
             return;
         }
 
-        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly, { showCrexiComps, showCrexiActive });
+        fetchProperties(areaFilter, filters, mapListingSource, b, showLatestOnly, {
+            showCrexiComps,
+            showCrexiActive,
+            showCrexiApiComps,
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [snappedBoundsKey, areaFilter, filters, mapListingSource, showLatestOnly, fetchProperties]);
 
@@ -717,8 +737,9 @@ function MapPageInner() {
         fetchProperties(areaFilter, filters, mapListingSource, areaFilter ? null : mapBounds, showLatestOnly, {
             showCrexiComps,
             showCrexiActive,
+            showCrexiApiComps,
         });
-    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, showCrexiComps, showCrexiActive, fetchProperties]);
+    }, [areaFilter, filters, mapListingSource, mapBounds, showLatestOnly, showCrexiComps, showCrexiActive, showCrexiApiComps, fetchProperties]);
 
     const filtersDialogInner = (
         <div className="max-h-[min(70vh,28rem)] space-y-6 overflow-y-auto pr-1">
@@ -960,6 +981,12 @@ function MapPageInner() {
                                 Crexi active
                             </Label>
                             <Switch id="crexi-active-mobile" checked={showCrexiActive} onCheckedChange={setShowCrexiActive} />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                            <Label htmlFor="crexi-api-comps-mobile" className="text-xs font-normal">
+                                Crexi API comps
+                            </Label>
+                            <Switch id="crexi-api-comps-mobile" checked={showCrexiApiComps} onCheckedChange={setShowCrexiApiComps} />
                         </div>
                     </>
                 )}
@@ -1214,6 +1241,15 @@ function MapPageInner() {
                                             onChange={(e) => setShowCrexiActive(e.target.checked)}
                                         />
                                         <span>Crexi active</span>
+                                    </label>
+                                    <label className="flex cursor-pointer items-center gap-2 px-1 py-0.5">
+                                        <input
+                                            type="checkbox"
+                                            className="size-3.5 rounded border-input accent-yellow-500"
+                                            checked={showCrexiApiComps}
+                                            onChange={(e) => setShowCrexiApiComps(e.target.checked)}
+                                        />
+                                        <span>Crexi API comps</span>
                                     </label>
                                 </div>
                             )}

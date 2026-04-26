@@ -144,10 +144,15 @@ export function parseShowLatestOnly(searchParams: SearchParamSource): boolean {
 }
 
 /** Crexi overlay toggles on the sales (LoopNet) map — read from URL. */
-export function parseCrexiOverlayFlags(searchParams: SearchParamSource): { showCrexiComps: boolean; showCrexiActive: boolean } {
+export function parseCrexiOverlayFlags(searchParams: SearchParamSource): {
+    showCrexiComps: boolean;
+    showCrexiActive: boolean;
+    showCrexiApiComps: boolean;
+} {
     return {
         showCrexiComps: searchParams.get("crexiComps") === "1" || searchParams.get("crexiComps") === "true",
         showCrexiActive: searchParams.get("crexiActive") === "1" || searchParams.get("crexiActive") === "true",
+        showCrexiApiComps: searchParams.get("crexiApiComps") === "1" || searchParams.get("crexiApiComps") === "true",
     };
 }
 
@@ -220,7 +225,7 @@ export function parseAreaFilter(searchParams: SearchParamSource): AreaFilter | n
 export function countActiveMapFilters(
     filters: Filters,
     source: MapListingSource,
-    crexiOverlays?: { showCrexiComps: boolean; showCrexiActive: boolean },
+    crexiOverlays?: { showCrexiComps: boolean; showCrexiActive: boolean; showCrexiApiComps: boolean },
 ): number {
     let count = 0;
 
@@ -234,6 +239,7 @@ export function countActiveMapFilters(
     if (source === "zillow" && filters.propertyType !== "both") count++;
     if (source === "loopnet" && crexiOverlays?.showCrexiComps) count++;
     if (source === "loopnet" && crexiOverlays?.showCrexiActive) count++;
+    if (source === "loopnet" && crexiOverlays?.showCrexiApiComps) count++;
 
     return count;
 }
@@ -255,7 +261,7 @@ export function buildMapSearchParams({
     areaType: AreaType;
     areaFilter: AreaFilter | null;
     listingsViewMode?: "map" | "list";
-    crexiOverlays?: { showCrexiComps: boolean; showCrexiActive: boolean };
+    crexiOverlays?: { showCrexiComps: boolean; showCrexiActive: boolean; showCrexiApiComps: boolean };
 }): URLSearchParams {
     const params = new URLSearchParams(baseParams?.toString() ?? "");
 
@@ -343,9 +349,12 @@ export function buildMapSearchParams({
         else params.delete("crexiComps");
         if (crexiOverlays.showCrexiActive) params.set("crexiActive", "1");
         else params.delete("crexiActive");
+        if (crexiOverlays.showCrexiApiComps) params.set("crexiApiComps", "1");
+        else params.delete("crexiApiComps");
     } else {
         params.delete("crexiComps");
         params.delete("crexiActive");
+        params.delete("crexiApiComps");
     }
 
     return params;
