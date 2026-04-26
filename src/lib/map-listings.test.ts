@@ -135,7 +135,7 @@ describe("mapCrexiApiCompsRow", () => {
         });
         expect(r.id).toBe("crexi-api-comp-99");
         expect(r.listingSource).toBe("crexi_api_comps");
-        expect(r.detailHref).toBe("https://www.crexi.com/properties/abc-123");
+        expect(r.detailHref).toBe("/analytics/listing/crexi-api-comp/99");
         expect(r.capRate).toBe("Multifamily");
         expect(r.squareFootage).toBe("50,000 sq ft");
     });
@@ -157,7 +157,7 @@ describe("mapCrexiApiCompsRow", () => {
         });
         expect(r.name).toBe("2 Oak");
         expect(r.address).toBe("2 Oak, Oakland, CA, 94607");
-        expect(r.detailHref).toBeNull();
+        expect(r.detailHref).toBe("/analytics/listing/crexi-api-comp/1");
     });
 });
 

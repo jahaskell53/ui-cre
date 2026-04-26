@@ -80,7 +80,6 @@ export type CrexiApiCompsApiRow = {
 export function mapCrexiApiCompsRow(row: CrexiApiCompsApiRow): Property & { _createdAt?: string } {
     const line1 = row.address_full?.trim() || [row.address_street, row.city, row.state, row.zip].filter(Boolean).join(", ") || "" || "Address not listed";
     const typeLabel = row.property_type?.trim();
-    const detailHref = row.crexi_id?.trim() ? `https://www.crexi.com/properties/${encodeURIComponent(row.crexi_id)}` : null;
     return {
         id: `crexi-api-comp-${row.id}`,
         name: (row.property_name?.trim() || row.address_street || row.address_full || "Comp") as string,
@@ -90,7 +89,7 @@ export function mapCrexiApiCompsRow(row: CrexiApiCompsApiRow): Property & { _cre
         listingSource: "crexi_api_comps",
         capRate: typeLabel ?? null,
         squareFootage: row.building_sqft != null ? `${row.building_sqft.toLocaleString()} sq ft` : undefined,
-        detailHref,
+        detailHref: `/analytics/listing/crexi-api-comp/${row.id}`,
         _createdAt: "",
     };
 }

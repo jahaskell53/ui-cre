@@ -1,13 +1,56 @@
-import { and, desc, gte, ilike, isNotNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNotNull, lte, or } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { crexiApiComps } from "@/db/schema";
 
-/** Map overlay for `crexi_api_comps` (no price/cap columns — sqft and geo filters only). */
+const crexiApiCompDetailColumns = {
+    id: crexiApiComps.id,
+    crexi_id: crexiApiComps.crexi_id,
+    property_name: crexiApiComps.property_name,
+    document_type: crexiApiComps.document_type,
+    address_full: crexiApiComps.address_full,
+    address_street: crexiApiComps.address_street,
+    city: crexiApiComps.city,
+    state: crexiApiComps.state,
+    zip: crexiApiComps.zip,
+    county: crexiApiComps.county,
+    latitude: crexiApiComps.latitude,
+    longitude: crexiApiComps.longitude,
+    property_type: crexiApiComps.property_type,
+    property_subtype: crexiApiComps.property_subtype,
+    building_sqft: crexiApiComps.building_sqft,
+    num_units: crexiApiComps.num_units,
+    address_count: crexiApiComps.address_count,
+    is_sales_comp: crexiApiComps.is_sales_comp,
+    is_public_sales_comp: crexiApiComps.is_public_sales_comp,
+    is_broker_reported_sales_comp: crexiApiComps.is_broker_reported_sales_comp,
+    is_lease_comp: crexiApiComps.is_lease_comp,
+    sale_type: crexiApiComps.sale_type,
+    days_on_market: crexiApiComps.days_on_market,
+    date_activated: crexiApiComps.date_activated,
+    date_updated: crexiApiComps.date_updated,
+    description: crexiApiComps.description,
+    scraped_at: crexiApiComps.scraped_at,
+} as const;
+
+/** Map overlay + single-record detail for `crexi_api_comps` (list: geo/sqft/area; detail: `id` query, no raw_json). */
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
+        const idParam = searchParams.get("id");
+        if (idParam) {
+            const idNum = parseInt(idParam, 10);
+            if (Number.isNaN(idNum)) {
+                return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+            }
+            const rows = await db.select(crexiApiCompDetailColumns).from(crexiApiComps).where(eq(crexiApiComps.id, idNum)).limit(1);
+            if (rows.length === 0) {
+                return NextResponse.json({ error: "Not found" }, { status: 404 });
+            }
+            return NextResponse.json(rows[0]);
+        }
+
         const zipCode = searchParams.get("zip");
         const cityName = searchParams.get("city");
         const countyName = searchParams.get("county");
