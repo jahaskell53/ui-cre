@@ -1591,6 +1591,37 @@ export const crexiActiveListings = pgTable("crexi_active_listings", {
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+export const crexiApiComps = pgTable("crexi_api_comps", {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    crexi_id: text("crexi_id").unique(),
+    property_name: text("property_name"),
+    document_type: text("document_type"),
+    address_full: text("address_full"),
+    address_street: text("address_street"),
+    city: text("city"),
+    state: text("state"),
+    zip: text("zip"),
+    county: text("county"),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    property_type: text("property_type"),
+    property_subtype: text("property_subtype"),
+    building_sqft: integer("building_sqft"),
+    num_units: integer("num_units"),
+    address_count: integer("address_count"),
+    is_sales_comp: boolean("is_sales_comp"),
+    is_public_sales_comp: boolean("is_public_sales_comp"),
+    is_broker_reported_sales_comp: boolean("is_broker_reported_sales_comp"),
+    is_lease_comp: boolean("is_lease_comp"),
+    sale_type: text("sale_type"),
+    days_on_market: integer("days_on_market"),
+    date_activated: text("date_activated"),
+    date_updated: text("date_updated"),
+    description: text("description"),
+    raw_json: jsonb("raw_json"),
+    scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Materialized views — unit breakdown by building (OPE-116)
 // ─────────────────────────────────────────────────────────────────────────────
