@@ -8,43 +8,38 @@ The Crexi website limits CSV exports to 10,000 rows. The underlying search API (
 
 ## Data availability & API limitations
 
-**The search API does not return price data.** Sold price, cap rate, NOI, price/sqft, APN, occupancy, and number of units are all paywalled behind a Crexi Pro subscription. Even with a valid auth token, the detail endpoints (`/assets/{id}`, `/comps/{id}`) return `"[Locked]"` for those fields.
+**Price data is available via the search API** when using a valid Bearer token from an account with the appropriate Crexi subscription tier. The `propertyPrice` object (total, perSqft, perAcre) and `saleTransaction.date` are returned directly in the search results.
 
-As a result, `crexi_api_comps` contains property and transaction metadata only — not financial data. Use `crexi_comps_records` (populated from CSV exports) for records that include sold price, cap rate, loan info, and other financial fields.
+> **Important:** The Bearer token embedded in the scraper JS and orchestrator script (`run_crexi_cells.sh`) is tied to a specific user account and will expire. When the token expires, re-authenticate on crexi.com and copy the new `Authorization: Bearer <token>` value from any `/universal-search/v2/search` request in Chrome DevTools Network tab. Update it in both `crexi_scraper_grid.js` and `run_crexi_cells.sh`.
 
-### What the API *does* return
+### What the API returns
 
 | Field | Available |
 |-------|-----------|
 | Address, city, state, zip, county | ✅ |
 | Latitude / longitude | ✅ |
 | Property type & subtype | ✅ |
-| Building sqft, unit count, stories | ✅ |
-| Construction type, year built | ✅ (Public comps only) |
-| Lot size, parking count | ✅ (Public comps only) |
+| Building sqft, unit count | ✅ |
 | Days on market | ✅ |
 | Broker name & brokerage | ✅ |
-| Sale date, listing dates | ✅ |
-| **Sold price** | ❌ Locked |
-| **Cap rate / NOI / GRM** | ❌ Locked |
-| **Price per sqft** | ❌ Locked |
-| **APN / occupancy** | ❌ Locked |
+| **Sold price (total, per sqft, per acre)** | ✅ (with valid account token) |
+| **Sale date** | ✅ (with valid account token) |
+| Cap rate / NOI / GRM | ❌ Not in search API |
+| APN / occupancy | ❌ Not in search API |
 
 ### Record type breakdown (~302k records total)
 
 | `salesCompType` | Count | Notes |
 |-----------------|-------|-------|
 | `Public` | ~167k | From county assessor records. Includes lot size, construction year. No broker info. |
-| `BrokerReported` | ~500 | Submitted by Crexi member brokers. Includes broker info, listing photos. Skews to smaller unit count, larger buildings. |
+| `BrokerReported` | ~500 | Submitted by Crexi member brokers. Includes broker info, listing photos. |
 | *(no transaction)* | ~83k | Property records with no associated sale or lease event. |
 | `null` (lease-only) | ~11k | Lease comps only. |
 
-Public and BrokerReported comps have the same locked financial fields — the distinction is the data *source*, not the access level.
+### Relationship to CSV exports
 
-### Where to get price data
-
-- **`crexi_comps_records`** — 9,000 rows from CSV exports; includes sold price, cap rate, loan amount, lender, owner name, mailing address, parcel values. Requires a Crexi plan that allows CSV export. The 10k-row export limit means manual re-export is needed to refresh.
-- **Crexi Pro API** — a paid data feed that unlocks financial fields in the API. Not currently provisioned.
+- **`crexi_api_comps`** — scraped via this pipeline; ~302k records including price data. Refreshed by re-running the scraper.
+- **`crexi_comps_records`** — 9,000 rows from manual CSV exports; also includes loan amount, lender, owner name, mailing address, parcel values (fields not in the search API).
 
 ## How it works
 
@@ -195,6 +190,10 @@ The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) i
 | `is_public_sales_comp` | boolean | |
 | `is_broker_reported_sales_comp` | boolean | |
 | `is_lease_comp` | boolean | |
+| `property_price_total` | double precision | Sold price in dollars |
+| `property_price_per_sqft` | double precision | Price per building sqft |
+| `property_price_per_acre` | double precision | Price per acre |
+| `sale_transaction_date` | text | Sale date (ISO datetime string) |
 | `sale_type` | text | e.g. `SingleProperty` |
 | `days_on_market` | integer | |
 | `date_activated` | text | ISO datetime |
