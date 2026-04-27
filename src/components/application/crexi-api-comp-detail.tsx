@@ -47,12 +47,27 @@ export type CrexiApiCompDetail = {
     is_broker_reported_sales_comp: boolean | null;
     is_lease_comp: boolean | null;
     sale_type: string | null;
+    property_price_total: number | null;
+    property_price_per_sqft: number | null;
+    property_price_per_acre: number | null;
+    sale_transaction_date: string | null;
     days_on_market: number | null;
     date_activated: string | null;
     date_updated: string | null;
     description: string | null;
+    raw_json: unknown;
     scraped_at: string | Date | null;
 };
+
+function formatUsd(n: number | null | undefined): string {
+    if (n == null || Number.isNaN(n)) return "—";
+    return `$${Math.round(n).toLocaleString()}`;
+}
+
+function formatUsdOptional(n: number | null | undefined): string {
+    if (n == null || Number.isNaN(n)) return "—";
+    return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
 
 function displayTitle(row: CrexiApiCompDetail): string {
     return (
@@ -99,6 +114,15 @@ export function CrexiApiCompDetail({ row, backHref }: { row: CrexiApiCompDetail;
     }, [row.latitude, row.longitude]);
 
     const crexiWebUrl = row.crexi_id?.trim() ? `https://www.crexi.com/properties/${encodeURIComponent(row.crexi_id.trim())}` : null;
+
+    const rawJsonText = (() => {
+        if (row.raw_json === null || row.raw_json === undefined) return null;
+        try {
+            return JSON.stringify(row.raw_json, null, 2);
+        } catch {
+            return String(row.raw_json);
+        }
+    })();
 
     const hero = (
         <div className="flex aspect-[3/1] min-h-[160px] items-center justify-center bg-gray-200 dark:bg-gray-700">
@@ -172,6 +196,30 @@ export function CrexiApiCompDetail({ row, backHref }: { row: CrexiApiCompDetail;
                         <dd className="font-medium text-gray-900 dark:text-gray-100">{row.property_subtype?.trim() || "—"}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 dark:text-gray-400">Latitude</dt>
+                        <dd className="font-mono text-xs font-medium text-gray-900 dark:text-gray-100">{row.latitude ?? "—"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 dark:text-gray-400">Longitude</dt>
+                        <dd className="font-mono text-xs font-medium text-gray-900 dark:text-gray-100">{row.longitude ?? "—"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 dark:text-gray-400">Sale price (total)</dt>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100">{formatUsd(row.property_price_total)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 dark:text-gray-400">Price / sq ft</dt>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100">{formatUsdOptional(row.property_price_per_sqft)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 dark:text-gray-400">Price / acre</dt>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100">{formatUsdOptional(row.property_price_per_acre)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                        <dt className="text-gray-500 dark:text-gray-400">Sale transaction date</dt>
+                        <dd className="font-medium text-gray-900 dark:text-gray-100">{formatMaybeDate(row.sale_transaction_date ?? undefined)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
                         <dt className="text-gray-500 dark:text-gray-400">Building sq ft</dt>
                         <dd className="font-medium text-gray-900 dark:text-gray-100">{row.building_sqft != null ? row.building_sqft.toLocaleString() : "—"}</dd>
                     </div>
@@ -234,6 +282,14 @@ export function CrexiApiCompDetail({ row, backHref }: { row: CrexiApiCompDetail;
                     <div className="mt-5 border-t border-gray-100 pt-4 dark:border-gray-700">
                         <h4 className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Description</h4>
                         <p className="text-sm whitespace-pre-wrap text-gray-800 dark:text-gray-200">{row.description.trim()}</p>
+                    </div>
+                )}
+                {rawJsonText && (
+                    <div className="mt-5 border-t border-gray-100 pt-4 dark:border-gray-700">
+                        <h4 className="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Raw JSON</h4>
+                        <pre className="max-h-[min(50vh,28rem)] overflow-auto rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">
+                            {rawJsonText}
+                        </pre>
                     </div>
                 )}
                 {crexiWebUrl && (

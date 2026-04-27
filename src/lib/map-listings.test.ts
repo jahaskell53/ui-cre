@@ -130,13 +130,18 @@ describe("mapCrexiApiCompsRow", () => {
             zip: "94105",
             building_sqft: 50000,
             property_type: "Multifamily",
+            property_price_total: 12_000_000,
+            property_price_per_sqft: 240,
+            property_price_per_acre: null,
+            sale_transaction_date: "2024-06-01",
             latitude: 37.79,
             longitude: -122.4,
         });
         expect(r.id).toBe("crexi-api-comp-99");
         expect(r.listingSource).toBe("crexi_api_comps");
         expect(r.detailHref).toBe("/analytics/listing/crexi-api-comp/99");
-        expect(r.capRate).toBe("Multifamily");
+        expect(r.price).toBe("$12,000,000");
+        expect(r.capRate).toBe("Multifamily · $240/sq ft");
         expect(r.squareFootage).toBe("50,000 sq ft");
     });
 
@@ -152,12 +157,17 @@ describe("mapCrexiApiCompsRow", () => {
             zip: "94607",
             building_sqft: null,
             property_type: null,
+            property_price_total: null,
+            property_price_per_sqft: null,
+            property_price_per_acre: null,
+            sale_transaction_date: null,
             latitude: 0,
             longitude: 0,
         });
         expect(r.name).toBe("2 Oak");
         expect(r.address).toBe("2 Oak, Oakland, CA, 94607");
         expect(r.detailHref).toBe("/analytics/listing/crexi-api-comp/1");
+        expect(r.price).toBe("Crexi API");
     });
 });
 

@@ -61,7 +61,7 @@ export function mapCrexiCompsRow(row: CrexiCompsApiRow): Property & { _createdAt
     };
 }
 
-/** Row shape from GET /api/listings/crexi-api-comps */
+/** Row shape from GET /api/listings/crexi-api-comps (map list payload) */
 export type CrexiApiCompsApiRow = {
     id: number;
     crexi_id: string | null;
@@ -73,21 +73,42 @@ export type CrexiApiCompsApiRow = {
     zip: string | null;
     building_sqft: number | null;
     property_type: string | null;
+    property_price_total: number | null;
+    property_price_per_sqft: number | null;
+    property_price_per_acre: number | null;
+    sale_transaction_date: string | null;
     latitude: number;
     longitude: number;
 };
 
+function formatUsdCompact(n: number | null | undefined): string | null {
+    if (n == null || Number.isNaN(n)) return null;
+    return `$${Math.round(n).toLocaleString()}`;
+}
+
+function formatMoneyPer(n: number | null | undefined, suffix: string): string | null {
+    if (n == null || Number.isNaN(n)) return null;
+    return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}/${suffix}`;
+}
+
 export function mapCrexiApiCompsRow(row: CrexiApiCompsApiRow): Property & { _createdAt?: string } {
     const line1 = row.address_full?.trim() || [row.address_street, row.city, row.state, row.zip].filter(Boolean).join(", ") || "" || "Address not listed";
     const typeLabel = row.property_type?.trim();
+    const priceLabel = formatUsdCompact(row.property_price_total) ?? "Crexi API";
+    const capParts: string[] = [];
+    if (typeLabel) capParts.push(typeLabel);
+    const ppsf = formatMoneyPer(row.property_price_per_sqft, "sq ft");
+    if (ppsf) capParts.push(ppsf);
+    const ppa = formatMoneyPer(row.property_price_per_acre, "acre");
+    if (ppa) capParts.push(ppa);
     return {
         id: `crexi-api-comp-${row.id}`,
         name: (row.property_name?.trim() || row.address_street || row.address_full || "Comp") as string,
         address: line1,
-        price: "Crexi API",
+        price: priceLabel,
         coordinates: [row.longitude, row.latitude],
         listingSource: "crexi_api_comps",
-        capRate: typeLabel ?? null,
+        capRate: capParts.length > 0 ? capParts.join(" · ") : null,
         squareFootage: row.building_sqft != null ? `${row.building_sqft.toLocaleString()} sq ft` : undefined,
         detailHref: `/analytics/listing/crexi-api-comp/${row.id}`,
         _createdAt: "",

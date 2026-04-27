@@ -27,14 +27,19 @@ const crexiApiCompDetailColumns = {
     is_broker_reported_sales_comp: crexiApiComps.is_broker_reported_sales_comp,
     is_lease_comp: crexiApiComps.is_lease_comp,
     sale_type: crexiApiComps.sale_type,
+    property_price_total: crexiApiComps.property_price_total,
+    property_price_per_sqft: crexiApiComps.property_price_per_sqft,
+    property_price_per_acre: crexiApiComps.property_price_per_acre,
+    sale_transaction_date: crexiApiComps.sale_transaction_date,
     days_on_market: crexiApiComps.days_on_market,
     date_activated: crexiApiComps.date_activated,
     date_updated: crexiApiComps.date_updated,
     description: crexiApiComps.description,
+    raw_json: crexiApiComps.raw_json,
     scraped_at: crexiApiComps.scraped_at,
 } as const;
 
-/** Map overlay + single-record detail for `crexi_api_comps` (list: geo/sqft/area; detail: `id` query, no raw_json). */
+/** Map overlay + single-record detail for `crexi_api_comps` (list: geo/sqft/area + price fields for pins; detail: `id` includes raw_json). */
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
@@ -57,6 +62,8 @@ export async function GET(request: NextRequest) {
         const addressQuery = searchParams.get("address_query");
         const sqftMin = searchParams.get("sqft_min");
         const sqftMax = searchParams.get("sqft_max");
+        const priceMin = searchParams.get("price_min");
+        const priceMax = searchParams.get("price_max");
         const boundsWest = searchParams.get("bounds_west");
         const boundsEast = searchParams.get("bounds_east");
         const boundsSouth = searchParams.get("bounds_south");
@@ -97,6 +104,14 @@ export async function GET(request: NextRequest) {
             const v = parseFloat(sqftMax);
             if (!Number.isNaN(v)) conditions.push(lte(crexiApiComps.building_sqft, Math.round(v)));
         }
+        if (priceMin) {
+            const v = parseFloat(priceMin);
+            if (!Number.isNaN(v)) conditions.push(gte(crexiApiComps.property_price_total, v));
+        }
+        if (priceMax) {
+            const v = parseFloat(priceMax);
+            if (!Number.isNaN(v)) conditions.push(lte(crexiApiComps.property_price_total, v));
+        }
 
         if (boundsWest && boundsEast && boundsSouth && boundsNorth) {
             const west = parseFloat(boundsWest);
@@ -127,6 +142,10 @@ export async function GET(request: NextRequest) {
                 zip: crexiApiComps.zip,
                 building_sqft: crexiApiComps.building_sqft,
                 property_type: crexiApiComps.property_type,
+                property_price_total: crexiApiComps.property_price_total,
+                property_price_per_sqft: crexiApiComps.property_price_per_sqft,
+                property_price_per_acre: crexiApiComps.property_price_per_acre,
+                sale_transaction_date: crexiApiComps.sale_transaction_date,
                 latitude: crexiApiComps.latitude,
                 longitude: crexiApiComps.longitude,
                 scraped_at: crexiApiComps.scraped_at,
