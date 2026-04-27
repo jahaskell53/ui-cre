@@ -68,7 +68,7 @@ export function SalesTrendsSection({
     areas,
     areaResults,
     salesSource = "crexi",
-    granularity = "month",
+    granularity = "year",
     onGranularityChange,
 }: Props & { onGranularityChange?: (g: SalesGranularity) => void }) {
     const [metric, setMetric] = useState<Metric>("median_price");
@@ -236,7 +236,7 @@ export function SalesTrendsSection({
     );
 }
 
-export function SalesStatsTile({ areas, areaResults, salesSource = "crexi", granularity = "month" }: Props) {
+export function SalesStatsTile({ areas, areaResults, salesSource = "crexi", granularity = "year" }: Props) {
     return (
         <div className="col-span-1 flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
             {areas.map((area) => {

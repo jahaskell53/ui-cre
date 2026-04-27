@@ -313,7 +313,7 @@ export function buildMultiAreaSalesData(
     areaResults: Record<string, SalesTrendRow[]>,
     areas: AreaSelection[],
     metric: "median_price" | "avg_cap_rate" | "listing_count",
-    granularity: SalesGranularity = "month",
+    granularity: SalesGranularity = "year",
 ): Array<Record<string, string | number>> {
     const aggregated: Record<string, SalesTrendRow[]> = {};
     for (const area of areas) {
