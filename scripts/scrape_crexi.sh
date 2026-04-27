@@ -53,6 +53,9 @@ def flatten(r):
     rt = r.get("recordType") or {}
     st = r.get("saleTransaction") or {}
     la = r.get("listingAttributes") or {}
+    pp = r.get("propertyPrice") or {}
+    if not isinstance(pp, dict):
+        pp = {}
     return {
         "crexi_id": r.get("id") or r.get("propertyRecordId"),
         "property_name": r.get("propertyName"),
@@ -75,6 +78,10 @@ def flatten(r):
         "is_broker_reported_sales_comp": rt.get("isBrokerReportedSalesComp"),
         "is_lease_comp": rt.get("isLeaseComp"),
         "sale_type": st.get("type"),
+        "property_price_total": pp.get("total"),
+        "property_price_per_sqft": pp.get("perSqft"),
+        "property_price_per_acre": pp.get("perAcre"),
+        "sale_transaction_date": st.get("date"),
         "days_on_market": st.get("daysOnMarket"),
         "date_activated": la.get("dateActivated"),
         "date_updated": la.get("dateUpdated"),
