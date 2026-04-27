@@ -98,9 +98,11 @@ export function PropertiesSidebar({ properties, selectedId, loading, totalCount,
                             >
                                 <Link
                                     href={
-                                        property.isReit && property.buildingZpid
-                                            ? `/analytics/building/${encodeURIComponent(property.buildingZpid)}`
-                                            : `/analytics/listing/${property.id}`
+                                        property.detailHref?.trim()
+                                            ? property.detailHref
+                                            : property.isReit && property.buildingZpid
+                                              ? `/analytics/building/${encodeURIComponent(property.buildingZpid)}`
+                                              : `/analytics/listing/${property.id}`
                                     }
                                     className="group flex gap-3"
                                     onClick={(e) => e.stopPropagation()}

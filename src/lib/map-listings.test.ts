@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type ZillowMapListingRow, mapLoopnetRow, mapZillowRpcRow } from "./map-listings";
+import { type ZillowMapListingRow, mapCrexiActiveRow, mapCrexiApiCompsRow, mapCrexiCompsRow, mapLoopnetRow, mapZillowRpcRow } from "./map-listings";
 
 // ── mapLoopnetRow ─────────────────────────────────────────────────────────────
 
@@ -66,6 +66,131 @@ describe("mapLoopnetRow", () => {
     it("does not derive units from square footage (Loopnet has no unit count on map)", () => {
         expect(mapLoopnetRow({ ...base, square_footage: "5000" }).units).toBeNull();
         expect(mapLoopnetRow({ ...base, square_footage: null }).units).toBeNull();
+    });
+});
+
+// ── mapCrexiCompsRow / mapCrexiApiCompsRow / mapCrexiActiveRow ─────────────────
+
+describe("mapCrexiCompsRow", () => {
+    it("maps to property with crexi_comps source and prefixed id", () => {
+        const r = mapCrexiCompsRow({
+            id: 7,
+            property_name: "Comp Plaza",
+            address: "1 Main",
+            city: "Austin",
+            state: "TX",
+            zip_code: "78701",
+            sold_price: 1_250_000,
+            closing_cap_rate: 5.25,
+            asking_cap_rate: null,
+            building_sqft: 12_000,
+            property_link: "https://crexi.example/c/1",
+            latitude: 30.27,
+            longitude: -97.74,
+        });
+        expect(r.id).toBe("crexi-comp-7");
+        expect(r.listingSource).toBe("crexi_comps");
+        expect(r.coordinates).toEqual([-97.74, 30.27]);
+        expect(r.price).toBe("$1,250,000");
+        expect(r.capRate).toBe("5.25% cap");
+        expect(r.detailHref).toBe("https://crexi.example/c/1");
+    });
+
+    it("uses asking_cap_rate when closing is null", () => {
+        const r = mapCrexiCompsRow({
+            id: 1,
+            property_name: null,
+            address: "X",
+            city: null,
+            state: null,
+            zip_code: null,
+            sold_price: null,
+            closing_cap_rate: null,
+            asking_cap_rate: 6,
+            building_sqft: null,
+            property_link: null,
+            latitude: 0,
+            longitude: 0,
+        });
+        expect(r.capRate).toBe("6.00% cap");
+        expect(r.detailHref).toBeNull();
+    });
+});
+
+describe("mapCrexiApiCompsRow", () => {
+    it("maps to property with crexi_api_comps source and Crexi URL when crexi_id present", () => {
+        const r = mapCrexiApiCompsRow({
+            id: 99,
+            crexi_id: "abc-123",
+            property_name: "Bay MF",
+            address_full: "1 Market, SF, CA",
+            address_street: "1 Market",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94105",
+            building_sqft: 50000,
+            property_type: "Multifamily",
+            property_price_total: 12_000_000,
+            property_price_per_sqft: 240,
+            property_price_per_acre: null,
+            sale_transaction_date: "2024-06-01",
+            latitude: 37.79,
+            longitude: -122.4,
+        });
+        expect(r.id).toBe("crexi-api-comp-99");
+        expect(r.listingSource).toBe("crexi_api_comps");
+        expect(r.detailHref).toBe("/analytics/listing/crexi-api-comp/99");
+        expect(r.price).toBe("$12,000,000");
+        expect(r.capRate).toBe("Multifamily · $240/sq ft");
+        expect(r.squareFootage).toBe("50,000 sq ft");
+    });
+
+    it("uses address parts when address_full empty", () => {
+        const r = mapCrexiApiCompsRow({
+            id: 1,
+            crexi_id: null,
+            property_name: null,
+            address_full: null,
+            address_street: "2 Oak",
+            city: "Oakland",
+            state: "CA",
+            zip: "94607",
+            building_sqft: null,
+            property_type: null,
+            property_price_total: null,
+            property_price_per_sqft: null,
+            property_price_per_acre: null,
+            sale_transaction_date: null,
+            latitude: 0,
+            longitude: 0,
+        });
+        expect(r.name).toBe("2 Oak");
+        expect(r.address).toBe("2 Oak, Oakland, CA, 94607");
+        expect(r.detailHref).toBe("/analytics/listing/crexi-api-comp/1");
+        expect(r.price).toBe("Crexi API");
+    });
+});
+
+describe("mapCrexiActiveRow", () => {
+    it("maps to property with crexi_active source", () => {
+        const r = mapCrexiActiveRow({
+            id: 3,
+            property_name: "Active MF",
+            address: "2 Oak",
+            city: "Dallas",
+            state: "TX",
+            zip: "75201",
+            asking_price: 5_000_000,
+            cap_rate: 4.5,
+            sqft: 50_000,
+            property_link: "https://crexi.example/a/2",
+            latitude: 32.78,
+            longitude: -96.8,
+        });
+        expect(r.id).toBe("crexi-active-3");
+        expect(r.listingSource).toBe("crexi_active");
+        expect(r.price).toBe("$5,000,000");
+        expect(r.capRate).toBe("4.50% cap");
     });
 });
 
