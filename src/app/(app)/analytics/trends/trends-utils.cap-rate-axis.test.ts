@@ -24,4 +24,20 @@ describe("capRateAbsoluteYAxisConfig", () => {
         expect(cfg!.domain).toEqual([5.9, 6.1]);
         expect(cfg!.ticks).toEqual([5.9, 6.0, 6.1]);
     });
+
+    it("tightens domain when outliers would exceed max tick count", () => {
+        const pts = Array.from({ length: 50 }, (_, i) => ({
+            month: `2020-${String((i % 12) + 1).padStart(2, "0")}-01`,
+            monthLabel: "m",
+            a: 5 + (i % 10) * 0.1,
+        }));
+        pts.push({ month: "2021-01-01", monthLabel: "x", a: 95 });
+        const cfg = capRateAbsoluteYAxisConfig(pts, ["a"]);
+        expect(cfg).not.toBeNull();
+        expect(cfg!.ticks.length).toBeLessThanOrEqual(100);
+        for (let i = 1; i < cfg!.ticks.length; i++) {
+            expect(cfg!.ticks[i]! - cfg!.ticks[i - 1]!).toBeCloseTo(0.1, 5);
+        }
+        expect(cfg!.domain[1]! - cfg!.domain[0]!).toBeCloseTo((cfg!.ticks.length - 1) * 0.1, 5);
+    });
 });

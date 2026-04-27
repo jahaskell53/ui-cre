@@ -343,29 +343,80 @@ export function buildMultiAreaSalesData(
         });
 }
 
+/** Max explicit Y ticks so Recharts does not subsample away 0.1 spacing (wide domains need a tighter window). */
+const CAP_RATE_AXIS_MAX_TICKS = 100;
+
+function sortedFiniteCapRates(absData: Array<Record<string, string | number>>, areaIds: string[]): number[] {
+    const out: number[] = [];
+    for (const point of absData) {
+        for (const id of areaIds) {
+            const v = point[id];
+            if (typeof v === "number" && Number.isFinite(v)) out.push(v);
+        }
+    }
+    out.sort((a, b) => a - b);
+    return out;
+}
+
+function quantile(sorted: number[], q: number): number {
+    if (sorted.length === 0) return NaN;
+    if (sorted.length === 1) return sorted[0];
+    const pos = (sorted.length - 1) * q;
+    const lo = Math.floor(pos);
+    const hi = Math.ceil(pos);
+    if (lo === hi) return sorted[lo];
+    const w = pos - lo;
+    return sorted[lo] * (1 - w) + sorted[hi] * w;
+}
+
 /** Y-axis domain and tick list (0.1 increments) for sales trends cap rate in absolute % view. */
 export function capRateAbsoluteYAxisConfig(
     absData: Array<Record<string, string | number>>,
     areaIds: string[],
 ): { domain: [number, number]; ticks: number[] } | null {
-    let min = Infinity;
-    let max = -Infinity;
-    for (const point of absData) {
-        for (const id of areaIds) {
-            const v = point[id];
-            if (typeof v === "number" && Number.isFinite(v)) {
-                if (v < min) min = v;
-                if (v > max) max = v;
+    const values = sortedFiniteCapRates(absData, areaIds);
+    if (values.length === 0) return null;
+
+    const rawMin = values[0];
+    const rawMax = values[values.length - 1];
+
+    const rawSpanTenths = Math.ceil(rawMax * 10) - Math.floor(rawMin * 10);
+    let axisMin = rawMin;
+    let axisMax = rawMax;
+
+    if (rawSpanTenths + 1 > CAP_RATE_AXIS_MAX_TICKS) {
+        let qLo = 0.04;
+        let qHi = 0.96;
+        axisMin = quantile(values, qLo);
+        axisMax = quantile(values, qHi);
+        while (qLo < 0.48 && axisMax > axisMin) {
+            let minTenths = Math.floor(axisMin * 10);
+            let maxTenths = Math.ceil(axisMax * 10);
+            if (minTenths === maxTenths) {
+                minTenths -= 1;
+                maxTenths += 1;
             }
+            if (maxTenths - minTenths + 1 <= CAP_RATE_AXIS_MAX_TICKS) break;
+            qLo += 0.02;
+            qHi -= 0.02;
+            axisMin = quantile(values, qLo);
+            axisMax = quantile(values, qHi);
+        }
+        if (!(axisMax > axisMin)) {
+            axisMin = rawMin;
+            axisMax = rawMax;
         }
     }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
 
-    let minTenths = Math.floor(min * 10);
-    let maxTenths = Math.ceil(max * 10);
+    let minTenths = Math.floor(axisMin * 10);
+    let maxTenths = Math.ceil(axisMax * 10);
     if (minTenths === maxTenths) {
         minTenths -= 1;
         maxTenths += 1;
+    }
+    while (maxTenths - minTenths + 1 > CAP_RATE_AXIS_MAX_TICKS && maxTenths > minTenths) {
+        minTenths += 1;
+        maxTenths -= 1;
     }
 
     const ticks: number[] = [];

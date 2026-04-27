@@ -90,6 +90,8 @@ export function SalesTrendsSection({
               )
             : null;
 
+    const chartHeight = capRateAbsAxis != null ? Math.min(520, Math.max(280, 40 + (capRateAbsAxis.ticks.length - 1) * 11)) : 280;
+
     const CustomTooltip = ({
         active,
         payload,
@@ -198,18 +200,19 @@ export function SalesTrendsSection({
                 </div>
             </div>
 
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
                 <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} />
                     <YAxis
                         tickFormatter={yFormatter}
-                        tick={{ fontSize: 12, fill: "#6b7280" }}
+                        tick={{ fontSize: capRateAbsAxis ? 11 : 12, fill: "#6b7280" }}
                         axisLine={false}
                         tickLine={false}
                         width={yWidth}
                         domain={capRateAbsAxis ? capRateAbsAxis.domain : undefined}
                         ticks={capRateAbsAxis ? capRateAbsAxis.ticks : undefined}
+                        interval={capRateAbsAxis ? 0 : undefined}
                         allowDataOverflow={!!capRateAbsAxis}
                     />
                     <Tooltip content={<CustomTooltip />} />
