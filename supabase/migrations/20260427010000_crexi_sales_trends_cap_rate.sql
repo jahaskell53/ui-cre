@@ -1,14 +1,9 @@
--- Crexi API comps sales trends RPCs.
+-- Update Crexi sales trends RPCs to include cap rate.
 --
--- These mirror the existing get_sales_trends* RPC family but source data from
--- crexi_api_comps (actual closed-sale comps) instead of loopnet_listing_snapshots
--- (for-sale listing scrapes). Key differences:
---
---   • Time axis: sale_transaction_date (the actual closing date) rather than scraped_at.
---   • Price:     property_price_total (total sale price) rather than price_numeric.
---   • Cap rate:  not available in crexi_api_comps — avg_cap_rate is always NULL.
---   • Filter:    is_sales_comp = true to restrict to confirmed sales.
---   • Spatial:   built from latitude/longitude (no geom column on the table).
+-- sale_cap_rate_percent and financials_cap_rate_percent are both sparse (~1%
+-- fill rate) but where present they reflect the actual transaction cap rate.
+-- We prefer sale_cap_rate_percent (the closing cap rate) and fall back to
+-- financials_cap_rate_percent (from the listing financials tab).
 
 -- ── 1. ZIP ──────────────────────────────────────────────────────────────────
 
@@ -73,7 +68,7 @@ AS $function$
   SELECT
     DATE_TRUNC('month', c.sale_transaction_date::date)::date AS month_start,
     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY c.property_price_total)::numeric AS median_price,
-    AVG(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent)) AS avg_cap_rate,
+    AVG(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)) AS avg_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps c
   JOIN county_boundaries cb
@@ -101,7 +96,7 @@ AS $function$
   SELECT
     DATE_TRUNC('month', c.sale_transaction_date::date)::date AS month_start,
     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY c.property_price_total)::numeric AS median_price,
-    AVG(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent)) AS avg_cap_rate,
+    AVG(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)) AS avg_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps c
   JOIN neighborhoods n
@@ -128,7 +123,7 @@ AS $function$
   SELECT
     DATE_TRUNC('month', c.sale_transaction_date::date)::date AS month_start,
     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY c.property_price_total)::numeric AS median_price,
-    AVG(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent)) AS avg_cap_rate,
+    AVG(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)) AS avg_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps c
   JOIN msa_boundaries mb

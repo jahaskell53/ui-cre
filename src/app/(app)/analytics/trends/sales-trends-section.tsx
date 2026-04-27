@@ -190,7 +190,8 @@ export function SalesTrendsSection({ areas, areaResults, salesSource = "loopnet"
                 {salesSource === "crexi" ? (
                     <>
                         {metric === "median_price" && "Median closed-sale price from Crexi API comps, bucketed by transaction month."}
-                        {metric === "avg_cap_rate" && "Cap rate not available in Crexi comps data."}
+                        {metric === "avg_cap_rate" &&
+                            "Average cap rate from Crexi comps (sale_cap_rate_percent, falling back to financials_cap_rate_percent). Sparse — many months will show no value."}
                         {metric === "listing_count" && "Number of Crexi closed sales recorded per month."}
                     </>
                 ) : (
