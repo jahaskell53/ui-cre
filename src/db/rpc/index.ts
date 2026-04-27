@@ -33,3 +33,4 @@ export * from "./comps";
 export * from "./geo";
 export * from "./map-listings";
 export * from "./sales-trends";
+export * from "./map-sales-trends";

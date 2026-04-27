@@ -40,6 +40,7 @@ import {
 } from "@/lib/analytics/trends-page";
 import { MarketActivitySection } from "./market-activity-section";
 import { RentTrendsSection } from "./rent-trends-section";
+import { SalesTrendsMap } from "./sales-trends-map";
 import { SalesStatsTile, SalesTrendsSection } from "./sales-trends-section";
 import { TrendsTableSection } from "./trends-table-section";
 import {
@@ -736,7 +737,7 @@ export default function TrendsPage() {
                     </button>
                 </div>
 
-                {/* Display mode — hide map for sales for now */}
+                {/* Display mode */}
                 <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
                     <button
                         type="button"
@@ -754,24 +755,22 @@ export default function TrendsPage() {
                             <Table2 className="size-3.5" /> Table
                         </button>
                     )}
-                    {dataTab === "rent" && (
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setDisplay("map");
-                                if (!MAP_AREA_TYPES.has(areaType)) {
-                                    setAreaType("ZIP Code");
-                                    setSelectedAreas([]);
-                                }
-                                setAddress("");
-                                setSuggestions([]);
-                                setNhSuggestions([]);
-                            }}
-                            className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "map" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
-                        >
-                            <Map className="size-3.5" /> Map
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setDisplay("map");
+                            if (!MAP_AREA_TYPES.has(areaType)) {
+                                setAreaType("ZIP Code");
+                                setSelectedAreas([]);
+                            }
+                            setAddress("");
+                            setSuggestions([]);
+                            setNhSuggestions([]);
+                        }}
+                        className={`flex items-center gap-1.5 rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${display === "map" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                    >
+                        <Map className="size-3.5" /> Map
+                    </button>
                 </div>
             </div>
 
@@ -1122,8 +1121,22 @@ export default function TrendsPage() {
                 />
             )}
 
+            {/* ── Map display (sales) ── */}
+            {dataTab === "sales" && display === "map" && (
+                <SalesTrendsMap
+                    areaType={areaType as "ZIP Code" | "Neighborhood" | "City" | "County" | "MSA"}
+                    salesSource={salesSource}
+                    selectedAreas={selectedAreas}
+                    onAddZip={addAreaByZip}
+                    onAddNeighborhood={addAreaByNeighborhood}
+                    onAddCounty={addAreaByCounty}
+                    onAddMsa={addAreaByMsa}
+                    onAddCity={addAreaByCity}
+                />
+            )}
+
             {/* ── Empty state ── */}
-            {(display === "chart" || display === "table" || dataTab === "sales") && selectedAreas.length === 0 && (
+            {(display === "chart" || display === "table" || (dataTab === "sales" && display !== "map")) && selectedAreas.length === 0 && (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-16 text-center dark:border-gray-700 dark:bg-gray-800">
                     <TrendingUp className="mb-3 size-10 text-gray-300" />
                     <p className="text-gray-500 dark:text-gray-400">
