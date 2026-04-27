@@ -67,7 +67,7 @@ const GRANULARITY_OPTIONS: { value: SalesGranularity; label: string }[] = [
 export function SalesTrendsSection({
     areas,
     areaResults,
-    salesSource = "loopnet",
+    salesSource = "crexi",
     granularity = "month",
     onGranularityChange,
 }: Props & { onGranularityChange?: (g: SalesGranularity) => void }) {
@@ -236,7 +236,7 @@ export function SalesTrendsSection({
     );
 }
 
-export function SalesStatsTile({ areas, areaResults, salesSource = "loopnet", granularity = "month" }: Props) {
+export function SalesStatsTile({ areas, areaResults, salesSource = "crexi", granularity = "month" }: Props) {
     return (
         <div className="col-span-1 flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
             {areas.map((area) => {
