@@ -1618,6 +1618,7 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     property_price_per_sqft: doublePrecision("property_price_per_sqft"),
     property_price_per_acre: doublePrecision("property_price_per_acre"),
     sale_transaction_date: text("sale_transaction_date"),
+    geom: geometry({ type: "point", srid: 4326 }),
     sale_cap_rate_percent: doublePrecision("sale_cap_rate_percent"),
     financials_cap_rate_percent: doublePrecision("financials_cap_rate_percent"),
     financials_noi: doublePrecision("financials_noi"),

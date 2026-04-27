@@ -1,9 +1,8 @@
 /**
  * DB integration tests for sales trends RPCs across all geo types.
  *
- * Validates that get_sales_trends_by_neighborhood, get_sales_trends_by_county,
- * and get_sales_trends_by_msa return rows and use loopnet_listings.geom for
- * the spatial join (so geocoded listings with no raw lat/lng are included).
+ * Covers both the LoopNet-based get_sales_trends_by_* family and the
+ * Crexi-based get_crexi_sales_trends_by_* family.
  *
  * Uses an Oakland / Bay Area fixture — Alameda County has the most LoopNet
  * commercial listings in the dataset (331 rows with valid geom + price).
@@ -118,6 +117,101 @@ describe("get_sales_trends_by_neighborhood (Oakland area)", () => {
         expect(error).toBeNull();
         // We don't assert rows > 0 here because neighborhood commercial listing
         // density can legitimately be zero; we just verify no RPC error.
+        const rows = (data ?? []) as SalesTrendRow[];
+        for (const row of rows) {
+            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
+            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
+            expect(price).toBeGreaterThan(0);
+            expect(count).toBeGreaterThan(0);
+        }
+    });
+});
+
+// ── Crexi sales trends RPCs ──────────────────────────────────────────────────
+
+describe("get_crexi_sales_trends_by_city (Oakland, CA)", () => {
+    it("returns no RPC error for Oakland", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("get_crexi_sales_trends_by_city", {
+            p_city: CITY,
+            p_state: STATE,
+        });
+        expect(error).toBeNull();
+        // Crexi data may be sparse for any given city; just verify shape.
+        const rows = (data ?? []) as SalesTrendRow[];
+        for (const row of rows) {
+            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
+            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
+            expect(price).toBeGreaterThan(0);
+            expect(count).toBeGreaterThan(0);
+        }
+    });
+});
+
+describe("get_crexi_sales_trends_by_county (Alameda County, CA)", () => {
+    it("returns no RPC error for Alameda County", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("get_crexi_sales_trends_by_county", {
+            p_county_name: COUNTY_NAME,
+            p_state: STATE,
+        });
+        expect(error).toBeNull();
+        const rows = (data ?? []) as SalesTrendRow[];
+        for (const row of rows) {
+            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
+            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
+            expect(price).toBeGreaterThan(0);
+            expect(count).toBeGreaterThan(0);
+        }
+    });
+});
+
+describe("get_crexi_sales_trends_by_msa (SF Bay Area MSA)", () => {
+    it("resolves SF Bay Area MSA and returns no RPC error", async () => {
+        const client = makeClient();
+        const { data: msaRows, error: msaError } = await client.rpc("get_msa_at_point", {
+            p_lat: OAKLAND_LAT,
+            p_lng: OAKLAND_LNG,
+        });
+        expect(msaError).toBeNull();
+        expect(Array.isArray(msaRows)).toBe(true);
+        expect((msaRows as { geoid: string; name: string }[]).length).toBeGreaterThan(0);
+
+        const msa = (msaRows as { geoid: string; name: string }[])[0];
+        const { data, error } = await client.rpc("get_crexi_sales_trends_by_msa", {
+            p_geoid: msa.geoid,
+        });
+        expect(error).toBeNull();
+        const rows = (data ?? []) as SalesTrendRow[];
+        for (const row of rows) {
+            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
+            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
+            expect(price).toBeGreaterThan(0);
+            expect(count).toBeGreaterThan(0);
+        }
+    });
+});
+
+describe("get_crexi_sales_trends_by_neighborhood (Oakland area)", () => {
+    it("resolves a neighborhood at Oakland point and returns no RPC error", async () => {
+        const client = makeClient();
+        const { data: nhRows, error: nhError } = await client.rpc("get_neighborhood_at_point", {
+            p_lat: OAKLAND_LAT,
+            p_lng: OAKLAND_LNG,
+        });
+        expect(nhError).toBeNull();
+        expect(Array.isArray(nhRows)).toBe(true);
+
+        const nhs = nhRows as { id: number; name: string; city: string }[];
+        if (nhs.length === 0) {
+            return;
+        }
+
+        const nh = nhs[0];
+        const { data, error } = await client.rpc("get_crexi_sales_trends_by_neighborhood", {
+            p_neighborhood_ids: [nh.id],
+        });
+        expect(error).toBeNull();
         const rows = (data ?? []) as SalesTrendRow[];
         for (const row of rows) {
             const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
