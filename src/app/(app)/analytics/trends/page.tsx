@@ -133,7 +133,7 @@ export default function TrendsPage() {
         return "mid";
     });
     const [salesSource, setSalesSource] = useState<SalesSource>((searchParams.get("salesSource") as SalesSource) ?? "loopnet");
-    const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>((searchParams.get("salesGranularity") as SalesGranularity) ?? "month");
+    const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>((searchParams.get("salesGranularity") as SalesGranularity) ?? "year");
     const [loading, setLoading] = useState(false);
     const [salesLoading, setSalesLoading] = useState(false);
 
