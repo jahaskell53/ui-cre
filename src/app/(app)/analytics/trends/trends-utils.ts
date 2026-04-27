@@ -436,6 +436,53 @@ export function buildMultiAreaSalesData(
         });
 }
 
+const CAP_RATE_Y_TICK_STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10] as const;
+
+/**
+ * Y-axis tick values for absolute cap rate on the sales trends chart.
+ * Recharts defaults to integer ticks, which hides movement in the typical ~4–8% range.
+ */
+export function getSalesCapRateAbsYAxisTicks(chartData: Array<Record<string, string | number>>, areaIds: string[]): number[] | undefined {
+    const values: number[] = [];
+    for (const point of chartData) {
+        for (const id of areaIds) {
+            const v = point[id];
+            if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+        }
+    }
+    if (values.length === 0) return undefined;
+
+    let min = Math.min(...values);
+    let max = Math.max(...values);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
+    if (max - min < 1e-9) {
+        min -= 0.5;
+        max += 0.5;
+    }
+
+    for (const step of CAP_RATE_Y_TICK_STEPS) {
+        const start = Math.floor((min - 1e-9) / step) * step;
+        const end = Math.ceil((max + 1e-9) / step) * step;
+        const count = Math.round((end - start) / step) + 1;
+        if (count > 10) continue;
+
+        const ticks: number[] = [];
+        for (let t = start; t <= end + step * 1e-6; t += step) {
+            ticks.push(Math.round(t * 1000) / 1000);
+        }
+        return ticks;
+    }
+
+    const step = CAP_RATE_Y_TICK_STEPS[CAP_RATE_Y_TICK_STEPS.length - 1];
+    const start = Math.floor((min - 1e-9) / step) * step;
+    const end = Math.ceil((max + 1e-9) / step) * step;
+    const ticks: number[] = [];
+    for (let t = start; t <= end + step * 1e-6; t += step) {
+        ticks.push(Math.round(t * 1000) / 1000);
+    }
+    return ticks;
+}
+
 export function buildActivityComboData(
     areaResults: Record<string, ActivityRow[]>,
     areas: AreaSelection[],

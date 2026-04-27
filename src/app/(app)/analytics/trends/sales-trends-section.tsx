@@ -11,6 +11,7 @@ import {
     aggregateSalesTrendRows,
     buildMultiAreaSalesData,
     formatMillions,
+    getSalesCapRateAbsYAxisTicks,
     pctChange,
 } from "./trends-utils";
 
@@ -35,7 +36,7 @@ function formatYAxis(metric: Metric, view: YAxisView) {
     return (v: number) => {
         if (view === "pct") return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
         if (metric === "median_price") return formatMillions(v);
-        if (metric === "avg_cap_rate") return `${v.toFixed(1)}%`;
+        if (metric === "avg_cap_rate") return `${v.toFixed(view === "abs" ? 2 : 1)}%`;
         return v.toLocaleString();
     };
 }
@@ -96,6 +97,13 @@ export function SalesTrendsSection({
     const onlyOnePoint = chartData.length === 1;
     const yFormatter = formatYAxis(metric, yView);
     const yWidth = metric === "median_price" ? 75 : metric === "avg_cap_rate" ? 60 : 55;
+    const capRateAbsTicks =
+        metric === "avg_cap_rate" && yView === "abs"
+            ? getSalesCapRateAbsYAxisTicks(
+                  absData,
+                  areas.map((a) => a.id),
+              )
+            : undefined;
 
     const CustomTooltip = ({
         active,
@@ -224,7 +232,14 @@ export function SalesTrendsSection({
                 <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={yFormatter} tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} width={yWidth} />
+                    <YAxis
+                        tickFormatter={yFormatter}
+                        tick={{ fontSize: 12, fill: "#6b7280" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={yWidth}
+                        {...(capRateAbsTicks ? { ticks: capRateAbsTicks, domain: [capRateAbsTicks[0], capRateAbsTicks[capRateAbsTicks.length - 1]] } : {})}
+                    />
                     <Tooltip content={<CustomTooltip />} />
                     {yView === "pct" && <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="3 3" />}
                     {areas.map((area) => (
