@@ -343,6 +343,41 @@ export function buildMultiAreaSalesData(
         });
 }
 
+/** Y-axis domain and tick list (0.1 increments) for sales trends cap rate in absolute % view. */
+export function capRateAbsoluteYAxisConfig(
+    absData: Array<Record<string, string | number>>,
+    areaIds: string[],
+): { domain: [number, number]; ticks: number[] } | null {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const point of absData) {
+        for (const id of areaIds) {
+            const v = point[id];
+            if (typeof v === "number" && Number.isFinite(v)) {
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
+        }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+
+    let minTenths = Math.floor(min * 10);
+    let maxTenths = Math.ceil(max * 10);
+    if (minTenths === maxTenths) {
+        minTenths -= 1;
+        maxTenths += 1;
+    }
+
+    const ticks: number[] = [];
+    for (let t = minTenths; t <= maxTenths; t++) {
+        ticks.push(t / 10);
+    }
+    return {
+        domain: [minTenths / 10, maxTenths / 10],
+        ticks,
+    };
+}
+
 export function buildActivityComboData(
     areaResults: Record<string, ActivityRow[]>,
     areas: AreaSelection[],

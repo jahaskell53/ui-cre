@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AreaSelection, SalesGranularity, SalesTrendRow, buildMultiAreaSalesData, formatMillions, pctChange } from "./trends-utils";
+import { AreaSelection, SalesGranularity, SalesTrendRow, buildMultiAreaSalesData, capRateAbsoluteYAxisConfig, formatMillions, pctChange } from "./trends-utils";
 
 interface Props {
     areas: AreaSelection[];
@@ -81,6 +81,14 @@ export function SalesTrendsSection({
     const onlyOnePoint = chartData.length === 1;
     const yFormatter = formatYAxis(metric, yView);
     const yWidth = metric === "median_price" ? 75 : metric === "avg_cap_rate" ? 60 : 55;
+
+    const capRateAbsAxis =
+        metric === "avg_cap_rate" && yView === "abs"
+            ? capRateAbsoluteYAxisConfig(
+                  absData,
+                  areas.map((a) => a.id),
+              )
+            : null;
 
     const CustomTooltip = ({
         active,
@@ -194,7 +202,16 @@ export function SalesTrendsSection({
                 <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={yFormatter} tick={{ fontSize: 12, fill: "#6b7280" }} axisLine={false} tickLine={false} width={yWidth} />
+                    <YAxis
+                        tickFormatter={yFormatter}
+                        tick={{ fontSize: 12, fill: "#6b7280" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={yWidth}
+                        domain={capRateAbsAxis ? capRateAbsAxis.domain : undefined}
+                        ticks={capRateAbsAxis ? capRateAbsAxis.ticks : undefined}
+                        allowDataOverflow={!!capRateAbsAxis}
+                    />
                     <Tooltip content={<CustomTooltip />} />
                     {yView === "pct" && <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="3 3" />}
                     {areas.map((area) => (
