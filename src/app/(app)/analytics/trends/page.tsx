@@ -42,7 +42,18 @@ import { MarketActivitySection } from "./market-activity-section";
 import { RentTrendsSection } from "./rent-trends-section";
 import { SalesStatsTile, SalesTrendsSection } from "./sales-trends-section";
 import { TrendsTableSection } from "./trends-table-section";
-import { AREA_COLORS, ActivityRow, AreaSelection, BED_DASH, BED_KEYS, SalesTrendRow, TrendRow, formatDollars, pctChange } from "./trends-utils";
+import {
+    AREA_COLORS,
+    ActivityRow,
+    AreaSelection,
+    BED_DASH,
+    BED_KEYS,
+    SalesGranularity,
+    SalesTrendRow,
+    TrendRow,
+    formatDollars,
+    pctChange,
+} from "./trends-utils";
 import { ZipTrendsMap } from "./zip-trends-map";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
@@ -122,6 +133,7 @@ export default function TrendsPage() {
         return "mid";
     });
     const [salesSource, setSalesSource] = useState<SalesSource>((searchParams.get("salesSource") as SalesSource) ?? "loopnet");
+    const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>((searchParams.get("salesGranularity") as SalesGranularity) ?? "month");
     const [loading, setLoading] = useState(false);
     const [salesLoading, setSalesLoading] = useState(false);
 
@@ -134,9 +146,10 @@ export default function TrendsPage() {
         params.set("beds", selectedBeds.join(","));
         params.set("segment", selectedSegment);
         params.set("salesSource", salesSource);
+        params.set("salesGranularity", salesGranularity);
         if (selectedAreas.length > 0) params.set("areas", serializeAreasParam(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [dataTab, areaType, display, selectedAreas, selectedBeds, selectedSegment, salesSource]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [dataTab, areaType, display, selectedAreas, selectedBeds, selectedSegment, salesSource, salesGranularity]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
@@ -1285,9 +1298,15 @@ export default function TrendsPage() {
 
                     {!salesLoading && hasSalesData && (
                         <div className="grid grid-cols-4 gap-4">
-                            <SalesStatsTile areas={selectedAreas} areaResults={salesResults} salesSource={salesSource} />
+                            <SalesStatsTile areas={selectedAreas} areaResults={salesResults} salesSource={salesSource} granularity={salesGranularity} />
                             <div className="col-span-3">
-                                <SalesTrendsSection areas={selectedAreas} areaResults={salesResults} salesSource={salesSource} />
+                                <SalesTrendsSection
+                                    areas={selectedAreas}
+                                    areaResults={salesResults}
+                                    salesSource={salesSource}
+                                    granularity={salesGranularity}
+                                    onGranularityChange={setSalesGranularity}
+                                />
                             </div>
                             {/* Legend */}
                             <div className="col-span-1 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
