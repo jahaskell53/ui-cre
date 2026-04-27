@@ -2,13 +2,24 @@
 
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AreaSelection, SalesGranularity, SalesTrendRow, aggregateSalesTrendRows, buildMultiAreaSalesData, formatMillions, pctChange } from "./trends-utils";
+import {
+    AreaSelection,
+    SALES_TIME_RANGE_OPTIONS,
+    SalesGranularity,
+    SalesTimeRange,
+    SalesTrendRow,
+    aggregateSalesTrendRows,
+    buildMultiAreaSalesData,
+    formatMillions,
+    pctChange,
+} from "./trends-utils";
 
 interface Props {
     areas: AreaSelection[];
     areaResults: Record<string, SalesTrendRow[]>;
     salesSource?: "loopnet" | "crexi";
     granularity?: SalesGranularity;
+    timeRange?: SalesTimeRange;
 }
 
 type Metric = "median_price" | "avg_cap_rate" | "listing_count";
@@ -71,8 +82,10 @@ export function SalesTrendsSection({
     areaResults,
     salesSource = "crexi",
     granularity = "year",
+    timeRange = "all",
     onGranularityChange,
-}: Props & { onGranularityChange?: (g: SalesGranularity) => void }) {
+    onTimeRangeChange,
+}: Props & { onGranularityChange?: (g: SalesGranularity) => void; onTimeRangeChange?: (r: SalesTimeRange) => void }) {
     const [metric, setMetric] = useState<Metric>("median_price");
     const [yView, setYView] = useState<YAxisView>("pct");
 
@@ -135,6 +148,21 @@ export function SalesTrendsSection({
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
+                        {SALES_TIME_RANGE_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => onTimeRangeChange?.(opt.value)}
+                                className={`rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
+                                    timeRange === opt.value
+                                        ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100"
+                                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                     <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
                         {GRANULARITY_OPTIONS.map((opt) => (
                             <button
