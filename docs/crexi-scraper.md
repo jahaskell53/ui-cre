@@ -6,6 +6,41 @@ Scrapes Bay Area Multifamily/Apartment Building comps & records from the Crexi s
 
 The Crexi website limits CSV exports to 10,000 rows. The underlying search API (`https://api.crexi.com/universal-search/v2/search`) returns up to 100k rows per geographic bounding box but requires a live authenticated browser session (Cloudflare blocks direct HTTP requests). This scraper runs JS inside Chrome on the VM to piggyback on the existing session.
 
+## Data availability & API limitations
+
+**Price data is available via the search API** when using a valid Bearer token from an account with the appropriate Crexi subscription tier. The `propertyPrice` object (total, perSqft, perAcre) and `saleTransaction.date` are returned directly in the search results.
+
+> **Important:** The Bearer token embedded in the scraper JS and orchestrator script (`run_crexi_cells.sh`) is tied to a specific user account and will expire. When the token expires, re-authenticate on crexi.com and copy the new `Authorization: Bearer <token>` value from any `/universal-search/v2/search` request in Chrome DevTools Network tab. Update it in both `crexi_scraper_grid.js` and `run_crexi_cells.sh`.
+
+### What the API returns
+
+| Field | Available |
+|-------|-----------|
+| Address, city, state, zip, county | ✅ |
+| Latitude / longitude | ✅ |
+| Property type & subtype | ✅ |
+| Building sqft, unit count | ✅ |
+| Days on market | ✅ |
+| Broker name & brokerage | ✅ |
+| **Sold price (total, per sqft, per acre)** | ✅ (with valid account token) |
+| **Sale date** | ✅ (with valid account token) |
+| Cap rate / NOI / GRM | ❌ Not in search API |
+| APN / occupancy | ❌ Not in search API |
+
+### Record type breakdown (~302k records total)
+
+| `salesCompType` | Count | Notes |
+|-----------------|-------|-------|
+| `Public` | ~167k | From county assessor records. Includes lot size, construction year. No broker info. |
+| `BrokerReported` | ~500 | Submitted by Crexi member brokers. Includes broker info, listing photos. |
+| *(no transaction)* | ~83k | Property records with no associated sale or lease event. |
+| `null` (lease-only) | ~11k | Lease comps only. |
+
+### Relationship to CSV exports
+
+- **`crexi_api_comps`** — scraped via this pipeline; ~302k records including price data. Refreshed by re-running the scraper.
+- **`crexi_comps_records`** — 9,000 rows from manual CSV exports; also includes loan amount, lender, owner name, mailing address, parcel values (fields not in the search API).
+
 ## How it works
 
 1. The Bay Area bounding box is split into a 3×3 grid of 9 cells, each with < 70k records.
@@ -155,6 +190,10 @@ The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) i
 | `is_public_sales_comp` | boolean | |
 | `is_broker_reported_sales_comp` | boolean | |
 | `is_lease_comp` | boolean | |
+| `property_price_total` | double precision | Sold price in dollars |
+| `property_price_per_sqft` | double precision | Price per building sqft |
+| `property_price_per_acre` | double precision | Price per acre |
+| `sale_transaction_date` | text | Sale date (ISO datetime string) |
 | `sale_type` | text | e.g. `SingleProperty` |
 | `days_on_market` | integer | |
 | `date_activated` | text | ISO datetime |
