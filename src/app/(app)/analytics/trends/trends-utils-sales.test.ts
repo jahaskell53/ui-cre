@@ -7,6 +7,7 @@ import {
     aggregateSalesTrendRowsToYear,
     buildMultiAreaSalesData,
     formatSalesPeriodLabel,
+    getSalesCapRateAbsYAxisTicks,
     isSalesGranularity,
     salesMonthStartToHalfYearBucket,
     salesMonthStartToQuarterBucket,
@@ -95,5 +96,27 @@ describe("sales trends granularity", () => {
         expect(data[0].month).toBe("2024-01-01");
         expect(data[0].a).toBe(1_100_000);
         expect(data[0].b).toBe(500_000);
+    });
+});
+
+describe("getSalesCapRateAbsYAxisTicks", () => {
+    it("returns undefined when there are no numeric cap values", () => {
+        expect(getSalesCapRateAbsYAxisTicks([{ month: "2024-01-01", monthLabel: "Jan '24", a: "x" }], ["a"])).toBeUndefined();
+    });
+
+    it("uses sub-integer tick spacing when values span a narrow band", () => {
+        const ticks = getSalesCapRateAbsYAxisTicks(
+            [
+                { month: "2024-01-01", monthLabel: "Jan '24", a: 5.1, b: 5.8 },
+                { month: "2024-02-01", monthLabel: "Feb '24", a: 5.2, b: 5.9 },
+            ],
+            ["a", "b"],
+        );
+        expect(ticks).toBeDefined();
+        expect(ticks!.length).toBeGreaterThan(2);
+        const step = ticks![1] - ticks![0];
+        expect(step).toBeLessThanOrEqual(0.25);
+        expect(Math.min(...ticks!)).toBeLessThanOrEqual(5.1);
+        expect(Math.max(...ticks!)).toBeGreaterThanOrEqual(5.9);
     });
 });
