@@ -193,7 +193,7 @@ export function RentTrendsSection({ areas, areaResults, selectedBeds }: Props) {
                             strokeDasharray={s.dash || undefined}
                             dot={onlyOnePoint ? { r: 5, fill: s.color } : { r: 3 }}
                             activeDot={{ r: 5 }}
-                            connectNulls={false}
+                            connectNulls
                         />
                     ))}
                 </LineChart>
