@@ -5,6 +5,11 @@ import { ArrowDownRight, ArrowUpRight, BarChart2, Map, MapPin, Search, Table2, T
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import {
+    getCrexiSalesTrends,
+    getCrexiSalesTrendsByCity,
+    getCrexiSalesTrendsByCounty,
+    getCrexiSalesTrendsByMsa,
+    getCrexiSalesTrendsByNeighborhood,
     getMarketActivity,
     getMarketActivityByCity,
     getMarketActivityByCounty,
@@ -37,12 +42,24 @@ import { MarketActivitySection } from "./market-activity-section";
 import { RentTrendsSection } from "./rent-trends-section";
 import { SalesStatsTile, SalesTrendsSection } from "./sales-trends-section";
 import { TrendsTableSection } from "./trends-table-section";
-import { AREA_COLORS, ActivityRow, AreaSelection, BED_DASH, BED_KEYS, SalesTrendRow, TrendRow, formatDollars, pctChange } from "./trends-utils";
+import {
+    AREA_COLORS,
+    ActivityRow,
+    AreaSelection,
+    BED_DASH,
+    BED_KEYS,
+    SalesGranularity,
+    SalesTrendRow,
+    TrendRow,
+    formatDollars,
+    pctChange,
+} from "./trends-utils";
 import { ZipTrendsMap } from "./zip-trends-map";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
 type DataTab = "rent" | "sales";
+type SalesSource = "loopnet" | "crexi";
 
 interface MapboxFeature {
     id: string;
@@ -115,6 +132,8 @@ export default function TrendsPage() {
         if (raw === "both" || raw === "reit") return raw;
         return "mid";
     });
+    const [salesSource, setSalesSource] = useState<SalesSource>((searchParams.get("salesSource") as SalesSource) ?? "loopnet");
+    const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>((searchParams.get("salesGranularity") as SalesGranularity) ?? "month");
     const [loading, setLoading] = useState(false);
     const [salesLoading, setSalesLoading] = useState(false);
 
@@ -126,9 +145,11 @@ export default function TrendsPage() {
         params.set("display", display);
         params.set("beds", selectedBeds.join(","));
         params.set("segment", selectedSegment);
+        params.set("salesSource", salesSource);
+        params.set("salesGranularity", salesGranularity);
         if (selectedAreas.length > 0) params.set("areas", serializeAreasParam(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [dataTab, areaType, display, selectedAreas, selectedBeds, selectedSegment]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [dataTab, areaType, display, selectedAreas, selectedBeds, selectedSegment, salesSource, salesGranularity]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
@@ -361,15 +382,26 @@ export default function TrendsPage() {
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
-            const call = isNh
-                ? getSalesTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!] })
-                : isCity
-                  ? getSalesTrendsByCity({ p_city: area.cityName!, p_state: area.cityState! })
-                  : isCounty
-                    ? getSalesTrendsByCounty({ p_county_name: area.countyName!, p_state: area.countyState! })
-                    : isMsa
-                      ? getSalesTrendsByMsa({ p_geoid: area.msaGeoid! })
-                      : getSalesTrends({ p_zip: area.id });
+            const call =
+                salesSource === "crexi"
+                    ? isNh
+                        ? getCrexiSalesTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!] })
+                        : isCity
+                          ? getCrexiSalesTrendsByCity({ p_city: area.cityName!, p_state: area.cityState! })
+                          : isCounty
+                            ? getCrexiSalesTrendsByCounty({ p_county_name: area.countyName!, p_state: area.countyState! })
+                            : isMsa
+                              ? getCrexiSalesTrendsByMsa({ p_geoid: area.msaGeoid! })
+                              : getCrexiSalesTrends({ p_zip: area.id })
+                    : isNh
+                      ? getSalesTrendsByNeighborhood({ p_neighborhood_ids: [area.neighborhoodId!] })
+                      : isCity
+                        ? getSalesTrendsByCity({ p_city: area.cityName!, p_state: area.cityState! })
+                        : isCounty
+                          ? getSalesTrendsByCounty({ p_county_name: area.countyName!, p_state: area.countyState! })
+                          : isMsa
+                            ? getSalesTrendsByMsa({ p_geoid: area.msaGeoid! })
+                            : getSalesTrends({ p_zip: area.id });
             return call.catch((error) => {
                 console.error(error);
                 return [] as SalesTrendRow[];
@@ -382,7 +414,7 @@ export default function TrendsPage() {
             for (const r of results) next[r.id] = r.rows;
             setSalesResults(next);
         });
-    }, [selectedAreas]);
+    }, [selectedAreas, salesSource]);
 
     const selectSuggestion = (feature: MapboxFeature) => {
         setAddress("");
@@ -1227,6 +1259,27 @@ export default function TrendsPage() {
             {/* ── Sales content ── */}
             {dataTab === "sales" && selectedAreas.length > 0 && (
                 <>
+                    {/* Source toggle */}
+                    <div className="mb-4 flex items-center gap-3">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Data source</span>
+                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
+                            <button
+                                type="button"
+                                onClick={() => setSalesSource("loopnet")}
+                                className={`rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${salesSource === "loopnet" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                            >
+                                LoopNet
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSalesSource("crexi")}
+                                className={`rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${salesSource === "crexi" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                            >
+                                Crexi
+                            </button>
+                        </div>
+                    </div>
+
                     {salesLoading && (
                         <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white p-16 dark:border-gray-700 dark:bg-gray-800">
                             <p className="text-sm text-gray-400">Loading…</p>
@@ -1236,16 +1289,24 @@ export default function TrendsPage() {
                     {!salesLoading && !hasSalesData && (
                         <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-16 text-center dark:border-gray-700 dark:bg-gray-800">
                             <TrendingUp className="mb-3 size-10 text-gray-300" />
-                            <p className="text-gray-500 dark:text-gray-400">No for-sale listings data for the selected area</p>
+                            <p className="text-gray-500 dark:text-gray-400">
+                                {salesSource === "crexi" ? "No Crexi sales comps for the selected area" : "No for-sale listings data for the selected area"}
+                            </p>
                             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Try a broader area type (City, County, or MSA)</p>
                         </div>
                     )}
 
                     {!salesLoading && hasSalesData && (
                         <div className="grid grid-cols-4 gap-4">
-                            <SalesStatsTile areas={selectedAreas} areaResults={salesResults} />
+                            <SalesStatsTile areas={selectedAreas} areaResults={salesResults} salesSource={salesSource} granularity={salesGranularity} />
                             <div className="col-span-3">
-                                <SalesTrendsSection areas={selectedAreas} areaResults={salesResults} />
+                                <SalesTrendsSection
+                                    areas={selectedAreas}
+                                    areaResults={salesResults}
+                                    salesSource={salesSource}
+                                    granularity={salesGranularity}
+                                    onGranularityChange={setSalesGranularity}
+                                />
                             </div>
                             {/* Legend */}
                             <div className="col-span-1 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">

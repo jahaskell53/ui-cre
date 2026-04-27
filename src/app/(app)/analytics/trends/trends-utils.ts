@@ -268,6 +268,8 @@ export function buildMultiAreaRentData(
         });
 }
 
+export type SalesGranularity = "month" | "year";
+
 export function formatMonthLabel(dateStr: string): string {
     const d = new Date(dateStr + "T00:00:00Z");
     return d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
@@ -279,21 +281,59 @@ export function formatMillions(n: number): string {
     return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+/** Aggregate monthly SalesTrendRows into yearly buckets. */
+export function aggregateSalesTrendRowsToYear(rows: SalesTrendRow[]): SalesTrendRow[] {
+    const byYear: Record<string, SalesTrendRow[]> = {};
+    for (const row of rows) {
+        const year = row.month_start.slice(0, 4);
+        if (!byYear[year]) byYear[year] = [];
+        byYear[year].push(row);
+    }
+    return Object.entries(byYear)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([year, group]) => {
+            const prices = group.map((r) => r.median_price).filter((p) => p != null) as number[];
+            const capRates = group.map((r) => r.avg_cap_rate).filter((v) => v != null) as number[];
+            const totalCount = group.reduce((s, r) => s + r.listing_count, 0);
+            const sortedPrices = [...prices].sort((a, b) => a - b);
+            const mid = Math.floor(sortedPrices.length / 2);
+            const medianPrice =
+                sortedPrices.length === 0 ? 0 : sortedPrices.length % 2 === 0 ? (sortedPrices[mid - 1] + sortedPrices[mid]) / 2 : sortedPrices[mid];
+            const avgCapRate = capRates.length > 0 ? capRates.reduce((s, v) => s + v, 0) / capRates.length : null;
+            return {
+                month_start: `${year}-01-01`,
+                median_price: medianPrice,
+                avg_cap_rate: avgCapRate,
+                listing_count: totalCount,
+            };
+        });
+}
+
 export function buildMultiAreaSalesData(
     areaResults: Record<string, SalesTrendRow[]>,
     areas: AreaSelection[],
     metric: "median_price" | "avg_cap_rate" | "listing_count",
+    granularity: SalesGranularity = "month",
 ): Array<Record<string, string | number>> {
-    const allMonths = new Set<string>();
+    const aggregated: Record<string, SalesTrendRow[]> = {};
     for (const area of areas) {
-        (areaResults[area.id] ?? []).forEach((r) => allMonths.add(r.month_start));
+        const rows = areaResults[area.id] ?? [];
+        aggregated[area.id] = granularity === "year" ? aggregateSalesTrendRowsToYear(rows) : rows;
     }
-    return Array.from(allMonths)
+
+    const allBuckets = new Set<string>();
+    for (const area of areas) {
+        (aggregated[area.id] ?? []).forEach((r) => allBuckets.add(r.month_start));
+    }
+
+    const formatLabel = (dateStr: string) => (granularity === "year" ? dateStr.slice(0, 4) : formatMonthLabel(dateStr));
+
+    return Array.from(allBuckets)
         .sort()
-        .map((m) => {
-            const point: Record<string, string | number> = { month: m, monthLabel: formatMonthLabel(m) };
+        .map((bucket) => {
+            const point: Record<string, string | number> = { month: bucket, monthLabel: formatLabel(bucket) };
             for (const area of areas) {
-                const row = (areaResults[area.id] ?? []).find((r) => r.month_start === m);
+                const row = (aggregated[area.id] ?? []).find((r) => r.month_start === bucket);
                 if (row) {
                     const val = row[metric];
                     if (val != null) point[area.id] = typeof val === "number" ? val : Number(val);
