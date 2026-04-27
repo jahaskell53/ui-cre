@@ -52,6 +52,7 @@ import {
     SalesTrendRow,
     TrendRow,
     formatDollars,
+    isSalesGranularity,
     pctChange,
 } from "./trends-utils";
 import { ZipTrendsMap } from "./zip-trends-map";
@@ -133,7 +134,10 @@ export default function TrendsPage() {
         return "mid";
     });
     const [salesSource, setSalesSource] = useState<SalesSource>((searchParams.get("salesSource") as SalesSource) ?? "crexi");
-    const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>((searchParams.get("salesGranularity") as SalesGranularity) ?? "year");
+    const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>(() => {
+        const raw = searchParams.get("salesGranularity");
+        return raw && isSalesGranularity(raw) ? raw : "year";
+    });
     const [loading, setLoading] = useState(false);
     const [salesLoading, setSalesLoading] = useState(false);
 

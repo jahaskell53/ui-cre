@@ -268,7 +268,13 @@ export function buildMultiAreaRentData(
         });
 }
 
-export type SalesGranularity = "month" | "year";
+export type SalesGranularity = "month" | "quarter" | "half_year" | "year";
+
+export const SALES_GRANULARITY_VALUES: SalesGranularity[] = ["month", "quarter", "half_year", "year"];
+
+export function isSalesGranularity(v: string): v is SalesGranularity {
+    return (SALES_GRANULARITY_VALUES as string[]).includes(v);
+}
 
 export function formatMonthLabel(dateStr: string): string {
     const d = new Date(dateStr + "T00:00:00Z");
@@ -281,6 +287,68 @@ export function formatMillions(n: number): string {
     return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+function medianFromSorted(sorted: number[]): number {
+    if (sorted.length === 0) return 0;
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+function rollupSalesTrendGroup(group: SalesTrendRow[], bucketMonthStart: string): SalesTrendRow {
+    const prices = group.map((r) => r.median_price).filter((p) => p != null) as number[];
+    const capRates = group.map((r) => r.avg_cap_rate).filter((v) => v != null) as number[];
+    const totalCount = group.reduce((s, r) => s + r.listing_count, 0);
+    const sortedPrices = [...prices].sort((a, b) => a - b);
+    const avgCapRate = capRates.length > 0 ? capRates.reduce((s, v) => s + v, 0) / capRates.length : null;
+    return {
+        month_start: bucketMonthStart,
+        median_price: medianFromSorted(sortedPrices),
+        avg_cap_rate: avgCapRate,
+        listing_count: totalCount,
+    };
+}
+
+/** First calendar month of the quarter containing `monthStart` (YYYY-MM-DD). */
+export function salesMonthStartToQuarterBucket(monthStart: string): string {
+    const year = monthStart.slice(0, 4);
+    const month = Number(monthStart.slice(5, 7));
+    const quarterIndex = Math.floor((month - 1) / 3);
+    const startMonth = quarterIndex * 3 + 1;
+    return `${year}-${String(startMonth).padStart(2, "0")}-01`;
+}
+
+/** Jan–Jun → YYYY-01-01; Jul–Dec → YYYY-07-01. */
+export function salesMonthStartToHalfYearBucket(monthStart: string): string {
+    const year = monthStart.slice(0, 4);
+    const month = Number(monthStart.slice(5, 7));
+    return month <= 6 ? `${year}-01-01` : `${year}-07-01`;
+}
+
+/** Aggregate monthly SalesTrendRows by calendar quarter (median of monthly medians, sum counts, mean cap rates). */
+export function aggregateSalesTrendRowsToQuarter(rows: SalesTrendRow[]): SalesTrendRow[] {
+    const groups: Record<string, SalesTrendRow[]> = {};
+    for (const row of rows) {
+        const key = salesMonthStartToQuarterBucket(row.month_start);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
+    }
+    return Object.keys(groups)
+        .sort()
+        .map((key) => rollupSalesTrendGroup(groups[key], key));
+}
+
+/** Aggregate monthly SalesTrendRows into 6-month buckets (H1 / H2). */
+export function aggregateSalesTrendRowsToHalfYear(rows: SalesTrendRow[]): SalesTrendRow[] {
+    const groups: Record<string, SalesTrendRow[]> = {};
+    for (const row of rows) {
+        const key = salesMonthStartToHalfYearBucket(row.month_start);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
+    }
+    return Object.keys(groups)
+        .sort()
+        .map((key) => rollupSalesTrendGroup(groups[key], key));
+}
+
 /** Aggregate monthly SalesTrendRows into yearly buckets. */
 export function aggregateSalesTrendRowsToYear(rows: SalesTrendRow[]): SalesTrendRow[] {
     const byYear: Record<string, SalesTrendRow[]> = {};
@@ -291,22 +359,30 @@ export function aggregateSalesTrendRowsToYear(rows: SalesTrendRow[]): SalesTrend
     }
     return Object.entries(byYear)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([year, group]) => {
-            const prices = group.map((r) => r.median_price).filter((p) => p != null) as number[];
-            const capRates = group.map((r) => r.avg_cap_rate).filter((v) => v != null) as number[];
-            const totalCount = group.reduce((s, r) => s + r.listing_count, 0);
-            const sortedPrices = [...prices].sort((a, b) => a - b);
-            const mid = Math.floor(sortedPrices.length / 2);
-            const medianPrice =
-                sortedPrices.length === 0 ? 0 : sortedPrices.length % 2 === 0 ? (sortedPrices[mid - 1] + sortedPrices[mid]) / 2 : sortedPrices[mid];
-            const avgCapRate = capRates.length > 0 ? capRates.reduce((s, v) => s + v, 0) / capRates.length : null;
-            return {
-                month_start: `${year}-01-01`,
-                median_price: medianPrice,
-                avg_cap_rate: avgCapRate,
-                listing_count: totalCount,
-            };
-        });
+        .map(([year, group]) => rollupSalesTrendGroup(group, `${year}-01-01`));
+}
+
+/** Aggregate raw monthly rows to the requested sales chart granularity. */
+export function aggregateSalesTrendRows(rows: SalesTrendRow[], granularity: SalesGranularity): SalesTrendRow[] {
+    const sorted = [...rows].sort((a, b) => a.month_start.localeCompare(b.month_start));
+    if (granularity === "month") return sorted;
+    if (granularity === "quarter") return aggregateSalesTrendRowsToQuarter(sorted);
+    if (granularity === "half_year") return aggregateSalesTrendRowsToHalfYear(sorted);
+    return aggregateSalesTrendRowsToYear(sorted);
+}
+
+/** X-axis label for a bucket `month_start` at the given granularity. */
+export function formatSalesPeriodLabel(dateStr: string, granularity: SalesGranularity): string {
+    if (granularity === "month") return formatMonthLabel(dateStr);
+    if (granularity === "year") return dateStr.slice(0, 4);
+    const d = new Date(dateStr + "T00:00:00Z");
+    const shortYear = String(d.getUTCFullYear()).slice(2);
+    if (granularity === "quarter") {
+        const q = Math.floor(d.getUTCMonth() / 3) + 1;
+        return `Q${q} '${shortYear}`;
+    }
+    const half = d.getUTCMonth() < 6 ? 1 : 2;
+    return `H${half} '${shortYear}`;
 }
 
 export function buildMultiAreaSalesData(
@@ -318,7 +394,7 @@ export function buildMultiAreaSalesData(
     const aggregated: Record<string, SalesTrendRow[]> = {};
     for (const area of areas) {
         const rows = areaResults[area.id] ?? [];
-        aggregated[area.id] = granularity === "year" ? aggregateSalesTrendRowsToYear(rows) : rows;
+        aggregated[area.id] = aggregateSalesTrendRows(rows, granularity);
     }
 
     const allBuckets = new Set<string>();
@@ -326,7 +402,7 @@ export function buildMultiAreaSalesData(
         (aggregated[area.id] ?? []).forEach((r) => allBuckets.add(r.month_start));
     }
 
-    const formatLabel = (dateStr: string) => (granularity === "year" ? dateStr.slice(0, 4) : formatMonthLabel(dateStr));
+    const formatLabel = (dateStr: string) => formatSalesPeriodLabel(dateStr, granularity);
 
     return Array.from(allBuckets)
         .sort()
