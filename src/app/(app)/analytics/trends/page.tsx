@@ -49,8 +49,10 @@ import {
     BED_DASH,
     BED_KEYS,
     SalesGranularity,
+    SalesTimeRange,
     SalesTrendRow,
     TrendRow,
+    filterSalesTrendRowsByTimeRange,
     formatDollars,
     isSalesGranularity,
     pctChange,
@@ -138,6 +140,7 @@ export default function TrendsPage() {
         const raw = searchParams.get("salesGranularity");
         return raw && isSalesGranularity(raw) ? raw : "year";
     });
+    const [salesTimeRange, setSalesTimeRange] = useState<SalesTimeRange>((searchParams.get("salesTimeRange") as SalesTimeRange) ?? "all");
     const [loading, setLoading] = useState(false);
     const [salesLoading, setSalesLoading] = useState(false);
 
@@ -151,9 +154,10 @@ export default function TrendsPage() {
         params.set("segment", selectedSegment);
         params.set("salesSource", salesSource);
         params.set("salesGranularity", salesGranularity);
+        params.set("salesTimeRange", salesTimeRange);
         if (selectedAreas.length > 0) params.set("areas", serializeAreasParam(selectedAreas));
         router.replace(`?${params.toString()}`, { scroll: false });
-    }, [dataTab, areaType, display, selectedAreas, selectedBeds, selectedSegment, salesSource, salesGranularity]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [dataTab, areaType, display, selectedAreas, selectedBeds, selectedSegment, salesSource, salesGranularity, salesTimeRange]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
     const suggestListRef = useRef<HTMLUListElement>(null);
@@ -689,7 +693,10 @@ export default function TrendsPage() {
 
     const hasData = displayAreas.some((a) => (displayRentResults[a.id]?.length ?? 0) > 0);
     const hasActivity = displayAreas.some((a) => (displayActivityResults[a.id]?.length ?? 0) > 0);
-    const hasSalesData = selectedAreas.some((a) => (salesResults[a.id]?.length ?? 0) > 0);
+    const filteredSalesResults = Object.fromEntries(
+        Object.entries(salesResults).map(([id, rows]) => [id, filterSalesTrendRowsByTimeRange(rows, salesTimeRange)]),
+    );
+    const hasSalesData = selectedAreas.some((a) => (filteredSalesResults[a.id]?.length ?? 0) > 0);
 
     const segmentToggle = (label: string, active: boolean, onClick: () => void) => (
         <button
@@ -1296,20 +1303,26 @@ export default function TrendsPage() {
                             <p className="text-gray-500 dark:text-gray-400">
                                 {salesSource === "crexi" ? "No Crexi sales comps for the selected area" : "No for-sale listings data for the selected area"}
                             </p>
-                            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Try a broader area type (City, County, or MSA)</p>
+                            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                                {salesTimeRange !== "all"
+                                    ? "Try expanding the time range or selecting a broader area type"
+                                    : "Try a broader area type (City, County, or MSA)"}
+                            </p>
                         </div>
                     )}
 
                     {!salesLoading && hasSalesData && (
                         <div className="grid grid-cols-4 gap-4">
-                            <SalesStatsTile areas={selectedAreas} areaResults={salesResults} salesSource={salesSource} granularity={salesGranularity} />
+                            <SalesStatsTile areas={selectedAreas} areaResults={filteredSalesResults} salesSource={salesSource} granularity={salesGranularity} />
                             <div className="col-span-3">
                                 <SalesTrendsSection
                                     areas={selectedAreas}
-                                    areaResults={salesResults}
+                                    areaResults={filteredSalesResults}
                                     salesSource={salesSource}
                                     granularity={salesGranularity}
+                                    timeRange={salesTimeRange}
                                     onGranularityChange={setSalesGranularity}
+                                    onTimeRangeChange={setSalesTimeRange}
                                 />
                             </div>
                             {/* Legend */}

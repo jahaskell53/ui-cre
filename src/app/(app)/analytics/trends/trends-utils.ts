@@ -276,6 +276,23 @@ export function isSalesGranularity(v: string): v is SalesGranularity {
     return (SALES_GRANULARITY_VALUES as string[]).includes(v);
 }
 
+export type SalesTimeRange = "all" | "5y" | "10y";
+
+export const SALES_TIME_RANGE_OPTIONS: { value: SalesTimeRange; label: string }[] = [
+    { value: "all", label: "All time" },
+    { value: "5y", label: "Last 5 yrs" },
+    { value: "10y", label: "Last 10 yrs" },
+];
+
+export function filterSalesTrendRowsByTimeRange(rows: SalesTrendRow[], timeRange: SalesTimeRange): SalesTrendRow[] {
+    if (timeRange === "all") return rows;
+    const now = new Date();
+    const years = timeRange === "5y" ? 5 : 10;
+    const cutoff = new Date(Date.UTC(now.getUTCFullYear() - years, now.getUTCMonth(), 1));
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    return rows.filter((r) => r.month_start >= cutoffStr);
+}
+
 export function formatMonthLabel(dateStr: string): string {
     const d = new Date(dateStr + "T00:00:00Z");
     return d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
