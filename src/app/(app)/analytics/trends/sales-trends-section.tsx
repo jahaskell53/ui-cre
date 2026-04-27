@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AreaSelection, SalesGranularity, SalesTrendRow, buildMultiAreaSalesData, formatMillions, pctChange } from "./trends-utils";
+import { AreaSelection, SalesGranularity, SalesTrendRow, aggregateSalesTrendRows, buildMultiAreaSalesData, formatMillions, pctChange } from "./trends-utils";
 
 interface Props {
     areas: AreaSelection[];
@@ -61,6 +61,8 @@ function buildPctData(absData: Array<Record<string, string | number>>, areas: Ar
 
 const GRANULARITY_OPTIONS: { value: SalesGranularity; label: string }[] = [
     { value: "month", label: "Monthly" },
+    { value: "quarter", label: "Quarterly" },
+    { value: "half_year", label: "6 months" },
     { value: "year", label: "Yearly" },
 ];
 
@@ -217,18 +219,60 @@ export function SalesTrendsSection({
                 {salesSource === "crexi" ? (
                     <>
                         {metric === "median_price" &&
-                            `Median closed-sale price from Crexi API comps, bucketed by ${granularity === "year" ? "year" : "transaction month"}.`}
+                            `Median closed-sale price from Crexi API comps, bucketed by ${
+                                granularity === "year"
+                                    ? "year"
+                                    : granularity === "quarter"
+                                      ? "calendar quarter"
+                                      : granularity === "half_year"
+                                        ? "6-month period"
+                                        : "transaction month"
+                            }.`}
                         {metric === "avg_cap_rate" &&
                             "Average cap rate from Crexi comps (sale_cap_rate_percent, falling back to financials_cap_rate_percent). Sparse — many periods will show no value."}
-                        {metric === "listing_count" && `Number of Crexi closed sales per ${granularity === "year" ? "year" : "month"}.`}
+                        {metric === "listing_count" &&
+                            `Number of Crexi closed sales per ${
+                                granularity === "year"
+                                    ? "year"
+                                    : granularity === "quarter"
+                                      ? "quarter"
+                                      : granularity === "half_year"
+                                        ? "6-month period"
+                                        : "month"
+                            }.`}
                     </>
                 ) : (
                     <>
                         {metric === "median_price" &&
-                            `Median asking price of for-sale commercial listings from LoopNet, bucketed by ${granularity === "year" ? "year" : "month"}.`}
+                            `Median asking price of for-sale commercial listings from LoopNet, bucketed by ${
+                                granularity === "year"
+                                    ? "year"
+                                    : granularity === "quarter"
+                                      ? "calendar quarter"
+                                      : granularity === "half_year"
+                                        ? "6-month period"
+                                        : "month"
+                            }.`}
                         {metric === "avg_cap_rate" &&
-                            `Average cap rate of for-sale listings where cap rate is available, bucketed by ${granularity === "year" ? "year" : "month"}.`}
-                        {metric === "listing_count" && `Number of for-sale listings scraped per ${granularity === "year" ? "year" : "month"}.`}
+                            `Average cap rate of for-sale listings where cap rate is available, bucketed by ${
+                                granularity === "year"
+                                    ? "year"
+                                    : granularity === "quarter"
+                                      ? "calendar quarter"
+                                      : granularity === "half_year"
+                                        ? "6-month period"
+                                        : "month"
+                            }.`}
+                        {metric === "listing_count" &&
+                            `Number of for-sale listings scraped per ${
+                                granularity === "year"
+                                    ? "year"
+                                    : granularity === "quarter"
+                                      ? "quarter"
+                                      : granularity === "half_year"
+                                        ? "6-month period"
+                                        : "month"
+                            }.`}
                     </>
                 )}
             </p>
@@ -236,11 +280,19 @@ export function SalesTrendsSection({
     );
 }
 
+function volumePeriodLabel(granularity: SalesGranularity, source: "crexi" | "loopnet"): string {
+    const noun = source === "crexi" ? "sales" : "listings";
+    if (granularity === "year") return `${noun} this year`;
+    if (granularity === "quarter") return `${noun} this quarter`;
+    if (granularity === "half_year") return `${noun} latest 6 months`;
+    return `${noun} this month`;
+}
+
 export function SalesStatsTile({ areas, areaResults, salesSource = "crexi", granularity = "year" }: Props) {
     return (
         <div className="col-span-1 flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
             {areas.map((area) => {
-                const rows = (areaResults[area.id] ?? []).sort((a, b) => a.month_start.localeCompare(b.month_start));
+                const rows = aggregateSalesTrendRows(areaResults[area.id] ?? [], granularity).sort((a, b) => a.month_start.localeCompare(b.month_start));
                 const latest = rows.length > 0 ? rows[rows.length - 1] : undefined;
                 const first = rows.length > 0 ? rows[0] : undefined;
                 const priceChange = pctChange(first?.median_price, latest?.median_price);
@@ -273,15 +325,7 @@ export function SalesStatsTile({ areas, areaResults, salesSource = "crexi", gran
                                     )}
                                     <div>
                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{latest.listing_count}</p>
-                                        <p className="mt-0.5 text-xs text-gray-400">
-                                            {salesSource === "crexi"
-                                                ? granularity === "year"
-                                                    ? "sales this year"
-                                                    : "sales this month"
-                                                : granularity === "year"
-                                                  ? "listings this year"
-                                                  : "listings this month"}
-                                        </p>
+                                        <p className="mt-0.5 text-xs text-gray-400">{volumePeriodLabel(granularity, salesSource)}</p>
                                     </div>
                                 </>
                             ) : (
