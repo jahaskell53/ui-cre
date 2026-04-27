@@ -132,7 +132,7 @@ export default function TrendsPage() {
         if (raw === "both" || raw === "reit") return raw;
         return "mid";
     });
-    const [salesSource, setSalesSource] = useState<SalesSource>((searchParams.get("salesSource") as SalesSource) ?? "loopnet");
+    const [salesSource, setSalesSource] = useState<SalesSource>((searchParams.get("salesSource") as SalesSource) ?? "crexi");
     const [salesGranularity, setSalesGranularity] = useState<SalesGranularity>((searchParams.get("salesGranularity") as SalesGranularity) ?? "year");
     const [loading, setLoading] = useState(false);
     const [salesLoading, setSalesLoading] = useState(false);
@@ -1265,17 +1265,17 @@ export default function TrendsPage() {
                         <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
                             <button
                                 type="button"
-                                onClick={() => setSalesSource("loopnet")}
-                                className={`rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${salesSource === "loopnet" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
-                            >
-                                LoopNet
-                            </button>
-                            <button
-                                type="button"
                                 onClick={() => setSalesSource("crexi")}
                                 className={`rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${salesSource === "crexi" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
                             >
                                 Crexi
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSalesSource("loopnet")}
+                                className={`rounded-md px-3 py-1 font-medium whitespace-nowrap transition-colors ${salesSource === "loopnet" ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}
+                            >
+                                LoopNet
                             </button>
                         </div>
                     </div>
