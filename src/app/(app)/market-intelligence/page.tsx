@@ -28,7 +28,6 @@ export default function MarketIntelligencePage() {
         selectedState === "CA"
             ? [
                   { id: "colusa", label: "Colusa" },
-                  { id: "los-angeles", label: "Los Angeles" },
                   { id: "san-francisco", label: "San Francisco" },
                   { id: "san-diego", label: "San Diego" },
                   { id: "orange", label: "Orange" },

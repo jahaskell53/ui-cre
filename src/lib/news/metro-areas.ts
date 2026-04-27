@@ -26,17 +26,6 @@ export const METRO_AREAS: MetroArea[] = [
         ],
     },
     {
-        id: "la-metro",
-        name: "Los Angeles Metro",
-        counties: [
-            { id: "Los Angeles", name: "Los Angeles County" },
-            { id: "Orange", name: "Orange County" },
-            { id: "Riverside", name: "Riverside County" },
-            { id: "San Bernardino", name: "San Bernardino County" },
-            { id: "Ventura", name: "Ventura County" },
-        ],
-    },
-    {
         id: "nyc-metro",
         name: "New York Metro",
         counties: [
