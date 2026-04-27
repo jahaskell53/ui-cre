@@ -7,6 +7,7 @@ import { AreaSelection, SalesTrendRow, buildMultiAreaSalesData, formatMillions, 
 interface Props {
     areas: AreaSelection[];
     areaResults: Record<string, SalesTrendRow[]>;
+    salesSource?: "loopnet" | "crexi";
 }
 
 type Metric = "median_price" | "avg_cap_rate" | "listing_count";
@@ -57,7 +58,7 @@ function buildPctData(absData: Array<Record<string, string | number>>, areas: Ar
     });
 }
 
-export function SalesTrendsSection({ areas, areaResults }: Props) {
+export function SalesTrendsSection({ areas, areaResults, salesSource = "loopnet" }: Props) {
     const [metric, setMetric] = useState<Metric>("median_price");
     const [yView, setYView] = useState<YAxisView>("pct");
 
@@ -110,7 +111,8 @@ export function SalesTrendsSection({ areas, areaResults }: Props) {
             <div className="mb-4 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                        {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} — For-Sale Listings
+                        {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} —{" "}
+                        {salesSource === "crexi" ? "Closed Sales (Crexi)" : "For-Sale Listings (LoopNet)"}
                     </h2>
                     {onlyOnePoint && (
                         <span className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-400 dark:border-gray-600 dark:bg-gray-700">
@@ -185,15 +187,25 @@ export function SalesTrendsSection({ areas, areaResults }: Props) {
             </ResponsiveContainer>
 
             <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
-                {metric === "median_price" && "Median asking price of for-sale commercial listings from LoopNet, bucketed by month."}
-                {metric === "avg_cap_rate" && "Average cap rate of for-sale listings where cap rate is available, bucketed by month."}
-                {metric === "listing_count" && "Number of for-sale listings scraped per month."}
+                {salesSource === "crexi" ? (
+                    <>
+                        {metric === "median_price" && "Median closed-sale price from Crexi API comps, bucketed by transaction month."}
+                        {metric === "avg_cap_rate" && "Cap rate not available in Crexi comps data."}
+                        {metric === "listing_count" && "Number of Crexi closed sales recorded per month."}
+                    </>
+                ) : (
+                    <>
+                        {metric === "median_price" && "Median asking price of for-sale commercial listings from LoopNet, bucketed by month."}
+                        {metric === "avg_cap_rate" && "Average cap rate of for-sale listings where cap rate is available, bucketed by month."}
+                        {metric === "listing_count" && "Number of for-sale listings scraped per month."}
+                    </>
+                )}
             </p>
         </div>
     );
 }
 
-export function SalesStatsTile({ areas, areaResults }: Props) {
+export function SalesStatsTile({ areas, areaResults, salesSource = "loopnet" }: Props) {
     return (
         <div className="col-span-1 flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
             {areas.map((area) => {
@@ -214,7 +226,7 @@ export function SalesStatsTile({ areas, areaResults }: Props) {
                                         <p className="text-lg font-semibold" style={{ color: area.color }}>
                                             {formatMillions(latest.median_price)}
                                         </p>
-                                        <p className="mt-0.5 text-xs text-gray-400">median asking price</p>
+                                        <p className="mt-0.5 text-xs text-gray-400">{salesSource === "crexi" ? "median sale price" : "median asking price"}</p>
                                         {priceChange != null && (
                                             <p className={`mt-0.5 text-xs font-medium ${priceChange >= 0 ? "text-green-600" : "text-red-600"}`}>
                                                 {priceChange >= 0 ? "+" : ""}
@@ -230,7 +242,7 @@ export function SalesStatsTile({ areas, areaResults }: Props) {
                                     )}
                                     <div>
                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{latest.listing_count}</p>
-                                        <p className="mt-0.5 text-xs text-gray-400">listings this month</p>
+                                        <p className="mt-0.5 text-xs text-gray-400">{salesSource === "crexi" ? "sales this month" : "listings this month"}</p>
                                     </div>
                                 </>
                             ) : (
