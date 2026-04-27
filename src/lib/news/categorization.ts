@@ -314,7 +314,7 @@ Return a JSON array where each element is an array of county names for the corre
 
 CRITICAL: Only return county names that exactly match the available counties list. If unsure, use "Other".
 
-Example: [["Los Angeles"], ["Other"], ["San Francisco", "Alameda"]]`;
+Example: [["Sacramento"], ["Other"], ["San Francisco", "Alameda"]]`;
 
     try {
         const retryResult = await pRetry(
@@ -516,7 +516,6 @@ export async function getCountyCategories(
         "Livingston",
         "Logan",
         "Lorain",
-        "Los Angeles",
         "Loudoun",
         "Macomb",
         "Macon",
@@ -688,7 +687,7 @@ ${articles
 
 Return a JSON array where each element is an array of county names for the corresponding article. Use "Other" for articles not specific to any particular county.
 
-Example: [["Los Angeles"], ["Other"], ["San Francisco", "Alameda"]]`;
+Example: [["Sacramento"], ["Other"], ["San Francisco", "Alameda"]]`;
 
         const result = await pRetry(
             () =>
@@ -778,18 +777,18 @@ ${articles
     })
     .join("\n\n")}
 
-Return a JSON array where each element is an array of city names for the corresponding article. Only include cities that are explicitly mentioned in the article. Use standard city names (e.g., "New York" not "NYC", "Los Angeles" not "LA").
+Return a JSON array where each element is an array of city names for the corresponding article. Only include cities that are explicitly mentioned in the article. Use standard city names (e.g., "New York" not "NYC", "San Francisco" not "SF").
 
 Examples of major US cities to look for:
 - New York Metro: New York, Brooklyn, Queens, Bronx, Manhattan
-- Los Angeles Metro: Los Angeles, Long Beach, Anaheim, Santa Ana, Irvine
+- San Francisco Bay Area: San Francisco, Oakland, San Jose, Berkeley
 - Chicago Metro: Chicago, Aurora, Naperville, Joliet, Elgin
 - Dallas Metro: Dallas, Fort Worth, Arlington, Plano, Garland
 - Houston Metro: Houston, Sugar Land, The Woodlands, Pearland, Baytown
 
 Return a JSON array where each element is an array of city names for the corresponding article. Leave empty if no specific city is mentioned.
 
-Example: [["New York", "Brooklyn"], [], ["Los Angeles", "Santa Monica"]]`;
+Example: [["New York", "Brooklyn"], [], ["San Jose", "Santa Clara"]]`;
 
         const result = await pRetry(
             () =>

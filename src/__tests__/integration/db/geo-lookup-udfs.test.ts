@@ -244,7 +244,7 @@ describe("search_msas", () => {
     it("returns rows with id, name, name_lsad, geoid fields", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("search_msas", {
-            p_query: "Los Angeles",
+            p_query: "Chicago",
         });
         expect(error).toBeNull();
         const rows = data as { id: number; name: string; name_lsad: string; geoid: string }[];
