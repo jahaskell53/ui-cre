@@ -171,21 +171,21 @@ export function SalesTrendsSection({
                             </option>
                         ))}
                     </select>
-                    <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
+                    <label className="sr-only" htmlFor="sales-trends-granularity">
+                        Time granularity
+                    </label>
+                    <select
+                        id="sales-trends-granularity"
+                        value={granularity}
+                        onChange={(e) => onGranularityChange?.(e.target.value as SalesGranularity)}
+                        className="cursor-pointer rounded-lg border border-gray-200 bg-white py-1.5 pr-8 pl-2.5 text-xs font-medium text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100 dark:focus:border-blue-400 dark:focus:ring-blue-400/20"
+                    >
                         {GRANULARITY_OPTIONS.map((opt) => (
-                            <button
-                                key={opt.value}
-                                onClick={() => onGranularityChange?.(opt.value)}
-                                className={`rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
-                                    granularity === opt.value
-                                        ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100"
-                                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                                }`}
-                            >
+                            <option key={opt.value} value={opt.value}>
                                 {opt.label}
-                            </button>
+                            </option>
                         ))}
-                    </div>
+                    </select>
                     <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
                         {METRIC_OPTIONS.map((opt) => (
                             <button
