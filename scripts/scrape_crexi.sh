@@ -56,6 +56,14 @@ def flatten(r):
     pp = r.get("propertyPrice") or {}
     if not isinstance(pp, dict):
         pp = {}
+    fin = r.get("financials") or {}
+    lot = r.get("lotAttributes") or {}
+    occ = r.get("occupancyDetails") or {}
+    own = r.get("ownership") or {}
+    mf = r.get("mortgageFinancials") or {}
+    cy = r.get("constructionYear") or {}
+    src = r.get("source") or {}
+    inv = r.get("investmentType") or {}
     return {
         "crexi_id": r.get("id") or r.get("propertyRecordId"),
         "property_name": r.get("propertyName"),
@@ -66,6 +74,7 @@ def flatten(r):
         "state": addr.get("stateCode"),
         "zip": addr.get("zip"),
         "county": addr.get("county"),
+        "apn": addr.get("apn"),
         "latitude": loc.get("lat"),
         "longitude": loc.get("lon"),
         "property_type": attrs.get("type"),
@@ -73,11 +82,15 @@ def flatten(r):
         "building_sqft": attrs.get("buildingSqft"),
         "num_units": attrs.get("unitsCount"),
         "address_count": attrs.get("addressCount"),
+        "stories_count": attrs.get("storiesCount"),
+        "construction_type": attrs.get("constructionType"),
+        "class_type": attrs.get("classType"),
         "is_sales_comp": rt.get("isSalesComp"),
         "is_public_sales_comp": rt.get("isPublicSalesComp"),
         "is_broker_reported_sales_comp": rt.get("isBrokerReportedSalesComp"),
         "is_lease_comp": rt.get("isLeaseComp"),
         "sale_type": st.get("type"),
+        "sale_cap_rate_percent": st.get("capRatePercent"),
         "property_price_total": pp.get("total"),
         "property_price_per_sqft": pp.get("perSqft"),
         "property_price_per_acre": pp.get("perAcre"),
@@ -86,6 +99,24 @@ def flatten(r):
         "date_activated": la.get("dateActivated"),
         "date_updated": la.get("dateUpdated"),
         "description": r.get("description"),
+        "financials_cap_rate_percent": fin.get("capRatePercent"),
+        "financials_noi": fin.get("netOperatingIncome"),
+        "lot_size_sqft": lot.get("sizeSqft"),
+        "lot_size_acre": lot.get("sizeAcre"),
+        "zoning": lot.get("zoning"),
+        "is_opportunity_zone": lot.get("isOpportunityZone"),
+        "occupancy_rate_percent": occ.get("occupancyRatePercent"),
+        "year_built": cy.get("built"),
+        "owner_name": own.get("ownerName"),
+        "is_corporate_owner": own.get("isCorporateOwner"),
+        "is_crexi_source": src.get("isCrexi"),
+        "investment_type": inv.get("name") if isinstance(inv, dict) else None,
+        "lender": mf.get("lender"),
+        "loan_amount": mf.get("loanAmount"),
+        "loan_type": mf.get("loanType"),
+        "interest_rate": mf.get("interestRate"),
+        "mortgage_maturity_date": mf.get("maturityDate"),
+        "title_company": mf.get("titleCompany"),
         "raw_json": r,
     }
 
