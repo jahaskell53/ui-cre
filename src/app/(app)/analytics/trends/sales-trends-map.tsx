@@ -74,6 +74,7 @@ export function SalesTrendsMap({ areaType, salesSource, selectedAreas, onAddZip,
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const popupRef = useRef<mapboxgl.Popup | null>(null);
     const callbacksRef = useRef({ onAddZip, onAddNeighborhood, onAddCounty, onAddMsa, onAddCity });
+    const salesSourceRef = useRef(salesSource);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [monthsBack, setMonthsBack] = useState(12);
     const [data, setData] = useState<MapPoint[]>([]);
@@ -82,6 +83,10 @@ export function SalesTrendsMap({ areaType, salesSource, selectedAreas, onAddZip,
     useEffect(() => {
         callbacksRef.current = { onAddZip, onAddNeighborhood, onAddCounty, onAddMsa, onAddCity };
     }, [onAddZip, onAddNeighborhood, onAddCounty, onAddMsa, onAddCity]);
+
+    useEffect(() => {
+        salesSourceRef.current = salesSource;
+    }, [salesSource]);
 
     // Init map once
     useEffect(() => {
@@ -272,13 +277,14 @@ export function SalesTrendsMap({ areaType, salesSource, selectedAreas, onAddZip,
                 p.pct_change != null
                     ? `<span style="color:${p.pct_change >= 0 ? "#16a34a" : "#dc2626"};font-weight:600">${p.pct_change >= 0 ? "+" : ""}${p.pct_change}%</span>`
                     : '<span style="color:#9ca3af">—</span>';
+            const priceLabel = salesSourceRef.current === "crexi" ? "price/door" : "median price";
             popupRef.current
                 ?.setLngLat(e.lngLat)
                 .setHTML(
                     `
                     <div style="font-family:system-ui;font-size:13px;line-height:1.6;padding:2px 0">
                         <div style="font-weight:600;margin-bottom:1px">${p.label}</div>
-                        <div>${formatPrice(p.current_median)} &nbsp;·&nbsp; ${pct}</div>
+                        <div>${formatPrice(p.current_median)} ${priceLabel} &nbsp;·&nbsp; ${pct}</div>
                         <div style="color:#9ca3af;font-size:11px">${p.listing_count} sale${p.listing_count !== 1 ? "s" : ""}</div>
                         <div style="color:#3b82f6;font-size:11px;margin-top:3px">Click to compare</div>
                     </div>
@@ -316,7 +322,7 @@ export function SalesTrendsMap({ areaType, salesSource, selectedAreas, onAddZip,
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700">
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Sale price trend · {salesSource === "crexi" ? "Crexi comps" : "LoopNet"}
+                        {salesSource === "crexi" ? "Price/door trend · Crexi comps" : "Sale price trend · LoopNet"}
                     </span>
                     {loading && <span className="text-xs text-gray-400">Loading…</span>}
                 </div>
