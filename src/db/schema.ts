@@ -1588,6 +1588,8 @@ export const crexiActiveListings = pgTable("crexi_active_listings", {
     opportunity_zone: text("opportunity_zone"),
     longitude: doublePrecision("longitude"),
     latitude: doublePrecision("latitude"),
+    om_url: text("om_url"),
+    attachment_urls: jsonb("attachment_urls").default([]),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

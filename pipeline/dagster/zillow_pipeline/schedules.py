@@ -45,6 +45,7 @@ from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scra
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
 from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
+from zillow_pipeline.assets.download_crexi_om_pdfs import download_crexi_om_pdfs
 from zillow_pipeline.jobs.backfill_loopnet_address_fields import backfill_loopnet_address_fields_job
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
 from zillow_pipeline.jobs.backfill_loopnet_geom import backfill_loopnet_geom_job
@@ -86,6 +87,11 @@ loopnet_om_job = define_asset_job(
     selection=AssetSelection.assets(download_om_pdfs),
 )
 
+crexi_om_job = define_asset_job(
+    name="crexi_om_job",
+    selection=AssetSelection.assets(download_crexi_om_pdfs),
+)
+
 
 daily_loopnet_scrape_schedule = ScheduleDefinition(
     name="daily_loopnet_scrape",
@@ -104,6 +110,7 @@ daily_loopnet_scrape_schedule = ScheduleDefinition(
         loopnet_om_job,
         loopnet_om_text_job,
         loopnet_om_metrics_job,
+        crexi_om_job,
         backfill_loopnet_om_url_job,
         backfill_loopnet_address_fields_job,
         backfill_loopnet_geom_job,
@@ -125,6 +132,7 @@ def alert_on_pipeline_failure(context: RunFailureSensorContext):
         loopnet_om_job,
         loopnet_om_text_job,
         loopnet_om_metrics_job,
+        crexi_om_job,
         backfill_loopnet_om_url_job,
         backfill_loopnet_address_fields_job,
         backfill_loopnet_geom_job,

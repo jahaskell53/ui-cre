@@ -10,6 +10,125 @@ class ApifyResource(ConfigurableResource):
     loopnet_search_actor_id: str
     loopnet_detail_actor_id: str
 
+    def download_crexi_document(self, listing_url: str) -> tuple[str, bytes] | None:
+        """
+        Visit a Crexi listing page with a real browser session, discover the OM PDF
+        link from the Documents section, and download it.
+
+        Returns (document_url, pdf_bytes) for the best OM candidate found, or None if
+        no PDF attachment is present.  Cloudflare protects Crexi's CDN, so a plain
+        HTTP download fails — we must fetch through the same browser context that
+        established the Cloudflare clearance cookies.
+        """
+        client = ApifyClient(self.api_token)
+
+        # Visit the listing page, collect all PDF attachment links with their label
+        # text, pick the one that looks most like an OM, then download it via
+        # Playwright's APIRequestContext (shares cookies with the page, bypasses CORS).
+        page_function = r"""
+async function pageFunction(context) {
+    const { page, log, Actor } = context;
+
+    log.info('Listing page loaded, waiting for content to settle...');
+    await page.waitForTimeout(4000);
+
+    // Collect every anchor whose href ends with .pdf (case-insensitive)
+    const rawLinks = await page.evaluate(() => {
+        const anchors = Array.from(document.querySelectorAll('a[href]'));
+        return anchors
+            .filter(a => /\.pdf(\?.*)?$/i.test(a.href))
+            .map(a => ({
+                href: a.href,
+                text: (a.innerText || a.textContent || '').trim(),
+                title: (a.title || '').trim(),
+            }));
+    });
+
+    log.info('PDF links found: ' + rawLinks.length);
+    if (rawLinks.length === 0) {
+        return { found: false };
+    }
+
+    // Pick the best OM candidate: prefer links whose visible text or href contains
+    // offering-memo / om keywords; fall back to the first PDF link.
+    const omPattern = /offering[\s\-_]*memo(?:randum)?|\bom\b|(?<=[\/._\-])om(?=[\/._\-?#&]|$)/i;
+    let chosen = rawLinks.find(
+        l => omPattern.test(l.text) || omPattern.test(l.title) || omPattern.test(decodeURIComponent(l.href))
+    ) || rawLinks[0];
+
+    log.info('Chosen PDF: ' + chosen.href + ' (label: "' + chosen.text + '")');
+
+    try {
+        const apiResponse = await page.context().request.get(chosen.href, {
+            headers: { 'Accept': 'application/pdf,*/*;q=0.9' },
+            timeout: 120000,
+        });
+
+        if (!apiResponse.ok()) {
+            log.error('PDF fetch HTTP ' + apiResponse.status() + ' ' + apiResponse.statusText());
+            return { found: false, error: 'HTTP ' + apiResponse.status() };
+        }
+
+        const body = await apiResponse.body();
+        log.info('PDF downloaded — ' + body.length + ' bytes');
+
+        const kvStore = await Actor.openKeyValueStore();
+        await kvStore.setValue('document', body, { contentType: 'application/pdf' });
+
+        return { found: true, documentUrl: chosen.href, label: chosen.text, size: body.length };
+    } catch (e) {
+        log.error('PDF fetch error: ' + e.toString());
+        return { found: false, error: e.toString() };
+    }
+}
+"""
+
+        pre_navigation_hooks = """[
+    async ({ request, session }, goToOptions) => {
+        goToOptions.waitUntil = 'domcontentloaded';
+    }
+]"""
+
+        run = client.actor("apify/playwright-scraper").call(
+            run_input={
+                "startUrls": [{"url": listing_url}],
+                "pageFunction": page_function,
+                "preNavigationHooks": pre_navigation_hooks,
+                "proxyConfiguration": {
+                    "useApifyProxy": True,
+                    "apifyProxyGroups": ["RESIDENTIAL"],
+                    "apifyProxyCountry": "US",
+                },
+                "maxRequestsPerCrawl": 1,
+                "maxRequestRetries": 8,
+                "useSessionPool": True,
+                "sessionPoolOptions": {"maxPoolSize": 1},
+            },
+            timeout_secs=300,
+        )
+
+        items = list(client.dataset(run["defaultDatasetId"]).iterate_items())
+        success = [item for item in items if item.get("found")]
+        if not success:
+            not_found = [item for item in items if item.get("found") is False and not item.get("error")]
+            if not_found:
+                return None
+            errors = [item.get("error", "unknown") for item in items if item.get("error")]
+            raise ValueError(
+                f"Playwright scraper failed for {listing_url}"
+                + (f" (errors: {errors})" if errors else "")
+            )
+
+        item = success[0]
+        document_url: str = item["documentUrl"]
+
+        kv_store_id = run["defaultKeyValueStoreId"]
+        record = client.key_value_store(kv_store_id).get_record("document")
+        if not record or not record.get("value"):
+            raise ValueError(f"Key-value store record empty for {listing_url}")
+
+        return document_url, record["value"]
+
     def download_loopnet_document(self, listing_url: str, document_url: str) -> bytes:
         """
         Download a LoopNet CDN document (e.g. OM PDF) using a real browser session.
