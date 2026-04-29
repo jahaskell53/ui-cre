@@ -50,6 +50,13 @@
       "when": 1777349522054,
       "tag": "0006_large_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777426329773,
+      "tag": "0007_yellow_mercury",
+      "breakpoints": true
     }
   ]
 }

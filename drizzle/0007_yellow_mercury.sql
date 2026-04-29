@@ -1,0 +1,1 @@
+ALTER TABLE "crexi_api_comps" ADD COLUMN "cap_rate_source" text;

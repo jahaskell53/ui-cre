@@ -1648,6 +1648,7 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     title_company: text("title_company"),
     raw_json: jsonb("raw_json"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
+    cap_rate_source: text("cap_rate_source"),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
