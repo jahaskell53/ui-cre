@@ -1639,6 +1639,13 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     date_activated: text("date_activated"),
     date_updated: text("date_updated"),
     description: text("description"),
+    apn: text("apn"),
+    lender: text("lender"),
+    loan_amount: doublePrecision("loan_amount"),
+    loan_type: text("loan_type"),
+    interest_rate: doublePrecision("interest_rate"),
+    mortgage_maturity_date: text("mortgage_maturity_date"),
+    title_company: text("title_company"),
     raw_json: jsonb("raw_json"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
 });
