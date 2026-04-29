@@ -50,6 +50,13 @@
       "when": 1777349522054,
       "tag": "0006_large_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777426540382,
+      "tag": "0007_nice_baron_strucker",
+      "breakpoints": true
     }
   ]
 }
