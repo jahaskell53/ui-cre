@@ -27,7 +27,7 @@ type Metric = "median_price" | "avg_cap_rate" | "listing_count";
 type YAxisView = "pct" | "abs";
 
 const METRIC_OPTIONS: { value: Metric; label: string }[] = [
-    { value: "median_price", label: "Median Price" },
+    { value: "median_price", label: "Median Price/Door" },
     { value: "avg_cap_rate", label: "Cap Rate" },
     { value: "listing_count", label: "Volume" },
 ];
@@ -262,7 +262,7 @@ export function SalesTrendsSection({
                 {salesSource === "crexi" ? (
                     <>
                         {metric === "median_price" &&
-                            `Median closed-sale price from Crexi API comps, bucketed by ${
+                            `Median closed-sale price per door (price ÷ units) from Crexi API comps, bucketed by ${
                                 granularity === "year"
                                     ? "year"
                                     : granularity === "quarter"
@@ -270,7 +270,7 @@ export function SalesTrendsSection({
                                       : granularity === "half_year"
                                         ? "6-month period"
                                         : "transaction month"
-                            }.`}
+                            }. Only comps with known unit counts are included.`}
                         {metric === "avg_cap_rate" &&
                             "Average cap rate from Crexi comps (sale_cap_rate_percent, falling back to financials_cap_rate_percent). Sparse — many periods will show no value."}
                         {metric === "listing_count" &&
@@ -352,7 +352,7 @@ export function SalesStatsTile({ areas, areaResults, salesSource = "crexi", gran
                                         <p className="text-lg font-semibold" style={{ color: area.color }}>
                                             {formatMillions(latest.median_price)}
                                         </p>
-                                        <p className="mt-0.5 text-xs text-gray-400">{salesSource === "crexi" ? "median sale price" : "median asking price"}</p>
+                                        <p className="mt-0.5 text-xs text-gray-400">{salesSource === "crexi" ? "median price/door" : "median asking price"}</p>
                                         {priceChange != null && (
                                             <p className={`mt-0.5 text-xs font-medium ${priceChange >= 0 ? "text-green-600" : "text-red-600"}`}>
                                                 {priceChange >= 0 ? "+" : ""}
