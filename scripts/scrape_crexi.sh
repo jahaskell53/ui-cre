@@ -45,6 +45,21 @@ TABLE = "crexi_api_comps"
 DOWNLOAD_DIR = "/home/ubuntu/Downloads/Crexi/Comps & Records"
 BATCH = 500
 
+def parse_gross_rent_annual(lease_rate_range):
+    """Parse lower bound of leaseRateRange.totalAnnual (e.g. '$48,600' or '$20,400 - $24,000') as float."""
+    if not isinstance(lease_rate_range, dict):
+        return None
+    raw = lease_rate_range.get("totalAnnual")
+    if not raw:
+        return None
+    import re
+    lower = raw.split(" - ")[0]
+    cleaned = re.sub(r'[$,\s]', '', lower)
+    try:
+        return float(cleaned)
+    except (ValueError, TypeError):
+        return None
+
 def flatten(r):
     addr = r.get("address") or [{}]
     addr = addr[0] if isinstance(addr, list) and addr else (addr if isinstance(addr, dict) else {})
@@ -64,6 +79,8 @@ def flatten(r):
     cy = r.get("constructionYear") or {}
     src = r.get("source") or {}
     inv = r.get("investmentType") or {}
+    tax = r.get("tax") or {}
+    lrr = r.get("leaseRateRange") or {}
     return {
         "crexi_id": r.get("id") or r.get("propertyRecordId"),
         "property_name": r.get("propertyName"),
@@ -85,12 +102,16 @@ def flatten(r):
         "stories_count": attrs.get("storiesCount"),
         "construction_type": attrs.get("constructionType"),
         "class_type": attrs.get("classType"),
+        "buildings_count": attrs.get("buildingsCount"),
+        "footprint_sqft": attrs.get("footprintSqft"),
         "is_sales_comp": rt.get("isSalesComp"),
         "is_public_sales_comp": rt.get("isPublicSalesComp"),
         "is_broker_reported_sales_comp": rt.get("isBrokerReportedSalesComp"),
         "is_lease_comp": rt.get("isLeaseComp"),
         "sale_type": st.get("type"),
         "sale_cap_rate_percent": st.get("capRatePercent"),
+        "sale_buyer": st.get("buyer"),
+        "sale_seller": st.get("seller"),
         "property_price_total": pp.get("total"),
         "property_price_per_sqft": pp.get("perSqft"),
         "property_price_per_acre": pp.get("perAcre"),
@@ -116,7 +137,14 @@ def flatten(r):
         "loan_type": mf.get("loanType"),
         "interest_rate": mf.get("interestRate"),
         "mortgage_maturity_date": mf.get("maturityDate"),
+        "mortgage_recording_date": mf.get("recordingDate"),
+        "loan_term": mf.get("loanTerm"),
         "title_company": mf.get("titleCompany"),
+        "tax_amount": tax.get("amount"),
+        "tax_parcel_value": tax.get("parcelValue"),
+        "tax_land_value": tax.get("landValue"),
+        "tax_improvement_value": tax.get("improvementValue"),
+        "gross_rent_annual": parse_gross_rent_annual(lrr),
         "raw_json": r,
     }
 

@@ -24,8 +24,14 @@ The Crexi website limits CSV exports to 10,000 rows. The underlying search API (
 | Broker name & brokerage | ✅ |
 | **Sold price (total, per sqft, per acre)** | ✅ (with valid account token) |
 | **Sale date** | ✅ (with valid account token) |
-| Cap rate / NOI / GRM | ❌ Not in search API |
-| APN / occupancy | ❌ Not in search API |
+| **Cap rate** (`saleTransaction.capRatePercent`) | ✅ broker-reported comps only (~913 rows) |
+| **Cap rate** (`financials.capRatePercent`) | ✅ broker-reported comps only (~2,237 rows) |
+| **NOI** (`financials.netOperatingIncome`) | ✅ broker-reported comps only (~2,022 rows) |
+| **Gross rent** (`leaseRateRange.totalAnnual`) | ✅ broker-reported comps only (~12,939 rows) |
+| **Assessed / tax values** (`tax.*`) | ✅ public records (~268k rows) |
+| APN | ✅ (`address[0].apn`) |
+| Occupancy rate | ✅ broker-reported comps only (~1,096 rows) |
+| GRM | ❌ Not in search API |
 
 ### Record type breakdown (~302k records total)
 
@@ -179,6 +185,7 @@ The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) i
 | `state` | text | |
 | `zip` | text | |
 | `county` | text | |
+| `apn` | text | Assessor parcel number |
 | `latitude` | double precision | |
 | `longitude` | double precision | |
 | `property_type` | text | e.g. `Multifamily` |
@@ -186,18 +193,51 @@ The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) i
 | `building_sqft` | integer | |
 | `num_units` | integer | |
 | `address_count` | integer | |
+| `buildings_count` | integer | Number of buildings on the parcel |
+| `footprint_sqft` | double precision | Building footprint area |
+| `stories_count` | integer | |
+| `construction_type` | text | |
+| `class_type` | text | |
 | `is_sales_comp` | boolean | |
 | `is_public_sales_comp` | boolean | |
 | `is_broker_reported_sales_comp` | boolean | |
 | `is_lease_comp` | boolean | |
+| `sale_type` | text | e.g. `SingleProperty` |
+| `sale_cap_rate_percent` | double precision | Cap rate at closing (broker-reported comps) |
+| `sale_buyer` | text | Buyer name (broker-reported comps) |
+| `sale_seller` | text | Seller name (broker-reported comps) |
 | `property_price_total` | double precision | Sold price in dollars |
 | `property_price_per_sqft` | double precision | Price per building sqft |
 | `property_price_per_acre` | double precision | Price per acre |
 | `sale_transaction_date` | text | Sale date (ISO datetime string) |
-| `sale_type` | text | e.g. `SingleProperty` |
 | `days_on_market` | integer | |
 | `date_activated` | text | ISO datetime |
 | `date_updated` | text | ISO datetime |
 | `description` | text | |
+| `financials_cap_rate_percent` | double precision | Cap rate from listing financials tab |
+| `financials_noi` | double precision | Net operating income from listing financials |
+| `gross_rent_annual` | double precision | Annual gross rent income (lower bound of leaseRateRange.totalAnnual; ~13k rows) |
+| `occupancy_rate_percent` | double precision | |
+| `year_built` | integer | |
+| `lot_size_sqft` | double precision | |
+| `lot_size_acre` | double precision | |
+| `zoning` | text | |
+| `is_opportunity_zone` | boolean | |
+| `owner_name` | text | |
+| `is_corporate_owner` | boolean | |
+| `is_crexi_source` | boolean | |
+| `investment_type` | text | e.g. `Value Add` |
+| `tax_amount` | double precision | Annual property tax (expense signal; ~79k rows) |
+| `tax_parcel_value` | double precision | Assessed parcel value (~269k rows) |
+| `tax_land_value` | double precision | Assessed land value (~269k rows) |
+| `tax_improvement_value` | double precision | Assessed improvement value (~266k rows) |
+| `lender` | text | |
+| `loan_amount` | double precision | |
+| `loan_type` | text | |
+| `loan_term` | integer | Mortgage term in months |
+| `interest_rate` | double precision | |
+| `mortgage_maturity_date` | text | ISO datetime |
+| `mortgage_recording_date` | text | ISO datetime when mortgage was recorded |
+| `title_company` | text | |
 | `raw_json` | jsonb | Full API response item |
 | `scraped_at` | timestamptz | Set on insert |
