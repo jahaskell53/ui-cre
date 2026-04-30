@@ -6,17 +6,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Input } from "@/components/ui/input";
 import {
-    getCrexiSalesTrends,
-    getCrexiSalesTrendsByCity,
-    getCrexiSalesTrendsByCounty,
-    getCrexiSalesTrendsByMsa,
-    getCrexiSalesTrendsByNeighborhood,
-    getMsaAtPoint,
-    getNeighborhoodAtPoint,
+    type SalesTrendRowV2,
+    getCrexiSalesTrendsByCityV2,
+    getCrexiSalesTrendsByCountyV2,
+    getCrexiSalesTrendsByMsaV2,
+    getCrexiSalesTrendsByNeighborhoodV2,
+    getCrexiSalesTrendsV2,
     searchMsas,
     searchNeighborhoods,
 } from "@/db/rpc";
-import { MAX_TREND_AREAS, buildDisplayAreas, getTrendsSearchPlaceholder, parseSerializedAreas, serializeAreasParam } from "@/lib/analytics/trends-page";
+import { MAX_TREND_AREAS, getTrendsSearchPlaceholder, parseSerializedAreas, serializeAreasParam } from "@/lib/analytics/trends-page";
 import { AREA_COLORS, type AreaSelection } from "../trends/trends-utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
@@ -37,10 +36,10 @@ const DISPLAY_OPTIONS: { value: DisplayType; label: string }[] = [
     { value: "Candle", label: "Candle" },
     { value: "Median", label: "Median" },
 ];
-const METRIC_OPTIONS: { value: Metric; label: string }[] = [
+const METRIC_OPTIONS: { value: Metric; label: string; disabled?: boolean }[] = [
     { value: "cap_rate", label: "Cap Rate" },
     { value: "cost_per_unit", label: "Cost/Unit" },
-    { value: "grm", label: "GRM" },
+    { value: "grm", label: "GRM", disabled: true },
 ];
 const UNIT_PRESETS: { value: UnitFilter; label: string }[] = [
     { value: "All", label: "All" },
@@ -67,14 +66,7 @@ interface NeighborhoodResult {
     state: string;
 }
 
-interface SalesTrendRow {
-    month_start: string;
-    median_price: number;
-    avg_cap_rate: number | null;
-    listing_count: number;
-}
-
-function filterByPeriod(rows: SalesTrendRow[], period: Period): SalesTrendRow[] {
+function filterByPeriod(rows: SalesTrendRowV2[], period: Period): SalesTrendRowV2[] {
     if (period === "Max") return rows;
     const months: Record<Period, number> = {
         "3M": 3,
@@ -92,7 +84,7 @@ function filterByPeriod(rows: SalesTrendRow[], period: Period): SalesTrendRow[] 
     return rows.filter((r) => r.month_start >= cutoffStr);
 }
 
-function aggregateBySampleWindow(rows: SalesTrendRow[], sampleComps: SampleComps): SalesTrendRow[] {
+function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleComps): SalesTrendRowV2[] {
     if (rows.length === 0) return [];
     const monthsPerWindow: Record<SampleComps, number> = {
         "1M": 1,
@@ -104,7 +96,7 @@ function aggregateBySampleWindow(rows: SalesTrendRow[], sampleComps: SampleComps
     if (windowSize === 1) return rows;
 
     const sorted = [...rows].sort((a, b) => a.month_start.localeCompare(b.month_start));
-    const buckets: Record<string, SalesTrendRow[]> = {};
+    const buckets: Record<string, SalesTrendRowV2[]> = {};
     for (const row of sorted) {
         const d = new Date(row.month_start + "T00:00:00Z");
         const monthIndex = d.getUTCFullYear() * 12 + d.getUTCMonth();
@@ -119,26 +111,36 @@ function aggregateBySampleWindow(rows: SalesTrendRow[], sampleComps: SampleComps
     return Object.entries(buckets)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, group]) => {
-            const prices = group.map((r) => r.median_price).filter((p) => p != null);
+            const medians = group.map((r) => r.median_price).filter((p) => p != null);
+            const avgs = group.map((r) => r.avg_price).filter((p) => p != null);
+            const p25s = group.map((r) => r.p25_price).filter((p) => p != null);
+            const p75s = group.map((r) => r.p75_price).filter((p) => p != null);
             const caps = group.map((r) => r.avg_cap_rate).filter((c) => c != null) as number[];
-            const sortedPrices = [...prices].sort((a, b) => a - b);
-            const mid = Math.floor(sortedPrices.length / 2);
-            const medianPrice = sortedPrices.length % 2 === 0 ? (sortedPrices[mid - 1] + sortedPrices[mid]) / 2 : sortedPrices[mid];
+            const median = (arr: number[]) => {
+                const s = [...arr].sort((a, b) => a - b);
+                const m = Math.floor(s.length / 2);
+                return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
+            };
+            const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0);
             return {
                 month_start: key,
-                median_price: medianPrice ?? 0,
-                avg_cap_rate: caps.length > 0 ? caps.reduce((s, v) => s + v, 0) / caps.length : null,
+                median_price: medians.length > 0 ? median(medians) : 0,
+                avg_price: avgs.length > 0 ? avg(avgs) : 0,
+                p25_price: p25s.length > 0 ? median(p25s) : 0,
+                p75_price: p75s.length > 0 ? median(p75s) : 0,
+                avg_cap_rate: caps.length > 0 ? avg(caps) : null,
                 listing_count: group.reduce((s, r) => s + r.listing_count, 0),
             };
         });
 }
 
-function metricValue(row: SalesTrendRow, metric: Metric): number | null {
+function metricValue(row: SalesTrendRowV2, metric: Metric, displayType: DisplayType): number | null {
     if (metric === "cap_rate") return row.avg_cap_rate;
-    if (metric === "cost_per_unit") return row.median_price;
-    return row.median_price > 0 && row.avg_cap_rate && row.avg_cap_rate > 0
-        ? parseFloat((row.median_price / (row.avg_cap_rate / 100) / row.median_price).toFixed(2))
-        : null;
+    if (metric === "cost_per_unit") {
+        if (displayType === "Average") return row.avg_price;
+        return row.median_price;
+    }
+    return null;
 }
 
 function formatMetricValue(value: number, metric: Metric): string {
@@ -192,7 +194,7 @@ export default function SalesTrendsPage() {
 
     const [selectedAreas, setSelectedAreas] = useState<AreaSelection[]>(() => parseSerializedAreas(searchParams.get("areas")));
     const [compareAreas, setCompareAreas] = useState<AreaSelection[]>([]);
-    const [salesResults, setSalesResults] = useState<Record<string, SalesTrendRow[]>>({});
+    const [salesResults, setSalesResults] = useState<Record<string, SalesTrendRowV2[]>>({});
     const [loading, setLoading] = useState(false);
 
     const [address, setAddress] = useState("");
@@ -587,6 +589,29 @@ export default function SalesTrendsPage() {
         });
     };
 
+    const unitRange = useMemo((): { p_min_units?: number; p_max_units?: number } => {
+        const PRESET_RANGES: Record<string, { min?: number; max?: number }> = {
+            "2-4": { min: 2, max: 4 },
+            "5-10": { min: 5, max: 10 },
+            "11-25": { min: 11, max: 25 },
+            "26-50": { min: 26, max: 50 },
+            "50+": { min: 51 },
+        };
+        if (unitFilter === "All") return {};
+        if (unitFilter === "custom") {
+            const result: { p_min_units?: number; p_max_units?: number } = {};
+            if (unitMin) result.p_min_units = parseInt(unitMin, 10);
+            if (unitMax) result.p_max_units = parseInt(unitMax, 10);
+            return result;
+        }
+        const preset = PRESET_RANGES[unitFilter];
+        if (!preset) return {};
+        const result: { p_min_units?: number; p_max_units?: number } = {};
+        if (preset.min) result.p_min_units = preset.min;
+        if (preset.max) result.p_max_units = preset.max;
+        return result;
+    }, [unitFilter, unitMin, unitMax]);
+
     // Fetch sales data
     useEffect(() => {
         const allAreas = [...selectedAreas, ...compareAreas];
@@ -596,38 +621,41 @@ export default function SalesTrendsPage() {
         }
         setLoading(true);
 
-        const fetchSales = (area: AreaSelection): Promise<SalesTrendRow[]> => {
+        const fetchSales = (area: AreaSelection): Promise<SalesTrendRowV2[]> => {
             const isNh = area.neighborhoodId != null;
             const isCity = area.cityName != null;
             const isCounty = area.countyName != null;
             const isMsa = area.msaGeoid != null;
             const call = isNh
-                ? getCrexiSalesTrendsByNeighborhood({
+                ? getCrexiSalesTrendsByNeighborhoodV2({
                       p_neighborhood_ids: [area.neighborhoodId!],
+                      ...unitRange,
                   })
                 : isCity
-                  ? getCrexiSalesTrendsByCity({
+                  ? getCrexiSalesTrendsByCityV2({
                         p_city: area.cityName!,
                         p_state: area.cityState!,
+                        ...unitRange,
                     })
                   : isCounty
-                    ? getCrexiSalesTrendsByCounty({
+                    ? getCrexiSalesTrendsByCountyV2({
                           p_county_name: area.countyName!,
                           p_state: area.countyState!,
+                          ...unitRange,
                       })
                     : isMsa
-                      ? getCrexiSalesTrendsByMsa({ p_geoid: area.msaGeoid! })
-                      : getCrexiSalesTrends({ p_zip: area.id });
-            return call.catch(() => [] as SalesTrendRow[]);
+                      ? getCrexiSalesTrendsByMsaV2({ p_geoid: area.msaGeoid!, ...unitRange })
+                      : getCrexiSalesTrendsV2({ p_zip: area.id, ...unitRange });
+            return call.catch(() => [] as SalesTrendRowV2[]);
         };
 
         Promise.all(allAreas.map((area) => fetchSales(area).then((rows) => ({ id: area.id, rows })))).then((results) => {
             setLoading(false);
-            const next: Record<string, SalesTrendRow[]> = {};
+            const next: Record<string, SalesTrendRowV2[]> = {};
             for (const r of results) next[r.id] = r.rows;
             setSalesResults(next);
         });
-    }, [selectedAreas, compareAreas]);
+    }, [selectedAreas, compareAreas, unitRange]);
 
     const allDisplayAreas = [...selectedAreas, ...compareAreas];
     const showVolume = selectedAreas.length === 1 && compareAreas.length === 0;
@@ -636,7 +664,7 @@ export default function SalesTrendsPage() {
         const allAreas = [...selectedAreas, ...compareAreas];
         if (allAreas.length === 0) return [];
         const allBuckets = new Set<string>();
-        const processed: Record<string, SalesTrendRow[]> = {};
+        const processed: Record<string, SalesTrendRowV2[]> = {};
         for (const area of allAreas) {
             const raw = salesResults[area.id] ?? [];
             const filtered = filterByPeriod(raw, period);
@@ -647,21 +675,24 @@ export default function SalesTrendsPage() {
         return Array.from(allBuckets)
             .sort()
             .map((bucket) => {
-                const point: Record<string, string | number> = {
+                const point: Record<string, string | number | [number, number]> = {
                     month: bucket,
                     monthLabel: formatMonthLabel(bucket),
                 };
                 for (const area of allAreas) {
                     const row = processed[area.id]?.find((r) => r.month_start === bucket);
                     if (row) {
-                        const val = metricValue(row, metric);
+                        const val = metricValue(row, metric, displayType);
                         if (val != null) point[area.id] = val;
+                        if (displayType === "Candle" && metric === "cost_per_unit" && row.p25_price && row.p75_price) {
+                            point[`${area.id}_candle`] = [row.p25_price, row.p75_price];
+                        }
                         if (showVolume) point.volume = row.listing_count;
                     }
                 }
                 return point;
             });
-    }, [salesResults, selectedAreas, compareAreas, period, sampleComps, metric, showVolume]);
+    }, [salesResults, selectedAreas, compareAreas, period, sampleComps, metric, displayType, showVolume]);
 
     const hasData = chartData.length > 0;
 
@@ -765,7 +796,19 @@ export default function SalesTrendsPage() {
                     <div className="flex items-center gap-2">
                         <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">Display</span>
                         <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                            {METRIC_OPTIONS.map((m) => pillToggle(m.label, metric === m.value, () => setMetric(m.value)))}
+                            {METRIC_OPTIONS.map((m) =>
+                                m.disabled ? (
+                                    <span
+                                        key={m.label}
+                                        className="relative cursor-not-allowed rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap text-gray-300 dark:text-gray-600"
+                                        title="Coming soon — requires gross_rent_annual data"
+                                    >
+                                        {m.label}
+                                    </span>
+                                ) : (
+                                    pillToggle(m.label, metric === m.value, () => setMetric(m.value))
+                                ),
+                            )}
                         </div>
                     </div>
                 </div>
@@ -929,34 +972,42 @@ export default function SalesTrendsPage() {
                     <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400"># of Units</span>
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                            {UNIT_PRESETS.map((u) => pillToggle(u.label, unitFilter === u.value, () => setUnitFilter(u.value)))}
+                            {UNIT_PRESETS.map((u) =>
+                                pillToggle(u.label, unitFilter === u.value, () => {
+                                    setUnitFilter(u.value);
+                                    if (u.value === "All") {
+                                        setUnitMin("");
+                                        setUnitMax("");
+                                    }
+                                }),
+                            )}
                         </div>
-                        {unitFilter === "All" && (
-                            <div className="flex items-center gap-2 text-sm">
-                                <span className="text-gray-400 dark:text-gray-500">Min</span>
-                                <input
-                                    type="number"
-                                    value={unitMin}
-                                    onChange={(e) => {
-                                        setUnitMin(e.target.value);
-                                        if (e.target.value) setUnitFilter("custom");
-                                    }}
-                                    className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                    placeholder="—"
-                                />
-                                <span className="text-gray-400 dark:text-gray-500">Max</span>
-                                <input
-                                    type="number"
-                                    value={unitMax}
-                                    onChange={(e) => {
-                                        setUnitMax(e.target.value);
-                                        if (e.target.value) setUnitFilter("custom");
-                                    }}
-                                    className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                    placeholder="—"
-                                />
-                            </div>
-                        )}
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-gray-400 dark:text-gray-500">Min</span>
+                            <input
+                                type="number"
+                                value={unitMin}
+                                onChange={(e) => {
+                                    setUnitMin(e.target.value);
+                                    if (e.target.value || unitMax) setUnitFilter("custom");
+                                    else setUnitFilter("All");
+                                }}
+                                className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                placeholder="—"
+                            />
+                            <span className="text-gray-400 dark:text-gray-500">Max</span>
+                            <input
+                                type="number"
+                                value={unitMax}
+                                onChange={(e) => {
+                                    setUnitMax(e.target.value);
+                                    if (e.target.value || unitMin) setUnitFilter("custom");
+                                    else setUnitFilter("All");
+                                }}
+                                className="w-16 rounded-md border border-gray-200 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                placeholder="—"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -1122,8 +1173,13 @@ export default function SalesTrendsPage() {
                 {/* Row 8: Rent Basis */}
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Rent Basis</span>
-                    <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                        {RENT_BASIS_OPTIONS.map((r) => pillToggle(r, rentBasis === r, () => setRentBasis(r)))}
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
+                            {RENT_BASIS_OPTIONS.map((r) => pillToggle(r, rentBasis === r, () => setRentBasis(r)))}
+                        </div>
+                        <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-600 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            Coming soon
+                        </span>
                     </div>
                 </div>
             </div>
@@ -1232,6 +1288,19 @@ export default function SalesTrendsPage() {
                                     )}
                                     <Tooltip content={<CustomTooltip />} />
                                     {showVolume && <Bar yAxisId="right" dataKey="volume" name="Volume" fill="#d1d5db" opacity={0.5} barSize={20} />}
+                                    {displayType === "Candle" &&
+                                        metric === "cost_per_unit" &&
+                                        allDisplayAreas.map((area) => (
+                                            <Bar
+                                                key={`${area.id}_candle`}
+                                                yAxisId="left"
+                                                dataKey={`${area.id}_candle`}
+                                                name={`${area.label} (P25–P75)`}
+                                                fill={area.color}
+                                                opacity={0.2}
+                                                barSize={12}
+                                            />
+                                        ))}
                                     {allDisplayAreas.map((area) => (
                                         <Line
                                             key={area.id}
@@ -1251,11 +1320,9 @@ export default function SalesTrendsPage() {
 
                             <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
                                 {metric === "cap_rate" &&
-                                    `Average cap rate from Crexi closed sales comps. Period: ${period}, Sample: ${sampleComps}. Rent basis: ${rentBasis}.`}
+                                    `Average cap rate from Crexi closed sales comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                                 {metric === "cost_per_unit" &&
-                                    `Median closed-sale price per door from Crexi API comps. Period: ${period}, Sample: ${sampleComps}. Display: ${displayType}. Rent basis: ${rentBasis}.`}
-                                {metric === "grm" &&
-                                    `Gross rent multiplier derived from Crexi comps. Period: ${period}, Sample: ${sampleComps}. Rent basis: ${rentBasis}.`}
+                                    `${displayType === "Average" ? "Average" : displayType === "Candle" ? "P25–P75 range with median" : "Median"} closed-sale price per door from Crexi API comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                             </p>
                         </>
                     )}
