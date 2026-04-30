@@ -1646,6 +1646,22 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     interest_rate: doublePrecision("interest_rate"),
     mortgage_maturity_date: text("mortgage_maturity_date"),
     title_company: text("title_company"),
+    // Tax / assessed value fields
+    tax_amount: doublePrecision("tax_amount"),
+    tax_parcel_value: doublePrecision("tax_parcel_value"),
+    tax_land_value: doublePrecision("tax_land_value"),
+    tax_improvement_value: doublePrecision("tax_improvement_value"),
+    // Additional property attributes
+    buildings_count: integer("buildings_count"),
+    footprint_sqft: doublePrecision("footprint_sqft"),
+    // Sale transaction participants
+    sale_buyer: text("sale_buyer"),
+    sale_seller: text("sale_seller"),
+    // Mortgage detail
+    loan_term: integer("loan_term"),
+    mortgage_recording_date: text("mortgage_recording_date"),
+    // Gross rent income signal (parsed from leaseRateRange.totalAnnual)
+    gross_rent_annual: doublePrecision("gross_rent_annual"),
     raw_json: jsonb("raw_json"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
 });
