@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { BarChart3, Map, TrendingUp } from "lucide-react";
+import { BarChart3, LineChart, Map, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const tabs = [
     { href: "/analytics/listings", label: "Listings", icon: Map },
     { href: "/analytics/comps", label: "Comps", icon: BarChart3 },
     { href: "/analytics/trends", label: "Trends", icon: TrendingUp },
+    { href: "/analytics/sales-trends", label: "Sales Trends", icon: LineChart },
 ];
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {
