@@ -20,15 +20,31 @@ CELLS=(
   "8 37.76654785 38.09584526 -122.01554906 -121.68000828"
 )
 
+# Click center-bottom of the Crexi window (DevTools console prompt when docked).
 inject_cell() {
   local CI=$1 LAT_MIN=$2 LAT_MAX=$3 LON_MIN=$4 LON_MAX=$5
   local JS="(async function(){const FILTERS={\"propertyAttributes.type\":{mode:\"Include\",structuredValues:[\"Multifamily\"],type:\"Plain\"},\"propertyAttributes.subType\":{mode:\"Include\",structuredValues:[\"Apartment Building\"],type:\"Plain\"}};const SIZE=500;const BBOX={latitudeMin:${LAT_MIN},latitudeMax:${LAT_MAX},longitudeMin:${LON_MIN},longitudeMax:${LON_MAX}};async function fp(from){const r=await fetch(\"https://api.crexi.com/universal-search/v2/search\",{method:\"POST\",headers:{\"content-type\":\"application/json\",\"schema-mode\":\"Searchable\",\"accept\":\"application/json, text/plain, */*\"},body:JSON.stringify({boundingBox:BBOX,filters:FILTERS,from,searchTypes:[\"Records\"],size:SIZE})});return r.json();}const first=await fp(0);const total=first.totalCount;console.log(\"CELL_${CI}_TOTAL:\",total);const all=[...(first.items||[])];for(let from=SIZE;from<total;from+=SIZE){const p=await fp(from);all.push(...(p.items||[]));await new Promise(r=>setTimeout(r,100));}console.log(\"CELL_${CI}_FETCHED:\",all.length);const blob=new Blob([JSON.stringify(all)],{type:\"application/json\"});const a=document.createElement(\"a\");a.href=URL.createObjectURL(blob);a.download=\"crexi_cell_${CI}.json\";document.body.appendChild(a);a.click();URL.revokeObjectURL(a.href);console.log(\"CELL_${CI}_DONE\");})();"
 
   printf '%s' "$JS" | xclip -selection clipboard
   sleep 0.2
-  xdotool mousemove 1322 990; xdotool click 1
+  read -r WX WY WW WH < <(xwininfo -id "$CREXI_WID" | awk '
+    /Absolute upper-left X/ { x = $4 }
+    /Absolute upper-left Y/ { y = $4 }
+    /Width:/ { w = $2 }
+    /Height:/ { h = $2 }
+    END { print x + 0, y + 0, w + 0, h + 0 }
+  ')
+  local CX=$((WX + WW * 50 / 100))
+  # Dock DevTools to bottom of the window and click the console prompt (~bottom 6%).
+  local CY=$((WY + WH * 93 / 100))
+  xdotool windowactivate --sync "$CREXI_WID"
+  sleep 0.2
+  xdotool mousemove "$CX" "$CY"
+  xdotool click 1
   sleep 0.3
-  xdotool key ctrl+a; sleep 0.1; xdotool key ctrl+v
+  xdotool key ctrl+a
+  sleep 0.1
+  xdotool key ctrl+v
   sleep 0.3
   xdotool key Return
 }
@@ -177,8 +193,17 @@ PYEOF
 }
 
 echo "=== Crexi Grid Scrape ===" | tee -a "$LOG"
-CHROME_WID=$(xdotool search --name "Google Chrome" | head -1)
-xdotool windowactivate --sync $CHROME_WID
+CREXI_WID=$(xdotool search --name "Crexi.com" | head -1)
+if [ -z "$CREXI_WID" ]; then
+  CREXI_WID=$(xdotool search --name "Google Chrome" | head -1)
+fi
+if [ -z "$CREXI_WID" ]; then
+  echo "No Chrome/Crexi window found. Open crexi.com in Chrome on DISPLAY=$DISPLAY." | tee -a "$LOG"
+  exit 1
+fi
+xdotool windowactivate --sync "$CREXI_WID"
+sleep 0.3
+echo "Before this run: open DevTools (F12), select the Console tab, dock to bottom, click inside the console prompt so it has keyboard focus. Automated shortcuts cannot open DevTools in some setups." | tee -a "$LOG"
 
 for CELL in "${CELLS[@]}"; do
   read -r CI LAT_MIN LAT_MAX LON_MIN LON_MAX <<< "$CELL"
@@ -195,8 +220,8 @@ for CELL in "${CELLS[@]}"; do
     while [ ! -f "$FILE" ] || [ ! -s "$FILE" ]; do
       sleep 5
       WAITED=$((WAITED + 5))
-      if [ $WAITED -ge 600 ]; then
-        echo "Cell $CI: TIMEOUT after 10min, skipping" | tee -a "$LOG"
+      if [ $WAITED -ge 1200 ]; then
+        echo "Cell $CI: TIMEOUT after 20min, skipping" | tee -a "$LOG"
         continue 2
       fi
     done
