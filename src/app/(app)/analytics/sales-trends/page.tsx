@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Search, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, type BarShapeProps, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Input } from "@/components/ui/input";
 import {
     type SalesTrendRowV2,
@@ -19,6 +19,50 @@ import { MAX_TREND_AREAS, getTrendsSearchPlaceholder, parseSerializedAreas, seri
 import { AREA_COLORS, type AreaSelection } from "../trends/trends-utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
+
+/** IQR (P25–P75) bar: vertical wick + body + heavy median line so it reads as a candle, not a faint block. */
+function makeQuartileCandleBarShape(areaId: string) {
+    return (props: BarShapeProps) => {
+        const { x, y, width, height, fill, payload } = props;
+        if (x == null || y == null) return null;
+        const w = width;
+        if (w <= 0) return null;
+
+        const range = payload?.[`${areaId}_candle`] as [number, number] | undefined;
+        const medKey = `${areaId}_candle_median` as const;
+        const medianVal = payload?.[medKey];
+        const p75y = y;
+        const p25y = y + height;
+
+        if (range == null || !Array.isArray(range) || range.length < 2) {
+            return <rect x={x} y={y} width={w} height={height} fill={String(fill)} fillOpacity={0.4} stroke={String(fill)} strokeWidth={1} />;
+        }
+
+        const p25p = range[0];
+        const p75p = range[1];
+        let medianY: number;
+        if (typeof medianVal === "number" && Number.isFinite(medianVal) && p75p !== p25p) {
+            const t = (medianVal - p75p) / (p25p - p75p);
+            const tClamped = Math.min(1, Math.max(0, t));
+            medianY = p75y + tClamped * (p25y - p75y);
+        } else {
+            medianY = (p75y + p25y) / 2;
+        }
+
+        const cx = x + w / 2;
+        const bodyW = Math.max(3, w * 0.52);
+        const bodyX = cx - bodyW / 2;
+        const stroke = String(fill);
+
+        return (
+            <g>
+                <line x1={cx} y1={p75y} x2={cx} y2={p25y} stroke={stroke} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                <rect x={bodyX} y={p75y} width={bodyW} height={height} fill={stroke} fillOpacity={0.28} stroke={stroke} strokeWidth={1.2} />
+                <line x1={bodyX} y1={medianY} x2={bodyX + bodyW} y2={medianY} stroke={stroke} strokeWidth={2.75} vectorEffect="non-scaling-stroke" />
+            </g>
+        );
+    };
+}
 
 type AreaType = "Neighborhood" | "ZIP Code" | "City" | "County" | "MSA";
 type Period = "3M" | "6M" | "9M" | "1Y" | "2Y" | "5Y" | "10Y" | "Max";
@@ -686,6 +730,7 @@ export default function SalesTrendsPage() {
                         if (val != null) point[area.id] = val;
                         if (displayType === "Candle" && metric === "cost_per_unit" && row.p25_price && row.p75_price) {
                             point[`${area.id}_candle`] = [row.p25_price, row.p75_price];
+                            if (row.median_price) point[`${area.id}_candle_median`] = row.median_price;
                         }
                         if (showVolume) point.volume = row.listing_count;
                     }
@@ -727,6 +772,8 @@ export default function SalesTrendsPage() {
             name: string;
             color: string;
             value: number;
+            /** Range bar tooltip may include [low, high] in Recharts. */
+            payload?: Record<string, string | number | [number, number]>;
         }>;
         label?: string;
     }) => {
@@ -734,15 +781,47 @@ export default function SalesTrendsPage() {
         return (
             <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-lg dark:border-gray-700 dark:bg-gray-800">
                 <p className="mb-1 text-gray-500">{label}</p>
-                {payload.map((entry) => (
-                    <div key={entry.dataKey} className="flex items-center gap-2">
-                        <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                        <span className="text-gray-600 dark:text-gray-400">{entry.name}:</span>
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {entry.dataKey === "volume" ? entry.value.toLocaleString() : formatMetricValue(entry.value, metric)}
-                        </span>
-                    </div>
-                ))}
+                {payload.map((entry) => {
+                    const dKey = String(entry.dataKey);
+                    if (dKey.endsWith("_candle")) {
+                        const pointData = entry.payload;
+                        const areaId = dKey.replace(/_candle$/, "");
+                        const r = pointData?.[dKey];
+                        if (Array.isArray(r) && r.length >= 2) {
+                            const med = pointData?.[`${areaId}_candle_median`];
+                            return (
+                                <div key={entry.dataKey} className="space-y-0.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
+                                        <span className="text-gray-600 dark:text-gray-400">{entry.name}</span>
+                                    </div>
+                                    <div className="pl-4 text-xs text-gray-600 dark:text-gray-400">
+                                        {typeof med === "number" && (
+                                            <div>
+                                                Median: <span className="font-medium text-gray-900 dark:text-gray-100">{formatMetricValue(med, metric)}</span>
+                                            </div>
+                                        )}
+                                        <div>
+                                            P25: <span className="font-medium text-gray-900 dark:text-gray-100">{formatMetricValue(r[0], metric)}</span>
+                                        </div>
+                                        <div>
+                                            P75: <span className="font-medium text-gray-900 dark:text-gray-100">{formatMetricValue(r[1], metric)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }
+                    }
+                    return (
+                        <div key={entry.dataKey} className="flex items-center gap-2">
+                            <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                            <span className="text-gray-600 dark:text-gray-400">{entry.name}:</span>
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {entry.dataKey === "volume" ? entry.value.toLocaleString() : formatMetricValue(entry.value, metric)}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
         );
     };
@@ -1295,10 +1374,10 @@ export default function SalesTrendsPage() {
                                                 key={`${area.id}_candle`}
                                                 yAxisId="left"
                                                 dataKey={`${area.id}_candle`}
-                                                name={`${area.label} (P25–P75)`}
+                                                name={`${area.label} (P25–P75 · median)`}
                                                 fill={area.color}
-                                                opacity={0.2}
-                                                barSize={12}
+                                                barSize={14}
+                                                shape={makeQuartileCandleBarShape(area.id)}
                                             />
                                         ))}
                                     {allDisplayAreas.map((area) => (
