@@ -24,6 +24,8 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 5. On PR open/update, CI runs `supabase db push --dry-run` and posts the SQL as a PR comment so reviewers can see exactly what will run in production.
 6. On merge to main, CI runs `supabase db push` to apply the migration before the Vercel deployment completes.
 
+**Pre-merge testing when the PR needs the migration first**: Production and the default CI path only apply migrations after merge to `main`. If you need the new schema applied to a database *before* merge (for example manual QA or integration tests against a hosted project while the PR is open), still follow the same Drizzle workflow—edit `src/db/schema.ts`, run `drizzle-kit generate` so the SQL file exists under `supabase/migrations/`, review and commit it—then apply pending migrations to the environment you are testing against using the Supabase CLI (for example `supabase db push` against a linked dev or staging project). That keeps the migration version-controlled; only the timing of *apply* on the test database is ahead of merge.
+
 **Do not apply schema changes via the Supabase MCP or the Supabase dashboard SQL editor.** All schema changes must go through the Drizzle → migration file → CI pipeline path described above so they remain version-controlled and reproducible.
 
 ### Backward compatibility rule
