@@ -821,19 +821,29 @@ export default function SalesTrendsPage() {
     }, []);
 
     const handleChartClick = useCallback(
-        (state: { activeLabel?: string | number; activeTooltipIndex?: number; activeDataKey?: string | number }) => {
-            const idx = state.activeTooltipIndex;
+        (state: { activeLabel?: string | number; activeTooltipIndex?: number; activeIndex?: number; activeDataKey?: string | number }) => {
+            // Recharts 3 often leaves activeDataKey undefined on chart click (see mouseClickMiddleware TODO).
+            const idx = typeof state.activeTooltipIndex === "number" ? state.activeTooltipIndex : state.activeIndex;
             if (typeof idx !== "number" || idx < 0) return;
             const pt = chartData[idx];
             if (!pt || typeof pt.month !== "string") return;
+
+            let areaId: string | undefined;
             const dk = state.activeDataKey;
-            if (dk === "volume" || dk === undefined) return;
-            if (typeof dk !== "string") return;
-            if (dk.endsWith("_rangeErr")) return;
-            if (pt[dk] === undefined) return;
-            openBucketListings(dk, pt.month);
+            if (typeof dk === "string" && dk !== "volume" && dk !== "month" && dk !== "monthLabel" && !dk.endsWith("_rangeErr") && pt[dk] !== undefined) {
+                areaId = dk;
+            } else {
+                for (const a of allDisplayAreas) {
+                    if (pt[a.id] !== undefined) {
+                        areaId = a.id;
+                        break;
+                    }
+                }
+            }
+            if (!areaId) return;
+            openBucketListings(areaId, pt.month);
         },
-        [chartData, openBucketListings],
+        [chartData, allDisplayAreas, openBucketListings],
     );
 
     const searchPlaceholder = getTrendsSearchPlaceholder(areaType, false);
