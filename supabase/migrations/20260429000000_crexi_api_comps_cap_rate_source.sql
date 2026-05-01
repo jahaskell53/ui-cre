@@ -16,9 +16,9 @@
 --   asking_cap_rate   → financials_cap_rate_percent (listing/asking)
 --   closing_noi       → financials_noi
 --
--- Note: crexi_comps_records.sale_date is stored as text; we normalise both
--- sides to YYYY-MM via DATE_TRUNC / SUBSTRING so format differences don't block
--- the join.
+-- Note: crexi_comps_records.sale_date is stored as text in MM/DD/YYYY format
+-- (e.g. "04/01/2026"). We parse it with TO_DATE(..., 'MM/DD/YYYY') and
+-- normalise both sides to YYYY-MM so format differences don't block the join.
 
 -- ── 1. Add column ─────────────────────────────────────────────────────────────
 
@@ -69,9 +69,9 @@ FROM (
           ON  a.apn IS NOT NULL
           AND r.apn IS NOT NULL
           AND a.apn = r.apn
-          -- year+month match on sale date
+          -- year+month match on sale date (export format is MM/DD/YYYY)
           AND TO_CHAR(a.sale_transaction_date::date, 'YYYY-MM')
-              = SUBSTRING(r.sale_date FROM 1 FOR 7)
+              = TO_CHAR(TO_DATE(r.sale_date, 'MM/DD/YYYY'), 'YYYY-MM')
           -- price within 1% (NULL-safe: skip if either side is NULL)
           AND (
               a.property_price_total IS NULL
