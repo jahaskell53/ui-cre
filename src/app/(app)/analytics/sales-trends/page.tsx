@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Search, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Input } from "@/components/ui/input";
 import {
     type SalesTrendRowV2,
@@ -685,8 +685,15 @@ export default function SalesTrendsPage() {
                     if (row) {
                         const val = metricValue(row, metric, displayType);
                         if (val != null) point[area.id] = val;
-                        if (displayType === "Candle" && metric === "cost_per_unit" && row.p25_price && row.p75_price) {
-                            point[`${area.id}_candle`] = [row.p25_price, row.p75_price];
+                        if (
+                            displayType === "Candle" &&
+                            metric === "cost_per_unit" &&
+                            row.median_price != null &&
+                            row.p25_price != null &&
+                            row.p75_price != null
+                        ) {
+                            const med = row.median_price;
+                            point[`${area.id}_rangeErr`] = [med - row.p25_price, row.p75_price - med];
                         }
                         if (showVolume) point.volume = row.listing_count;
                     }
@@ -1289,19 +1296,6 @@ export default function SalesTrendsPage() {
                                     )}
                                     <Tooltip content={<CustomTooltip />} />
                                     {showVolume && <Bar yAxisId="right" dataKey="volume" name="Volume" fill="#d1d5db" opacity={0.5} barSize={20} />}
-                                    {displayType === "Candle" &&
-                                        metric === "cost_per_unit" &&
-                                        allDisplayAreas.map((area) => (
-                                            <Bar
-                                                key={`${area.id}_candle`}
-                                                yAxisId="left"
-                                                dataKey={`${area.id}_candle`}
-                                                name={`${area.label} (P25–P75)`}
-                                                fill={area.color}
-                                                opacity={0.2}
-                                                barSize={12}
-                                            />
-                                        ))}
                                     {allDisplayAreas.map((area) => (
                                         <Line
                                             key={area.id}
@@ -1314,7 +1308,18 @@ export default function SalesTrendsPage() {
                                             dot={{ r: 3 }}
                                             activeDot={{ r: 5 }}
                                             connectNulls
-                                        />
+                                        >
+                                            {displayType === "Candle" && metric === "cost_per_unit" && (
+                                                <ErrorBar
+                                                    dataKey={`${area.id}_rangeErr`}
+                                                    width={4}
+                                                    stroke={area.color}
+                                                    strokeWidth={1.5}
+                                                    direction="y"
+                                                    isAnimationActive={false}
+                                                />
+                                            )}
+                                        </Line>
                                     ))}
                                 </ComposedChart>
                             </ResponsiveContainer>
