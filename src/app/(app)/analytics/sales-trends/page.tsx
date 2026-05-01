@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Search, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
     type SalesTrendRowV2,
@@ -173,6 +174,52 @@ function formatMonthLabel(dateStr: string): string {
     });
 }
 
+const LISTINGS_PAGE_SIZE = 25;
+
+type CrexiBucketListingRow = {
+    id: number;
+    crexi_id: string | null;
+    property_name: string | null;
+    address_full: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    property_price_total: number | null;
+    num_units: number | null;
+    price_per_door: number | null;
+    sale_transaction_date: string | null;
+    sale_cap_rate_percent: number | null;
+    financials_cap_rate_percent: number | null;
+};
+
+function monthsPerSampleWindow(sampleComps: SampleComps): number {
+    const m: Record<SampleComps, number> = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12 };
+    return m[sampleComps];
+}
+
+function areaKindAndQuery(area: AreaSelection, areaType: AreaType): { areaKind: string; query: Record<string, string> } | null {
+    if (areaType === "Neighborhood" && area.neighborhoodId != null) {
+        return { areaKind: "neighborhood", query: { neighborhoodIds: String(area.neighborhoodId) } };
+    }
+    if (areaType === "MSA" && area.msaGeoid) {
+        return { areaKind: "msa", query: { geoid: area.msaGeoid } };
+    }
+    if (areaType === "County" && area.countyName && area.countyState) {
+        return { areaKind: "county", query: { countyName: area.countyName, state: area.countyState } };
+    }
+    if (areaType === "City" && area.cityName && area.cityState) {
+        return { areaKind: "city", query: { city: area.cityName, state: area.cityState } };
+    }
+    if (areaType === "ZIP Code") {
+        return { areaKind: "zip", query: { zip: area.id } };
+    }
+    return null;
+}
+
+function formatUsd0(n: number): string {
+    return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 function verticalScaleLabel(metric: Metric): string {
     if (metric === "cost_per_unit") return "$ (Cost/Unit)";
     if (metric === "grm") return "GRM (no unit)";
@@ -197,6 +244,15 @@ export default function SalesTrendsPage() {
     const [compareAreas, setCompareAreas] = useState<AreaSelection[]>([]);
     const [salesResults, setSalesResults] = useState<Record<string, SalesTrendRowV2[]>>({});
     const [loading, setLoading] = useState(false);
+
+    const [bucketListingsOpen, setBucketListingsOpen] = useState(false);
+    const [bucketModalAreaId, setBucketModalAreaId] = useState<string | null>(null);
+    const [bucketModalMonth, setBucketModalMonth] = useState<string | null>(null);
+    const [listingsPage, setListingsPage] = useState(0);
+    const [listingsTotal, setListingsTotal] = useState(0);
+    const [listingsRows, setListingsRows] = useState<CrexiBucketListingRow[]>([]);
+    const [listingsLoading, setListingsLoading] = useState(false);
+    const [listingsError, setListingsError] = useState<string | null>(null);
 
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
@@ -658,7 +714,60 @@ export default function SalesTrendsPage() {
         });
     }, [selectedAreas, compareAreas, unitRange]);
 
-    const allDisplayAreas = [...selectedAreas, ...compareAreas];
+    const allDisplayAreas = useMemo(() => [...selectedAreas, ...compareAreas], [selectedAreas, compareAreas]);
+
+    useEffect(() => {
+        if (!bucketListingsOpen || !bucketModalAreaId || !bucketModalMonth) return;
+
+        const area = allDisplayAreas.find((a) => a.id === bucketModalAreaId);
+        const aq = area && areaKindAndQuery(area, areaType);
+        if (!area || !aq) {
+            setListingsError("Could not load listings for this area.");
+            setListingsLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+        setListingsLoading(true);
+        setListingsError(null);
+
+        const u = new URL("/api/analytics/crexi-sales-bucket-listings", typeof window !== "undefined" ? window.location.origin : "http://localhost");
+        u.searchParams.set("areaKind", aq.areaKind);
+        u.searchParams.set("bucketStart", bucketModalMonth);
+        u.searchParams.set("monthsPerBucket", String(monthsPerSampleWindow(sampleComps)));
+        u.searchParams.set("offset", String(listingsPage * LISTINGS_PAGE_SIZE));
+        u.searchParams.set("limit", String(LISTINGS_PAGE_SIZE));
+        if (aq.query.zip) u.searchParams.set("zip", aq.query.zip);
+        if (aq.query.neighborhoodIds) u.searchParams.set("neighborhoodIds", aq.query.neighborhoodIds);
+        if (aq.query.geoid) u.searchParams.set("geoid", aq.query.geoid);
+        if (aq.query.countyName) u.searchParams.set("countyName", aq.query.countyName);
+        if (aq.query.state) u.searchParams.set("state", aq.query.state);
+        if (aq.query.city) u.searchParams.set("city", aq.query.city);
+        if (unitRange.p_min_units != null) u.searchParams.set("minUnits", String(unitRange.p_min_units));
+        if (unitRange.p_max_units != null) u.searchParams.set("maxUnits", String(unitRange.p_max_units));
+
+        fetch(u.toString(), { signal: controller.signal })
+            .then(async (res) => {
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : `HTTP ${res.status}`);
+                return body as { listings: CrexiBucketListingRow[]; total: number };
+            })
+            .then((body) => {
+                setListingsRows(body.listings ?? []);
+                setListingsTotal(body.total ?? 0);
+            })
+            .catch((err: unknown) => {
+                if (err instanceof Error && err.name === "AbortError") return;
+                setListingsError(err instanceof Error ? err.message : "Failed to load listings");
+                setListingsRows([]);
+                setListingsTotal(0);
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setListingsLoading(false);
+            });
+
+        return () => controller.abort();
+    }, [bucketListingsOpen, bucketModalAreaId, bucketModalMonth, listingsPage, areaType, sampleComps, unitRange, allDisplayAreas]);
     const showVolume = selectedAreas.length === 1 && compareAreas.length === 0;
 
     const chartData = useMemo(() => {
@@ -703,6 +812,29 @@ export default function SalesTrendsPage() {
     }, [salesResults, selectedAreas, compareAreas, period, sampleComps, metric, displayType, showVolume]);
 
     const hasData = chartData.length > 0;
+
+    const openBucketListings = useCallback((areaId: string, monthKey: string) => {
+        setBucketModalAreaId(areaId);
+        setBucketModalMonth(monthKey);
+        setListingsPage(0);
+        setBucketListingsOpen(true);
+    }, []);
+
+    const handleChartClick = useCallback(
+        (state: { activeLabel?: string | number; activeTooltipIndex?: number; activeDataKey?: string | number }) => {
+            const idx = state.activeTooltipIndex;
+            if (typeof idx !== "number" || idx < 0) return;
+            const pt = chartData[idx];
+            if (!pt || typeof pt.month !== "string") return;
+            const dk = state.activeDataKey;
+            if (dk === "volume" || dk === undefined) return;
+            if (typeof dk !== "string") return;
+            if (dk.endsWith("_rangeErr")) return;
+            if (pt[dk] === undefined) return;
+            openBucketListings(dk, pt.month);
+        },
+        [chartData, openBucketListings],
+    );
 
     const searchPlaceholder = getTrendsSearchPlaceholder(areaType, false);
 
@@ -1252,6 +1384,14 @@ export default function SalesTrendsPage() {
                             <ResponsiveContainer width="100%" height={340}>
                                 <ComposedChart
                                     data={chartData}
+                                    onClick={(state) =>
+                                        handleChartClick(
+                                            state as {
+                                                activeTooltipIndex?: number;
+                                                activeDataKey?: string | number;
+                                            },
+                                        )
+                                    }
                                     margin={{
                                         top: 5,
                                         right: showVolume ? 60 : 20,
@@ -1330,10 +1470,117 @@ export default function SalesTrendsPage() {
                                 {metric === "cost_per_unit" &&
                                     `${displayType === "Average" ? "Average" : displayType === "Candle" ? "P25–P75 range with median" : "Median"} closed-sale price per door from Crexi API comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                             </p>
+                            <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">Click a point on a series to open the comps for that period.</p>
                         </>
                     )}
                 </div>
             )}
+
+            <Dialog
+                open={bucketListingsOpen}
+                onOpenChange={(open) => {
+                    setBucketListingsOpen(open);
+                    if (!open) {
+                        setBucketModalAreaId(null);
+                        setBucketModalMonth(null);
+                        setListingsPage(0);
+                        setListingsRows([]);
+                        setListingsTotal(0);
+                        setListingsError(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[85vh] max-w-4xl overflow-hidden sm:max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Crexi comps — {bucketModalAreaId ? (allDisplayAreas.find((a) => a.id === bucketModalAreaId)?.label ?? bucketModalAreaId) : ""}
+                            {bucketModalMonth ? ` · ${formatMonthLabel(bucketModalMonth)}` : ""}{" "}
+                            <span className="font-normal text-gray-500">({sampleComps} window)</span>
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="flex max-h-[min(60vh,520px)] flex-col overflow-hidden">
+                        {listingsLoading && <p className="text-sm text-gray-500">Loading…</p>}
+                        {listingsError && <p className="text-sm text-red-600">{listingsError}</p>}
+                        {!listingsLoading && !listingsError && listingsRows.length === 0 && (
+                            <p className="text-sm text-gray-500">No comps in this bucket for the current filters.</p>
+                        )}
+                        {!listingsLoading && listingsRows.length > 0 && (
+                            <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900/80">
+                                        <tr>
+                                            <th className="px-3 py-2 font-medium text-gray-600 dark:text-gray-400">Sale date</th>
+                                            <th className="px-3 py-2 font-medium text-gray-600 dark:text-gray-400">Property</th>
+                                            <th className="px-3 py-2 text-right font-medium text-gray-600 dark:text-gray-400">Price</th>
+                                            <th className="px-3 py-2 text-right font-medium text-gray-600 dark:text-gray-400">Units</th>
+                                            <th className="px-3 py-2 text-right font-medium text-gray-600 dark:text-gray-400">$/door</th>
+                                            <th className="px-3 py-2 text-right font-medium text-gray-600 dark:text-gray-400">Cap</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                        {listingsRows.map((row) => {
+                                            const cap = row.sale_cap_rate_percent != null ? row.sale_cap_rate_percent : row.financials_cap_rate_percent;
+                                            return (
+                                                <tr key={row.id} className="bg-white dark:bg-gray-800">
+                                                    <td className="px-3 py-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
+                                                        {row.sale_transaction_date ? String(row.sale_transaction_date).slice(0, 10) : "—"}
+                                                    </td>
+                                                    <td className="max-w-[220px] px-3 py-2 text-gray-800 dark:text-gray-200">
+                                                        <span className="line-clamp-2">{row.property_name?.trim() || row.address_full?.trim() || "—"}</span>
+                                                        {(row.city || row.state) && (
+                                                            <span className="mt-0.5 block text-xs text-gray-500">
+                                                                {[row.city, row.state, row.zip].filter(Boolean).join(", ")}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                                        {row.property_price_total != null ? formatUsd0(row.property_price_total) : "—"}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                                        {row.num_units != null ? row.num_units.toLocaleString() : "—"}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                                        {row.price_per_door != null ? formatUsd0(row.price_per_door) : "—"}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                                        {cap != null ? `${Number(cap).toFixed(2)}%` : "—"}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        {listingsTotal > LISTINGS_PAGE_SIZE && (
+                            <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+                                <p className="text-xs text-gray-500">
+                                    {listingsTotal.toLocaleString()} total · page {listingsPage + 1} of{" "}
+                                    {Math.max(1, Math.ceil(listingsTotal / LISTINGS_PAGE_SIZE))}
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        disabled={listingsPage <= 0 || listingsLoading}
+                                        onClick={() => setListingsPage((p) => Math.max(0, p - 1))}
+                                        className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800"
+                                    >
+                                        Previous
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={listingsLoading || listingsPage >= Math.ceil(listingsTotal / LISTINGS_PAGE_SIZE) - 1}
+                                        onClick={() => setListingsPage((p) => p + 1)}
+                                        className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
