@@ -1213,7 +1213,7 @@ export default function SalesTrendsPage() {
                 <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
                     <div className="mb-4 flex items-center justify-between">
                         <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                            {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} — {displayType} · Closed Sales (Crexi)
+                            {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} — {displayType} · Closed Sales
                         </h2>
                         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                             <span>Vertical Scale: {verticalScaleLabel(metric)}</span>
