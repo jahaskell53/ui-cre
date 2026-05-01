@@ -28,20 +28,26 @@ jobs:
         id: dry-run
         run: |
           set +e
-          supabase db push --dry-run --linked > /tmp/dry-run-output.txt 2>&1
-          EXIT=$?
-
-          if [ $EXIT -ne 0 ] && grep -q "Remote migration versions not found" /tmp/dry-run-output.txt; then
-            # Extract versions Supabase tells us to repair and mark them as reverted
-            VERSIONS=$(grep -oP '(?<=migration repair --status reverted )\d+' /tmp/dry-run-output.txt)
-            for version in $VERSIONS; do
-              echo "Repairing orphaned remote migration: $version"
-              supabase migration repair --status reverted "$version" --linked
-            done
-            # Retry after repair
+          EXIT=1
+          while [ "$EXIT" -ne 0 ]; do
             supabase db push --dry-run --linked > /tmp/dry-run-output.txt 2>&1
             EXIT=$?
-          fi
+            if [ "$EXIT" -eq 0 ]; then
+              break
+            fi
+            if ! grep -q "Remote migration versions not found" /tmp/dry-run-output.txt; then
+              break
+            fi
+            REPAIR_LINE=$(grep 'migration repair --status reverted' /tmp/dry-run-output.txt | head -n1 || true)
+            VERSIONS=$(echo "$REPAIR_LINE" | sed 's/.*migration repair --status reverted //')
+            if [ -z "$VERSIONS" ]; then
+              break
+            fi
+            for version in $VERSIONS; do
+              echo "Repairing orphaned remote migration: $version"
+              supabase migration repair --status reverted "$version" --linked || exit $?
+            done
+          done
 
           echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
         env:

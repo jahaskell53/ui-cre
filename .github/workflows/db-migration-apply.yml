@@ -25,23 +25,29 @@ jobs:
       - name: Apply migrations to production (with auto-repair)
         run: |
           set +e
-          OUTPUT=$(supabase db push --linked 2>&1)
-          EXIT=$?
-          echo "$OUTPUT"
-
-          if [ $EXIT -ne 0 ] && echo "$OUTPUT" | grep -q "Remote migration versions not found"; then
-            VERSIONS=$(echo "$OUTPUT" | grep -oP '(?<=migration repair --status reverted )\d+')
+          while true; do
+            OUTPUT=$(supabase db push --linked 2>&1)
+            EXIT=$?
+            echo "$OUTPUT"
+            if [ $EXIT -eq 0 ]; then
+              break
+            fi
+            if ! echo "$OUTPUT" | grep -q "Remote migration versions not found"; then
+              exit $EXIT
+            fi
+            # Supabase lists all orphaned versions on one line after this prefix; a single
+            # \d+ lookbehind only matched the first ID (later IDs follow a space, not the prefix).
+            REPAIR_LINE=$(echo "$OUTPUT" | grep 'migration repair --status reverted' | head -n1 || true)
+            VERSIONS=$(echo "$REPAIR_LINE" | sed 's/.*migration repair --status reverted //')
+            if [ -z "$VERSIONS" ]; then
+              exit $EXIT
+            fi
             for version in $VERSIONS; do
               echo "Repairing orphaned remote migration: $version"
-              supabase migration repair --status reverted "$version" --linked
+              supabase migration repair --status reverted "$version" --linked || exit $?
             done
-            # Retry after repair
-            set -e
-            supabase db push --linked
-          else
-            set -e
-            [ $EXIT -eq 0 ] || exit $EXIT
-          fi
+          done
+          set -e
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
