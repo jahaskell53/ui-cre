@@ -1664,6 +1664,7 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     gross_rent_annual: doublePrecision("gross_rent_annual"),
     raw_json: jsonb("raw_json"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
+    excludeFromSalesTrends: boolean("exclude_from_sales_trends").notNull().default(false),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
