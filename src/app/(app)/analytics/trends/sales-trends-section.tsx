@@ -147,7 +147,7 @@ export function SalesTrendsSection({
                 <div className="flex items-center gap-2">
                     <h2 className="font-semibold text-gray-900 dark:text-gray-100">
                         {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} —{" "}
-                        {salesSource === "crexi" ? "Closed Sales (Crexi)" : "For-Sale Listings (LoopNet)"}
+                        {salesSource === "crexi" ? "Closed Sales" : "For-Sale Listings (LoopNet)"}
                     </h2>
                     {onlyOnePoint && (
                         <span className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-400 dark:border-gray-600 dark:bg-gray-700">

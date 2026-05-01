@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     type SalesTrendRowV2,
     getCrexiSalesTrendsByCityV2,
@@ -49,6 +50,7 @@ const UNIT_PRESETS: { value: UnitFilter; label: string }[] = [
     { value: "11-25", label: "11–25" },
     { value: "26-50", label: "26–50" },
     { value: "51+", label: "51+" },
+    { value: "custom", label: "Custom" },
 ];
 
 const RENT_BASIS_OPTIONS: RentBasis[] = ["Current", "Stabilized", "Market"];
@@ -848,24 +850,6 @@ export default function SalesTrendsPage() {
 
     const searchPlaceholder = getTrendsSearchPlaceholder(areaType, false);
 
-    const pillToggle = (label: string, active: boolean, onClick: () => void, disabled?: boolean) => (
-        <button
-            key={label}
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className={`rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors ${
-                active
-                    ? "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-gray-100"
-                    : disabled
-                      ? "cursor-not-allowed text-gray-300 dark:text-gray-600"
-                      : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
-            }`}
-        >
-            {label}
-        </button>
-    );
-
     const CustomTooltip = ({
         active,
         payload,
@@ -904,62 +888,97 @@ export default function SalesTrendsPage() {
                 {/* Row 1: Area type */}
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Area</span>
-                    <div className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                        {AREA_TYPES.map((t) =>
-                            pillToggle(t, areaType === t, () => {
-                                setAreaType(t);
-                                setSelectedAreas([]);
-                                setCompareAreas([]);
-                                setAddress("");
-                                setSuggestions([]);
-                                setNhSuggestions([]);
-                                setMsaSuggestions([]);
-                            }),
-                        )}
-                    </div>
+                    <Select
+                        value={areaType}
+                        onValueChange={(v) => {
+                            const t = v as AreaType;
+                            setAreaType(t);
+                            setSelectedAreas([]);
+                            setCompareAreas([]);
+                            setAddress("");
+                            setSuggestions([]);
+                            setNhSuggestions([]);
+                            setMsaSuggestions([]);
+                        }}
+                    >
+                        <SelectTrigger size="sm" className="min-w-[10rem]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {AREA_TYPES.map((t) => (
+                                <SelectItem key={t} value={t}>
+                                    {t}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* Row 2: Period */}
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Period</span>
-                    <div className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                        {PERIOD_OPTIONS.map((p) => pillToggle(p, period === p, () => setPeriod(p)))}
-                    </div>
+                    <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+                        <SelectTrigger size="sm" className="min-w-[6rem]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {PERIOD_OPTIONS.map((p) => (
+                                <SelectItem key={p} value={p}>
+                                    {p}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* Row 3: Sample Comps */}
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Sample Comps</span>
-                    <div className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                        {SAMPLE_COMPS_OPTIONS.map((s) => pillToggle(s, sampleComps === s, () => setSampleComps(s)))}
-                    </div>
+                    <Select value={sampleComps} onValueChange={(v) => setSampleComps(v as SampleComps)}>
+                        <SelectTrigger size="sm" className="min-w-[6rem]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {SAMPLE_COMPS_OPTIONS.map((s) => (
+                                <SelectItem key={s} value={s}>
+                                    {s}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* Row 4: Sales Price display + Metric */}
                 <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
                     <div className="flex items-center gap-2">
                         <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Sales Price</span>
-                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                            {DISPLAY_OPTIONS.map((d) => pillToggle(d.label, displayType === d.value, () => setDisplayType(d.value)))}
-                        </div>
+                        <Select value={displayType} onValueChange={(v) => setDisplayType(v as DisplayType)}>
+                            <SelectTrigger size="sm" className="min-w-[8rem]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {DISPLAY_OPTIONS.map((d) => (
+                                    <SelectItem key={d.value} value={d.value}>
+                                        {d.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="shrink-0 text-sm text-gray-500 dark:text-gray-400">Display</span>
-                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                            {METRIC_OPTIONS.map((m) =>
-                                m.disabled ? (
-                                    <span
-                                        key={m.label}
-                                        className="relative cursor-not-allowed rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap text-gray-300 dark:text-gray-600"
-                                        title="Coming soon — requires gross_rent_annual data"
-                                    >
+                        <Select value={metric} onValueChange={(v) => setMetric(v as Metric)}>
+                            <SelectTrigger size="sm" className="min-w-[8rem]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {METRIC_OPTIONS.map((m) => (
+                                    <SelectItem key={m.value} value={m.value} disabled={m.disabled}>
                                         {m.label}
-                                    </span>
-                                ) : (
-                                    pillToggle(m.label, metric === m.value, () => setMetric(m.value))
-                                ),
-                            )}
-                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 
@@ -1121,17 +1140,31 @@ export default function SalesTrendsPage() {
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400"># of Units</span>
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                            {UNIT_PRESETS.map((u) =>
-                                pillToggle(u.label, unitFilter === u.value, () => {
-                                    setUnitFilter(u.value);
-                                    if (u.value === "All") {
-                                        setUnitMin("");
-                                        setUnitMax("");
-                                    }
-                                }),
-                            )}
-                        </div>
+                        <Select
+                            value={unitFilter}
+                            onValueChange={(v) => {
+                                const next = v as UnitFilter;
+                                setUnitFilter(next);
+                                if (next === "All") {
+                                    setUnitMin("");
+                                    setUnitMax("");
+                                } else if (next !== "custom") {
+                                    setUnitMin("");
+                                    setUnitMax("");
+                                }
+                            }}
+                        >
+                            <SelectTrigger size="sm" className="min-w-[8rem]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {UNIT_PRESETS.map((u) => (
+                                    <SelectItem key={u.value} value={u.value}>
+                                        {u.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <div className="flex items-center gap-2 text-sm">
                             <span className="text-gray-400 dark:text-gray-500">Min</span>
                             <input
@@ -1324,9 +1357,18 @@ export default function SalesTrendsPage() {
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                     <span className="shrink-0 text-sm text-gray-500 sm:w-24 dark:text-gray-400">Rent Basis</span>
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 text-sm dark:bg-gray-700">
-                            {RENT_BASIS_OPTIONS.map((r) => pillToggle(r, rentBasis === r, () => setRentBasis(r)))}
-                        </div>
+                        <Select value={rentBasis} onValueChange={(v) => setRentBasis(v as RentBasis)}>
+                            <SelectTrigger size="sm" className="min-w-[10rem]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {RENT_BASIS_OPTIONS.map((r) => (
+                                    <SelectItem key={r} value={r}>
+                                        {r}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-600 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                             Coming soon
                         </span>
@@ -1355,7 +1397,7 @@ export default function SalesTrendsPage() {
                 <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
                     <div className="mb-4 flex items-center justify-between">
                         <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                            {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} — {displayType} · Closed Sales (Crexi)
+                            {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} — {displayType} · Closed Sales
                         </h2>
                         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                             <span>Vertical Scale: {verticalScaleLabel(metric)}</span>
