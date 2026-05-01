@@ -17,7 +17,7 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 
 ### Supabase MCP and CLI point at production
 
-In **Cursor Cloud Agent** VMs, **Supabase MCP** and **Supabase CLI** both target the **production** hosted Supabase project (the live application database), not local Docker and not an isolated scratch database. Queries, `execute_sql`, `apply_migration`, `supabase db push`, and similar operations run against **real production data**. Use read-only inspection when that is enough; avoid ad hoc writes or schema changes outside the version-controlled Drizzle migration workflow.
+In **Cursor Cloud Agent** VMs, **Supabase MCP** and **Supabase CLI** both target the **production** hosted Supabase project (the live application database), not local Docker and not an isolated scratch database. Queries, `execute_sql`, `apply_migration`, `supabase db push`, and similar operations run against **real production data**.
 
 ### Schema change workflow
 
