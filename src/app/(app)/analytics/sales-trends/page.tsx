@@ -50,12 +50,6 @@ const UNIT_PRESETS: { value: UnitFilter; label: string }[] = [
     { value: "51+", label: "51+" },
 ];
 
-const UNIT_FILTER_VALUES: UnitFilter[] = ["All", "2-4", "5-10", "11-25", "26-50", "51+", "custom"];
-
-function unitFilterFromSearchParam(raw: string | null): UnitFilter {
-    if (raw == null || raw === "") return "All";
-    return UNIT_FILTER_VALUES.includes(raw as UnitFilter) ? (raw as UnitFilter) : "All";
-}
 const RENT_BASIS_OPTIONS: RentBasis[] = ["Current", "Stabilized", "Market"];
 
 interface MapboxFeature {
@@ -194,7 +188,7 @@ export default function SalesTrendsPage() {
     const [sampleComps, setSampleComps] = useState<SampleComps>((searchParams.get("sampleComps") as SampleComps) ?? "3M");
     const [displayType, setDisplayType] = useState<DisplayType>((searchParams.get("display") as DisplayType) ?? "Median");
     const [metric, setMetric] = useState<Metric>((searchParams.get("metric") as Metric) ?? "cost_per_unit");
-    const [unitFilter, setUnitFilter] = useState<UnitFilter>(() => unitFilterFromSearchParam(searchParams.get("units")));
+    const [unitFilter, setUnitFilter] = useState<UnitFilter>((searchParams.get("units") as UnitFilter) ?? "All");
     const [unitMin, setUnitMin] = useState(searchParams.get("unitMin") ?? "");
     const [unitMax, setUnitMax] = useState(searchParams.get("unitMax") ?? "");
     const [rentBasis, setRentBasis] = useState<RentBasis>((searchParams.get("rentBasis") as RentBasis) ?? "Current");
