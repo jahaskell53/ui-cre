@@ -1594,6 +1594,13 @@ export const crexiActiveListings = pgTable("crexi_active_listings", {
 export const crexiApiComps = pgTable("crexi_api_comps", {
     id: bigserial("id", { mode: "number" }).primaryKey(),
     crexi_id: text("crexi_id").unique(),
+    /** Best-effort Crexi record URL derived from `crexi_id` (Postgres generated column). */
+    crexi_url: text("crexi_url").generatedAlwaysAs(
+        sql`CASE
+            WHEN crexi_id IS NOT NULL AND btrim(crexi_id) <> '' THEN
+                'https://www.crexi.com/property-records/' || btrim(crexi_id)
+        END`,
+    ),
     property_name: text("property_name"),
     document_type: text("document_type"),
     address_full: text("address_full"),
