@@ -54,7 +54,6 @@ const UNIT_FILTER_VALUES: UnitFilter[] = ["All", "2-4", "5-10", "11-25", "26-50"
 
 function unitFilterFromSearchParam(raw: string | null): UnitFilter {
     if (raw == null || raw === "") return "All";
-    if (raw === "50+") return "51+";
     return UNIT_FILTER_VALUES.includes(raw as UnitFilter) ? (raw as UnitFilter) : "All";
 }
 const RENT_BASIS_OPTIONS: RentBasis[] = ["Current", "Stabilized", "Market"];
