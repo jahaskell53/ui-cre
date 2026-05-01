@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Search, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, type BarShapeProps, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Input } from "@/components/ui/input";
 import {
     type SalesTrendRowV2,
@@ -115,6 +115,8 @@ function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleCom
             const avgs = group.map((r) => r.avg_price).filter((p) => p != null);
             const p25s = group.map((r) => r.p25_price).filter((p) => p != null);
             const p75s = group.map((r) => r.p75_price).filter((p) => p != null);
+            const mins = group.map((r) => r.min_price).filter((p) => p != null);
+            const maxs = group.map((r) => r.max_price).filter((p) => p != null);
             const caps = group.map((r) => r.avg_cap_rate).filter((c) => c != null) as number[];
             const median = (arr: number[]) => {
                 const s = [...arr].sort((a, b) => a - b);
@@ -128,6 +130,8 @@ function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleCom
                 avg_price: avgs.length > 0 ? avg(avgs) : 0,
                 p25_price: p25s.length > 0 ? median(p25s) : 0,
                 p75_price: p75s.length > 0 ? median(p75s) : 0,
+                min_price: mins.length > 0 ? Math.min(...mins) : 0,
+                max_price: maxs.length > 0 ? Math.max(...maxs) : 0,
                 avg_cap_rate: caps.length > 0 ? avg(caps) : null,
                 listing_count: group.reduce((s, r) => s + r.listing_count, 0),
             };
@@ -176,6 +180,21 @@ function verticalScaleLabel(metric: Metric): string {
     if (metric === "cost_per_unit") return "$ (Cost/Unit)";
     if (metric === "grm") return "GRM (no unit)";
     return "% (Cap Rate)";
+}
+
+/** Vertical min–max “whisker” for Recharts range Bar ([low, high] on Y). */
+function minMaxRangeBarShape(props: BarShapeProps) {
+    const v = props.value;
+    const low = Array.isArray(v) ? v[0] : null;
+    const high = Array.isArray(v) ? v[1] : null;
+    if (low == null || high == null || typeof low !== "number" || typeof high !== "number") return null;
+    const cx = props.x + props.width / 2;
+    const stroke = typeof props.fill === "string" ? props.fill : "#6b7280";
+    const yTop = props.y;
+    const yBottom = props.y + props.height;
+    const cap = Math.min(5, Math.max(2, props.width * 0.4));
+    const d = `M${cx},${yTop}L${cx},${yBottom}M${cx - cap},${yTop}L${cx + cap},${yTop}M${cx - cap},${yBottom}L${cx + cap},${yBottom}`;
+    return <path d={d} fill="none" stroke={stroke} strokeWidth={1.5} strokeLinecap="square" opacity={0.9} />;
 }
 
 export default function SalesTrendsPage() {
@@ -684,8 +703,8 @@ export default function SalesTrendsPage() {
                     if (row) {
                         const val = metricValue(row, metric, displayType);
                         if (val != null) point[area.id] = val;
-                        if (displayType === "Candle" && metric === "cost_per_unit" && row.p25_price && row.p75_price) {
-                            point[`${area.id}_candle`] = [row.p25_price, row.p75_price];
+                        if (displayType === "Candle" && metric === "cost_per_unit" && row.min_price != null && row.max_price != null) {
+                            point[`${area.id}_candle`] = [row.min_price, row.max_price];
                         }
                         if (showVolume) point.volume = row.listing_count;
                     }
@@ -726,7 +745,7 @@ export default function SalesTrendsPage() {
             dataKey: string;
             name: string;
             color: string;
-            value: number;
+            value: number | [number, number];
         }>;
         label?: string;
     }) => {
@@ -739,7 +758,13 @@ export default function SalesTrendsPage() {
                         <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
                         <span className="text-gray-600 dark:text-gray-400">{entry.name}:</span>
                         <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {entry.dataKey === "volume" ? entry.value.toLocaleString() : formatMetricValue(entry.value, metric)}
+                            {entry.dataKey === "volume"
+                                ? typeof entry.value === "number"
+                                    ? entry.value.toLocaleString()
+                                    : "—"
+                                : Array.isArray(entry.value)
+                                  ? `${formatMetricValue(entry.value[0], metric)} – ${formatMetricValue(entry.value[1], metric)}`
+                                  : formatMetricValue(entry.value, metric)}
                         </span>
                     </div>
                 ))}
@@ -1295,10 +1320,10 @@ export default function SalesTrendsPage() {
                                                 key={`${area.id}_candle`}
                                                 yAxisId="left"
                                                 dataKey={`${area.id}_candle`}
-                                                name={`${area.label} (P25–P75)`}
+                                                name={`${area.label} (min–max)`}
                                                 fill={area.color}
-                                                opacity={0.2}
-                                                barSize={12}
+                                                shape={minMaxRangeBarShape}
+                                                barSize={10}
                                             />
                                         ))}
                                     {allDisplayAreas.map((area) => (
@@ -1322,7 +1347,7 @@ export default function SalesTrendsPage() {
                                 {metric === "cap_rate" &&
                                     `Average cap rate from Crexi closed sales comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                                 {metric === "cost_per_unit" &&
-                                    `${displayType === "Average" ? "Average" : displayType === "Candle" ? "P25–P75 range with median" : "Median"} closed-sale price per door from Crexi API comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
+                                    `${displayType === "Average" ? "Average" : displayType === "Candle" ? "Observed min–max range with median" : "Median"} closed-sale price per door from Crexi API comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                             </p>
                         </>
                     )}

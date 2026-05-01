@@ -66,6 +66,8 @@ export interface SalesTrendRowV2 extends SalesTrendRow {
     avg_price: number;
     p25_price: number;
     p75_price: number;
+    min_price: number;
+    max_price: number;
 }
 
 interface UnitFilterParams {
