@@ -25,7 +25,7 @@ type Period = "3M" | "6M" | "9M" | "1Y" | "2Y" | "5Y" | "10Y" | "Max";
 type SampleComps = "1M" | "3M" | "6M" | "1Y";
 type DisplayType = "Average" | "Candle" | "Median";
 type Metric = "cap_rate" | "cost_per_unit" | "grm";
-type UnitFilter = "All" | "2-4" | "5-10" | "11-25" | "26-50" | "50+" | "custom";
+type UnitFilter = "All" | "2-4" | "5-10" | "11-25" | "26-50" | "51+" | "custom";
 type RentBasis = "Current" | "Stabilized" | "Market";
 
 const AREA_TYPES: AreaType[] = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
@@ -47,8 +47,9 @@ const UNIT_PRESETS: { value: UnitFilter; label: string }[] = [
     { value: "5-10", label: "5–10" },
     { value: "11-25", label: "11–25" },
     { value: "26-50", label: "26–50" },
-    { value: "50+", label: "50+" },
+    { value: "51+", label: "51+" },
 ];
+
 const RENT_BASIS_OPTIONS: RentBasis[] = ["Current", "Stabilized", "Market"];
 
 interface MapboxFeature {
@@ -595,7 +596,7 @@ export default function SalesTrendsPage() {
             "5-10": { min: 5, max: 10 },
             "11-25": { min: 11, max: 25 },
             "26-50": { min: 26, max: 50 },
-            "50+": { min: 51 },
+            "51+": { min: 51 },
         };
         if (unitFilter === "All") return {};
         if (unitFilter === "custom") {
