@@ -15,6 +15,10 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 - Environment variables are injected automatically in Cursor Cloud Agent VMs. For local development, copy `.env.example` to `.env.local` and fill in values.
 - **ORM convention**: Server-side data access uses `db` from `src/db/index.ts` (Drizzle ORM). The `supabase` server client (`createClient` from `src/utils/supabase/server.ts`) is for auth (`getUser`), realtime, and storage only. On the client side, the Supabase browser client (`@/utils/supabase`) is used for auth operations only (`signOut`, `getSession`, `onAuthStateChange`, `signUp`, `signInWithPassword`). All data queries from client components go through Next.js API routes, which use Drizzle on the server side.
 
+### Supabase MCP and CLI point at production
+
+In **Cursor Cloud Agent** VMs, **Supabase MCP** and **Supabase CLI** both target the **production** hosted Supabase project (the live application database), not local Docker and not an isolated scratch database. Queries, `execute_sql`, `apply_migration`, `supabase db push`, and similar operations run against **real production data**. Use read-only inspection when that is enough; avoid ad hoc writes or schema changes outside the version-controlled Drizzle migration workflow.
+
 ### Schema change workflow
 
 1. Edit `src/db/schema.ts` — this is the single source of truth for all table definitions.
@@ -26,7 +30,7 @@ This is a single Next.js 16 application (not a monorepo) for commercial real est
 
 **Pre-merge testing when the PR needs the migration first**: Production and the default CI path only apply migrations after merge to `main`. If you need the new schema applied to a database *before* merge (for example manual QA or integration tests against a hosted project while the PR is open), still follow the same Drizzle workflow—edit `src/db/schema.ts`, run `drizzle-kit generate` so the SQL file exists under `supabase/migrations/`, review and commit it—then apply pending migrations to the environment you are testing against using the Supabase CLI (for example `supabase db push` against a linked dev or staging project). That keeps the migration version-controlled; only the timing of *apply* on the test database is ahead of merge.
 
-**Do not apply schema changes via the Supabase MCP or the Supabase dashboard SQL editor.** All schema changes must go through the Drizzle → migration file → CI pipeline path described above so they remain version-controlled and reproducible.
+**Do not apply schema changes via the Supabase MCP or the Supabase dashboard SQL editor.** MCP and CLI in this environment hit **production** (see above). All schema changes must go through the Drizzle → migration file → CI pipeline path described above so they remain version-controlled and reproducible.
 
 ### Backward compatibility rule
 
