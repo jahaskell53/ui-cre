@@ -145,6 +145,7 @@ export function SalesTrendsMap({ areaType, salesSource, selectedAreas, onAddZip,
             .catch(() => {
                 if (cancelled) return;
                 setLoading(false);
+                setData([]);
             });
         return () => {
             cancelled = true;

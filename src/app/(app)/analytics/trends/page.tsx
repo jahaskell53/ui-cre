@@ -297,6 +297,7 @@ export default function TrendsPage() {
             setAreaResults({});
             return;
         }
+        let cancelled = false;
         setLoading(true);
 
         const fetchTrends = (area: AreaSelection, beds: number, reitsOnly: boolean) => {
@@ -369,6 +370,7 @@ export default function TrendsPage() {
                 }),
             ),
         ).then((results) => {
+            if (cancelled) return;
             setLoading(false);
             const next: Record<string, AreaResult> = {};
             for (const r of results) {
@@ -376,6 +378,9 @@ export default function TrendsPage() {
             }
             setAreaResults(next);
         });
+        return () => {
+            cancelled = true;
+        };
     }, [selectedAreas, selectedBeds, selectedSegment]);
 
     // Fetch sales data when areas or property type change
@@ -384,6 +389,7 @@ export default function TrendsPage() {
             setSalesResults({});
             return;
         }
+        let cancelled = false;
         setSalesLoading(true);
 
         const fetchSales = (area: AreaSelection): Promise<SalesTrendRow[]> => {
@@ -418,11 +424,15 @@ export default function TrendsPage() {
         };
 
         Promise.all(selectedAreas.map((area) => fetchSales(area).then((rows) => ({ id: area.id, rows })))).then((results) => {
+            if (cancelled) return;
             setSalesLoading(false);
             const next: Record<string, SalesTrendRow[]> = {};
             for (const r of results) next[r.id] = r.rows;
             setSalesResults(next);
         });
+        return () => {
+            cancelled = true;
+        };
     }, [selectedAreas, salesSource]);
 
     const selectSuggestion = (feature: MapboxFeature) => {

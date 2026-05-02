@@ -622,6 +622,7 @@ export default function SalesTrendsPage() {
             setSalesResults({});
             return;
         }
+        let cancelled = false;
         setLoading(true);
 
         const fetchSales = (area: AreaSelection): Promise<SalesTrendRowV2[]> => {
@@ -653,11 +654,15 @@ export default function SalesTrendsPage() {
         };
 
         Promise.all(allAreas.map((area) => fetchSales(area).then((rows) => ({ id: area.id, rows })))).then((results) => {
+            if (cancelled) return;
             setLoading(false);
             const next: Record<string, SalesTrendRowV2[]> = {};
             for (const r of results) next[r.id] = r.rows;
             setSalesResults(next);
         });
+        return () => {
+            cancelled = true;
+        };
     }, [selectedAreas, compareAreas, unitRange]);
 
     const allDisplayAreas = [...selectedAreas, ...compareAreas];
