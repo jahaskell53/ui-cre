@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, MapPin, Search, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, type MouseHandlerDataParam, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -232,6 +232,49 @@ function geoScopeForRpc(area: AreaSelection): Record<string, string | number[] |
     if (area.countyName != null && area.countyState != null) return { p_county_name: area.countyName, p_county_state: area.countyState };
     if (area.msaGeoid != null) return { p_msa_geoid: area.msaGeoid };
     return { p_zip: area.id };
+}
+
+/** Recharts 3 passes MouseHandlerDataParam (no activePayload); resolve datum + clicked series from tooltip state. */
+function resolveSalesTrendChartClick(
+    nextState: MouseHandlerDataParam,
+    chartData: Array<Record<string, string | number | [number, number]>>,
+    allDisplayAreas: AreaSelection[],
+    selectedAreas: AreaSelection[],
+    showVolume: boolean,
+): { area: AreaSelection; month: string } | null {
+    const idxRaw = nextState.activeTooltipIndex ?? nextState.activeIndex;
+    let datum: Record<string, string | number | [number, number]> | undefined;
+
+    if (typeof idxRaw === "number" && chartData[idxRaw]) {
+        datum = chartData[idxRaw];
+    } else if (typeof idxRaw === "string" && idxRaw !== "") {
+        const n = Number(idxRaw);
+        if (!Number.isNaN(n) && chartData[n]) datum = chartData[n];
+    }
+    if (!datum && nextState.activeLabel != null) {
+        const labelStr = String(nextState.activeLabel);
+        datum = chartData.find((p) => String(p.monthLabel) === labelStr);
+    }
+    const month = datum?.month;
+    if (typeof month !== "string") return null;
+
+    const dk = nextState.activeDataKey;
+    const dkStr = dk != null ? String(dk) : "";
+
+    if (dkStr === "volume" || dkStr === "") {
+        if (showVolume) {
+            const area = selectedAreas[0] ?? allDisplayAreas[0];
+            if (area) return { area, month };
+        }
+        if (allDisplayAreas.length === 1) {
+            return { area: allDisplayAreas[0], month };
+        }
+        return null;
+    }
+
+    const area = allDisplayAreas.find((a) => a.id === dkStr);
+    if (!area) return null;
+    return { area, month };
 }
 
 export default function SalesTrendsPage() {
@@ -1417,24 +1460,9 @@ export default function SalesTrendsPage() {
                                         left: 10,
                                         bottom: 5,
                                     }}
-                                    onClick={(state: unknown) => {
-                                        const s = state as {
-                                            activePayload?: Array<{ dataKey?: string | number; payload?: { month?: string } }>;
-                                        };
-                                        const payload = s?.activePayload?.[0]?.payload;
-                                        const month = payload?.month;
-                                        if (!month) return;
-                                        const lines = (s.activePayload ?? []).filter((p) => p.dataKey != null && String(p.dataKey) !== "volume");
-                                        let area: AreaSelection | undefined;
-                                        if (lines.length > 0) {
-                                            const dk = String(lines[0].dataKey);
-                                            area = allDisplayAreas.find((a) => a.id === dk);
-                                        } else if (showVolume) {
-                                            area = selectedAreas[0] ?? allDisplayAreas[0];
-                                        } else if (allDisplayAreas.length === 1) {
-                                            area = allDisplayAreas[0];
-                                        }
-                                        if (area) handleChartPointClick(area, month);
+                                    onClick={(nextState: MouseHandlerDataParam) => {
+                                        const resolved = resolveSalesTrendChartClick(nextState, chartData, allDisplayAreas, selectedAreas, showVolume);
+                                        if (resolved) handleChartPointClick(resolved.area, resolved.month);
                                     }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
