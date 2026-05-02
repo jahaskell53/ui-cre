@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapPin, Search, TrendingUp, X } from "lucide-react";
+import { ExternalLink, MapPin, Search, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -20,6 +21,23 @@ import { MAX_TREND_AREAS, getTrendsSearchPlaceholder, parseSerializedAreas, seri
 import { AREA_COLORS, type AreaSelection } from "../trends/trends-utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
+
+const LISTINGS_PAGE_SIZE = 25;
+
+interface CrexiSalesCompRow {
+    id: number;
+    crexi_url: string | null;
+    property_name: string | null;
+    address_full: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    sale_transaction_date: string | null;
+    property_price_total: number | null;
+    num_units: number | null;
+    price_per_door: number | null;
+    cap_rate_percent: number | null;
+}
 
 type AreaType = "Neighborhood" | "ZIP Code" | "City" | "County" | "MSA";
 type Period = "3M" | "6M" | "9M" | "1Y" | "2Y" | "5Y" | "10Y" | "Max";
@@ -181,6 +199,41 @@ function verticalScaleLabel(metric: Metric): string {
     return "% (Cap Rate)";
 }
 
+function sampleCompsToMonths(sampleComps: SampleComps): number {
+    const monthsPerWindow: Record<SampleComps, number> = {
+        "1M": 1,
+        "3M": 3,
+        "6M": 6,
+        "1Y": 12,
+    };
+    return monthsPerWindow[sampleComps];
+}
+
+/** Earliest sale_transaction_date included after applying period filter (matches chart data scope). */
+function periodCutoffDate(period: Period): string | null {
+    if (period === "Max") return null;
+    const months: Record<Exclude<Period, "Max">, number> = {
+        "3M": 3,
+        "6M": 6,
+        "9M": 9,
+        "1Y": 12,
+        "2Y": 24,
+        "5Y": 60,
+        "10Y": 120,
+    };
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - months[period as Exclude<Period, "Max">]);
+    return cutoff.toISOString().slice(0, 10);
+}
+
+function geoScopeForRpc(area: AreaSelection): Record<string, string | number[] | null | undefined> {
+    if (area.neighborhoodId != null) return { p_neighborhood_ids: [area.neighborhoodId] };
+    if (area.cityName != null && area.cityState != null) return { p_city: area.cityName, p_state: area.cityState };
+    if (area.countyName != null && area.countyState != null) return { p_county_name: area.countyName, p_county_state: area.countyState };
+    if (area.msaGeoid != null) return { p_msa_geoid: area.msaGeoid };
+    return { p_zip: area.id };
+}
+
 export default function SalesTrendsPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -199,6 +252,15 @@ export default function SalesTrendsPage() {
     const [compareAreas, setCompareAreas] = useState<AreaSelection[]>([]);
     const [salesResults, setSalesResults] = useState<Record<string, SalesTrendRowV2[]>>({});
     const [loading, setLoading] = useState(false);
+
+    const [listingModalOpen, setListingModalOpen] = useState(false);
+    const [listingModalArea, setListingModalArea] = useState<AreaSelection | null>(null);
+    const [listingBucketMonth, setListingBucketMonth] = useState<string | null>(null);
+    const [listingRows, setListingRows] = useState<CrexiSalesCompRow[]>([]);
+    const [listingTotal, setListingTotal] = useState(0);
+    const [listingOffset, setListingOffset] = useState(0);
+    const [listingLoading, setListingLoading] = useState(false);
+    const [listingError, setListingError] = useState<string | null>(null);
 
     const [address, setAddress] = useState("");
     const [suggestions, setSuggestions] = useState<MapboxFeature[]>([]);
@@ -614,6 +676,61 @@ export default function SalesTrendsPage() {
         if (preset.max) result.p_max_units = preset.max;
         return result;
     }, [unitFilter, unitMin, unitMax]);
+
+    const fetchListingsPage = useCallback(
+        async (area: AreaSelection, bucketMonth: string, offset: number) => {
+            setListingLoading(true);
+            setListingError(null);
+            try {
+                const scope = geoScopeForRpc(area);
+                const res = await fetch("/api/analytics/crexi-sales-comps", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        bucket_month_start: bucketMonth,
+                        sample_window_months: sampleCompsToMonths(sampleComps),
+                        period_cutoff: periodCutoffDate(period),
+                        ...scope,
+                        ...unitRange,
+                        limit: LISTINGS_PAGE_SIZE,
+                        offset,
+                    }),
+                });
+                const data = (await res.json()) as { error?: string; rows?: CrexiSalesCompRow[]; total?: number };
+                if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+                setListingRows(data.rows ?? []);
+                setListingTotal(typeof data.total === "number" ? data.total : 0);
+            } catch (e) {
+                setListingError(e instanceof Error ? e.message : "Failed to load listings");
+                setListingRows([]);
+                setListingTotal(0);
+            } finally {
+                setListingLoading(false);
+            }
+        },
+        [period, sampleComps, unitRange],
+    );
+
+    const handleChartPointClick = useCallback(
+        (area: AreaSelection, bucketMonth: string) => {
+            setListingModalArea(area);
+            setListingBucketMonth(bucketMonth);
+            setListingModalOpen(true);
+            setListingOffset(0);
+            setListingError(null);
+            void fetchListingsPage(area, bucketMonth, 0);
+        },
+        [fetchListingsPage],
+    );
+
+    const handleListingPageChange = useCallback(
+        (nextOffset: number) => {
+            if (!listingModalArea || !listingBucketMonth) return;
+            setListingOffset(nextOffset);
+            void fetchListingsPage(listingModalArea, listingBucketMonth, nextOffset);
+        },
+        [listingModalArea, listingBucketMonth, fetchListingsPage],
+    );
 
     // Fetch sales data
     useEffect(() => {
@@ -1300,6 +1417,25 @@ export default function SalesTrendsPage() {
                                         left: 10,
                                         bottom: 5,
                                     }}
+                                    onClick={(state: unknown) => {
+                                        const s = state as {
+                                            activePayload?: Array<{ dataKey?: string | number; payload?: { month?: string } }>;
+                                        };
+                                        const payload = s?.activePayload?.[0]?.payload;
+                                        const month = payload?.month;
+                                        if (!month) return;
+                                        const lines = (s.activePayload ?? []).filter((p) => p.dataKey != null && String(p.dataKey) !== "volume");
+                                        let area: AreaSelection | undefined;
+                                        if (lines.length > 0) {
+                                            const dk = String(lines[0].dataKey);
+                                            area = allDisplayAreas.find((a) => a.id === dk);
+                                        } else if (showVolume) {
+                                            area = selectedAreas[0] ?? allDisplayAreas[0];
+                                        } else if (allDisplayAreas.length === 1) {
+                                            area = allDisplayAreas[0];
+                                        }
+                                        if (area) handleChartPointClick(area, month);
+                                    }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                                     <XAxis
@@ -1337,7 +1473,9 @@ export default function SalesTrendsPage() {
                                         />
                                     )}
                                     <Tooltip content={<CustomTooltip />} />
-                                    {showVolume && <Bar yAxisId="right" dataKey="volume" name="Volume" fill="#d1d5db" opacity={0.5} barSize={20} />}
+                                    {showVolume && (
+                                        <Bar yAxisId="right" dataKey="volume" name="Volume" fill="#d1d5db" opacity={0.5} barSize={20} cursor="pointer" />
+                                    )}
                                     {allDisplayAreas.map((area) => (
                                         <Line
                                             key={area.id}
@@ -1347,8 +1485,8 @@ export default function SalesTrendsPage() {
                                             name={area.label}
                                             stroke={area.color}
                                             strokeWidth={2}
-                                            dot={{ r: 3 }}
-                                            activeDot={{ r: 5 }}
+                                            dot={{ r: 3, cursor: "pointer" }}
+                                            activeDot={{ r: 5, cursor: "pointer" }}
                                             connectNulls
                                         >
                                             {displayType === "Candle" && metric === "cost_per_unit" && (
@@ -1367,6 +1505,7 @@ export default function SalesTrendsPage() {
                             </ResponsiveContainer>
 
                             <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                                Click a point or bar to open Crexi sales comps for that period (same filters as the chart).{" "}
                                 {metric === "cap_rate" &&
                                     `Average cap rate from Crexi closed sales comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                                 {metric === "cost_per_unit" &&
@@ -1376,6 +1515,106 @@ export default function SalesTrendsPage() {
                     )}
                 </div>
             )}
+
+            <Dialog open={listingModalOpen} onOpenChange={setListingModalOpen}>
+                <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+                    <DialogHeader className="shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                        <DialogTitle className="text-left">
+                            Crexi sales comps
+                            {listingModalArea && listingBucketMonth && (
+                                <span className="block font-normal text-gray-500 dark:text-gray-400">
+                                    {listingModalArea.label} · {formatMonthLabel(listingBucketMonth)}
+                                    {sampleComps !== "1M" && <span className="text-xs"> (sample window {sampleComps})</span>}
+                                </span>
+                            )}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
+                        {listingLoading && listingRows.length === 0 ? (
+                            <p className="text-sm text-gray-500">Loading…</p>
+                        ) : listingError ? (
+                            <p className="text-sm text-red-600">{listingError}</p>
+                        ) : listingRows.length === 0 ? (
+                            <p className="text-sm text-gray-500">No comps in this bucket with the current filters.</p>
+                        ) : (
+                            <table className="w-full border-collapse text-sm">
+                                <thead>
+                                    <tr className="border-b border-gray-200 text-left text-xs font-medium text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                                        <th className="py-2 pr-3">Property</th>
+                                        <th className="py-2 pr-3 whitespace-nowrap">Sale date</th>
+                                        <th className="py-2 pr-3 text-right whitespace-nowrap">Price</th>
+                                        <th className="py-2 pr-3 text-right">Units</th>
+                                        <th className="py-2 pr-3 text-right whitespace-nowrap">$/door</th>
+                                        <th className="py-2 text-right whitespace-nowrap">Cap</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {listingRows.map((row) => (
+                                        <tr key={row.id} className="border-b border-gray-100 dark:border-gray-700">
+                                            <td className="py-2 pr-3 align-top">
+                                                {row.crexi_url ? (
+                                                    <a
+                                                        href={row.crexi_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                                                    >
+                                                        {row.property_name ?? row.address_full ?? "—"}
+                                                        <ExternalLink className="ml-1 inline size-3 opacity-60" />
+                                                    </a>
+                                                ) : (
+                                                    <span className="font-medium">{row.property_name ?? row.address_full ?? "—"}</span>
+                                                )}
+                                                {row.address_full && row.property_name && (
+                                                    <div className="mt-0.5 text-xs text-gray-500">{row.address_full}</div>
+                                                )}
+                                            </td>
+                                            <td className="py-2 pr-3 whitespace-nowrap text-gray-600 dark:text-gray-300">{row.sale_transaction_date ?? "—"}</td>
+                                            <td className="py-2 pr-3 text-right whitespace-nowrap">
+                                                {row.property_price_total != null
+                                                    ? `$${row.property_price_total.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
+                                                    : "—"}
+                                            </td>
+                                            <td className="py-2 pr-3 text-right">{row.num_units ?? "—"}</td>
+                                            <td className="py-2 pr-3 text-right whitespace-nowrap">
+                                                {row.price_per_door != null ? formatMetricValue(row.price_per_door, "cost_per_unit") : "—"}
+                                            </td>
+                                            <td className="py-2 text-right whitespace-nowrap">
+                                                {row.cap_rate_percent != null ? `${Number(row.cap_rate_percent).toFixed(2)}%` : "—"}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                    {listingTotal > 0 && (
+                        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-6 py-3 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            <span>
+                                {listingOffset + 1}–{Math.min(listingOffset + listingRows.length, listingTotal)} of {listingTotal}
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    disabled={listingOffset === 0 || listingLoading}
+                                    onClick={() => handleListingPageChange(Math.max(0, listingOffset - LISTINGS_PAGE_SIZE))}
+                                    className="rounded-md border border-gray-200 px-2 py-1 font-medium text-gray-700 enabled:hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:text-gray-200 dark:enabled:hover:bg-gray-700"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={listingOffset + LISTINGS_PAGE_SIZE >= listingTotal || listingLoading}
+                                    onClick={() => handleListingPageChange(listingOffset + LISTINGS_PAGE_SIZE)}
+                                    className="rounded-md border border-gray-200 px-2 py-1 font-medium text-gray-700 enabled:hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:text-gray-200 dark:enabled:hover:bg-gray-700"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
