@@ -33,7 +33,11 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SHADOW_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # Connect as `supabase_admin` (bootstrap superuser on the supabase/postgres
+      # image — its password is set to POSTGRES_PASSWORD by the image entrypoint)
+      # so the schema dump's CREATE/ALTER/GRANT statements all succeed without
+      # having to mirror prod's exact privilege graph onto a fresh container.
+      SHADOW_DB_URL: postgresql://supabase_admin:postgres@localhost:5432/postgres
 
     steps:
       - uses: actions/checkout@v4
@@ -48,9 +52,11 @@ jobs:
           sudo apt-get install -y postgresql-client
 
       - name: Wait for shadow Postgres readiness
+        env:
+          PGPASSWORD: postgres
         run: |
           for i in $(seq 1 60); do
-            if pg_isready -h localhost -p 5432 -U postgres >/dev/null 2>&1; then
+            if psql -h localhost -p 5432 -U supabase_admin -d postgres -c 'SELECT 1' >/dev/null 2>&1; then
               echo "shadow postgres is ready"
               exit 0
             fi
@@ -87,34 +93,12 @@ jobs:
           # that's expected, so we don't stop on error here. Custom roles (e.g.
           # `prisma`) that aren't on the base image will be created.
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-roles.sql > /tmp/restore-roles.log 2>&1 || true
-          # Grant the connecting `postgres` user membership in every non-system role
-          # so that subsequent ALTER ... OWNER TO "<custom_role>" statements in the
-          # schema dump are permitted (Postgres requires the executing role to be a
-          # member of the target ownership role). Many supabase_*/reserved role
-          # memberships can only be granted by the bootstrap superuser — those
-          # raise "memberships are reserved" and are caught and skipped here. We
-          # only need membership in app-owned custom roles (e.g. `prisma`) because
-          # the schema dump never transfers ownership to reserved roles anyway.
-          psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          DO $$
-          DECLARE r record;
-          BEGIN
-            FOR r IN
-              SELECT rolname FROM pg_roles
-              WHERE rolname NOT LIKE 'pg_%'
-                AND rolname <> 'postgres'
-            LOOP
-              BEGIN
-                EXECUTE format('GRANT %I TO postgres', r.rolname);
-              EXCEPTION WHEN insufficient_privilege OR OTHERS THEN
-                RAISE NOTICE 'skip grant on reserved role %: %', r.rolname, SQLERRM;
-              END;
-            END LOOP;
-          END $$;
-          SQL
-          # Schema must apply cleanly. The auth/storage schemas already exist in
-          # supabase/postgres so FKs to auth.users resolve, and any roles referenced
-          # by OWNER/GRANT exist (and are now grantable) after the previous steps.
+          # Schema must apply cleanly. We connect as `supabase_admin` (see env
+          # above), which is the bootstrap superuser on the supabase/postgres image
+          # and a member of every role — so ALTER ... OWNER TO and GRANT statements
+          # in the dump succeed without any explicit role-membership setup. The
+          # auth/storage schemas already exist in the image so FKs to auth.users
+          # resolve.
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=1 -f /tmp/prod-schema.sql
           # supabase_migrations schema may already exist on the image — tolerate "already exists".
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-history-schema.sql > /tmp/restore-history-schema.log 2>&1 || true
