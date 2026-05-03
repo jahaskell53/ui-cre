@@ -5,11 +5,41 @@ on:
     branches: [main]
 
 jobs:
-  db-dry-run:
-    name: Supabase DB dry run
+  db-shadow-apply:
+    name: Supabase DB shadow apply
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+
+    services:
+      # supabase/postgres ships with the Supabase-managed schemas (auth, storage, etc.)
+      # already initialized. We need those because production migrations FK-reference
+      # auth.users, and `supabase db dump --linked` excludes managed schemas — so a bare
+      # postgres image would fail to restore those constraints.
+      shadow-postgres:
+        image: supabase/postgres:17.6.1.113
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 60
+          --health-start-period 30s
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # Connect as `supabase_admin` (bootstrap superuser on the supabase/postgres
+      # image — its password is set to POSTGRES_PASSWORD by the image entrypoint)
+      # so the schema dump's CREATE/ALTER/GRANT statements all succeed without
+      # having to mirror prod's exact privilege graph onto a fresh container.
+      # sslmode=disable: the in-CI service container doesn't terminate TLS, and
+      # `supabase db push` defaults to requiring it. psql honors this too.
+      SHADOW_DB_URL: postgresql://supabase_admin:postgres@localhost:5432/postgres?sslmode=disable
 
     steps:
       - uses: actions/checkout@v4
@@ -18,61 +48,177 @@ jobs:
         with:
           version: latest
 
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for shadow Postgres readiness
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for i in $(seq 1 60); do
+            if psql -h localhost -p 5432 -U supabase_admin -d postgres -c 'SELECT 1' >/dev/null 2>&1; then
+              echo "shadow postgres is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "shadow postgres did not become ready in time"
+          exit 1
+
       - name: Link Supabase project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
-      - name: Run migration dry run (with auto-repair)
-        id: dry-run
+      - name: Dump prod custom roles
+        # Captures any custom Postgres roles defined in production (e.g. `prisma`)
+        # that don't ship with the supabase/postgres image. Schema dump references
+        # these roles via OWNER TO / GRANT TO statements, so they must exist before
+        # the schema is restored.
+        run: supabase db dump --linked --role-only -f /tmp/prod-roles.sql
+
+      - name: Dump prod schema (public + user schemas; managed schemas excluded)
+        run: supabase db dump --linked -f /tmp/prod-schema.sql
+
+      - name: Dump prod migration history (DDL)
+        run: supabase db dump --linked --schema supabase_migrations -f /tmp/prod-history-schema.sql
+
+      - name: Dump prod migration history (data)
+        run: supabase db dump --linked --schema supabase_migrations --data-only --use-copy -f /tmp/prod-history-data.sql
+
+      - name: Restore prod state into shadow Postgres
+        run: |
+          set -euo pipefail
+          # Roles first. Standard supabase roles (postgres, authenticated, anon,
+          # service_role, supabase_admin, etc.) already exist on the supabase/postgres
+          # image — those CREATE ROLE statements will fail with "already exists" and
+          # that's expected, so we don't stop on error here. Custom roles (e.g.
+          # `prisma`) that aren't on the base image will be created.
+          psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-roles.sql > /tmp/restore-roles.log 2>&1 || true
+          # Schema must apply cleanly. We connect as `supabase_admin` (see env
+          # above), which is the bootstrap superuser on the supabase/postgres image
+          # and a member of every role — so ALTER ... OWNER TO and GRANT statements
+          # in the dump succeed without any explicit role-membership setup. The
+          # auth/storage schemas already exist in the image so FKs to auth.users
+          # resolve.
+          psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=1 -f /tmp/prod-schema.sql
+          # supabase_migrations schema may already exist on the image — tolerate "already exists".
+          psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-history-schema.sql > /tmp/restore-history-schema.log 2>&1 || true
+          psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=1 -f /tmp/prod-history-data.sql
+
+      # PGSSLMODE=disable is required because supabase/cli currently ignores
+      # ?sslmode=disable in --db-url (issue #4839 / regression of #4288). Without
+      # this env var, db push tries TLS against the in-CI Postgres service container
+      # which doesn't terminate TLS, and fails with "tls error (server refused TLS
+      # connection)".
+      #
+      # Both steps include the same "Remote migration versions not found" auto-repair
+      # logic that db-migration-apply.yml uses on prod, so the shadow check tolerates
+      # transient orphan-migration drift the same way the on-merge apply does.
+      - name: Capture pending SQL (dry-run against shadow)
+        id: pending-sql
+        env:
+          PGSSLMODE: disable
         run: |
           set +e
-          supabase db push --dry-run --linked > /tmp/dry-run-output.txt 2>&1
+          supabase db push --dry-run --db-url "$SHADOW_DB_URL" > /tmp/dry-run-output.txt 2>&1
           EXIT=$?
-
           if [ $EXIT -ne 0 ] && grep -q "Remote migration versions not found" /tmp/dry-run-output.txt; then
-            # Extract versions Supabase tells us to repair and mark them as reverted
             VERSIONS=$(grep -oP '(?<=migration repair --status reverted )\d+' /tmp/dry-run-output.txt)
             for version in $VERSIONS; do
-              echo "Repairing orphaned remote migration: $version"
-              supabase migration repair --status reverted "$version" --linked
+              echo "Repairing orphaned shadow migration: $version" >> /tmp/dry-run-output.txt
+              supabase migration repair --status reverted "$version" --db-url "$SHADOW_DB_URL" >> /tmp/dry-run-output.txt 2>&1
             done
-            # Retry after repair
-            supabase db push --dry-run --linked > /tmp/dry-run-output.txt 2>&1
+            supabase db push --dry-run --db-url "$SHADOW_DB_URL" >> /tmp/dry-run-output.txt 2>&1
             EXIT=$?
           fi
-
           echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
+
+      - name: Apply pending migrations to shadow Postgres
+        id: apply
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-
-      - name: Log dry-run failure output
-        if: always() && steps.dry-run.outputs.exit_code != '0'
+          PGSSLMODE: disable
         run: |
-          echo "Supabase db push --dry-run failed (exit ${{ steps.dry-run.outputs.exit_code }}). Full output:"
-          echo "-----"
-          cat /tmp/dry-run-output.txt
-          echo "-----"
+          set +e
+          supabase db push --db-url "$SHADOW_DB_URL" > /tmp/apply-output.txt 2>&1
+          EXIT=$?
+          if [ $EXIT -ne 0 ] && grep -q "Remote migration versions not found" /tmp/apply-output.txt; then
+            VERSIONS=$(grep -oP '(?<=migration repair --status reverted )\d+' /tmp/apply-output.txt)
+            for version in $VERSIONS; do
+              echo "Repairing orphaned shadow migration: $version" >> /tmp/apply-output.txt
+              supabase migration repair --status reverted "$version" --db-url "$SHADOW_DB_URL" >> /tmp/apply-output.txt 2>&1
+            done
+            supabase db push --db-url "$SHADOW_DB_URL" >> /tmp/apply-output.txt 2>&1
+            EXIT=$?
+          fi
+          echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
 
-      - name: Post pending SQL as PR comment
-        if: always() && steps.dry-run.outputs.exit_code == '0'
+      - name: Upload migration logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-migration-shadow-logs-${{ github.event.pull_request.head.sha }}
+          path: |
+            /tmp/dry-run-output.txt
+            /tmp/apply-output.txt
+            /tmp/restore-roles.log
+            /tmp/restore-history-schema.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Post shadow-apply result as PR comment
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const raw = fs.readFileSync('/tmp/dry-run-output.txt', 'utf8').trim();
-            const output = raw.length > 0 ? raw : '(no pending migrations)';
-            const body = `## Supabase DB Migration Dry Run\n\nSQL that will be applied to production on merge:\n\n\`\`\`sql\n${output}\n\`\`\``;
+            const read = (p) => {
+              try { return fs.readFileSync(p, 'utf8').trim(); } catch { return ''; }
+            };
+            const dryRun = read('/tmp/dry-run-output.txt');
+            const apply  = read('/tmp/apply-output.txt');
+            const dryExit   = '${{ steps.pending-sql.outputs.exit_code }}';
+            const applyExit = '${{ steps.apply.outputs.exit_code }}';
+            const failed = applyExit !== '0' || dryExit !== '0';
+
+            const pendingBlock = dryRun.length > 0 ? dryRun : '(no pending migrations)';
+            const applyBlock   = apply.length > 0 ? apply : '(no output)';
+
+            const header = failed
+              ? '## Supabase DB Migration Shadow Apply — ERROR'
+              : '## Supabase DB Migration Shadow Apply';
+
+            const body = [
+              header,
+              '',
+              failed
+                ? `:x: Shadow apply failed (dry-run exit ${dryExit}, apply exit ${applyExit}). The pending migration(s) will not run cleanly against a database mirroring production schema.`
+                : ':white_check_mark: Pending migration(s) applied successfully against a Postgres container loaded with a fresh dump of production schema and migration history.',
+              '',
+              '<details><summary>Pending SQL (dry-run)</summary>',
+              '',
+              '```sql',
+              pendingBlock,
+              '```',
+              '',
+              '</details>',
+              '',
+              '<details><summary>Shadow apply output</summary>',
+              '',
+              '```',
+              applyBlock,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-
             const existing = comments.find(c =>
+              c.body.startsWith('## Supabase DB Migration Shadow Apply') ||
               c.body.startsWith('## Supabase DB Migration Dry Run')
             );
             if (existing) {
@@ -91,8 +237,8 @@ jobs:
               });
             }
 
-      - name: Fail if dry run errored
-        if: steps.dry-run.outputs.exit_code != '0'
+      - name: Fail if shadow apply errored
+        if: steps.apply.outputs.exit_code != '0' || steps.pending-sql.outputs.exit_code != '0'
         run: |
-          echo "Dry run failed with exit code ${{ steps.dry-run.outputs.exit_code }}"
+          echo "Shadow apply failed. dry-run exit=${{ steps.pending-sql.outputs.exit_code }} apply exit=${{ steps.apply.outputs.exit_code }}"
           exit 1
