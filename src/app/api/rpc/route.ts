@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 
+// Heavy RPCs (e.g. sales-trends spatial queries) carry a 120s DB statement_timeout.
+// Give Vercel enough runway to wait for the DB rather than cutting the function short.
+export const maxDuration = 150;
+
 export async function POST(request: NextRequest) {
     try {
         const { fn, params } = await request.json();
