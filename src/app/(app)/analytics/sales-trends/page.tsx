@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, MapPin, Search, TrendingUp, X } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -186,7 +187,9 @@ function verticalScaleLabel(metric: Metric): string {
 
 export default function SalesTrendsPage() {
     const searchParams = useSearchParams();
+    const pathname = usePathname();
     const router = useRouter();
+    const returnToUrl = `${pathname ?? ""}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
     const [areaType, setAreaType] = useState<AreaType>((searchParams.get("areaType") as AreaType) ?? "ZIP Code");
     const [period, setPeriod] = useState<Period>((searchParams.get("period") as Period) ?? "5Y");
@@ -1502,13 +1505,20 @@ export default function SalesTrendsPage() {
                                     {drillListings.map((row) => (
                                         <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                                             <td className="px-4 py-3">
-                                                <div className="leading-snug font-medium text-gray-900 dark:text-gray-100">
-                                                    {row.property_name || row.address_full || "—"}
-                                                </div>
-                                                {row.property_name && row.address_full && (
-                                                    <div className="mt-0.5 text-xs text-gray-400">{row.address_full}</div>
-                                                )}
-                                                <div className="mt-0.5 text-xs text-gray-400">{[row.city, row.state, row.zip].filter(Boolean).join(", ")}</div>
+                                                <Link
+                                                    href={`/analytics/crexi-comp/${row.id}?from=${encodeURIComponent(returnToUrl)}`}
+                                                    className="-m-1 block max-w-xl rounded-md p-1 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800/50"
+                                                >
+                                                    <div className="leading-snug font-medium text-gray-900 dark:text-gray-100">
+                                                        {row.property_name || row.address_full || "—"}
+                                                    </div>
+                                                    {row.property_name && row.address_full && (
+                                                        <div className="mt-0.5 text-xs text-gray-400">{row.address_full}</div>
+                                                    )}
+                                                    <div className="mt-0.5 text-xs text-gray-400">
+                                                        {[row.city, row.state, row.zip].filter(Boolean).join(", ")}
+                                                    </div>
+                                                </Link>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-300">
                                                 {row.sale_transaction_date

@@ -29,7 +29,7 @@ export default function AnalyticsLayout({ children }: { children: React.ReactNod
     }
 
     // Detail pages have their own full-page layout
-    const isDetailPage = /^\/analytics\/(listing|building)\//.test(pathname ?? "");
+    const isDetailPage = /^\/analytics\/(listing|building|crexi-comp)\//.test(pathname ?? "");
 
     if (isDetailPage) {
         return <>{children}</>;
