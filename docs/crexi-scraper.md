@@ -153,6 +153,44 @@ To scrape fresh data (e.g. after a month):
    ```
 3. Re-run the script as above.
 
+## Enriching unit counts from the property detail API
+
+The search API (`/universal-search/v2/search`) returns `propertyAttributes.unitsCount`
+which can be stale relative to Crexi's property records. The property detail API
+(`GET https://api.crexi.com/properties/{id}`) is the authoritative source and is what
+the Crexi website itself uses.
+
+Run the enrichment script to overwrite `num_units` with the correct value from the detail
+API and store the full detail payload in the new `detail_json` column:
+
+```bash
+bash scripts/enrich_crexi_units.sh
+```
+
+Prerequisites (same as the main scraper):
+- Chrome open and logged in to crexi.com on display `:1` with DevTools console open (F12)
+- `xclip` installed
+- `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` env vars set
+
+The script:
+1. Injects JS into Chrome that fetches all `crexi_id`s from Supabase and calls
+   `GET /properties/{id}` for each in parallel batches of 50.
+2. Downloads results as `crexi_detail_N.json` chunks (5,000 records each) to
+   `~/Downloads/Crexi/Detail/`.
+3. Upserts `detail_json`, `num_units` (from `detail_json.numberOfUnits`), and
+   `detail_enriched_at` back to Supabase for each chunk as it arrives.
+
+Progress is logged to `/home/ubuntu/crexi_detail_enrich.log`.
+
+Total time: ~20–40 minutes for ~286k records.
+
+### New columns
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `detail_json` | jsonb | Full response from `GET /properties/{id}`. Contains `numberOfUnits`, `buildingDetails`, `transactionHistory`, `taxHistory`, `ownershipHistory`, zoning, etc. |
+| `detail_enriched_at` | timestamptz | Set when `detail_json` was last fetched and `num_units` was overwritten. NULL = not yet enriched. |
+
 ## Grid cell coordinates
 
 The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) is split into a 3×3 grid:
@@ -239,5 +277,7 @@ The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) i
 | `mortgage_maturity_date` | text | ISO datetime |
 | `mortgage_recording_date` | text | ISO datetime when mortgage was recorded |
 | `title_company` | text | |
-| `raw_json` | jsonb | Full API response item |
+| `raw_json` | jsonb | Full search API response item (`/universal-search/v2/search`) |
 | `scraped_at` | timestamptz | Set on insert |
+| `detail_json` | jsonb | Full response from `GET /properties/{id}` (detail API). More accurate for unit counts, building details, transaction/tax/ownership history. NULL until enrichment script is run. |
+| `detail_enriched_at` | timestamptz | Set when `detail_json` was last fetched and `num_units` overwritten. NULL = not yet enriched. |

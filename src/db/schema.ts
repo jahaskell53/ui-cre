@@ -1672,6 +1672,10 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     raw_json: jsonb("raw_json"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
     excludeFromSalesTrends: boolean("exclude_from_sales_trends").notNull().default(false),
+    /** Full response from GET /api.crexi.com/properties/{id} (detail API). More accurate than search index for num_units, building details, transaction/tax/ownership history etc. */
+    detail_json: jsonb("detail_json"),
+    /** Set when detail_json (and num_units) have been populated from the Crexi property detail API. */
+    detail_enriched_at: timestamp("detail_enriched_at", { withTimezone: true }),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
