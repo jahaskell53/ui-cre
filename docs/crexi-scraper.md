@@ -153,6 +153,29 @@ To scrape fresh data (e.g. after a month):
    ```
 3. Re-run the script as above.
 
+## Enriching unit counts from the property detail API
+
+The search API (`/universal-search/v2/search`) returns `propertyAttributes.unitsCount`
+which can be stale relative to Crexi's actual property records. The property detail API
+(`GET https://api.crexi.com/properties/{id}`) is the authoritative source and is what
+the Crexi website itself displays. Unlike the search API, the detail API does **not**
+require a browser session and can be called directly.
+
+To enrich all rows with accurate unit counts and store the full detail payload:
+
+```bash
+python3 scripts/enrich_crexi_units.py
+```
+
+- Fetches all `crexi_id`s from `crexi_api_comps` (skips already-enriched rows by default)
+- Calls `GET /properties/{id}` for each, 20 workers in parallel
+- Upserts `detail_json`, `num_units` (from `detail_json.numberOfUnits`), and
+  `detail_enriched_at` back to Supabase in batches of 200
+- Logs progress to `~/crexi_detail_enrich.log` and stdout
+- Pass `--force` to re-enrich rows that already have `detail_enriched_at` set
+
+Total time: ~15–25 minutes for ~286k records.
+
 ## Grid cell coordinates
 
 The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) is split into a 3×3 grid:
@@ -239,5 +262,7 @@ The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) i
 | `mortgage_maturity_date` | text | ISO datetime |
 | `mortgage_recording_date` | text | ISO datetime when mortgage was recorded |
 | `title_company` | text | |
-| `raw_json` | jsonb | Full API response item |
+| `raw_json` | jsonb | Full search API response item (`/universal-search/v2/search`) |
 | `scraped_at` | timestamptz | Set on insert |
+| `detail_json` | jsonb | Full response from `GET /properties/{id}` (detail API). More accurate for unit counts, building details, transaction/tax/ownership history. NULL until `enrich_crexi_units.py` is run. |
+| `detail_enriched_at` | timestamptz | Set when `detail_json` was last fetched and `num_units` overwritten. NULL = not yet enriched. |
