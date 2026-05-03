@@ -156,40 +156,25 @@ To scrape fresh data (e.g. after a month):
 ## Enriching unit counts from the property detail API
 
 The search API (`/universal-search/v2/search`) returns `propertyAttributes.unitsCount`
-which can be stale relative to Crexi's property records. The property detail API
+which can be stale relative to Crexi's actual property records. The property detail API
 (`GET https://api.crexi.com/properties/{id}`) is the authoritative source and is what
-the Crexi website itself uses.
+the Crexi website itself displays. Unlike the search API, the detail API does **not**
+require a browser session and can be called directly.
 
-Run the enrichment script to overwrite `num_units` with the correct value from the detail
-API and store the full detail payload in the new `detail_json` column:
+To enrich all rows with accurate unit counts and store the full detail payload:
 
 ```bash
-bash scripts/enrich_crexi_units.sh
+python3 scripts/enrich_crexi_units.py
 ```
 
-Prerequisites (same as the main scraper):
-- Chrome open and logged in to crexi.com on display `:1` with DevTools console open (F12)
-- `xclip` installed
-- `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` env vars set
+- Fetches all `crexi_id`s from `crexi_api_comps` (skips already-enriched rows by default)
+- Calls `GET /properties/{id}` for each, 20 workers in parallel
+- Upserts `detail_json`, `num_units` (from `detail_json.numberOfUnits`), and
+  `detail_enriched_at` back to Supabase in batches of 200
+- Logs progress to `~/crexi_detail_enrich.log` and stdout
+- Pass `--force` to re-enrich rows that already have `detail_enriched_at` set
 
-The script:
-1. Injects JS into Chrome that fetches all `crexi_id`s from Supabase and calls
-   `GET /properties/{id}` for each in parallel batches of 50.
-2. Downloads results as `crexi_detail_N.json` chunks (5,000 records each) to
-   `~/Downloads/Crexi/Detail/`.
-3. Upserts `detail_json`, `num_units` (from `detail_json.numberOfUnits`), and
-   `detail_enriched_at` back to Supabase for each chunk as it arrives.
-
-Progress is logged to `/home/ubuntu/crexi_detail_enrich.log`.
-
-Total time: ~20–40 minutes for ~286k records.
-
-### New columns
-
-| Column | Type | Notes |
-|--------|------|-------|
-| `detail_json` | jsonb | Full response from `GET /properties/{id}`. Contains `numberOfUnits`, `buildingDetails`, `transactionHistory`, `taxHistory`, `ownershipHistory`, zoning, etc. |
-| `detail_enriched_at` | timestamptz | Set when `detail_json` was last fetched and `num_units` was overwritten. NULL = not yet enriched. |
+Total time: ~15–25 minutes for ~286k records.
 
 ## Grid cell coordinates
 
@@ -279,5 +264,5 @@ The Bay Area bounding box (`37.108°N–38.096°N`, `122.687°W–121.680°W`) i
 | `title_company` | text | |
 | `raw_json` | jsonb | Full search API response item (`/universal-search/v2/search`) |
 | `scraped_at` | timestamptz | Set on insert |
-| `detail_json` | jsonb | Full response from `GET /properties/{id}` (detail API). More accurate for unit counts, building details, transaction/tax/ownership history. NULL until enrichment script is run. |
+| `detail_json` | jsonb | Full response from `GET /properties/{id}` (detail API). More accurate for unit counts, building details, transaction/tax/ownership history. NULL until `enrich_crexi_units.py` is run. |
 | `detail_enriched_at` | timestamptz | Set when `detail_json` was last fetched and `num_units` overwritten. NULL = not yet enriched. |
