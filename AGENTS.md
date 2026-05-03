@@ -57,6 +57,10 @@ This ordering guarantees that the database schema is always ahead of the applica
 - **Formatting**: `npx prettier --check "src/**/*.{ts,tsx}"`. No ESLint config exists in the repo.
 - **After opening or updating a PR**: Confirm CI finished successfully using the [GitHub CLI](https://cli.github.com/) from the PR branch (requires `gh auth login` with repo access). Run `gh pr checks --watch` to wait until all checks complete and fail the session if any check fails; use `gh pr checks` for a one-shot status snapshot. Fix failures, push again, and re-check until green.
 
+### AWS S3 bucket
+
+The app and Dagster pipeline use an AWS S3 bucket (`AWS_S3_BUCKET` env var) for storing OM PDFs and profile pictures. The bucket also contains manual Crexi CSV exports under `Crexi/Comps & Records/` (`Property_Exports_1.csv` through `Property_Exports_18.csv`) and active listing exports under `Crexi/Active Listings/`. These CSVs are a separate dataset from what the API scraper ingests into `crexi_api_comps` — they were exported manually from the Crexi UI.
+
 ### Known caveats
 
 - **`bun run build` fails in Cloud VMs** due to Google Fonts fetch being blocked by the sandboxed network. This is an environment limitation. The dev server (`bun dev`) works fine.
