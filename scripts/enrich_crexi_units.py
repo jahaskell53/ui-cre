@@ -60,14 +60,14 @@ def log(msg: str) -> None:
 
 
 def fetch_all_crexi_ids() -> list[str]:
-    """Fetch all crexi_ids from Supabase (or only unenriched if not --force)."""
+    """Fetch all crexi_ids from Supabase using cursor-based pagination on id."""
     ids: list[str] = []
-    offset = 0
+    last_id = 0
     filter_clause = "" if FORCE else "&detail_enriched_at=is.null"
     while True:
         url = (
             f"{SUPABASE_URL}/rest/v1/{TABLE}"
-            f"?select=crexi_id&limit={FETCH_PAGE}&offset={offset}{filter_clause}"
+            f"?select=id,crexi_id&order=id.asc&limit={FETCH_PAGE}&id=gt.{last_id}{filter_clause}"
         )
         req = urllib.request.Request(
             url,
@@ -77,16 +77,26 @@ def fetch_all_crexi_ids() -> list[str]:
                 "Accept": "application/json",
             },
         )
-        with urllib.request.urlopen(req) as r:
-            page = json.loads(r.read())
+        for attempt, delay in enumerate([0] + RETRY_DELAYS):
+            if delay:
+                time.sleep(delay)
+            try:
+                with urllib.request.urlopen(req) as r:
+                    page = json.loads(r.read())
+                break
+            except urllib.error.HTTPError as e:
+                if attempt < len(RETRY_DELAYS):
+                    log(f"  ID fetch error at id>{last_id}, retry {attempt+1}...")
+                    continue
+                raise
         if not page:
             break
         ids.extend(row["crexi_id"] for row in page if row.get("crexi_id"))
-        offset += FETCH_PAGE
+        last_id = page[-1]["id"]
+        if len(ids) % 10000 == 0 and len(ids) > 0:
+            log(f"  Fetched {len(ids)} IDs so far (last id={last_id})...")
         if len(page) < FETCH_PAGE:
             break
-        if offset % 10000 == 0:
-            log(f"  Fetched {offset} IDs so far...")
     return ids
 
 
