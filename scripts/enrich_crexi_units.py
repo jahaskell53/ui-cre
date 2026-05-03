@@ -30,11 +30,12 @@ from datetime import datetime, timezone
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 TABLE = "crexi_api_comps"
-LOG_PATH = os.path.expanduser("~/crexi_detail_enrich.log")
+LOG_PATH = "/tmp/crexi_detail_enrich.log"
 
-DETAIL_WORKERS = 20       # parallel Crexi API calls
-SUPABASE_BATCH = 200      # rows per Supabase upsert
+DETAIL_WORKERS = 100      # parallel Crexi API calls
+SUPABASE_BATCH = 50       # parallel Supabase PATCH workers per chunk
 FETCH_PAGE = 1000         # crexi_ids fetched from Supabase per page
+CHUNK_SIZE = 5000         # process IDs in chunks to bound memory usage
 RETRY_DELAYS = [2, 5, 10] # retry backoff for transient errors
 
 FORCE = "--force" in sys.argv  # re-enrich rows that already have detail_enriched_at
@@ -150,12 +151,15 @@ def patch_row(row: dict) -> bool:
         try:
             with urllib.request.urlopen(req, timeout=30) as _:
                 return True
-        except urllib.error.HTTPError as e:
-            body = e.read().decode()
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
+            body = e.read().decode() if hasattr(e, "read") else str(e)
             if attempt < len(RETRY_DELAYS):
                 continue
             log(f"  PATCH error for {crexi_id}: {body[:200]}")
     return False
+
+
+CHUNK_SIZE = 5000  # moved to top-level constants
 
 
 def main() -> None:
@@ -175,67 +179,46 @@ def main() -> None:
     total_ok = 0
     total_err = 0
     total_patched = 0
-    patch_queue: list[dict] = []
     start_time = time.time()
 
-    # We use two thread pools: one for Crexi API fetches and one for Supabase PATCHes.
-    # patch_pool workers send one PATCH per row — concurrent but not batched.
-    patch_pool = ThreadPoolExecutor(max_workers=SUPABASE_BATCH)
-    patch_futures = []
+    # Process in chunks of CHUNK_SIZE to keep memory bounded.
+    for chunk_start in range(0, len(all_ids), CHUNK_SIZE):
+        chunk = all_ids[chunk_start : chunk_start + CHUNK_SIZE]
 
-    def collect_patch_results():
-        nonlocal total_patched
-        done = [f for f in patch_futures if f.done()]
-        for f in done:
-            if f.result():
-                total_patched += 1
-        for f in done:
-            patch_futures.remove(f)
+        # Fetch detail for this chunk in parallel
+        rows_to_patch: list[dict] = []
+        with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as detail_pool:
+            futures = {detail_pool.submit(fetch_detail, cid): cid for cid in chunk}
+            for fut in as_completed(futures):
+                result = fut.result()
+                if "error" in result:
+                    total_err += 1
+                else:
+                    total_ok += 1
+                    data = result.get("data")
+                    num_units = data.get("numberOfUnits") if data else None
+                    rows_to_patch.append({
+                        "crexi_id": result["id"],
+                        "detail_json": data,
+                        "num_units": num_units,
+                        "detail_enriched_at": now_iso,
+                    })
 
-    with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as detail_pool:
-        futures = {detail_pool.submit(fetch_detail, cid): cid for cid in all_ids}
-        done_count = 0
-        for fut in as_completed(futures):
-            result = fut.result()
-            done_count += 1
+        # PATCH this chunk to Supabase in parallel
+        with ThreadPoolExecutor(max_workers=SUPABASE_BATCH) as patch_pool:
+            patch_results = list(patch_pool.map(patch_row, rows_to_patch))
+        total_patched += sum(1 for r in patch_results if r)
 
-            if "error" in result:
-                total_err += 1
-            else:
-                total_ok += 1
-                data = result.get("data")  # may be None for 404
-                num_units = data.get("numberOfUnits") if data else None
-                row = {
-                    "crexi_id": result["id"],
-                    "detail_json": data,
-                    "num_units": num_units,
-                    "detail_enriched_at": now_iso,
-                }
-                pf = patch_pool.submit(patch_row, row)
-                patch_futures.append(pf)
-
-            # Periodically drain completed patch futures
-            if done_count % 200 == 0:
-                collect_patch_results()
-
-            # Log progress every 5000 records
-            if done_count % 5000 == 0:
-                collect_patch_results()
-                elapsed = time.time() - start_time
-                rate = done_count / elapsed
-                eta = (len(all_ids) - done_count) / rate if rate else 0
-                log(
-                    f"Progress: {done_count}/{len(all_ids)} "
-                    f"({100*done_count/len(all_ids):.1f}%) | "
-                    f"{rate:.0f} req/s | ETA {eta/60:.1f}min | "
-                    f"ok={total_ok} err={total_err} patched={total_patched}"
-                )
-
-    # Wait for all patches to finish
-    patch_pool.shutdown(wait=True)
-    for f in patch_futures:
-        if f.result():
-            total_patched += 1
+        done_count = chunk_start + len(chunk)
+        elapsed = time.time() - start_time
+        rate = done_count / elapsed if elapsed else 0
+        eta = (len(all_ids) - done_count) / rate if rate else 0
+        log(
+            f"Progress: {done_count}/{len(all_ids)} "
+            f"({100*done_count/len(all_ids):.1f}%) | "
+            f"{rate:.0f} req/s | ETA {eta/60:.1f}min | "
+            f"ok={total_ok} err={total_err} patched={total_patched}"
+        )
 
     elapsed = time.time() - start_time
     log(f"=== Done in {elapsed/60:.1f}min: ok={total_ok} err={total_err} patched={total_patched} ===")
