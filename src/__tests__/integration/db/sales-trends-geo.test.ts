@@ -4,22 +4,22 @@
  * Covers both the LoopNet-based get_sales_trends_by_* family and the
  * Crexi-based get_crexi_sales_trends_by_* family.
  *
- * Uses an Oakland / Bay Area fixture — Alameda County has the most LoopNet
- * commercial listings in the dataset (331 rows with valid geom + price).
+ * Uses a San Francisco / Bay Area fixture — city + county RPCs are exercised
+ * against production-shaped data (LoopNet + Crexi).
  *
  * Requires SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY.
  */
 import { type SupabaseClient, createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
-/** Approx. center of downtown Oakland — used for neighborhood + MSA resolution. */
-const OAKLAND_LAT = 37.8044;
-const OAKLAND_LNG = -122.2712;
+/** Approx. center of downtown San Francisco — used for neighborhood + MSA resolution. */
+const SF_LAT = 37.7749;
+const SF_LNG = -122.4194;
 
-const CITY = "Oakland";
+const CITY = "San Francisco";
 const STATE = "CA";
 /** Stored in county_boundaries.name_lsad (with "County" suffix, matching Mapbox output) */
-const COUNTY_NAME = "Alameda County";
+const COUNTY_NAME = "San Francisco County";
 
 interface SalesTrendRow {
     month_start: string;
@@ -47,36 +47,36 @@ function assertSalesTrendRows(rows: SalesTrendRow[], label: string) {
     }
 }
 
-describe("get_sales_trends_by_city (Oakland, CA)", () => {
-    it("returns sales rows for Oakland", async () => {
+describe("get_sales_trends_by_city (San Francisco, CA)", () => {
+    it("returns sales rows for San Francisco", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_sales_trends_by_city", {
             p_city: CITY,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_city Oakland");
+        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_city San Francisco");
     });
 });
 
-describe("get_sales_trends_by_county (Alameda County, CA)", () => {
-    it("returns sales rows for Alameda County", async () => {
+describe("get_sales_trends_by_county (San Francisco County, CA)", () => {
+    it("returns sales rows for San Francisco County", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_sales_trends_by_county", {
             p_county_name: COUNTY_NAME,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_county Alameda County");
+        assertSalesTrendRows((data ?? []) as SalesTrendRow[], "get_sales_trends_by_county San Francisco County");
     });
 });
 
 describe("get_sales_trends_by_msa (SF Bay Area MSA)", () => {
-    it("resolves SF Bay Area MSA at Oakland point and returns sales trends", async () => {
+    it("resolves SF Bay Area MSA at San Francisco point and returns sales trends", async () => {
         const client = makeClient();
         const { data: msaRows, error: msaError } = await client.rpc("get_msa_at_point", {
-            p_lat: OAKLAND_LAT,
-            p_lng: OAKLAND_LNG,
+            p_lat: SF_LAT,
+            p_lng: SF_LNG,
         });
         expect(msaError).toBeNull();
         expect(msaRows).toBeDefined();
@@ -94,12 +94,12 @@ describe("get_sales_trends_by_msa (SF Bay Area MSA)", () => {
     });
 });
 
-describe("get_sales_trends_by_neighborhood (Oakland area)", () => {
-    it("resolves a neighborhood at Oakland point and returns sales trends", async () => {
+describe("get_sales_trends_by_neighborhood (San Francisco area)", () => {
+    it("resolves a neighborhood at San Francisco point and returns sales trends", async () => {
         const client = makeClient();
         const { data: nhRows, error: nhError } = await client.rpc("get_neighborhood_at_point", {
-            p_lat: OAKLAND_LAT,
-            p_lng: OAKLAND_LNG,
+            p_lat: SF_LAT,
+            p_lng: SF_LNG,
         });
         expect(nhError).toBeNull();
         expect(Array.isArray(nhRows)).toBe(true);
@@ -129,8 +129,8 @@ describe("get_sales_trends_by_neighborhood (Oakland area)", () => {
 
 // ── Crexi sales trends RPCs ──────────────────────────────────────────────────
 
-describe("get_crexi_sales_trends_by_city (Oakland, CA)", () => {
-    it("returns no RPC error for Oakland", async () => {
+describe("get_crexi_sales_trends_by_city (San Francisco, CA)", () => {
+    it("returns no RPC error for San Francisco", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_crexi_sales_trends_by_city", {
             p_city: CITY,
@@ -148,8 +148,8 @@ describe("get_crexi_sales_trends_by_city (Oakland, CA)", () => {
     });
 });
 
-describe("get_crexi_sales_trends_by_county (Alameda County, CA)", () => {
-    it("returns no RPC error for Alameda County", async () => {
+describe("get_crexi_sales_trends_by_county (San Francisco County, CA)", () => {
+    it("returns no RPC error for San Francisco County", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_crexi_sales_trends_by_county", {
             p_county_name: COUNTY_NAME,
@@ -170,8 +170,8 @@ describe("get_crexi_sales_trends_by_msa (SF Bay Area MSA)", () => {
     it("resolves SF Bay Area MSA and returns no RPC error", async () => {
         const client = makeClient();
         const { data: msaRows, error: msaError } = await client.rpc("get_msa_at_point", {
-            p_lat: OAKLAND_LAT,
-            p_lng: OAKLAND_LNG,
+            p_lat: SF_LAT,
+            p_lng: SF_LNG,
         });
         expect(msaError).toBeNull();
         expect(Array.isArray(msaRows)).toBe(true);
@@ -192,12 +192,12 @@ describe("get_crexi_sales_trends_by_msa (SF Bay Area MSA)", () => {
     });
 });
 
-describe("get_crexi_sales_trends_by_neighborhood (Oakland area)", () => {
-    it("resolves a neighborhood at Oakland point and returns no RPC error", async () => {
+describe("get_crexi_sales_trends_by_neighborhood (San Francisco area)", () => {
+    it("resolves a neighborhood at San Francisco point and returns no RPC error", async () => {
         const client = makeClient();
         const { data: nhRows, error: nhError } = await client.rpc("get_neighborhood_at_point", {
-            p_lat: OAKLAND_LAT,
-            p_lng: OAKLAND_LNG,
+            p_lat: SF_LAT,
+            p_lng: SF_LNG,
         });
         expect(nhError).toBeNull();
         expect(Array.isArray(nhRows)).toBe(true);
