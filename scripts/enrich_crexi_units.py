@@ -32,11 +32,11 @@ SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 TABLE = "crexi_api_comps"
 LOG_PATH = "/tmp/crexi_detail_enrich.log"
 
-DETAIL_WORKERS = 100      # parallel Crexi API calls
+DETAIL_WORKERS = 30       # parallel Crexi API calls (higher causes rate limiting)
 SUPABASE_BATCH = 50       # parallel Supabase PATCH workers per chunk
 FETCH_PAGE = 1000         # crexi_ids fetched from Supabase per page
 CHUNK_SIZE = 5000         # process IDs in chunks to bound memory usage
-RETRY_DELAYS = [2, 5, 10] # retry backoff for transient errors
+RETRY_DELAYS = [1, 3]     # retry backoff — 2 attempts max; failed rows skipped and re-run with --force
 
 FORCE = "--force" in sys.argv  # re-enrich rows that already have detail_enriched_at
 
