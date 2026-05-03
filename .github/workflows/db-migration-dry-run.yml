@@ -37,7 +37,9 @@ jobs:
       # image — its password is set to POSTGRES_PASSWORD by the image entrypoint)
       # so the schema dump's CREATE/ALTER/GRANT statements all succeed without
       # having to mirror prod's exact privilege graph onto a fresh container.
-      SHADOW_DB_URL: postgresql://supabase_admin:postgres@localhost:5432/postgres
+      # sslmode=disable: the in-CI service container doesn't terminate TLS, and
+      # `supabase db push` defaults to requiring it. psql honors this too.
+      SHADOW_DB_URL: postgresql://supabase_admin:postgres@localhost:5432/postgres?sslmode=disable
 
     steps:
       - uses: actions/checkout@v4
