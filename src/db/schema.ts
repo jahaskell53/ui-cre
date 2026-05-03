@@ -1669,13 +1669,28 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     mortgage_recording_date: text("mortgage_recording_date"),
     // Gross rent income signal (parsed from leaseRateRange.totalAnnual)
     gross_rent_annual: doublePrecision("gross_rent_annual"),
-    raw_json: jsonb("raw_json"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
     excludeFromSalesTrends: boolean("exclude_from_sales_trends").notNull().default(false),
-    /** Full response from GET /api.crexi.com/properties/{id} (detail API). More accurate than search index for num_units, building details, transaction/tax/ownership history etc. */
-    detail_json: jsonb("detail_json"),
-    /** Set when detail_json (and num_units) have been populated from the Crexi property detail API. */
+    /** Set when detail payload (see `crexi_api_comp_detail_json`) and num_units were last updated from the Crexi property detail API. */
     detail_enriched_at: timestamp("detail_enriched_at", { withTimezone: true }),
+});
+
+/** Search-index / universal-search record payload, keyed by `crexi_id` (one row per comp). */
+export const crexiApiCompRawJson = pgTable("crexi_api_comp_raw_json", {
+    crexi_id: text("crexi_id")
+        .primaryKey()
+        .references(() => crexiApiComps.crexi_id, { onDelete: "cascade" }),
+    raw_json: jsonb("raw_json").notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** GET https://api.crexi.com/properties/{id} response payload, keyed by `crexi_id`. */
+export const crexiApiCompDetailJson = pgTable("crexi_api_comp_detail_json", {
+    crexi_id: text("crexi_id")
+        .primaryKey()
+        .references(() => crexiApiComps.crexi_id, { onDelete: "cascade" }),
+    detail_json: jsonb("detail_json"),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

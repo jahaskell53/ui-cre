@@ -1,6 +1,6 @@
 #!/bin/bash
-# Enriches crexi_api_comps.num_units (and stores the full detail payload in
-# detail_json) by calling GET https://api.crexi.com/properties/{id} for every
+# Enriches crexi_api_comps.num_units (stores full detail payload in
+# crexi_api_comp_detail_json.detail_json) by calling GET https://api.crexi.com/properties/{id}
 # row in the table, using Chrome's existing authenticated session.
 #
 # Prerequisites:
@@ -16,7 +16,7 @@
 #   Phase 1 (JS, injected into Chrome): fetches all crexi_ids from Supabase,
 #     calls the Crexi detail API for each, downloads results as JSON batches.
 #   Phase 2 (Python, run locally): reads the downloaded JSON, upserts
-#     detail_json + num_units + detail_enriched_at back to Supabase.
+#     crexi_api_comp_detail_json + crexi_api_comps (num_units + detail_enriched_at).
 
 set -e
 export DISPLAY=:1
@@ -137,7 +137,8 @@ CHUNK_FILE = sys.argv[1]
 LOG = sys.argv[2]
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-TABLE = "crexi_api_comps"
+MAIN_TABLE = "crexi_api_comps"
+DETAIL_TABLE = "crexi_api_comp_detail_json"
 BATCH = 200
 
 def log(msg):
@@ -169,21 +170,30 @@ log(f"  {CHUNK_FILE}: {len(rows)} ok, {errors} errors")
 updated = 0
 for i in range(0, len(rows), BATCH):
     batch = rows[i:i+BATCH]
-    # PATCH via PostgREST: upsert on crexi_id with merge-duplicates so all columns are updated
-    req = urllib.request.Request(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
-        data=json.dumps(batch).encode(),
-        headers={
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates,return=minimal",
-        },
-        method="POST",
-    )
+    detail_batch = [{"crexi_id": r["crexi_id"], "detail_json": r["detail_json"]} for r in batch]
+    main_batch = [
+        {"crexi_id": r["crexi_id"], "num_units": r["num_units"], "detail_enriched_at": r["detail_enriched_at"]}
+        for r in batch
+    ]
     try:
-        with urllib.request.urlopen(req) as _:
-            updated += len(batch)
+        for path, payload in (
+            (DETAIL_TABLE, detail_batch),
+            (MAIN_TABLE, main_batch),
+        ):
+            req = urllib.request.Request(
+                f"{SUPABASE_URL}/rest/v1/{path}",
+                data=json.dumps(payload).encode(),
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req) as _:
+                pass
+        updated += len(batch)
     except urllib.error.HTTPError as e:
         body = e.read().decode()
         log(f"  ERROR batch {i}: {body[:300]}")
@@ -249,13 +259,14 @@ import urllib.request, os, json
 URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 req = urllib.request.Request(
-    f"{URL}/rest/v1/crexi_api_comps?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b&select=crexi_id,num_units,detail_enriched_at,detail_json",
+    f"{URL}/rest/v1/{MAIN_TABLE}?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b&select=crexi_id,num_units,detail_enriched_at,crexi_api_comp_detail_json(detail_json)",
     headers={"apikey": KEY, "Authorization": f"Bearer {KEY}", "Accept": "application/json"},
 )
 with urllib.request.urlopen(req) as r:
     rows = json.loads(r.read())
 for row in rows:
-    dj = row.get("detail_json") or {}
+    emb = row.get("crexi_api_comp_detail_json") or {}
+    dj = emb.get("detail_json") or {}
     print(f"  crexi_id:          {row['crexi_id']}")
     print(f"  num_units:         {row['num_units']}")
     print(f"  detail_enriched_at:{row['detail_enriched_at']}")
