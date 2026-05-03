@@ -22,6 +22,11 @@
 -- Product decision: condo/individual-unit sales are not relevant to the
 -- mid-market multifamily use case, so we exclude them from sales trends
 -- rather than rescaling their num_units. Whole-building sales are unaffected.
+--
+-- Large UPDATE on crexi_api_comps can exceed the default remote statement_timeout
+-- (~2 min); match 20260501120000_crexi_api_comps_crexi_url.sql.
+
+SET statement_timeout = '30min';
 
 UPDATE public.crexi_api_comps
 SET exclude_from_sales_trends = true
