@@ -53,7 +53,7 @@ This ordering guarantees that the database schema is always ahead of the applica
 ### Testing
 
 - **Development approach**: Adopt test-driven development for code changes: add or update the smallest relevant failing test first, implement the minimal change to make it pass, then run the relevant tests again.
-- **Unit/integration tests**: `bun run test` (Vitest + jsdom, 65 test files / 565 tests). No external services needed — all deps are mocked.
+- **Unit/integration tests**: `bun run test` (Vitest + jsdom, 83 test files / 679 tests). No external services needed — all deps are mocked.
 - **Formatting**: `npx prettier --check "src/**/*.{ts,tsx}"`. No ESLint config exists in the repo.
 - **After opening or updating a PR**: Confirm CI finished successfully using the [GitHub CLI](https://cli.github.com/) from the PR branch (requires `gh auth login` with repo access). Run `gh pr checks --watch` to wait until all checks complete and fail the session if any check fails; use `gh pr checks` for a one-shot status snapshot. Fix failures, push again, and re-check until green.
 
@@ -73,7 +73,7 @@ When it would help reviewers or future readers (for example UI changes, flows, o
 - **Runtime**: Python 3.12 + uv. Both `uv` and a uv-managed Python are installed via the update script; `~/.local/bin` and the uv Python bin directory are on PATH.
 - **Dagster CLI**: `dg` should be available in Cloud VMs. If it is missing, run `source "$HOME/.local/bin/env" && uv tool install dagster-dg-cli`.
 - **If `uv` is missing**: run `curl -LsSf https://astral.sh/uv/install.sh | sh` and then `source "$HOME/.local/bin/env"`.
-- **Install deps**: `cd pipeline/dagster && uv pip install dagster dagster-webserver dagster-cloud supabase apify-client python-dotenv pytest && uv pip install --no-deps -e .` — the `postal` C extension is excluded because libpostal is not available in Cloud VMs. Tests mock `normalize_address` so they pass without it.
-- **Run tests**: `cd pipeline/dagster && .venv/bin/pytest` (56 tests, all mocked, no external services needed).
+- **Install deps**: `cd pipeline/dagster && uv pip install dagster dagster-webserver dagster-cloud supabase apify-client python-dotenv pytest boto3 requests google-genai python-dateutil && uv pip install --no-deps -e .` — the `postal` C extension is excluded because libpostal is not available in Cloud VMs. Tests mock `normalize_address` so they pass without it.
+- **Run tests**: `cd pipeline/dagster && .venv/bin/pytest` (204 tests, all mocked, no external services needed).
 - **Run dev server**: `cd pipeline/dagster && uv run dagster dev` (requires Supabase + Apify env vars; see `pipeline/dagster/.env.example`).
 - **Debugging a Dagster Cloud run**: To inspect logs for a specific run, extract the run ID from the Dagster Plus run URL (format: `https://<org>.dagster.plus/<deployment>/runs/<run-id>`) and use `dg`: `dg run inspect <run-id>` (add `--logs` to stream full log output). Requires `DAGSTER_CLOUD_API_TOKEN` and the deployment name (e.g. `prod`) to be configured; see `pipeline/dagster/.env.example`.
