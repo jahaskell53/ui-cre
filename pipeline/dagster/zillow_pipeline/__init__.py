@@ -51,8 +51,8 @@ defs = Definitions(
             loopnet_detail_actor_id=EnvVar("APIFY_LOOPNET_DETAIL_ACTOR_ID"),
         ),
         "s3": S3Resource(
-            aws_access_key_id=EnvVar("ACCESS_KEY"),
-            aws_secret_access_key=EnvVar("SECRET_ACCESS_KEY"),
+            aws_access_key_id=EnvVar("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=EnvVar("AWS_SECRET_ACCESS_KEY"),
             aws_region=EnvVar("AWS_REGION"),
             bucket_name=EnvVar("AWS_S3_BUCKET"),
         ),
