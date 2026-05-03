@@ -16,6 +16,10 @@ import { describe, expect, it } from "vitest";
 const SF_LAT = 37.7749;
 const SF_LNG = -122.4194;
 
+/** Approx. center of Oakland — used for neighborhood + MSA bucket tests outside SF. */
+const OAKLAND_LAT = 37.8044;
+const OAKLAND_LNG = -122.2712;
+
 const CITY = "San Francisco";
 const STATE = "CA";
 /** Stored in county_boundaries.name_lsad (with "County" suffix, matching Mapbox output) */
