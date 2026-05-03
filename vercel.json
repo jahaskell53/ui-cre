@@ -1,6 +1,9 @@
 {
     "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
     "functions": {
+        "src/app/api/rpc/route.ts": {
+            "maxDuration": 150
+        },
         "src/app/api/news/scrape-rss/route.ts": {
             "maxDuration": 300
         },
