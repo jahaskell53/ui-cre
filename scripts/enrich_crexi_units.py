@@ -124,35 +124,42 @@ def fetch_detail(crexi_id: str) -> dict:
     return {"id": crexi_id, "error": "max retries"}
 
 
-def upsert_batch(rows: list[dict]) -> int:
-    """Upsert a batch of rows to Supabase. Returns number of rows accepted."""
+def patch_row(row: dict) -> bool:
+    """PATCH a single row by crexi_id. Returns True on success."""
+    crexi_id = row["crexi_id"]
+    payload = {
+        "detail_json": row["detail_json"],
+        "num_units": row["num_units"],
+        "detail_enriched_at": row["detail_enriched_at"],
+    }
+    url = f"{SUPABASE_URL}/rest/v1/{TABLE}?crexi_id=eq.{urllib.parse.quote(crexi_id, safe='')}"
     req = urllib.request.Request(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}",
-        data=json.dumps(rows).encode(),
+        url,
+        data=json.dumps(payload).encode(),
         headers={
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
             "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates,return=minimal",
+            "Prefer": "return=minimal",
         },
-        method="POST",
+        method="PATCH",
     )
     for attempt, delay in enumerate([0] + RETRY_DELAYS):
         if delay:
             time.sleep(delay)
         try:
-            with urllib.request.urlopen(req, timeout=60) as _:
-                return len(rows)
+            with urllib.request.urlopen(req, timeout=30) as _:
+                return True
         except urllib.error.HTTPError as e:
             body = e.read().decode()
-            log(f"  Supabase upsert error (attempt {attempt+1}): {body[:300]}")
             if attempt < len(RETRY_DELAYS):
                 continue
-    return 0
+            log(f"  PATCH error for {crexi_id}: {body[:200]}")
+    return False
 
 
 def main() -> None:
-    import urllib.parse  # noqa: F401 — needed in fetch_detail
+    import urllib.parse  # noqa: F401 — needed in fetch_detail and patch_row
 
     log("=== Crexi detail enrichment started ===")
     log(f"Mode: {'force re-enrich all' if FORCE else 'skip already-enriched rows'}")
@@ -167,20 +174,26 @@ def main() -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
     total_ok = 0
     total_err = 0
-    total_upserted = 0
-    pending_rows: list[dict] = []
+    total_patched = 0
+    patch_queue: list[dict] = []
     start_time = time.time()
 
-    def flush_pending():
-        nonlocal total_upserted, pending_rows
-        if not pending_rows:
-            return
-        for i in range(0, len(pending_rows), SUPABASE_BATCH):
-            total_upserted += upsert_batch(pending_rows[i : i + SUPABASE_BATCH])
-        pending_rows = []
+    # We use two thread pools: one for Crexi API fetches and one for Supabase PATCHes.
+    # patch_pool workers send one PATCH per row — concurrent but not batched.
+    patch_pool = ThreadPoolExecutor(max_workers=SUPABASE_BATCH)
+    patch_futures = []
 
-    with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as pool:
-        futures = {pool.submit(fetch_detail, cid): cid for cid in all_ids}
+    def collect_patch_results():
+        nonlocal total_patched
+        done = [f for f in patch_futures if f.done()]
+        for f in done:
+            if f.result():
+                total_patched += 1
+        for f in done:
+            patch_futures.remove(f)
+
+    with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as detail_pool:
+        futures = {detail_pool.submit(fetch_detail, cid): cid for cid in all_ids}
         done_count = 0
         for fut in as_completed(futures):
             result = fut.result()
@@ -192,19 +205,22 @@ def main() -> None:
                 total_ok += 1
                 data = result.get("data")  # may be None for 404
                 num_units = data.get("numberOfUnits") if data else None
-                pending_rows.append({
+                row = {
                     "crexi_id": result["id"],
                     "detail_json": data,
                     "num_units": num_units,
                     "detail_enriched_at": now_iso,
-                })
+                }
+                pf = patch_pool.submit(patch_row, row)
+                patch_futures.append(pf)
 
-            # Flush to Supabase every SUPABASE_BATCH rows
-            if len(pending_rows) >= SUPABASE_BATCH:
-                flush_pending()
+            # Periodically drain completed patch futures
+            if done_count % 200 == 0:
+                collect_patch_results()
 
             # Log progress every 5000 records
             if done_count % 5000 == 0:
+                collect_patch_results()
                 elapsed = time.time() - start_time
                 rate = done_count / elapsed
                 eta = (len(all_ids) - done_count) / rate if rate else 0
@@ -212,13 +228,17 @@ def main() -> None:
                     f"Progress: {done_count}/{len(all_ids)} "
                     f"({100*done_count/len(all_ids):.1f}%) | "
                     f"{rate:.0f} req/s | ETA {eta/60:.1f}min | "
-                    f"ok={total_ok} err={total_err} upserted={total_upserted}"
+                    f"ok={total_ok} err={total_err} patched={total_patched}"
                 )
 
-    flush_pending()
+    # Wait for all patches to finish
+    patch_pool.shutdown(wait=True)
+    for f in patch_futures:
+        if f.result():
+            total_patched += 1
 
     elapsed = time.time() - start_time
-    log(f"=== Done in {elapsed/60:.1f}min: ok={total_ok} err={total_err} upserted={total_upserted} ===")
+    log(f"=== Done in {elapsed/60:.1f}min: ok={total_ok} err={total_err} patched={total_patched} ===")
 
     # Spot-check
     log("Spot-check: 379 Coronado St, El Granada (crexi_id=3f61c9e4027ff14493630430d81f03e84e7c0f5b)...")
