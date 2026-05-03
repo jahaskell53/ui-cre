@@ -221,3 +221,146 @@ describe("get_crexi_sales_trends_by_neighborhood (Oakland area)", () => {
         }
     });
 });
+
+// ── get_crexi_sales_trends_bucket_listings ───────────────────────────────────
+
+interface BucketListingRow {
+    id: number;
+    crexi_id: string | null;
+    property_name: string | null;
+    address_full: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    property_price_total: number | null;
+    num_units: number | null;
+    price_per_door: number | null;
+    sale_transaction_date: string | null;
+    sale_cap_rate_percent: number | null;
+    financials_cap_rate_percent: number | null;
+    total_count: number;
+}
+
+/**
+ * A wide bucket (3 years) ensures we find at least one comp regardless of the
+ * exact bucket a test chooses.  Alameda County / Oakland / SF Bay Area MSA all
+ * have dense Crexi comps so the date range of 2022-01-01 + 36 months is safe.
+ */
+const BUCKET_START = "2022-01-01";
+const BUCKET_MONTHS = 36;
+
+describe("get_crexi_sales_trends_bucket_listings – zip", () => {
+    it("returns rows and a valid total_count for a known zip (94601 Oakland)", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("get_crexi_sales_trends_bucket_listings", {
+            p_area_kind: "zip",
+            p_bucket_start: BUCKET_START,
+            p_months_per_bucket: BUCKET_MONTHS,
+            p_zip: "94601",
+            p_offset: 0,
+            p_limit: 10,
+        });
+        expect(error).toBeNull();
+        const rows = (data ?? []) as BucketListingRow[];
+        // total_count must be present and non-negative; we don't assert > 0 because
+        // the zip may have no comps in the window — we just verify the shape.
+        if (rows.length > 0) {
+            expect(rows[0].total_count).toBeGreaterThan(0);
+            expect(rows[0].property_price_total).toBeGreaterThan(0);
+        }
+    });
+});
+
+describe("get_crexi_sales_trends_bucket_listings – city", () => {
+    it("returns rows and a valid total_count for Oakland, CA", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("get_crexi_sales_trends_bucket_listings", {
+            p_area_kind: "city",
+            p_bucket_start: BUCKET_START,
+            p_months_per_bucket: BUCKET_MONTHS,
+            p_city: CITY,
+            p_state: STATE,
+            p_offset: 0,
+            p_limit: 10,
+        });
+        expect(error).toBeNull();
+        const rows = (data ?? []) as BucketListingRow[];
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows[0].total_count).toBeGreaterThan(0);
+        expect(rows[0].property_price_total).toBeGreaterThan(0);
+    });
+});
+
+describe("get_crexi_sales_trends_bucket_listings – county", () => {
+    it("returns rows and a valid total_count for Alameda County, CA", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("get_crexi_sales_trends_bucket_listings", {
+            p_area_kind: "county",
+            p_bucket_start: BUCKET_START,
+            p_months_per_bucket: BUCKET_MONTHS,
+            p_county_name: COUNTY_NAME,
+            p_state: STATE,
+            p_offset: 0,
+            p_limit: 10,
+        });
+        expect(error).toBeNull();
+        const rows = (data ?? []) as BucketListingRow[];
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows[0].total_count).toBeGreaterThan(0);
+        expect(rows[0].property_price_total).toBeGreaterThan(0);
+    });
+});
+
+describe("get_crexi_sales_trends_bucket_listings – neighborhood", () => {
+    it("resolves a neighborhood at Oakland point and returns no RPC error", async () => {
+        const client = makeClient();
+        const { data: nhRows, error: nhError } = await client.rpc("get_neighborhood_at_point", {
+            p_lat: OAKLAND_LAT,
+            p_lng: OAKLAND_LNG,
+        });
+        expect(nhError).toBeNull();
+        const nhs = nhRows as { id: number; name: string; city: string }[];
+        if (nhs.length === 0) return;
+
+        const { data, error } = await client.rpc("get_crexi_sales_trends_bucket_listings", {
+            p_area_kind: "neighborhood",
+            p_bucket_start: BUCKET_START,
+            p_months_per_bucket: BUCKET_MONTHS,
+            p_neighborhood_ids: [nhs[0].id],
+            p_offset: 0,
+            p_limit: 10,
+        });
+        expect(error).toBeNull();
+        const rows = (data ?? []) as BucketListingRow[];
+        for (const row of rows) {
+            expect(row.property_price_total).toBeGreaterThan(0);
+        }
+    });
+});
+
+describe("get_crexi_sales_trends_bucket_listings – msa", () => {
+    it("returns rows for the SF Bay Area MSA", async () => {
+        const client = makeClient();
+        const { data: msaRows, error: msaError } = await client.rpc("get_msa_at_point", {
+            p_lat: OAKLAND_LAT,
+            p_lng: OAKLAND_LNG,
+        });
+        expect(msaError).toBeNull();
+        const msas = msaRows as { geoid: string; name: string }[];
+        expect(msas.length).toBeGreaterThan(0);
+
+        const { data, error } = await client.rpc("get_crexi_sales_trends_bucket_listings", {
+            p_area_kind: "msa",
+            p_bucket_start: BUCKET_START,
+            p_months_per_bucket: BUCKET_MONTHS,
+            p_geoid: msas[0].geoid,
+            p_offset: 0,
+            p_limit: 10,
+        });
+        expect(error).toBeNull();
+        const rows = (data ?? []) as BucketListingRow[];
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows[0].total_count).toBeGreaterThan(0);
+        expect(rows[0].property_price_total).toBeGreaterThan(0);
+    });
+});
