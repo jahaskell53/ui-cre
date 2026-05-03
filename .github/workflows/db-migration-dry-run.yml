@@ -87,10 +87,12 @@ jobs:
           # that's expected, so we don't stop on error here. Custom roles (e.g.
           # `prisma`) that aren't on the base image will be created.
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-roles.sql > /tmp/restore-roles.log 2>&1 || true
-          # Grant the connecting `postgres` user membership in every non-system role
-          # so that subsequent ALTER ... OWNER TO "<custom_role>" statements in the
-          # schema dump are permitted (Postgres requires the executing role to be a
-          # member of the target ownership role).
+          # Grant the connecting `postgres` user membership in every non-system,
+          # non-reserved role so that subsequent ALTER ... OWNER TO "<custom_role>"
+          # statements in the schema dump are permitted (Postgres requires the
+          # executing role to be a member of the target ownership role).
+          # Skip pg_* (system), supabase_* / pgsodium_* (reserved by Supabase image —
+          # only the bootstrap superuser can grant those), and postgres itself.
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
           DO $$
           DECLARE r record;
@@ -98,7 +100,9 @@ jobs:
             FOR r IN
               SELECT rolname FROM pg_roles
               WHERE rolname NOT LIKE 'pg_%'
-                AND rolname <> 'postgres'
+                AND rolname NOT LIKE 'supabase\_%' ESCAPE '\'
+                AND rolname NOT LIKE 'pgsodium\_%' ESCAPE '\'
+                AND rolname NOT IN ('postgres', 'supabase_admin')
             LOOP
               EXECUTE format('GRANT %I TO postgres', r.rolname);
             END LOOP;
