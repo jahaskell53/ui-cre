@@ -106,8 +106,15 @@ jobs:
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-history-schema.sql > /tmp/restore-history-schema.log 2>&1 || true
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=1 -f /tmp/prod-history-data.sql
 
+      # PGSSLMODE=disable is required because supabase/cli currently ignores
+      # ?sslmode=disable in --db-url (issue #4839 / regression of #4288). Without
+      # this env var, db push tries TLS against the in-CI Postgres service container
+      # which doesn't terminate TLS, and fails with "tls error (server refused TLS
+      # connection)".
       - name: Capture pending SQL (dry-run against shadow)
         id: pending-sql
+        env:
+          PGSSLMODE: disable
         run: |
           set +e
           supabase db push --dry-run --db-url "$SHADOW_DB_URL" > /tmp/dry-run-output.txt 2>&1
@@ -115,6 +122,8 @@ jobs:
 
       - name: Apply pending migrations to shadow Postgres
         id: apply
+        env:
+          PGSSLMODE: disable
         run: |
           set +e
           supabase db push --db-url "$SHADOW_DB_URL" > /tmp/apply-output.txt 2>&1
