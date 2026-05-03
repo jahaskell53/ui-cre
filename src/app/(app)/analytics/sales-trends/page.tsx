@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, MapPin, Search, TrendingUp, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -229,7 +228,7 @@ export default function SalesTrendsPage() {
     const [compareActiveSuggestionIndex, setCompareActiveSuggestionIndex] = useState(-1);
     const compareSuggestListRef = useRef<HTMLUListElement>(null);
 
-    // Drill-down state: clicking a chart point opens a listings dialog
+    // Drill-down state: clicking a chart point shows listings below the chart
     const PAGE_SIZE = 25;
     const [drillDown, setDrillDown] = useState<{
         area: AreaSelection;
@@ -686,7 +685,7 @@ export default function SalesTrendsPage() {
         });
     }, [selectedAreas, compareAreas, unitRange]);
 
-    // Fetch drill-down listings when dialog is open or page changes
+    // Fetch drill-down listings when a point is selected or page changes
     useEffect(() => {
         if (!drillDown) return;
         setDrillLoading(true);
@@ -1318,138 +1317,6 @@ export default function SalesTrendsPage() {
                 </div>
             )}
 
-            {/* Drill-down dialog */}
-            <Dialog
-                open={drillDown !== null}
-                onOpenChange={(open) => {
-                    if (!open) setDrillDown(null);
-                }}
-            >
-                <DialogContent className="flex max-h-[90vh] w-full max-w-4xl flex-col gap-0 overflow-hidden p-0">
-                    <DialogHeader className="border-b border-gray-100 px-6 pt-6 pb-4 dark:border-gray-700">
-                        <DialogTitle className="text-base">
-                            Listings — {drillDown?.area.label} · {drillDown?.monthLabel}
-                            {sampleComps !== "1M" && <span className="ml-1 text-sm font-normal text-gray-400">({sampleComps} window)</span>}
-                        </DialogTitle>
-                        {drillTotal > 0 && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {drillTotal.toLocaleString()} sale{drillTotal !== 1 ? "s" : ""} found
-                            </p>
-                        )}
-                    </DialogHeader>
-                    <div className="flex-1 overflow-auto">
-                        {drillLoading && (
-                            <div className="flex items-center justify-center p-10">
-                                <p className="text-sm text-gray-400">Loading…</p>
-                            </div>
-                        )}
-                        {!drillLoading && drillListings.length === 0 && (
-                            <div className="flex items-center justify-center p-10">
-                                <p className="text-sm text-gray-400">No listings found for this period.</p>
-                            </div>
-                        )}
-                        {!drillLoading && drillListings.length > 0 && (
-                            <table className="w-full text-sm">
-                                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
-                                    <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
-                                        <th className="px-4 py-3 font-medium">Property</th>
-                                        <th className="px-4 py-3 font-medium whitespace-nowrap">Sale Date</th>
-                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Price</th>
-                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Units</th>
-                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">$/Door</th>
-                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Cap Rate</th>
-                                        <th className="px-4 py-3 font-medium"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {drillListings.map((row) => (
-                                        <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                            <td className="px-4 py-3">
-                                                <div className="leading-snug font-medium text-gray-900 dark:text-gray-100">
-                                                    {row.property_name || row.address_full || "—"}
-                                                </div>
-                                                {row.property_name && row.address_full && (
-                                                    <div className="mt-0.5 text-xs text-gray-400">{row.address_full}</div>
-                                                )}
-                                                <div className="mt-0.5 text-xs text-gray-400">{[row.city, row.state, row.zip].filter(Boolean).join(", ")}</div>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-300">
-                                                {row.sale_transaction_date
-                                                    ? new Date(row.sale_transaction_date).toLocaleDateString("en-US", {
-                                                          month: "short",
-                                                          day: "numeric",
-                                                          year: "numeric",
-                                                          timeZone: "UTC",
-                                                      })
-                                                    : "—"}
-                                            </td>
-                                            <td className="px-4 py-3 text-right whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                {row.property_price_total != null
-                                                    ? row.property_price_total >= 1_000_000
-                                                        ? `$${(row.property_price_total / 1_000_000).toFixed(2)}M`
-                                                        : `$${(row.property_price_total / 1_000).toFixed(0)}K`
-                                                    : "—"}
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{row.num_units ?? "—"}</td>
-                                            <td className="px-4 py-3 text-right whitespace-nowrap text-gray-900 dark:text-gray-100">
-                                                {row.price_per_door != null
-                                                    ? row.price_per_door >= 1_000_000
-                                                        ? `$${(row.price_per_door / 1_000_000).toFixed(2)}M`
-                                                        : `$${(row.price_per_door / 1_000).toFixed(0)}K`
-                                                    : "—"}
-                                            </td>
-                                            <td className="px-4 py-3 text-right whitespace-nowrap text-gray-600 dark:text-gray-300">
-                                                {(row.sale_cap_rate_percent ?? row.financials_cap_rate_percent) != null
-                                                    ? `${((row.sale_cap_rate_percent ?? row.financials_cap_rate_percent) as number).toFixed(2)}%`
-                                                    : "—"}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {row.crexi_id && (
-                                                    <a
-                                                        href={`https://www.crexi.com/property-records/${row.crexi_id}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-blue-500 hover:text-blue-600"
-                                                        title="View on Crexi"
-                                                    >
-                                                        <ExternalLink className="size-3.5" />
-                                                    </a>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        )}
-                    </div>
-                    {drillTotal > PAGE_SIZE && (
-                        <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                            <span>
-                                Page {drillPage + 1} of {Math.ceil(drillTotal / PAGE_SIZE)}
-                            </span>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setDrillPage((p) => Math.max(0, p - 1))}
-                                    disabled={drillPage === 0}
-                                    className="rounded-md border border-gray-200 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:hover:bg-gray-700"
-                                >
-                                    Previous
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setDrillPage((p) => Math.min(Math.ceil(drillTotal / PAGE_SIZE) - 1, p + 1))}
-                                    disabled={drillPage >= Math.ceil(drillTotal / PAGE_SIZE) - 1}
-                                    className="rounded-md border border-gray-200 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:hover:bg-gray-700"
-                                >
-                                    Next
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
             {/* Chart */}
             {allDisplayAreas.length > 0 && !loading && (
                 <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
@@ -1577,9 +1444,145 @@ export default function SalesTrendsPage() {
                                 {metric === "cost_per_unit" &&
                                     `${displayType === "Average" ? "Average" : displayType === "Candle" ? "P25–P75 range with median" : "Median"} closed-sale price per door from Crexi API comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                                 {" · "}
-                                <span className="italic">Click any data point to see individual listings.</span>
+                                <span className="italic">Click any data point to see individual listings below the chart.</span>
                             </p>
                         </>
+                    )}
+                </div>
+            )}
+
+            {drillDown !== null && (
+                <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                    <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 pt-5 pb-4 dark:border-gray-700">
+                        <div className="min-w-0">
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                                Listings — {drillDown.area.label} · {drillDown.monthLabel}
+                                {sampleComps !== "1M" && <span className="ml-1 text-sm font-normal text-gray-400">({sampleComps} window)</span>}
+                            </h3>
+                            {drillTotal > 0 && (
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {drillTotal.toLocaleString()} sale{drillTotal !== 1 ? "s" : ""} found
+                                </p>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setDrillDown(null)}
+                            className="shrink-0 rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                            aria-label="Close listings"
+                        >
+                            <X className="size-5" />
+                        </button>
+                    </div>
+                    <div className="max-h-[min(70vh,560px)] overflow-auto">
+                        {drillLoading && (
+                            <div className="flex items-center justify-center p-10">
+                                <p className="text-sm text-gray-400">Loading…</p>
+                            </div>
+                        )}
+                        {!drillLoading && drillListings.length === 0 && (
+                            <div className="flex items-center justify-center p-10">
+                                <p className="text-sm text-gray-400">No listings found for this period.</p>
+                            </div>
+                        )}
+                        {!drillLoading && drillListings.length > 0 && (
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
+                                    <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
+                                        <th className="px-4 py-3 font-medium">Property</th>
+                                        <th className="px-4 py-3 font-medium whitespace-nowrap">Sale Date</th>
+                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Price</th>
+                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Units</th>
+                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">$/Door</th>
+                                        <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Cap Rate</th>
+                                        <th className="px-4 py-3 font-medium"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                    {drillListings.map((row) => (
+                                        <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                            <td className="px-4 py-3">
+                                                <div className="leading-snug font-medium text-gray-900 dark:text-gray-100">
+                                                    {row.property_name || row.address_full || "—"}
+                                                </div>
+                                                {row.property_name && row.address_full && (
+                                                    <div className="mt-0.5 text-xs text-gray-400">{row.address_full}</div>
+                                                )}
+                                                <div className="mt-0.5 text-xs text-gray-400">{[row.city, row.state, row.zip].filter(Boolean).join(", ")}</div>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-300">
+                                                {row.sale_transaction_date
+                                                    ? new Date(row.sale_transaction_date).toLocaleDateString("en-US", {
+                                                          month: "short",
+                                                          day: "numeric",
+                                                          year: "numeric",
+                                                          timeZone: "UTC",
+                                                      })
+                                                    : "—"}
+                                            </td>
+                                            <td className="px-4 py-3 text-right whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                {row.property_price_total != null
+                                                    ? row.property_price_total >= 1_000_000
+                                                        ? `$${(row.property_price_total / 1_000_000).toFixed(2)}M`
+                                                        : `$${(row.property_price_total / 1_000).toFixed(0)}K`
+                                                    : "—"}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{row.num_units ?? "—"}</td>
+                                            <td className="px-4 py-3 text-right whitespace-nowrap text-gray-900 dark:text-gray-100">
+                                                {row.price_per_door != null
+                                                    ? row.price_per_door >= 1_000_000
+                                                        ? `$${(row.price_per_door / 1_000_000).toFixed(2)}M`
+                                                        : `$${(row.price_per_door / 1_000).toFixed(0)}K`
+                                                    : "—"}
+                                            </td>
+                                            <td className="px-4 py-3 text-right whitespace-nowrap text-gray-600 dark:text-gray-300">
+                                                {(row.sale_cap_rate_percent ?? row.financials_cap_rate_percent) != null
+                                                    ? `${((row.sale_cap_rate_percent ?? row.financials_cap_rate_percent) as number).toFixed(2)}%`
+                                                    : "—"}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                {row.crexi_id && (
+                                                    <a
+                                                        href={`https://www.crexi.com/property-records/${row.crexi_id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-500 hover:text-blue-600"
+                                                        title="View on Crexi"
+                                                    >
+                                                        <ExternalLink className="size-3.5" />
+                                                    </a>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                    {drillTotal > PAGE_SIZE && (
+                        <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            <span>
+                                Page {drillPage + 1} of {Math.ceil(drillTotal / PAGE_SIZE)}
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setDrillPage((p) => Math.max(0, p - 1))}
+                                    disabled={drillPage === 0}
+                                    className="rounded-md border border-gray-200 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:hover:bg-gray-700"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setDrillPage((p) => Math.min(Math.ceil(drillTotal / PAGE_SIZE) - 1, p + 1))}
+                                    disabled={drillPage >= Math.ceil(drillTotal / PAGE_SIZE) - 1}
+                                    className="rounded-md border border-gray-200 px-3 py-1.5 text-xs hover:bg-gray-50 disabled:opacity-40 dark:border-gray-600 dark:hover:bg-gray-700"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
             )}
