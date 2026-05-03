@@ -30,7 +30,9 @@ In **Cursor Cloud Agent** VMs, **Supabase MCP** and **Supabase CLI** both target
 
 **Pre-merge testing when the PR needs the migration first**: Production and the default CI path only apply migrations after merge to `main`. If you need the new schema applied to a database *before* merge (for example manual QA or integration tests against a hosted project while the PR is open), still follow the same Drizzle workflow—edit `src/db/schema.ts`, run `drizzle-kit generate` so the SQL file exists under `supabase/migrations/`, review and commit it—then apply pending migrations to the environment you are testing against using the Supabase CLI (for example `supabase db push` against a linked dev or staging project). That keeps the migration version-controlled; only the timing of *apply* on the test database is ahead of merge.
 
-**Do not apply schema changes via the Supabase MCP or the Supabase dashboard SQL editor.** MCP and CLI in this environment hit **production** (see above). All schema changes must go through the Drizzle → migration file → CI pipeline path described above so they remain version-controlled and reproducible.
+If that ordering is awkward for testing, an alternative is to apply the DDL first via **Supabase MCP** (remember: in Cloud Agent VMs MCP targets **production**—see above), then add the corresponding file under `supabase/migrations/` as a **no-op** (for example empty SQL or a harmless statement such as `select 1`) so migration history stays aligned and `supabase db push` after merge does not try to repeat the change. You still edit `src/db/schema.ts` and treat Drizzle as the source of truth; the committed migration records the version only.
+
+**Do not apply schema changes via the Supabase MCP or the Supabase dashboard SQL editor as the sole record of schema.** Prefer the Drizzle → migration file → CI path above so changes stay version-controlled and reproducible. The MCP-first + no-op migration file approach in the previous paragraph is allowed when it simplifies pre-merge testing; even then, never skip committing a migration file alongside the schema change.
 
 ### Backward compatibility rule
 
