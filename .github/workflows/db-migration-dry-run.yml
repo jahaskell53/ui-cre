@@ -111,6 +111,10 @@ jobs:
       # this env var, db push tries TLS against the in-CI Postgres service container
       # which doesn't terminate TLS, and fails with "tls error (server refused TLS
       # connection)".
+      #
+      # Both steps include the same "Remote migration versions not found" auto-repair
+      # logic that db-migration-apply.yml uses on prod, so the shadow check tolerates
+      # transient orphan-migration drift the same way the on-merge apply does.
       - name: Capture pending SQL (dry-run against shadow)
         id: pending-sql
         env:
@@ -118,7 +122,17 @@ jobs:
         run: |
           set +e
           supabase db push --dry-run --db-url "$SHADOW_DB_URL" > /tmp/dry-run-output.txt 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          EXIT=$?
+          if [ $EXIT -ne 0 ] && grep -q "Remote migration versions not found" /tmp/dry-run-output.txt; then
+            VERSIONS=$(grep -oP '(?<=migration repair --status reverted )\d+' /tmp/dry-run-output.txt)
+            for version in $VERSIONS; do
+              echo "Repairing orphaned shadow migration: $version" >> /tmp/dry-run-output.txt
+              supabase migration repair --status reverted "$version" --db-url "$SHADOW_DB_URL" >> /tmp/dry-run-output.txt 2>&1
+            done
+            supabase db push --dry-run --db-url "$SHADOW_DB_URL" >> /tmp/dry-run-output.txt 2>&1
+            EXIT=$?
+          fi
+          echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
 
       - name: Apply pending migrations to shadow Postgres
         id: apply
@@ -127,7 +141,17 @@ jobs:
         run: |
           set +e
           supabase db push --db-url "$SHADOW_DB_URL" > /tmp/apply-output.txt 2>&1
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          EXIT=$?
+          if [ $EXIT -ne 0 ] && grep -q "Remote migration versions not found" /tmp/apply-output.txt; then
+            VERSIONS=$(grep -oP '(?<=migration repair --status reverted )\d+' /tmp/apply-output.txt)
+            for version in $VERSIONS; do
+              echo "Repairing orphaned shadow migration: $version" >> /tmp/apply-output.txt
+              supabase migration repair --status reverted "$version" --db-url "$SHADOW_DB_URL" >> /tmp/apply-output.txt 2>&1
+            done
+            supabase db push --db-url "$SHADOW_DB_URL" >> /tmp/apply-output.txt 2>&1
+            EXIT=$?
+          fi
+          echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
 
       - name: Upload migration logs
         if: always()
