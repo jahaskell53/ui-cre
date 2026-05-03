@@ -61,6 +61,10 @@ This ordering guarantees that the database schema is always ahead of the applica
 
 The app and Dagster pipeline use an AWS S3 bucket (`AWS_S3_BUCKET` env var) for storing OM PDFs and profile pictures. The bucket also contains manual Crexi CSV exports under `Crexi/Comps & Records/` (`Property_Exports_1.csv` through `Property_Exports_18.csv`) and active listing exports under `Crexi/Active Listings/`. These CSVs are a separate dataset from what the API scraper ingests into `crexi_api_comps` — they were exported manually from the Crexi UI.
 
+### Sales trends data source
+
+Sales-trend RPCs read from **`crexi_api_comps`** (Crexi source) or **`loopnet_listings`** (LoopNet source). The `crexi_comps_records` table (manual Crexi CSV import) is **not** used by any sales-trend RPC; it exists only as a separate dataset and is referenced by `src/db/schema.ts`. When adding or modifying sales-trend queries, target `crexi_api_comps` for Crexi data.
+
 ### Known caveats
 
 - **`bun run build` fails in Cloud VMs** due to Google Fonts fetch being blocked by the sandboxed network. This is an environment limitation. The dev server (`bun dev`) works fine.
