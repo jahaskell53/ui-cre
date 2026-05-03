@@ -16,10 +16,17 @@ import { describe, expect, it } from "vitest";
 const SF_LAT = 37.7749;
 const SF_LNG = -122.4194;
 
+/** Downtown Oakland — used with zip 94601 and Alameda County bucket-listing fixtures. */
+const OAKLAND_LAT = 37.8044;
+const OAKLAND_LNG = -122.2712;
+
 const CITY = "San Francisco";
 const STATE = "CA";
 /** Stored in county_boundaries.name_lsad (with "County" suffix, matching Mapbox output) */
 const COUNTY_NAME = "San Francisco County";
+/** Alameda County — dense Crexi fixture for county / MSA bucket-listing tests (see migration notes). */
+const ALAMEDA_COUNTY_NAME = "Alameda County";
+const OAKLAND_CITY = "Oakland";
 
 interface SalesTrendRow {
     month_start: string;
@@ -278,7 +285,7 @@ describe("get_crexi_sales_trends_bucket_listings – city", () => {
             p_area_kind: "city",
             p_bucket_start: BUCKET_START,
             p_months_per_bucket: BUCKET_MONTHS,
-            p_city: CITY,
+            p_city: OAKLAND_CITY,
             p_state: STATE,
             p_offset: 0,
             p_limit: 10,
@@ -298,7 +305,7 @@ describe("get_crexi_sales_trends_bucket_listings – county", () => {
             p_area_kind: "county",
             p_bucket_start: BUCKET_START,
             p_months_per_bucket: BUCKET_MONTHS,
-            p_county_name: COUNTY_NAME,
+            p_county_name: ALAMEDA_COUNTY_NAME,
             p_state: STATE,
             p_offset: 0,
             p_limit: 10,
