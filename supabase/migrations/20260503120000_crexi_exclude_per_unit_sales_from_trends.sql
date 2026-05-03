@@ -22,6 +22,16 @@
 -- Product decision: condo/individual-unit sales are not relevant to the
 -- mid-market multifamily use case, so we exclude them from sales trends
 -- rather than rescaling their num_units. Whole-building sales are unaffected.
+--
+-- The `supabase db push` migrations role has a 2-minute statement_timeout,
+-- and the UPDATE below is a seq scan over 287k rows with JSONB path
+-- extraction plus index maintenance on the partial
+-- `crexi_api_comps_sales_trends_geom_idx` GiST index (which filters on
+-- `NOT exclude_from_sales_trends`, so every flipped row triggers an index
+-- delete). That exceeded the 2-min budget on the first apply attempt.
+-- Disable the timeout for just this transaction.
+
+SET LOCAL statement_timeout = 0;
 
 UPDATE public.crexi_api_comps
 SET exclude_from_sales_trends = true
