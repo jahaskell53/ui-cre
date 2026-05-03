@@ -145,6 +145,10 @@ def flatten(r):
         "tax_land_value": tax.get("landValue"),
         "tax_improvement_value": tax.get("improvementValue"),
         "gross_rent_annual": parse_gross_rent_annual(lrr),
+        # Per-unit condo/apartment sales carry a building-level `unitsCount`
+        # (num_units) while property_price_total is a single-unit price, which
+        # breaks price-per-door math. Exclude these from Crexi sales trends.
+        "exclude_from_sales_trends": addr.get("unitNumber") is not None,
         "raw_json": r,
     }
 
