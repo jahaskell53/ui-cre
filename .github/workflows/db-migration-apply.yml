@@ -8,6 +8,9 @@ jobs:
   db-migrate:
     name: Apply Supabase migrations
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - uses: actions/checkout@v4
@@ -23,25 +26,92 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
       - name: Apply migrations to production (with auto-repair)
+        id: apply
         run: |
           set +e
-          OUTPUT=$(supabase db push --linked 2>&1)
+          supabase db push --linked > /tmp/apply-output.txt 2>&1
           EXIT=$?
-          echo "$OUTPUT"
+          cat /tmp/apply-output.txt
 
-          if [ $EXIT -ne 0 ] && echo "$OUTPUT" | grep -q "Remote migration versions not found"; then
-            VERSIONS=$(echo "$OUTPUT" | grep -oP '(?<=migration repair --status reverted )\d+')
+          if [ $EXIT -ne 0 ] && grep -q "Remote migration versions not found" /tmp/apply-output.txt; then
+            VERSIONS=$(grep -oP '(?<=migration repair --status reverted )\d+' /tmp/apply-output.txt)
             for version in $VERSIONS; do
               echo "Repairing orphaned remote migration: $version"
-              supabase migration repair --status reverted "$version" --linked
+              supabase migration repair --status reverted "$version" --linked >> /tmp/apply-output.txt 2>&1
             done
-            # Retry after repair
-            set -e
-            supabase db push --linked
-          else
-            set -e
-            [ $EXIT -eq 0 ] || exit $EXIT
+            supabase db push --linked >> /tmp/apply-output.txt 2>&1
+            EXIT=$?
+            cat /tmp/apply-output.txt
           fi
+
+          echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
+          exit 0
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+      - name: Upload apply log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-migration-apply-log-${{ github.sha }}
+          path: /tmp/apply-output.txt
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Open GitHub issue on apply failure
+        if: steps.apply.outputs.exit_code != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = (() => {
+              try { return fs.readFileSync('/tmp/apply-output.txt', 'utf8').trim(); }
+              catch { return '(no output captured)'; }
+            })();
+
+            const sha = context.sha;
+            const shortSha = sha.slice(0, 7);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const commitUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${sha}`;
+
+            // Truncate output to keep issue body under GitHub's 65k char limit.
+            const MAX = 50000;
+            const truncated = output.length > MAX
+              ? output.slice(0, MAX) + `\n\n... [truncated ${output.length - MAX} chars; see workflow artifact for full log]`
+              : output;
+
+            const title = `DB migration apply failed on main @ ${shortSha}`;
+            const body = [
+              `Production migration apply failed on push to \`main\`.`,
+              ``,
+              `- **Commit**: [\`${shortSha}\`](${commitUrl})`,
+              `- **Workflow run**: ${runUrl}`,
+              `- **Full log**: download the \`db-migration-apply-log-${sha}\` artifact from the workflow run.`,
+              ``,
+              `## supabase db push output`,
+              ``,
+              '```',
+              truncated,
+              '```',
+              ``,
+              `## Remediation checklist`,
+              ``,
+              `- [ ] Inspect the output above and identify the failing migration file under \`supabase/migrations/\`.`,
+              `- [ ] Check whether production schema has drifted from the migration history (e.g. via Supabase MCP \`list_migrations\` / \`list_tables\`).`,
+              `- [ ] Open a follow-up PR that either fixes the migration SQL or splits the change so it applies cleanly. Do not edit prod directly via MCP/dashboard.`,
+              `- [ ] Once production is consistent again, close this issue with a link to the remediation PR.`,
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+            });
+
+      - name: Fail job if apply errored
+        if: steps.apply.outputs.exit_code != '0'
+        run: |
+          echo "Apply failed with exit code ${{ steps.apply.outputs.exit_code }}"
+          exit 1

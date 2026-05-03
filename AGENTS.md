@@ -25,8 +25,8 @@ In **Cursor Cloud Agent** VMs, **Supabase MCP** and **Supabase CLI** both target
 2. Run `drizzle-kit generate` to produce a SQL migration file under `supabase/migrations/`.
 3. Review the generated SQL to confirm it is correct and additive (see backward compatibility rule below).
 4. Commit both the schema change and the migration file in the same PR.
-5. On PR open/update, CI runs `supabase db push --dry-run` and posts the SQL as a PR comment so reviewers can see exactly what will run in production.
-6. On merge to main, CI runs `supabase db push` to apply the migration before the Vercel deployment completes.
+5. On PR open/update, CI dumps production schema + migration history into a fresh Postgres container, then runs `supabase db push` (a real apply, not `--dry-run`) against that shadow DB. The pending SQL and apply output are posted as a PR comment, and the full logs are uploaded as a workflow artifact (`db-migration-shadow-logs-<sha>`). Branch protection requires "branches must be up to date before merging" so this check always runs against the post-merge state, not a stale snapshot.
+6. On merge to main, CI runs `supabase db push` to apply the migration to production before the Vercel deployment completes. On failure, the workflow uploads the full apply output as an artifact (`db-migration-apply-log-<sha>`) and auto-opens a GitHub issue tagged with the failing commit SHA, the `supabase db push` output, and a link to the workflow run.
 
 **Migration file naming**: The version is the numeric timestamp prefix and is the primary key in `supabase_migrations.schema_migrations`. Two migrations with the same timestamp will cause `db push` to fail with a duplicate key error. Always use `drizzle-kit generate` to name Drizzle-managed migration files (it stamps with the actual current time). For hand-written SQL migrations, use the real current timestamp: `date +%Y%m%d%H%M%S`. Never use round numbers like `YYYYMMDD000000`. Before creating a migration, also run `git pull origin main` to confirm no migration on `main` already has the same or a later timestamp.
 
@@ -45,10 +45,12 @@ Migrations must be **additive only** (new columns with defaults or nullable, new
 
 Two GitHub Actions workflows manage schema changes automatically:
 
-- **`db-migration-dry-run.yml`** — triggers on every PR targeting `main`. Runs `supabase db push --dry-run` and posts the pending SQL as a comment on the PR so reviewers can inspect what will run against production. Requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_ID` as GitHub Actions secrets.
-- **`db-migration-apply.yml`** — triggers on every push to `main`. Runs `supabase db push` to apply pending migrations to production before the Vercel deployment completes. Same secrets required.
+- **`db-migration-dry-run.yml`** — triggers on every PR targeting `main`. Spins up a `supabase/postgres:17.x` service container (which ships with the Supabase-managed schemas `auth`, `storage`, etc. pre-initialized), dumps production schema + the `supabase_migrations` history into it, then runs `supabase db push` against the shadow DB (a real apply, not just `--dry-run`). Posts the pending SQL and apply output as a PR comment and uploads `/tmp/dry-run-output.txt`, `/tmp/apply-output.txt`, and `/tmp/restore-history-schema.log` as a workflow artifact. Requires `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID`, and `SUPABASE_DB_PASSWORD` as GitHub Actions secrets.
+- **`db-migration-apply.yml`** — triggers on every push to `main`. Runs `supabase db push` to apply pending migrations to production before the Vercel deployment completes. On failure, uploads the full apply output as an artifact and auto-opens a GitHub issue with the failing commit SHA, the `supabase db push` output, a link to the workflow run, and a remediation checklist. Requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_ID`.
 
 This ordering guarantees that the database schema is always ahead of the application code.
+
+**Required branch protection setting**: enable "Require branches to be up to date before merging" on `main` (Settings → Branches → Branch protection rules). Without this, the shadow apply check can pass against a stale base and the on-merge apply can still fail because another PR's migration landed in between.
 
 ### Testing
 
