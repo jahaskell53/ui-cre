@@ -62,6 +62,13 @@ jobs:
       - name: Link Supabase project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
 
+      - name: Dump prod custom roles
+        # Captures any custom Postgres roles defined in production (e.g. `prisma`)
+        # that don't ship with the supabase/postgres image. Schema dump references
+        # these roles via OWNER TO / GRANT TO statements, so they must exist before
+        # the schema is restored.
+        run: supabase db dump --linked --role-only -f /tmp/prod-roles.sql
+
       - name: Dump prod schema (public + user schemas; managed schemas excluded)
         run: supabase db dump --linked -f /tmp/prod-schema.sql
 
@@ -74,8 +81,15 @@ jobs:
       - name: Restore prod state into shadow Postgres
         run: |
           set -euo pipefail
+          # Roles first. Standard supabase roles (postgres, authenticated, anon,
+          # service_role, supabase_admin, etc.) already exist on the supabase/postgres
+          # image — those CREATE ROLE statements will fail with "already exists" and
+          # that's expected, so we don't stop on error here. Custom roles (e.g.
+          # `prisma`) that aren't on the base image will be created.
+          psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-roles.sql > /tmp/restore-roles.log 2>&1 || true
           # Schema must apply cleanly. The auth/storage schemas already exist in
-          # supabase/postgres so FKs to auth.users resolve.
+          # supabase/postgres so FKs to auth.users resolve, and any roles referenced
+          # by OWNER/GRANT exist after the previous step.
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=1 -f /tmp/prod-schema.sql
           # supabase_migrations schema may already exist on the image — tolerate "already exists".
           psql "$SHADOW_DB_URL" -v ON_ERROR_STOP=0 -f /tmp/prod-history-schema.sql > /tmp/restore-history-schema.log 2>&1 || true
@@ -103,6 +117,7 @@ jobs:
           path: |
             /tmp/dry-run-output.txt
             /tmp/apply-output.txt
+            /tmp/restore-roles.log
             /tmp/restore-history-schema.log
           if-no-files-found: ignore
           retention-days: 30
