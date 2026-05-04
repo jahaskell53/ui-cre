@@ -5,6 +5,12 @@
 -- and adds the append-only trigger; both must land together because an append-only
 -- trigger is incompatible with a `crexi_id`-only primary key under upsert semantics.
 
+-- Bulk counts + UNION in the legacy backfill exceed the migrations role default
+-- `statement_timeout` (~2m) on production; session-level SET persists across autocommit
+-- statements (see AGENTS.md — do not use SET LOCAL here).
+SET statement_timeout = 0;
+SET work_mem = '256MB';
+
 -- 1. Lineage table -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.crexi_scrape_runs (
     run_id          bigserial PRIMARY KEY,
