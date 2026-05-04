@@ -135,6 +135,7 @@ from datetime import datetime, timezone
 
 CHUNK_FILE = sys.argv[1]
 LOG = sys.argv[2]
+RUN_ID = int(os.environ["CREXI_RUN_ID"])
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 MAIN_TABLE = "crexi_api_comps"
@@ -163,6 +164,10 @@ for rec in records:
         "detail_json": data,
         "num_units": num_units,
         "detail_enriched_at": now_iso,
+        "run_id": RUN_ID,
+        # The browser-injected JS path doesn't surface HTTP status codes
+        # explicitly, so http_status stays NULL here. The `enrich_crexi_units.py`
+        # path captures it.
     })
 
 log(f"  {CHUNK_FILE}: {len(rows)} ok, {errors} errors")
@@ -170,7 +175,10 @@ log(f"  {CHUNK_FILE}: {len(rows)} ok, {errors} errors")
 updated = 0
 for i in range(0, len(rows), BATCH):
     batch = rows[i:i+BATCH]
-    detail_batch = [{"crexi_id": r["crexi_id"], "detail_json": r["detail_json"]} for r in batch]
+    detail_batch = [
+        {"crexi_id": r["crexi_id"], "detail_json": r["detail_json"], "run_id": r["run_id"]}
+        for r in batch
+    ]
     main_batch = [
         {"crexi_id": r["crexi_id"], "num_units": r["num_units"], "detail_enriched_at": r["detail_enriched_at"]}
         for r in batch
@@ -202,7 +210,70 @@ log(f"  {CHUNK_FILE}: upserted {updated} rows")
 PYEOF
 }
 
+start_run() {
+  python3 - << 'PYEOF'
+import json, os, urllib.request
+
+SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+
+scraper_version = os.environ.get("CREXI_SCRAPER_VERSION") or os.popen("git rev-parse --short HEAD 2>/dev/null").read().strip() or None
+payload = [{
+    "source": "detail",
+    "scraper_version": scraper_version,
+    "status": "running",
+    "params": {"script": "scripts/enrich_crexi_units.sh"},
+}]
+req = urllib.request.Request(
+    f"{SUPABASE_URL}/rest/v1/crexi_scrape_runs",
+    data=json.dumps(payload).encode(),
+    headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    },
+    method="POST",
+)
+with urllib.request.urlopen(req) as r:
+    print(json.loads(r.read())[0]["run_id"])
+PYEOF
+}
+
+finish_run() {
+  local RUN_ID=$1 STATUS=$2 ROW_COUNT=$3
+  python3 - "$RUN_ID" "$STATUS" "$ROW_COUNT" << 'PYEOF'
+import json, os, sys, urllib.request, datetime
+
+RUN_ID, STATUS, ROW_COUNT = sys.argv[1], sys.argv[2], int(sys.argv[3])
+SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+payload = {
+    "status": STATUS,
+    "finished_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "row_count": ROW_COUNT,
+}
+req = urllib.request.Request(
+    f"{SUPABASE_URL}/rest/v1/crexi_scrape_runs?run_id=eq.{RUN_ID}",
+    data=json.dumps(payload).encode(),
+    headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    },
+    method="PATCH",
+)
+urllib.request.urlopen(req).read()
+PYEOF
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
+export CREXI_RUN_ID
+CREXI_RUN_ID=$(start_run)
+echo "crexi_scrape_runs run_id=$CREXI_RUN_ID" | tee -a "$LOG"
+trap 'finish_run "$CREXI_RUN_ID" "failed" 0' ERR
+
 echo "Step 1: injecting JS into Chrome..." | tee -a "$LOG"
 inject_enrich_js
 
@@ -248,7 +319,9 @@ while [ $CHUNK -lt "$TOTAL_CHUNKS_EXPECTED" ]; do
   fi
 done
 
-echo "=== Enrichment complete ===" | tee -a "$LOG"
+trap - ERR
+finish_run "$CREXI_RUN_ID" "completed" 0
+echo "=== Enrichment complete (run_id=$CREXI_RUN_ID) ===" | tee -a "$LOG"
 
 # ─── Quick spot-check ──────────────────────────────────────────────────────────
 echo "" | tee -a "$LOG"
