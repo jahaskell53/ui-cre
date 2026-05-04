@@ -33,12 +33,75 @@ inject_cell() {
   xdotool key Return
 }
 
+start_run() {
+  python3 - << 'PYEOF'
+import json, os, sys, urllib.request, urllib.error
+
+SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+
+scraper_version = os.environ.get("CREXI_SCRAPER_VERSION") or os.popen("git rev-parse --short HEAD 2>/dev/null").read().strip() or None
+
+payload = [{
+    "source": "search",
+    "scraper_version": scraper_version,
+    "status": "running",
+    "params": {"script": "scripts/scrape_crexi.sh"},
+}]
+req = urllib.request.Request(
+    f"{SUPABASE_URL}/rest/v1/crexi_scrape_runs",
+    data=json.dumps(payload).encode(),
+    headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    },
+    method="POST",
+)
+with urllib.request.urlopen(req) as r:
+    rows = json.loads(r.read())
+print(rows[0]["run_id"])
+PYEOF
+}
+
+finish_run() {
+  local RUN_ID=$1 STATUS=$2 ROW_COUNT=$3
+  python3 - "$RUN_ID" "$STATUS" "$ROW_COUNT" << 'PYEOF'
+import json, os, sys, urllib.request, urllib.error
+
+RUN_ID, STATUS, ROW_COUNT = sys.argv[1], sys.argv[2], int(sys.argv[3])
+SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+
+import datetime
+payload = {
+    "status": STATUS,
+    "finished_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "row_count": ROW_COUNT,
+}
+req = urllib.request.Request(
+    f"{SUPABASE_URL}/rest/v1/crexi_scrape_runs?run_id=eq.{RUN_ID}",
+    data=json.dumps(payload).encode(),
+    headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    },
+    method="PATCH",
+)
+urllib.request.urlopen(req).read()
+PYEOF
+}
+
 upload_cell() {
   local CI=$1
-  python3 - "$CI" << 'PYEOF'
+  CREXI_RUN_ID="$CREXI_RUN_ID" python3 - "$CI" << 'PYEOF'
 import json, os, sys, urllib.request, urllib.error
 
 CI = sys.argv[1]
+RUN_ID = int(os.environ["CREXI_RUN_ID"])
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 TABLE = "crexi_api_comps"
@@ -156,7 +219,7 @@ with open(f"{DOWNLOAD_DIR}/crexi_cell_{CI}.json") as f:
 
 rows = [flatten(r) for r in data]
 raw_rows = [
-    {"crexi_id": row["crexi_id"], "raw_json": r}
+    {"crexi_id": row["crexi_id"], "raw_json": r, "run_id": RUN_ID}
     for row, r in zip(rows, data)
     if row.get("crexi_id")
 ]
@@ -199,13 +262,24 @@ for i in range(0, len(raw_rows), BATCH):
         body = e.read().decode()
         print(f"raw_json upsert error: {body[:200]}", file=sys.stderr)
 
-print(f"Cell {CI}: uploaded {len(rows)} rows")
+print(f"Cell {CI}: uploaded {len(rows)} rows (run_id={RUN_ID})")
+print(f"CELL_ROW_COUNT:{len(rows)}")
 PYEOF
 }
 
 echo "=== Crexi Grid Scrape ===" | tee -a "$LOG"
 CHROME_WID=$(xdotool search --name "Google Chrome" | head -1)
 xdotool windowactivate --sync $CHROME_WID
+
+# One scrape-run row covers all cells in a single invocation. Failures while
+# uploading any cell flip the final status to 'failed'; no fallback.
+export CREXI_RUN_ID
+CREXI_RUN_ID=$(start_run)
+echo "crexi_scrape_runs run_id=$CREXI_RUN_ID" | tee -a "$LOG"
+
+TOTAL_ROWS=0
+RUN_STATUS="completed"
+trap 'finish_run "$CREXI_RUN_ID" "failed" "$TOTAL_ROWS"' ERR
 
 for CELL in "${CELLS[@]}"; do
   read -r CI LAT_MIN LAT_MAX LON_MIN LON_MAX <<< "$CELL"
@@ -231,8 +305,13 @@ for CELL in "${CELLS[@]}"; do
     echo "Cell $CI: downloaded ($(wc -c < "$FILE") bytes)" | tee -a "$LOG"
   fi
 
-  upload_cell "$CI" | tee -a "$LOG"
+  CELL_OUT=$(upload_cell "$CI")
+  echo "$CELL_OUT" | tee -a "$LOG"
+  CELL_ROWS=$(echo "$CELL_OUT" | sed -n 's/^CELL_ROW_COUNT:\([0-9]\+\)$/\1/p' | tail -1)
+  TOTAL_ROWS=$((TOTAL_ROWS + ${CELL_ROWS:-0}))
   sleep 3
 done
 
-echo "=== All done ===" | tee -a "$LOG"
+trap - ERR
+finish_run "$CREXI_RUN_ID" "$RUN_STATUS" "$TOTAL_ROWS"
+echo "=== All done (run_id=$CREXI_RUN_ID, rows=$TOTAL_ROWS) ===" | tee -a "$LOG"

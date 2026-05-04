@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+    bigint,
     bigserial,
     boolean,
     check,
@@ -1675,22 +1676,58 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     detail_enriched_at: timestamp("detail_enriched_at", { withTimezone: true }),
 });
 
-/** Search-index / universal-search record payload, keyed by `crexi_id` (one row per comp). */
+/**
+ * Lineage row per Crexi scrape/enrich invocation. Every bronze (raw_json/detail_json)
+ * row is tagged with a `run_id` from this table so re-scrapes preserve history
+ * (see OPE-235 / OPE-237). One row per script invocation, not per HTTP request.
+ */
+export const crexiScrapeRuns = pgTable("crexi_scrape_runs", {
+    run_id: bigserial("run_id", { mode: "number" }).primaryKey(),
+    /** `'search'` (universal-search dump) | `'detail'` (per-property GET) | `'legacy-import'` (one-time backfill). */
+    source: text("source").notNull(),
+    /** Git SHA or ad-hoc version string of the script that produced the run. */
+    scraper_version: text("scraper_version"),
+    started_at: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    finished_at: timestamp("finished_at", { withTimezone: true }),
+    /** `'running' | 'completed' | 'failed'`. */
+    status: text("status").notNull().default("running"),
+    /** Free-form parameters (bbox, filters, --force, etc.). */
+    params: jsonb("params"),
+    row_count: integer("row_count"),
+    notes: text("notes"),
+});
+
+/**
+ * Search-index / universal-search record payload, one row per comp today.
+ * Append-only bronze: `run_id` + `fetched_at` are nullable in PR A (OPE-237) and
+ * become part of the primary key in PR B (OPE-238). The `on delete cascade` from
+ * `crexi_api_comps` is intentionally removed so bronze outlives silver.
+ */
 export const crexiApiCompRawJson = pgTable("crexi_api_comp_raw_json", {
     crexi_id: text("crexi_id")
         .primaryKey()
-        .references(() => crexiApiComps.crexi_id, { onDelete: "cascade" }),
+        .references(() => crexiApiComps.crexi_id),
     raw_json: jsonb("raw_json").notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    run_id: bigint("run_id", { mode: "number" }).references(() => crexiScrapeRuns.run_id),
+    fetched_at: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-/** GET https://api.crexi.com/properties/{id} response payload, keyed by `crexi_id`. */
+/**
+ * GET https://api.crexi.com/properties/{id} response payload. Append-only bronze;
+ * `detail_json` is nullable so 404/410 responses are still recorded (with
+ * `http_status` set) instead of silently dropped.
+ */
 export const crexiApiCompDetailJson = pgTable("crexi_api_comp_detail_json", {
     crexi_id: text("crexi_id")
         .primaryKey()
-        .references(() => crexiApiComps.crexi_id, { onDelete: "cascade" }),
+        .references(() => crexiApiComps.crexi_id),
     detail_json: jsonb("detail_json"),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    run_id: bigint("run_id", { mode: "number" }).references(() => crexiScrapeRuns.run_id),
+    fetched_at: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+    /** Crexi detail-API HTTP status (200 / 404 / 410). Null for legacy-import rows. */
+    http_status: integer("http_status"),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

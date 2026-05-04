@@ -67,6 +67,25 @@ The app and Dagster pipeline use an AWS S3 bucket (`AWS_S3_BUCKET` env var) for 
 
 Sales-trend RPCs read from **`crexi_api_comps`** (Crexi source) or **`loopnet_listings`** (LoopNet source). The `crexi_comps_records` table (manual Crexi CSV import) is **not** used by any sales-trend RPC; it exists only as a separate dataset and is referenced by `src/db/schema.ts`. When adding or modifying sales-trend queries, target `crexi_api_comps` for Crexi data.
 
+### Crexi data layout (bronze / silver, OPE-235)
+
+Crexi storage is split into two layers. **Treat the bronze tables as raw capture and `crexi_api_comps` as a derived projection.**
+
+- **Bronze (raw capture, scraper-only writes):**
+  - `crexi_api_comp_raw_json` — universal-search payload, one row per `crexi_id` today (PR B / OPE-238 will switch the PK to `(crexi_id, run_id)` so re-scrapes preserve history).
+  - `crexi_api_comp_detail_json` — `GET https://api.crexi.com/properties/{id}` payload. `detail_json` is nullable so 404/410 responses are still recorded with `http_status` set instead of silently dropped.
+  - Both tables carry `run_id` (FK to `crexi_scrape_runs`) and `fetched_at`.
+- **Silver (curated, app-readable):** `crexi_api_comps`. Every column is either flattened from `raw_json`, derived from `detail_json` (e.g. `num_units`, `detail_enriched_at`), or computed deterministically from those (e.g. `exclude_from_sales_trends`). No JSON payloads live on this table.
+- **Run lineage:** `crexi_scrape_runs` has one row per scraper invocation (`source = 'search' | 'detail' | 'legacy-import'`, plus `started_at` / `finished_at` / `status` / `params` / `row_count`). Both `scripts/scrape_crexi.sh` and `scripts/enrich_crexi_units.{py,sh}` insert a run row on start, tag every bronze write with the resulting `run_id`, and PATCH the row to `'completed'`/`'failed'` on exit.
+- **`_latest` views:** `crexi_api_comp_raw_json_latest` and `crexi_api_comp_detail_json_latest` expose the freshest payload per `crexi_id` (`distinct on (crexi_id) order by crexi_id, fetched_at desc`). Downstream silver-build code and ad-hoc joins should read from these, not from the underlying tables, so they keep working when bronze becomes append-only in PR B.
+
+ETL contract (rules, in priority order):
+
+1. Only the scrape/enrich scripts write bronze. The app, RPCs, and ad-hoc dashboards never mutate `crexi_api_comp_raw_json` or `crexi_api_comp_detail_json`.
+2. Re-scraping must always start a new `crexi_scrape_runs` row and tag inserts with that `run_id`. No fallback path that writes bronze without a `run_id`.
+3. Sales-trend RPCs and other hot reads target silver (`crexi_api_comps`), not bronze.
+4. Any new column on `crexi_api_comps` must have a documented derivation from `raw_json` and/or `detail_json` (a JSON path, a regex on a string field, a `coalesce`, etc.).
+
 ### Known caveats
 
 - **`bun run build` fails in Cloud VMs** due to Google Fonts fetch being blocked by the sandboxed network. This is an environment limitation. The dev server (`bun dev`) works fine.
