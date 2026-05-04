@@ -45,14 +45,6 @@ def backfill_crexi_run_lineage_op(
     return stats
 
 
-# Dagster+ run monitoring applies a deployment max runtime; this backfill does
-# thousands of PostgREST upserts (~290k raw + ~286k detail rows) and needs headroom.
-_CREXI_LINEAGE_MAX_RUNTIME_SECONDS = 4 * 60 * 60
-
-
-@job(
-    name="backfill_crexi_run_lineage_job",
-    tags={"dagster/max_runtime": str(_CREXI_LINEAGE_MAX_RUNTIME_SECONDS)},
-)
+@job(name="backfill_crexi_run_lineage_job")
 def backfill_crexi_run_lineage_job():
     backfill_crexi_run_lineage_op()
