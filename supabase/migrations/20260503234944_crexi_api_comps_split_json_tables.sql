@@ -17,6 +17,22 @@
 SET statement_timeout = 0;
 SET work_mem = '256MB';
 
+-- If a prior apply failed after registering composite row types but before the
+-- heap relation existed, Postgres can leave an orphaned `pg_type` row. A later
+-- `CREATE TABLE IF NOT EXISTS` then errors with:
+--   duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+-- Repair by dropping the orphan type when no table exists (safe no-op otherwise).
+DO $$
+BEGIN
+    IF to_regclass('public.crexi_api_comp_raw_json') IS NULL THEN
+        DROP TYPE IF EXISTS public.crexi_api_comp_raw_json CASCADE;
+    END IF;
+    IF to_regclass('public.crexi_api_comp_detail_json') IS NULL THEN
+        DROP TYPE IF EXISTS public.crexi_api_comp_detail_json CASCADE;
+    END IF;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.crexi_api_comp_raw_json (
     crexi_id text PRIMARY KEY REFERENCES public.crexi_api_comps (crexi_id) ON DELETE CASCADE,
     raw_json jsonb NOT NULL,
