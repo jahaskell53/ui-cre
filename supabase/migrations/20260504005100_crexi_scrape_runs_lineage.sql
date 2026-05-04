@@ -5,6 +5,12 @@
 -- and adds the append-only trigger; both must land together because an append-only
 -- trigger is incompatible with a `crexi_id`-only primary key under upsert semantics.
 
+-- The migrations role uses a short default statement_timeout; this file backfills and
+-- builds indexes over large bronze tables. Session-scoped SET (not SET LOCAL) persists
+-- for subsequent statements on the same connection (see AGENTS.md).
+SET statement_timeout = 0;
+SET work_mem = '256MB';
+
 -- 1. Lineage table -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.crexi_scrape_runs (
     run_id          bigserial PRIMARY KEY,
