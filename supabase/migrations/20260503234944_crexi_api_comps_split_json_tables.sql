@@ -4,9 +4,10 @@
 --
 -- The supabase db push migrations role has a 2-minute statement_timeout. Backfilling
 -- ~300k JSONB rows into the side tables (statements 2 and 3) exceeded that budget
--- on the first apply attempt. Disable the timeout for this transaction — same
--- pattern used in 20260503120000_crexi_exclude_per_unit_sales_from_trends.sql.
-SET LOCAL statement_timeout = 0;
+-- on the first apply attempt. Use session-level SET (not SET LOCAL): each
+-- statement in `supabase db push` runs outside an explicit transaction block,
+-- so SET LOCAL fails with 25P01 and aborts the migration before the backfill.
+SET statement_timeout = 0;
 
 CREATE TABLE IF NOT EXISTS public.crexi_api_comp_raw_json (
     crexi_id text PRIMARY KEY REFERENCES public.crexi_api_comps (crexi_id) ON DELETE CASCADE,
