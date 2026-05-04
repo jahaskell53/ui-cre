@@ -9,8 +9,7 @@ class BackfillCrexiRunLineageConfig(Config):
     """Launch config for backfill_crexi_run_lineage_job (set in Dagster UI).
 
     dry_run  – log what would be changed without writing anything.
-    page_size – rows per upsert batch (default 500 is a good balance of
-                throughput vs PostgREST request size).
+    page_size – rows per fetch + upsert batch (default 500; max 5000).
     limit    – stop after updating this many rows per table (useful for smoke
                tests; omit to process all rows).
     """
