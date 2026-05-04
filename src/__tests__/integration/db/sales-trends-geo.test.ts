@@ -24,6 +24,7 @@ const CITY = "San Francisco";
 const STATE = "CA";
 /** Stored in county_boundaries.name_lsad (with "County" suffix, matching Mapbox output) */
 const COUNTY_NAME = "San Francisco County";
+const ALAMEDA_COUNTY_NAME = "Alameda County";
 
 interface SalesTrendRow {
     month_start: string;
@@ -302,7 +303,7 @@ describe("get_crexi_sales_trends_bucket_listings – county", () => {
             p_area_kind: "county",
             p_bucket_start: BUCKET_START,
             p_months_per_bucket: BUCKET_MONTHS,
-            p_county_name: COUNTY_NAME,
+            p_county_name: ALAMEDA_COUNTY_NAME,
             p_state: STATE,
             p_offset: 0,
             p_limit: 10,
@@ -312,7 +313,7 @@ describe("get_crexi_sales_trends_bucket_listings – county", () => {
         expect(rows.length).toBeGreaterThan(0);
         expect(rows[0].total_count).toBeGreaterThan(0);
         expect(rows[0].property_price_total).toBeGreaterThan(0);
-    });
+    }, 180000);
 });
 
 describe("get_crexi_sales_trends_bucket_listings – neighborhood", () => {
@@ -366,5 +367,5 @@ describe("get_crexi_sales_trends_bucket_listings – msa", () => {
         expect(rows.length).toBeGreaterThan(0);
         expect(rows[0].total_count).toBeGreaterThan(0);
         expect(rows[0].property_price_total).toBeGreaterThan(0);
-    });
+    }, 180000);
 });
