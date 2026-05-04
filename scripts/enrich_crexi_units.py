@@ -31,6 +31,7 @@ SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 MAIN_TABLE = "crexi_api_comps"
 DETAIL_TABLE = "crexi_api_comp_detail_json"
+RUNS_TABLE = "crexi_scrape_runs"
 LOG_PATH = "/tmp/crexi_detail_enrich.log"
 
 DETAIL_WORKERS = 30       # parallel Crexi API calls (higher causes rate limiting)
@@ -111,7 +112,7 @@ def fetch_detail(crexi_id: str) -> dict:
         try:
             req = urllib.request.Request(url, headers=HEADERS_DETAIL)
             with urllib.request.urlopen(req, timeout=20) as r:
-                return {"id": crexi_id, "data": json.loads(r.read())}
+                return {"id": crexi_id, "data": json.loads(r.read()), "http_status": 200}
         except urllib.error.HTTPError as e:
             if e.code in (404, 410):
                 # Property deleted/gone on Crexi — store null detail_json
@@ -132,6 +133,8 @@ def patch_row(row: dict) -> bool:
     detail_payload = {
         "crexi_id": crexi_id,
         "detail_json": row["detail_json"],
+        "run_id": row["run_id"],
+        "http_status": row.get("http_status"),
     }
     main_payload = {
         "num_units": row["num_units"],
@@ -180,16 +183,85 @@ def patch_row(row: dict) -> bool:
 CHUNK_SIZE = 5000  # moved to top-level constants
 
 
+def start_run() -> int:
+    """Insert a `crexi_scrape_runs` row and return its `run_id`. No fallback on failure."""
+    payload = [{
+        "source": "detail",
+        "scraper_version": os.environ.get("CREXI_SCRAPER_VERSION") or _git_sha(),
+        "status": "running",
+        "params": {
+            "script": "scripts/enrich_crexi_units.py",
+            "force": FORCE,
+            "detail_workers": DETAIL_WORKERS,
+            "supabase_batch": SUPABASE_BATCH,
+        },
+    }]
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/{RUNS_TABLE}",
+        data=json.dumps(payload).encode(),
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        rows = json.loads(r.read())
+    return int(rows[0]["run_id"])
+
+
+def finish_run(run_id: int, status: str, row_count: int) -> None:
+    payload = {
+        "status": status,
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "row_count": row_count,
+    }
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/{RUNS_TABLE}?run_id=eq.{run_id}",
+        data=json.dumps(payload).encode(),
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        },
+        method="PATCH",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as _:
+            pass
+    except Exception as e:
+        log(f"  finish_run failed for run_id={run_id}: {e}")
+
+
+def _git_sha() -> str | None:
+    try:
+        import subprocess
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout.strip() or None
+    except Exception:
+        return None
+
+
 def main() -> None:
     import urllib.parse  # noqa: F401 — needed in fetch_detail and patch_row
 
     log("=== Crexi detail enrichment started ===")
     log(f"Mode: {'force re-enrich all' if FORCE else 'skip already-enriched rows'}")
 
+    run_id = start_run()
+    log(f"crexi_scrape_runs run_id={run_id}")
+
     log("Fetching crexi_ids from Supabase...")
     all_ids = fetch_all_crexi_ids()
     log(f"Total IDs to enrich: {len(all_ids)}")
     if not all_ids:
+        finish_run(run_id, "completed", 0)
         log("Nothing to do.")
         return
 
@@ -220,6 +292,8 @@ def main() -> None:
                         "detail_json": data,
                         "num_units": num_units,
                         "detail_enriched_at": now_iso,
+                        "run_id": run_id,
+                        "http_status": result.get("http_status"),
                     })
 
         # PATCH this chunk to Supabase in parallel
@@ -240,6 +314,7 @@ def main() -> None:
 
     elapsed = time.time() - start_time
     log(f"=== Done in {elapsed/60:.1f}min: ok={total_ok} err={total_err} patched={total_patched} ===")
+    finish_run(run_id, "completed", total_patched)
 
     # Spot-check
     log("Spot-check: 379 Coronado St, El Granada (crexi_id=3f61c9e4027ff14493630430d81f03e84e7c0f5b)...")
@@ -267,3 +342,6 @@ def main() -> None:
 if __name__ == "__main__":
     import urllib.parse
     main()
+    # Note: an uncaught exception in main() leaves the `crexi_scrape_runs` row
+    # in 'running' status, which is the desired signal that the run crashed.
+    # The next operator-initiated invocation creates a new run row.
