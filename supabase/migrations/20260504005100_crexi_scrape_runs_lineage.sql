@@ -5,6 +5,8 @@
 -- and adds the append-only trigger; both must land together because an append-only
 -- trigger is incompatible with a `crexi_id`-only primary key under upsert semantics.
 
+SET LOCAL statement_timeout = 0;
+
 -- 1. Lineage table -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.crexi_scrape_runs (
     run_id          bigserial PRIMARY KEY,
