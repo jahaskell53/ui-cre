@@ -149,13 +149,17 @@ def flatten(r):
         # (num_units) while property_price_total is a single-unit price, which
         # breaks price-per-door math. Exclude these from Crexi sales trends.
         "exclude_from_sales_trends": addr.get("unitNumber") is not None,
-        "raw_json": r,
     }
 
 with open(f"{DOWNLOAD_DIR}/crexi_cell_{CI}.json") as f:
     data = json.load(f)
 
 rows = [flatten(r) for r in data]
+raw_rows = [
+    {"crexi_id": row["crexi_id"], "raw_json": r}
+    for row, r in zip(rows, data)
+    if row.get("crexi_id")
+]
 for i in range(0, len(rows), BATCH):
     batch = rows[i:i+BATCH]
     req = urllib.request.Request(
@@ -175,6 +179,25 @@ for i in range(0, len(rows), BATCH):
         body = e.read().decode()
         if '"23505"' not in body:
             print(f"Error: {body[:200]}", file=sys.stderr)
+
+for i in range(0, len(raw_rows), BATCH):
+    batch = raw_rows[i:i+BATCH]
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/crexi_api_comp_raw_json",
+        data=json.dumps(batch).encode(),
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=minimal",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req) as _: pass
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        print(f"raw_json upsert error: {body[:200]}", file=sys.stderr)
 
 print(f"Cell {CI}: uploaded {len(rows)} rows")
 PYEOF

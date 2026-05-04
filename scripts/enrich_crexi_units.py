@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Enrich crexi_api_comps.detail_json (and num_units) from the Crexi property
-detail API: GET https://api.crexi.com/properties/{crexi_id}
+Enrich crexi_api_comp_detail_json.detail_json (and crexi_api_comps.num_units)
+from the Crexi property detail API: GET https://api.crexi.com/properties/{crexi_id}
 
 The detail API is the authoritative source for unit counts and building details.
 It is directly accessible without a browser session.
@@ -29,7 +29,8 @@ from datetime import datetime, timezone
 
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-TABLE = "crexi_api_comps"
+MAIN_TABLE = "crexi_api_comps"
+DETAIL_TABLE = "crexi_api_comp_detail_json"
 LOG_PATH = "/tmp/crexi_detail_enrich.log"
 
 DETAIL_WORKERS = 30       # parallel Crexi API calls (higher causes rate limiting)
@@ -67,7 +68,7 @@ def fetch_all_crexi_ids() -> list[str]:
     filter_clause = "" if FORCE else "&detail_enriched_at=is.null"
     while True:
         url = (
-            f"{SUPABASE_URL}/rest/v1/{TABLE}"
+            f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}"
             f"?select=id,crexi_id&order=id.asc&limit={FETCH_PAGE}&id=gt.{last_id}{filter_clause}"
         )
         req = urllib.request.Request(
@@ -126,30 +127,47 @@ def fetch_detail(crexi_id: str) -> dict:
 
 
 def patch_row(row: dict) -> bool:
-    """PATCH a single row by crexi_id. Returns True on success."""
+    """Upsert detail JSON and PATCH main row (num_units, detail_enriched_at). Returns True on success."""
     crexi_id = row["crexi_id"]
-    payload = {
+    detail_payload = {
+        "crexi_id": crexi_id,
         "detail_json": row["detail_json"],
+    }
+    main_payload = {
         "num_units": row["num_units"],
         "detail_enriched_at": row["detail_enriched_at"],
     }
-    url = f"{SUPABASE_URL}/rest/v1/{TABLE}?crexi_id=eq.{urllib.parse.quote(crexi_id, safe='')}"
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode(),
-        headers={
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal",
-        },
-        method="PATCH",
-    )
+    detail_url = f"{SUPABASE_URL}/rest/v1/{DETAIL_TABLE}"
+    main_url = f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}?crexi_id=eq.{urllib.parse.quote(crexi_id, safe='')}"
     for attempt, delay in enumerate([0] + RETRY_DELAYS):
         if delay:
             time.sleep(delay)
         try:
-            with urllib.request.urlopen(req, timeout=30) as _:
+            req_d = urllib.request.Request(
+                detail_url,
+                data=json.dumps(detail_payload).encode(),
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req_d, timeout=30) as _:
+                pass
+            req_m = urllib.request.Request(
+                main_url,
+                data=json.dumps(main_payload).encode(),
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal",
+                },
+                method="PATCH",
+            )
+            with urllib.request.urlopen(req_m, timeout=30) as _:
                 return True
         except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
             body = e.read().decode() if hasattr(e, "read") else str(e)
@@ -226,9 +244,9 @@ def main() -> None:
     # Spot-check
     log("Spot-check: 379 Coronado St, El Granada (crexi_id=3f61c9e4027ff14493630430d81f03e84e7c0f5b)...")
     req = urllib.request.Request(
-        f"{SUPABASE_URL}/rest/v1/{TABLE}"
+        f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}"
         "?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b"
-        "&select=crexi_id,num_units,detail_enriched_at,detail_json",
+        "&select=crexi_id,num_units,detail_enriched_at,crexi_api_comp_detail_json(detail_json)",
         headers={
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -238,7 +256,8 @@ def main() -> None:
     with urllib.request.urlopen(req) as r:
         rows = json.loads(r.read())
     for row in rows:
-        dj = row.get("detail_json") or {}
+        emb = row.get("crexi_api_comp_detail_json") or {}
+        dj = emb.get("detail_json") or {}
         log(f"  num_units={row['num_units']}  (was 9, expect 5)")
         log(f"  detail_enriched_at={row['detail_enriched_at']}")
         log(f"  detail_json.numberOfUnits={dj.get('numberOfUnits')}")
