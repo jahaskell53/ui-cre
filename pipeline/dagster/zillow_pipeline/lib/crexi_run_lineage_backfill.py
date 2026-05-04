@@ -11,18 +11,25 @@ This function:
   3. Pages through crexi_api_comp_detail_json WHERE run_id IS NULL and does
      the same.
 
-Batch upsert (INSERT … ON CONFLICT DO UPDATE) is used so each page is a
-single network round-trip rather than one UPDATE per row.
+Pages are fetched via SQL RPCs (fetch_crexi_*_lineage_backfill_page) that set
+a higher statement_timeout than PostgREST's default session cap, and use
+keyset pagination (crexi_id > cursor) instead of OFFSET so each page stays cheap
+once rows start clearing from the partial index.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from supabase import Client
 
 logger = logging.getLogger(__name__)
+
+_FETCH_RPC_BY_TABLE: dict[str, str] = {
+    "crexi_api_comp_raw_json": "fetch_crexi_raw_lineage_backfill_page",
+    "crexi_api_comp_detail_json": "fetch_crexi_detail_lineage_backfill_page",
+}
 
 
 def run_crexi_lineage_backfill(
@@ -36,7 +43,7 @@ def run_crexi_lineage_backfill(
 
     Returns counts: raw_updated, detail_updated, errors.
     """
-    page_size = max(1, page_size)
+    page_size = max(1, min(page_size, 5000))
     stats: dict[str, int] = {"raw_updated": 0, "detail_updated": 0, "errors": 0}
 
     # ── 1. Insert the legacy-import scrape_runs row ──────────────────────────
@@ -90,6 +97,18 @@ def run_crexi_lineage_backfill(
     return stats
 
 
+def _fetch_lineage_page(
+    client: Client,
+    *,
+    table: str,
+    after_crexi_id: Optional[str],
+    page_size: int,
+) -> list[dict[str, Any]]:
+    rpc = _FETCH_RPC_BY_TABLE[table]
+    payload: dict[str, Any] = {"p_after_crexi_id": after_crexi_id, "p_limit": page_size}
+    return (client.rpc(rpc, payload).execute()).data or []
+
+
 def _backfill_table(
     client: Client,
     *,
@@ -102,37 +121,30 @@ def _backfill_table(
     stats: dict[str, int],
     errors_key: str,
 ) -> int:
-    """Page through *table* WHERE run_id IS NULL and batch-upsert run_id + fetched_at.
-
-    After each successful batch the updated rows no longer match
-    ``run_id IS NULL``, so the next page always starts at offset 0.
-    In dry-run mode rows are never modified, so offset advances normally.
-    """
+    """Walk rows with run_id IS NULL in crexi_id order; upsert each page."""
     updated = 0
-    offset = 0
+    after_crexi_id: Optional[str] = None
 
     while True:
         if limit is not None and updated >= limit:
             break
 
-        rows = (
-            client.table(table)
-            .select(f"{pk},updated_at")
-            .is_("run_id", "null")
-            .order(pk)
-            .range(offset, offset + page_size - 1)
-            .execute()
-        ).data or []
+        rows = _fetch_lineage_page(
+            client,
+            table=table,
+            after_crexi_id=after_crexi_id,
+            page_size=page_size,
+        )
 
         if not rows:
             break
 
         page_count = len(rows)
+        last_id = rows[-1][pk]
 
         if dry_run:
             logger.info("dry-run: would upsert %d rows into %s", page_count, table)
             updated += page_count
-            offset += page_size
         else:
             batch = [
                 {
@@ -145,13 +157,18 @@ def _backfill_table(
             try:
                 client.table(table).upsert(batch, on_conflict=pk).execute()
                 updated += page_count
-                # Updated rows no longer have run_id IS NULL — restart from 0.
-                offset = 0
             except Exception as exc:
-                logger.error("Batch upsert failed on %s offset=%d: %s", table, offset, exc)
+                logger.error(
+                    "Batch upsert failed on %s after_crexi_id=%r: %s",
+                    table,
+                    after_crexi_id,
+                    exc,
+                )
                 stats[errors_key] += 1
-                # Advance past this page so we don't loop forever on a bad batch.
-                offset += page_size
+                after_crexi_id = last_id
+                continue
+
+        after_crexi_id = last_id
 
         if page_count < page_size:
             break
