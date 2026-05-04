@@ -1,6 +1,11 @@
 -- Move Crexi search-index payload (raw_json) and property-detail payload (detail_json)
 -- off the hot crexi_api_comps heap into one-row-per-crexi_id side tables. Keeps
 -- sales-trends GiST scans and sequential heap reads smaller.
+--
+-- The linked-db migration role uses a ~2-minute statement_timeout; copying all
+-- jsonb into side tables then dropping columns can exceed that (SQLSTATE 57014).
+
+SET LOCAL statement_timeout = 0;
 
 CREATE TABLE IF NOT EXISTS public.crexi_api_comp_raw_json (
     crexi_id text PRIMARY KEY REFERENCES public.crexi_api_comps (crexi_id) ON DELETE CASCADE,
