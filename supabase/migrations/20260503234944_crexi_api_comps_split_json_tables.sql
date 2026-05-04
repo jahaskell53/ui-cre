@@ -1,6 +1,11 @@
 -- Move Crexi search-index payload (raw_json) and property-detail payload (detail_json)
 -- off the hot crexi_api_comps heap into one-row-per-crexi_id side tables. Keeps
 -- sales-trends GiST scans and sequential heap reads smaller.
+--
+-- Bulk INSERT of large jsonb values hit the migrations role default statement_timeout
+-- (~2 min) on production (SQLSTATE 57014). Match 20260501120000_crexi_api_comps_crexi_url.sql.
+
+SET statement_timeout = '30min';
 
 CREATE TABLE IF NOT EXISTS public.crexi_api_comp_raw_json (
     crexi_id text PRIMARY KEY REFERENCES public.crexi_api_comps (crexi_id) ON DELETE CASCADE,
