@@ -21,6 +21,8 @@ In **Cursor Cloud Agent** VMs, **Supabase MCP** and **Supabase CLI** both target
 
 ### Schema change workflow
 
+**Schema changes vs. large data backfills:** Use **hand-written SQL migrations** under `supabase/migrations/` plus the **GitHub Actions database migration workflows** (PR shadow apply and on-merge `supabase db push`) for **DDL and schema evolution**—new tables and columns, indexes, constraints, and small, bounded data fixes that must land with the application code. **Large-scale data backfills** (heavy `INSERT`/`UPDATE`/`DELETE` across many rows, long-running recomputation, chunked or resumable ETL) are a poor fit for that path: migration runs are time-budgeted, harder to monitor, and not designed for retries. Prefer the **Dagster pipeline** in `pipeline/dagster/` for those jobs.
+
 Migrations are **hand-written SQL** in `supabase/migrations/YYYYMMDDHHMMSS_description.sql`. CI (`supabase db push`) applies those files to production. Do **not** run `drizzle-kit generate` or `drizzle-kit migrate` — they are not part of this workflow (see `drizzle.config.ts`).
 
 1. Add or edit the migration SQL file under `supabase/migrations/` with a new timestamp prefix. Review that it is correct and additive (see backward compatibility rule below).
@@ -31,7 +33,7 @@ Migrations are **hand-written SQL** in `supabase/migrations/YYYYMMDDHHMMSS_descr
 
 **Migration file naming**: The version is the numeric timestamp prefix and is the primary key in `supabase_migrations.schema_migrations`. Two migrations with the same timestamp will cause `db push` to fail with a duplicate key error. Name new files with the real current time: `date +%Y%m%d%H%M%S`. Never use round numbers like `YYYYMMDD000000`. Before adding a migration, run `git pull origin main` to confirm no migration on `main` already has the same or a later timestamp.
 
-**Statement timeout for large data migrations**: The `supabase db push` migrations role has a **2-minute `statement_timeout`**. Any migration that runs a large backfill (bulk INSERT, UPDATE, or DELETE over tens-of-thousands of rows) will likely exceed this budget and be rolled back. Add `SET statement_timeout = 0;` (session-scoped, **not** `SET LOCAL`) as the **first statement** in any migration that performs bulk DML. `supabase db push` executes each migration's statements in autocommit mode rather than wrapping the file in an explicit transaction, so `SET LOCAL` is silently dropped with a `WARNING (25P01): SET LOCAL can only be used in transaction blocks` and the role timeout stays in effect. Session-level `SET` persists across the autocommit statements on the same connection. Example: `20260503234944_crexi_api_comps_split_json_tables.sql`. If the migration also performs heavy sorting/hashing (large `INSERT … SELECT` of JSONB, big `UPDATE`s with index maintenance), pair it with `SET work_mem = '256MB';` to keep work in memory.
+**Statement timeout for migrations that still need bulk DML**: The `supabase db push` migrations role has a **2-minute `statement_timeout`**. Large backfills still belong in **Dagster** when possible (see above). If a migration truly must run bulk DML and would otherwise exceed the budget, add `SET statement_timeout = 0;` (session-scoped, **not** `SET LOCAL`) as the **first statement**. `supabase db push` executes each migration's statements in autocommit mode rather than wrapping the file in an explicit transaction, so `SET LOCAL` is silently dropped with a `WARNING (25P01): SET LOCAL can only be used in transaction blocks` and the role timeout stays in effect. Session-level `SET` persists across the autocommit statements on the same connection. Example: `20260503234944_crexi_api_comps_split_json_tables.sql`. If the migration also performs heavy sorting/hashing (large `INSERT … SELECT` of JSONB, big `UPDATE`s with index maintenance), pair it with `SET work_mem = '256MB';` to keep work in memory.
 
 **Pre-merge testing when the PR needs the migration first**: Production and the default CI path only apply migrations after merge to `main`. If you need the new schema applied to a database *before* merge (for example manual QA or integration tests against a hosted project while the PR is open), commit the hand-written SQL under `supabase/migrations/` and apply pending migrations to the target environment with the Supabase CLI (for example `supabase db push` against a linked dev or staging project). That keeps the migration version-controlled; only the timing of *apply* on the test database is ahead of merge.
 
@@ -45,6 +47,8 @@ Migrations must be **additive only** (new columns with defaults or nullable, new
 2. **PR 2** (after PR 1 is merged and deployed): Drop the column/table.
 
 ### CI/CD: Database migrations
+
+These workflows apply **schema migrations** from `supabase/migrations/`; they are not the right place for **large-scale data backfills** (use Dagster; see "Schema change workflow" above).
 
 Two GitHub Actions workflows manage schema changes automatically:
 
@@ -102,6 +106,7 @@ When it would help reviewers or future readers (for example UI changes, flows, o
 
 ### Dagster pipeline (pipeline/dagster/)
 
+- **Large data backfills and ETL**: Prefer Dagster assets/jobs here over migration SQL when work is **high volume, long-running, or needs orchestration** (chunking, retries, schedules). Schema shape still comes from `supabase/migrations/` and CI; Dagster fills or transforms data after the schema exists.
 - **Runtime**: Python 3.12 + uv. Both `uv` and a uv-managed Python are installed via the update script; `~/.local/bin` and the uv Python bin directory are on PATH.
 - **Dagster CLI**: `dg` should be available in Cloud VMs. If it is missing, run `source "$HOME/.local/bin/env" && uv tool install dagster-dg-cli`.
 - **If `uv` is missing**: run `curl -LsSf https://astral.sh/uv/install.sh | sh` and then `source "$HOME/.local/bin/env"`.
