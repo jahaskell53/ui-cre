@@ -50,5 +50,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Drizzle Kit CLI output (SQL migrations live in supabase/migrations/)
+.drizzle-generated/
+
 # Local audit/scratch docs
 docs/zillow-filter-audit.md
