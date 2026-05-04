@@ -29,9 +29,17 @@
 -- `crexi_api_comps_sales_trends_geom_idx` GiST index (which filters on
 -- `NOT exclude_from_sales_trends`, so every flipped row triggers an index
 -- delete). That exceeded the 2-min budget on the first apply attempt.
--- Disable the timeout for just this transaction.
+-- Disable the timeout for the rest of this connection.
+--
+-- NOTE: this file historically used `SET LOCAL`, but `supabase db push` does
+-- not wrap each migration file in an explicit transaction — it executes
+-- statements in autocommit mode — so `SET LOCAL` is silently dropped with
+-- `WARNING (25P01): SET LOCAL can only be used in transaction blocks`. The
+-- UPDATE below previously happened to fit inside 2 minutes (small partial
+-- GiST index, prior partial flips), but the pattern was not actually
+-- disabling the timeout. Session-level `SET` reliably does.
 
-SET LOCAL statement_timeout = 0;
+SET statement_timeout = 0;
 
 UPDATE public.crexi_api_comps
 SET exclude_from_sales_trends = true
