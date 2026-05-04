@@ -1,0 +1,82 @@
+name: Delete stale merged branches
+
+on:
+    schedule:
+        # Weekly Monday 06:00 UTC
+        - cron: "0 6 * * 1"
+    workflow_dispatch:
+        inputs:
+            stale_days:
+                description: "Delete remote branches merged into main whose tip is older than this many days"
+                required: false
+                default: "14"
+                type: string
+
+permissions:
+    contents: write
+
+concurrency:
+    group: delete-stale-merged-branches
+    cancel-in-progress: true
+
+jobs:
+    delete-stale-merged-branches:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Delete stale merged remote branches
+              env:
+                  STALE_DAYS_INPUT: ${{ github.event.inputs.stale_days || '14' }}
+              run: |
+                  set -euo pipefail
+                  STALE_DAYS="${STALE_DAYS_INPUT:-14}"
+                  if ! [[ "$STALE_DAYS" =~ ^[0-9]+$ ]] || [ "$STALE_DAYS" -lt 1 ]; then
+                    echo "Invalid stale_days: $STALE_DAYS (use a positive integer)" >&2
+                    exit 1
+                  fi
+
+                  CUTOFF="$(date -d "$STALE_DAYS days ago" +%s)"
+                  echo "Deleting remote branches merged into origin/main with tip commit before $(date -u -d "@$CUTOFF" '+%Y-%m-%d %H:%M:%S UTC') ($STALE_DAYS days ago)"
+
+                  git fetch origin --prune
+
+                  : > /tmp/branches-to-delete.txt
+                  while IFS= read -r ref; do
+                    [ -z "$ref" ] && continue
+                    case "$ref" in
+                      origin/main|origin/HEAD) continue ;;
+                    esac
+                    if [[ "$ref" == *"HEAD ->"* ]]; then
+                      continue
+                    fi
+                    ts="$(git log -1 --format=%ct "$ref" 2>/dev/null || true)"
+                    [ -z "$ts" ] && continue
+                    if [ "$ts" -lt "$CUTOFF" ]; then
+                      short="${ref#origin/}"
+                      printf '%s\n' "$short" >> /tmp/branches-to-delete.txt
+                    fi
+                  done < <(git branch -r --merged origin/main | sed 's/^[[:space:]]*//' | grep '^origin/' || true)
+
+                  if [ ! -s /tmp/branches-to-delete.txt ]; then
+                    echo "No matching branches to delete."
+                    exit 0
+                  fi
+
+                  echo "Candidates ($(wc -l < /tmp/branches-to-delete.txt)):"
+                  cat /tmp/branches-to-delete.txt
+
+                  mapfile -t BRANCHES < /tmp/branches-to-delete.txt
+                  batch_size=40
+                  total="${#BRANCHES[@]}"
+                  i=0
+                  while [ "$i" -lt "$total" ]; do
+                    batch=( "${BRANCHES[@]:i:batch_size}" )
+                    git push origin --delete "${batch[@]}"
+                    i=$((i + batch_size))
+                  done
+
+                  echo "Done. Deleted $total branch(es)."
