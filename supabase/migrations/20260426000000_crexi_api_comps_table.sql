@@ -1,6 +1,6 @@
 -- Create crexi_api_comps table and supporting index.
 --
--- This table was originally created via Drizzle migrations (drizzle/ folder).
+-- This table was originally created via older Drizzle-generated migrations.
 -- This Supabase migration brings it into the supabase/migrations/ history so
 -- the local CI stack (used by PostgREST RPC resolution and integration tests)
 -- has the table before the Crexi sales trends RPCs run.
