@@ -123,6 +123,30 @@ def parse_gross_rent_annual(lease_rate_range):
     except (ValueError, TypeError):
         return None
 
+def exclude_from_sales_trends(addr, attrs, pp):
+    """True when this row would distort Crexi price-per-door aggregates."""
+    if addr.get("unitNumber") is not None:
+        return True
+    if attrs.get("type") != "Multifamily" or attrs.get("subType") != "Apartment Building":
+        return False
+    if attrs.get("buildingSqft") is not None:
+        return False
+    num = attrs.get("unitsCount")
+    try:
+        num_f = float(num) if num is not None else None
+    except (TypeError, ValueError):
+        num_f = None
+    if num_f is None or num_f < 50:
+        return False
+    total = pp.get("total") if isinstance(pp, dict) else None
+    try:
+        total_f = float(total) if total is not None else None
+    except (TypeError, ValueError):
+        total_f = None
+    if total_f is None or total_f >= 3_000_000:
+        return False
+    return (total_f / num_f) < 50_000
+
 def flatten(r):
     addr = r.get("address") or [{}]
     addr = addr[0] if isinstance(addr, list) and addr else (addr if isinstance(addr, dict) else {})
@@ -208,10 +232,9 @@ def flatten(r):
         "tax_land_value": tax.get("landValue"),
         "tax_improvement_value": tax.get("improvementValue"),
         "gross_rent_annual": parse_gross_rent_annual(lrr),
-        # Per-unit condo/apartment sales carry a building-level `unitsCount`
-        # (num_units) while property_price_total is a single-unit price, which
-        # breaks price-per-door math. Exclude these from Crexi sales trends.
-        "exclude_from_sales_trends": addr.get("unitNumber") is not None,
+        # Per-unit sales (unitNumber) and likely per-unit rows without unitNumber
+        # (whole-building num_units with single-unit price) break price-per-door.
+        "exclude_from_sales_trends": exclude_from_sales_trends(addr, attrs, pp),
     }
 
 with open(f"{DOWNLOAD_DIR}/crexi_cell_{CI}.json") as f:
