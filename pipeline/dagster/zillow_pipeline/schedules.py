@@ -45,6 +45,7 @@ from zillow_pipeline.assets.loopnet_search_scrape import raw_loopnet_search_scra
 from zillow_pipeline.assets.loopnet_detail_scrape import raw_loopnet_detail_scrapes
 from zillow_pipeline.assets.cleaned_loopnet_listings import cleaned_loopnet_listings
 from zillow_pipeline.assets.download_om_pdfs import download_om_pdfs
+from zillow_pipeline.assets.crexi_sales_trends_exclusion_backfill import crexi_sales_trends_exclusion_backfill
 from zillow_pipeline.jobs.backfill_loopnet_address_fields import backfill_loopnet_address_fields_job
 from zillow_pipeline.jobs.backfill_loopnet_om_url import backfill_loopnet_om_url_job
 from zillow_pipeline.jobs.backfill_loopnet_geom import backfill_loopnet_geom_job
@@ -85,6 +86,11 @@ loopnet_cleaning_job = define_asset_job(
 loopnet_om_job = define_asset_job(
     name="loopnet_om_job",
     selection=AssetSelection.assets(download_om_pdfs),
+)
+
+crexi_sales_trends_exclusion_backfill_job = define_asset_job(
+    name="crexi_sales_trends_exclusion_backfill_job",
+    selection=AssetSelection.assets(crexi_sales_trends_exclusion_backfill),
 )
 
 
