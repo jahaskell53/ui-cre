@@ -3,8 +3,9 @@
 Enrich crexi_api_comp_detail_json.detail_json (and crexi_api_comps.num_units)
 from the Crexi property detail API: GET https://api.crexi.com/properties/{crexi_id}
 
-The detail API is the authoritative source for unit counts and building details.
-It is directly accessible without a browser session.
+The detail API is directly accessible without a browser session. Its
+numberOfUnits value can be bad for some apartment sales, so keep a plausible
+existing search-index unit count when the detail value is wildly larger.
 
 Usage:
     python3 scripts/enrich_crexi_units.py
@@ -24,6 +25,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
@@ -62,15 +64,16 @@ def log(msg: str) -> None:
         f.write(line + "\n")
 
 
-def fetch_all_crexi_ids() -> list[str]:
-    """Fetch all crexi_ids from Supabase using cursor-based pagination on id."""
-    ids: list[str] = []
+def fetch_all_rows() -> list[dict]:
+    """Fetch rows to enrich from Supabase using cursor-based pagination on id."""
+    rows: list[dict] = []
     last_id = 0
     filter_clause = "" if FORCE else "&detail_enriched_at=is.null"
     while True:
         url = (
             f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}"
-            f"?select=id,crexi_id&order=id.asc&limit={FETCH_PAGE}&id=gt.{last_id}{filter_clause}"
+            "?select=id,crexi_id,num_units,is_sales_comp,property_type,property_subtype"
+            f"&order=id.asc&limit={FETCH_PAGE}&id=gt.{last_id}{filter_clause}"
         )
         req = urllib.request.Request(
             url,
@@ -94,13 +97,34 @@ def fetch_all_crexi_ids() -> list[str]:
                 raise
         if not page:
             break
-        ids.extend(row["crexi_id"] for row in page if row.get("crexi_id"))
+        rows.extend(row for row in page if row.get("crexi_id"))
         last_id = page[-1]["id"]
-        if len(ids) % 10000 == 0 and len(ids) > 0:
-            log(f"  Fetched {len(ids)} IDs so far (last id={last_id})...")
+        if len(rows) % 10000 == 0 and len(rows) > 0:
+            log(f"  Fetched {len(rows)} rows so far (last id={last_id})...")
         if len(page) < FETCH_PAGE:
             break
-    return ids
+    return rows
+
+
+def select_num_units(source_row: dict, detail_num_units: int | None) -> int | None:
+    """Use detail units unless they are an obvious apartment-sale overcount."""
+    if detail_num_units is None:
+        return None
+
+    current_num_units = source_row.get("num_units")
+    if current_num_units is None:
+        return detail_num_units
+
+    if (
+        source_row.get("is_sales_comp") is True
+        and source_row.get("property_type") == "Multifamily"
+        and source_row.get("property_subtype") == "Apartment Building"
+        and 2 <= current_num_units <= 500
+        and detail_num_units > current_num_units * 10
+    ):
+        return current_num_units
+
+    return detail_num_units
 
 
 def fetch_detail(crexi_id: str) -> dict:
@@ -257,10 +281,10 @@ def main() -> None:
     run_id = start_run()
     log(f"crexi_scrape_runs run_id={run_id}")
 
-    log("Fetching crexi_ids from Supabase...")
-    all_ids = fetch_all_crexi_ids()
-    log(f"Total IDs to enrich: {len(all_ids)}")
-    if not all_ids:
+    log("Fetching rows from Supabase...")
+    all_rows = fetch_all_rows()
+    log(f"Total rows to enrich: {len(all_rows)}")
+    if not all_rows:
         finish_run(run_id, "completed", 0)
         log("Nothing to do.")
         return
@@ -269,24 +293,29 @@ def main() -> None:
     total_ok = 0
     total_err = 0
     total_patched = 0
+    total_kept_existing_units = 0
     start_time = time.time()
 
     # Process in chunks of CHUNK_SIZE to keep memory bounded.
-    for chunk_start in range(0, len(all_ids), CHUNK_SIZE):
-        chunk = all_ids[chunk_start : chunk_start + CHUNK_SIZE]
+    for chunk_start in range(0, len(all_rows), CHUNK_SIZE):
+        chunk = all_rows[chunk_start : chunk_start + CHUNK_SIZE]
 
         # Fetch detail for this chunk in parallel
         rows_to_patch: list[dict] = []
         with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as detail_pool:
-            futures = {detail_pool.submit(fetch_detail, cid): cid for cid in chunk}
+            futures = {detail_pool.submit(fetch_detail, row["crexi_id"]): row for row in chunk}
             for fut in as_completed(futures):
+                source_row = futures[fut]
                 result = fut.result()
                 if "error" in result:
                     total_err += 1
                 else:
                     total_ok += 1
                     data = result.get("data")
-                    num_units = data.get("numberOfUnits") if data else None
+                    detail_num_units = data.get("numberOfUnits") if data else None
+                    num_units = select_num_units(source_row, detail_num_units)
+                    if detail_num_units is not None and num_units != detail_num_units:
+                        total_kept_existing_units += 1
                     rows_to_patch.append({
                         "crexi_id": result["id"],
                         "detail_json": data,
@@ -304,12 +333,13 @@ def main() -> None:
         done_count = chunk_start + len(chunk)
         elapsed = time.time() - start_time
         rate = done_count / elapsed if elapsed else 0
-        eta = (len(all_ids) - done_count) / rate if rate else 0
+        eta = (len(all_rows) - done_count) / rate if rate else 0
         log(
-            f"Progress: {done_count}/{len(all_ids)} "
-            f"({100*done_count/len(all_ids):.1f}%) | "
+            f"Progress: {done_count}/{len(all_rows)} "
+            f"({100*done_count/len(all_rows):.1f}%) | "
             f"{rate:.0f} req/s | ETA {eta/60:.1f}min | "
-            f"ok={total_ok} err={total_err} patched={total_patched}"
+            f"ok={total_ok} err={total_err} patched={total_patched} "
+            f"kept_existing_units={total_kept_existing_units}"
         )
 
     elapsed = time.time() - start_time
