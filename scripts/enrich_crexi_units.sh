@@ -13,7 +13,7 @@
 #   bash scripts/enrich_crexi_units.sh
 #
 # The script works in two phases:
-#   Phase 1 (JS, injected into Chrome): fetches all crexi_ids from Supabase,
+#   Phase 1 (JS, injected into Chrome): fetches rows from Supabase,
 #     calls the Crexi detail API for each, downloads results as JSON batches.
 #   Phase 2 (Python, run locally): reads the downloaded JSON, upserts
 #     crexi_api_comp_detail_json + crexi_api_comps (num_units + detail_enriched_at).
@@ -46,35 +46,35 @@ const BATCH=${BATCH_SIZE};
 const CHUNK=${CHUNK_SIZE};
 const DOWNLOAD_DIR_NOTE='${DOWNLOAD_DIR}';
 
-// Fetch all crexi_ids from Supabase
-async function fetchAllIds(){
-  let ids=[];
+// Fetch source rows from Supabase
+async function fetchAllRows(){
+  let rows=[];
   let offset=0;
   const pageSize=1000;
   while(true){
-    const r=await fetch(SUPABASE_URL+'/rest/v1/crexi_api_comps?select=crexi_id&limit='+pageSize+'&offset='+offset,{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/crexi_api_comps?select=crexi_id,num_units,is_sales_comp,property_type,property_subtype&limit='+pageSize+'&offset='+offset,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Accept':'application/json'}
     });
     const page=await r.json();
     if(!page||!page.length)break;
-    ids=ids.concat(page.map(x=>x.crexi_id).filter(Boolean));
+    rows=rows.concat(page.filter(x=>x.crexi_id));
     offset+=pageSize;
     if(page.length<pageSize)break;
   }
-  return ids;
+  return rows;
 }
 
 // Call detail API for one id
-async function fetchDetail(id){
+async function fetchDetail(row){
   try{
-    const r=await fetch('https://api.crexi.com/properties/'+encodeURIComponent(id),{
+    const r=await fetch('https://api.crexi.com/properties/'+encodeURIComponent(row.crexi_id),{
       headers:{'accept':'application/json, text/plain, */*','x-xt-universal-pdp':'true'}
     });
-    if(!r.ok)return{id,error:r.status};
+    if(!r.ok)return{...row,id:row.crexi_id,error:r.status};
     const data=await r.json();
-    return{id,data};
+    return{...row,id:row.crexi_id,data};
   }catch(e){
-    return{id,error:String(e)};
+    return{...row,id:row.crexi_id,error:String(e)};
   }
 }
 
@@ -89,17 +89,17 @@ function download(filename,obj){
   URL.revokeObjectURL(a.href);
 }
 
-console.log('ENRICH: fetching all crexi_ids from Supabase...');
-const allIds=await fetchAllIds();
-console.log('ENRICH: total ids=',allIds.length);
+console.log('ENRICH: fetching rows from Supabase...');
+const allRows=await fetchAllRows();
+console.log('ENRICH: total rows=',allRows.length);
 
 let chunkIdx=0;
 let results=[];
-for(let i=0;i<allIds.length;i+=BATCH){
-  const batchIds=allIds.slice(i,i+BATCH);
-  const batchResults=await Promise.all(batchIds.map(fetchDetail));
+for(let i=0;i<allRows.length;i+=BATCH){
+  const batchRows=allRows.slice(i,i+BATCH);
+  const batchResults=await Promise.all(batchRows.map(fetchDetail));
   results=results.concat(batchResults);
-  if(results.length>=CHUNK||(i+BATCH)>=allIds.length){
+  if(results.length>=CHUNK||(i+BATCH)>=allRows.length){
     const fname='crexi_detail_'+chunkIdx+'.json';
     console.log('ENRICH: downloading',fname,'('+results.length+' records, up to id idx '+(i+BATCH)+')');
     download(fname,results);
@@ -158,7 +158,20 @@ for rec in records:
         errors += 1
         continue
     data = rec.get("data") or {}
-    num_units = data.get("numberOfUnits")
+    detail_num_units = data.get("numberOfUnits")
+    current_num_units = rec.get("num_units")
+    if (
+        detail_num_units is not None
+        and current_num_units is not None
+        and rec.get("is_sales_comp") is True
+        and rec.get("property_type") == "Multifamily"
+        and rec.get("property_subtype") == "Apartment Building"
+        and 2 <= current_num_units <= 500
+        and detail_num_units > current_num_units * 10
+    ):
+        num_units = current_num_units
+    else:
+        num_units = detail_num_units
     rows.append({
         "crexi_id": rec["id"],
         "detail_json": data,
