@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Enrich crexi_api_comp_detail_json.detail_json (and crexi_api_comps.num_units)
-from the Crexi property detail API: GET https://api.crexi.com/properties/{crexi_id}
+Enrich crexi_api_comp_detail_json.detail_json from the Crexi property detail API:
+GET https://api.crexi.com/properties/{crexi_id}
 
-The detail API is the authoritative source for unit counts and building details.
-It is directly accessible without a browser session.
+Silver `num_units` stays aligned with the search index: `raw_json.propertyAttributes.unitsCount`
+(from `crexi_api_comp_raw_json`), not `detail_json.numberOfUnits`.
+
+The detail API is directly accessible without a browser session.
 
 Usage:
     python3 scripts/enrich_crexi_units.py
@@ -62,15 +64,44 @@ def log(msg: str) -> None:
         f.write(line + "\n")
 
 
-def fetch_all_crexi_ids() -> list[str]:
-    """Fetch all crexi_ids from Supabase using cursor-based pagination on id."""
-    ids: list[str] = []
+def _units_from_search_raw(raw_json: object) -> int | None:
+    """Integer unitsCount from universal-search item (crexi_api_comp_raw_json.raw_json)."""
+    if not isinstance(raw_json, dict):
+        return None
+    attrs = raw_json.get("propertyAttributes")
+    if not isinstance(attrs, dict):
+        return None
+    v = attrs.get("unitsCount")
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v if v > 0 else None
+    if isinstance(v, float):
+        if v != v or v <= 0:  # NaN
+            return None
+        return int(v)
+    if isinstance(v, str):
+        s = v.strip()
+        if not s.isdigit():
+            return None
+        n = int(s)
+        return n if n > 0 else None
+    return None
+
+
+def fetch_all_rows() -> list[dict]:
+    """Fetch crexi_id + search num_units from Supabase (cursor pagination on id)."""
+    rows_out: list[dict] = []
     last_id = 0
     filter_clause = "" if FORCE else "&detail_enriched_at=is.null"
+    embed = "crexi_api_comp_raw_json(raw_json)"
     while True:
         url = (
             f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}"
-            f"?select=id,crexi_id&order=id.asc&limit={FETCH_PAGE}&id=gt.{last_id}{filter_clause}"
+            f"?select=id,crexi_id,{embed}&order=id.asc&limit={FETCH_PAGE}"
+            f"&id=gt.{last_id}{filter_clause}"
         )
         req = urllib.request.Request(
             url,
@@ -94,13 +125,22 @@ def fetch_all_crexi_ids() -> list[str]:
                 raise
         if not page:
             break
-        ids.extend(row["crexi_id"] for row in page if row.get("crexi_id"))
+        for row in page:
+            cid = row.get("crexi_id")
+            if not cid:
+                continue
+            emb = row.get("crexi_api_comp_raw_json") or {}
+            raw = emb.get("raw_json")
+            rows_out.append({
+                "crexi_id": cid,
+                "num_units_from_search": _units_from_search_raw(raw),
+            })
         last_id = page[-1]["id"]
-        if len(ids) % 10000 == 0 and len(ids) > 0:
-            log(f"  Fetched {len(ids)} IDs so far (last id={last_id})...")
+        if len(rows_out) % 10000 == 0 and len(rows_out) > 0:
+            log(f"  Fetched {len(rows_out)} rows so far (last id={last_id})...")
         if len(page) < FETCH_PAGE:
             break
-    return ids
+    return rows_out
 
 
 def fetch_detail(crexi_id: str) -> dict:
@@ -128,7 +168,7 @@ def fetch_detail(crexi_id: str) -> dict:
 
 
 def patch_row(row: dict) -> bool:
-    """Upsert detail JSON and PATCH main row (num_units, detail_enriched_at). Returns True on success."""
+    """Upsert detail JSON and PATCH main row (num_units from search raw_json, detail_enriched_at)."""
     crexi_id = row["crexi_id"]
     detail_payload = {
         "crexi_id": crexi_id,
@@ -178,9 +218,6 @@ def patch_row(row: dict) -> bool:
                 continue
             log(f"  PATCH error for {crexi_id}: {body[:200]}")
     return False
-
-
-CHUNK_SIZE = 5000  # moved to top-level constants
 
 
 def start_run() -> int:
@@ -257,10 +294,10 @@ def main() -> None:
     run_id = start_run()
     log(f"crexi_scrape_runs run_id={run_id}")
 
-    log("Fetching crexi_ids from Supabase...")
-    all_ids = fetch_all_crexi_ids()
-    log(f"Total IDs to enrich: {len(all_ids)}")
-    if not all_ids:
+    log("Fetching crexi_ids (+ search unitsCount) from Supabase...")
+    all_rows = fetch_all_rows()
+    log(f"Total rows to enrich: {len(all_rows)}")
+    if not all_rows:
         finish_run(run_id, "completed", 0)
         log("Nothing to do.")
         return
@@ -272,13 +309,16 @@ def main() -> None:
     start_time = time.time()
 
     # Process in chunks of CHUNK_SIZE to keep memory bounded.
-    for chunk_start in range(0, len(all_ids), CHUNK_SIZE):
-        chunk = all_ids[chunk_start : chunk_start + CHUNK_SIZE]
+    id_to_search_units = {r["crexi_id"]: r["num_units_from_search"] for r in all_rows}
+
+    for chunk_start in range(0, len(all_rows), CHUNK_SIZE):
+        chunk = all_rows[chunk_start : chunk_start + CHUNK_SIZE]
+        chunk_ids = [r["crexi_id"] for r in chunk]
 
         # Fetch detail for this chunk in parallel
         rows_to_patch: list[dict] = []
         with ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as detail_pool:
-            futures = {detail_pool.submit(fetch_detail, cid): cid for cid in chunk}
+            futures = {detail_pool.submit(fetch_detail, cid): cid for cid in chunk_ids}
             for fut in as_completed(futures):
                 result = fut.result()
                 if "error" in result:
@@ -286,11 +326,11 @@ def main() -> None:
                 else:
                     total_ok += 1
                     data = result.get("data")
-                    num_units = data.get("numberOfUnits") if data else None
+                    cid = result["id"]
                     rows_to_patch.append({
-                        "crexi_id": result["id"],
+                        "crexi_id": cid,
                         "detail_json": data,
-                        "num_units": num_units,
+                        "num_units": id_to_search_units.get(cid),
                         "detail_enriched_at": now_iso,
                         "run_id": run_id,
                         "http_status": result.get("http_status"),
@@ -304,10 +344,10 @@ def main() -> None:
         done_count = chunk_start + len(chunk)
         elapsed = time.time() - start_time
         rate = done_count / elapsed if elapsed else 0
-        eta = (len(all_ids) - done_count) / rate if rate else 0
+        eta = (len(all_rows) - done_count) / rate if rate else 0
         log(
-            f"Progress: {done_count}/{len(all_ids)} "
-            f"({100*done_count/len(all_ids):.1f}%) | "
+            f"Progress: {done_count}/{len(all_rows)} "
+            f"({100*done_count/len(all_rows):.1f}%) | "
             f"{rate:.0f} req/s | ETA {eta/60:.1f}min | "
             f"ok={total_ok} err={total_err} patched={total_patched}"
         )
@@ -321,7 +361,9 @@ def main() -> None:
     req = urllib.request.Request(
         f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}"
         "?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b"
-        "&select=crexi_id,num_units,detail_enriched_at,crexi_api_comp_detail_json(detail_json)",
+        "&select=crexi_id,num_units,detail_enriched_at,"
+        "crexi_api_comp_raw_json(raw_json),"
+        "crexi_api_comp_detail_json(detail_json)",
         headers={
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -331,9 +373,12 @@ def main() -> None:
     with urllib.request.urlopen(req) as r:
         rows = json.loads(r.read())
     for row in rows:
-        emb = row.get("crexi_api_comp_detail_json") or {}
-        dj = emb.get("detail_json") or {}
-        log(f"  num_units={row['num_units']}  (was 9, expect 5)")
+        emb_d = row.get("crexi_api_comp_detail_json") or {}
+        dj = emb_d.get("detail_json") or {}
+        emb_r = row.get("crexi_api_comp_raw_json") or {}
+        rj = emb_r.get("raw_json") or {}
+        pa = rj.get("propertyAttributes") or {}
+        log(f"  num_units={row['num_units']} (search unitsCount={pa.get('unitsCount')})")
         log(f"  detail_enriched_at={row['detail_enriched_at']}")
         log(f"  detail_json.numberOfUnits={dj.get('numberOfUnits')}")
         log(f"  detail_json.description={dj.get('description')}")

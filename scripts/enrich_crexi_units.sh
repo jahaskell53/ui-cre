@@ -1,6 +1,7 @@
 #!/bin/bash
-# Enriches crexi_api_comps.num_units (stores full detail payload in
-# crexi_api_comp_detail_json.detail_json) by calling GET https://api.crexi.com/properties/{id}
+# Stores full detail payload in crexi_api_comp_detail_json.detail_json via
+# GET https://api.crexi.com/properties/{id}. Sets crexi_api_comps.num_units from
+# search raw_json.propertyAttributes.unitsCount (not detail numberOfUnits).
 # row in the table, using Chrome's existing authenticated session.
 #
 # Prerequisites:
@@ -46,22 +47,39 @@ const BATCH=${BATCH_SIZE};
 const CHUNK=${CHUNK_SIZE};
 const DOWNLOAD_DIR_NOTE='${DOWNLOAD_DIR}';
 
-// Fetch all crexi_ids from Supabase
-async function fetchAllIds(){
-  let ids=[];
+function unitsFromSearchRaw(raw){
+  if(!raw||typeof raw!=='object')return null;
+  const pa=raw.propertyAttributes;
+  if(!pa||typeof pa!=='object')return null;
+  const u=pa.unitsCount;
+  if(u==null||u==='')return null;
+  const n=typeof u==='number'?Math.floor(u):parseInt(String(u).trim(),10);
+  if(!Number.isFinite(n)||n<=0)return null;
+  return n;
+}
+
+// Fetch crexi_id + search unitsCount from Supabase (paginated)
+async function fetchAllRows(){
+  let rows=[];
   let offset=0;
   const pageSize=1000;
   while(true){
-    const r=await fetch(SUPABASE_URL+'/rest/v1/crexi_api_comps?select=crexi_id&limit='+pageSize+'&offset='+offset,{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/crexi_api_comps?select=crexi_id,crexi_api_comp_raw_json(raw_json)&limit='+pageSize+'&offset='+offset,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Accept':'application/json'}
     });
     const page=await r.json();
     if(!page||!page.length)break;
-    ids=ids.concat(page.map(x=>x.crexi_id).filter(Boolean));
+    for(const x of page){
+      const cid=x.crexi_id;
+      if(!cid)continue;
+      const emb=x.crexi_api_comp_raw_json||{};
+      const raw=emb.raw_json;
+      rows.push({crexi_id:cid,num_units:unitsFromSearchRaw(raw)});
+    }
     offset+=pageSize;
     if(page.length<pageSize)break;
   }
-  return ids;
+  return rows;
 }
 
 // Call detail API for one id
@@ -89,17 +107,22 @@ function download(filename,obj){
   URL.revokeObjectURL(a.href);
 }
 
-console.log('ENRICH: fetching all crexi_ids from Supabase...');
-const allIds=await fetchAllIds();
-console.log('ENRICH: total ids=',allIds.length);
+console.log('ENRICH: fetching all rows from Supabase...');
+const allRows=await fetchAllRows();
+const idToUnits=new Map(allRows.map(x=>[x.crexi_id,x.num_units]));
+console.log('ENRICH: total ids=',allRows.length);
 
 let chunkIdx=0;
 let results=[];
-for(let i=0;i<allIds.length;i+=BATCH){
-  const batchIds=allIds.slice(i,i+BATCH);
-  const batchResults=await Promise.all(batchIds.map(fetchDetail));
+for(let i=0;i<allRows.length;i+=BATCH){
+  const batchIds=allRows.slice(i,i+BATCH).map(x=>x.crexi_id);
+  const batchResults=await Promise.all(batchIds.map(async(id)=>{
+    const rec=await fetchDetail(id);
+    if(rec.error!=null)return rec;
+    return Object.assign({},rec,{num_units:idToUnits.get(id)??null});
+  }));
   results=results.concat(batchResults);
-  if(results.length>=CHUNK||(i+BATCH)>=allIds.length){
+  if(results.length>=CHUNK||(i+BATCH)>=allRows.length){
     const fname='crexi_detail_'+chunkIdx+'.json';
     console.log('ENRICH: downloading',fname,'('+results.length+' records, up to id idx '+(i+BATCH)+')');
     download(fname,results);
@@ -158,7 +181,7 @@ for rec in records:
         errors += 1
         continue
     data = rec.get("data") or {}
-    num_units = data.get("numberOfUnits")
+    num_units = rec.get("num_units")
     rows.append({
         "crexi_id": rec["id"],
         "detail_json": data,
@@ -332,16 +355,21 @@ import urllib.request, os, json
 URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 req = urllib.request.Request(
-    f"{URL}/rest/v1/{MAIN_TABLE}?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b&select=crexi_id,num_units,detail_enriched_at,crexi_api_comp_detail_json(detail_json)",
+    f"{URL}/rest/v1/crexi_api_comps?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b"
+    "&select=crexi_id,num_units,detail_enriched_at,"
+    "crexi_api_comp_raw_json(raw_json),crexi_api_comp_detail_json(detail_json)",
     headers={"apikey": KEY, "Authorization": f"Bearer {KEY}", "Accept": "application/json"},
 )
 with urllib.request.urlopen(req) as r:
     rows = json.loads(r.read())
 for row in rows:
-    emb = row.get("crexi_api_comp_detail_json") or {}
-    dj = emb.get("detail_json") or {}
+    emb_d = row.get("crexi_api_comp_detail_json") or {}
+    dj = emb_d.get("detail_json") or {}
+    emb_r = row.get("crexi_api_comp_raw_json") or {}
+    rj = emb_r.get("raw_json") or {}
+    pa = rj.get("propertyAttributes") or {}
     print(f"  crexi_id:          {row['crexi_id']}")
-    print(f"  num_units:         {row['num_units']}")
+    print(f"  num_units:         {row['num_units']} (search unitsCount={pa.get('unitsCount')})")
     print(f"  detail_enriched_at:{row['detail_enriched_at']}")
     print(f"  detail_json.numberOfUnits: {dj.get('numberOfUnits')}")
     print(f"  detail_json.description:   {dj.get('description')}")
