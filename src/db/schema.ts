@@ -1672,7 +1672,7 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     gross_rent_annual: doublePrecision("gross_rent_annual"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
     excludeFromSalesTrends: boolean("exclude_from_sales_trends").notNull().default(false),
-    /** Set when detail payload (see `crexi_api_comp_detail_json`) and num_units were last updated from the Crexi property detail API. */
+    /** Set when the detail payload (see `crexi_api_comp_detail_json`) was last fetched. `num_units` is derived from search `raw_json.propertyAttributes.unitsCount`, not from detail. */
     detail_enriched_at: timestamp("detail_enriched_at", { withTimezone: true }),
 });
 
