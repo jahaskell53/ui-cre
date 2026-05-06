@@ -123,6 +123,14 @@ def parse_gross_rent_annual(lease_rate_range):
     except (ValueError, TypeError):
         return None
 
+def is_one_unit_count(value):
+    if value in (None, ""):
+        return False
+    try:
+        return int(value) == 1
+    except (TypeError, ValueError):
+        return False
+
 def flatten(r):
     addr = r.get("address") or [{}]
     addr = addr[0] if isinstance(addr, list) and addr else (addr if isinstance(addr, dict) else {})
@@ -208,10 +216,9 @@ def flatten(r):
         "tax_land_value": tax.get("landValue"),
         "tax_improvement_value": tax.get("improvementValue"),
         "gross_rent_annual": parse_gross_rent_annual(lrr),
-        # Per-unit condo/apartment sales carry a building-level `unitsCount`
-        # (num_units) while property_price_total is a single-unit price, which
-        # breaks price-per-door math. Exclude these from Crexi sales trends.
-        "exclude_from_sales_trends": addr.get("unitNumber") is not None,
+        # Exclude individual condo/unit sales and single-unit records from
+        # multifamily sales-trend price-per-door math.
+        "exclude_from_sales_trends": addr.get("unitNumber") is not None or is_one_unit_count(attrs.get("unitsCount")),
     }
 
 with open(f"{DOWNLOAD_DIR}/crexi_cell_{CI}.json") as f:
