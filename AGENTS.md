@@ -121,4 +121,3 @@ When it would help reviewers or future readers (for example UI changes, flows, o
 - Keep partition logic **idempotent**: mutate only rows that **still need work** (filters aligned with the batch key), so re-running a partition does not double-apply or skip work.
 - Keep **heavy DML** out of SQL migrations; use Dagster for large or resumable backfills (see “Schema change workflow” above).
 - **Tests:** cover partition-key-to-range mapping and the **exact** Supabase/Postgres predicates used in reads and updates.
-- **After partial failure:** validate completion by querying for remaining rows (or partition keys) that still match the unprocessed condition, or by comparing expected versus completed partitions.
