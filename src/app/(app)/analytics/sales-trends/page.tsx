@@ -123,6 +123,9 @@ function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleCom
             const p25s = group.map((r) => r.p25_price).filter((p) => p != null);
             const p75s = group.map((r) => r.p75_price).filter((p) => p != null);
             const caps = group.map((r) => r.avg_cap_rate).filter((c) => c != null) as number[];
+            const medianCaps = group.map((r) => r.median_cap_rate).filter((c) => c != null) as number[];
+            const minCaps = group.map((r) => r.min_cap_rate).filter((c) => c != null) as number[];
+            const maxCaps = group.map((r) => r.max_cap_rate).filter((c) => c != null) as number[];
             const median = (arr: number[]) => {
                 const s = [...arr].sort((a, b) => a - b);
                 const m = Math.floor(s.length / 2);
@@ -136,13 +139,19 @@ function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleCom
                 p25_price: p25s.length > 0 ? median(p25s) : 0,
                 p75_price: p75s.length > 0 ? median(p75s) : 0,
                 avg_cap_rate: caps.length > 0 ? avg(caps) : null,
+                median_cap_rate: medianCaps.length > 0 ? median(medianCaps) : null,
+                min_cap_rate: minCaps.length > 0 ? Math.min(...minCaps) : null,
+                max_cap_rate: maxCaps.length > 0 ? Math.max(...maxCaps) : null,
                 listing_count: group.reduce((s, r) => s + r.listing_count, 0),
             };
         });
 }
 
 function metricValue(row: SalesTrendRowV2, metric: Metric, displayType: DisplayType): number | null {
-    if (metric === "cap_rate") return row.avg_cap_rate;
+    if (metric === "cap_rate") {
+        if (displayType === "Average") return row.avg_cap_rate;
+        return row.median_cap_rate;
+    }
     if (metric === "cost_per_unit") {
         if (displayType === "Average") return row.avg_price;
         return row.median_price;
@@ -766,6 +775,16 @@ export default function SalesTrendsPage() {
                         ) {
                             const med = row.median_price;
                             point[`${area.id}_rangeErr`] = [med - row.p25_price, row.p75_price - med];
+                        }
+                        if (
+                            displayType === "Candle" &&
+                            metric === "cap_rate" &&
+                            row.median_cap_rate != null &&
+                            row.min_cap_rate != null &&
+                            row.max_cap_rate != null
+                        ) {
+                            const m = row.median_cap_rate;
+                            point[`${area.id}_rangeErr`] = [m - row.min_cap_rate, row.max_cap_rate - m];
                         }
                         if (showVolume) point.volume = row.listing_count;
                     }
@@ -1426,7 +1445,7 @@ export default function SalesTrendsPage() {
                                             }}
                                             connectNulls
                                         >
-                                            {displayType === "Candle" && metric === "cost_per_unit" && (
+                                            {displayType === "Candle" && (metric === "cost_per_unit" || metric === "cap_rate") && (
                                                 <ErrorBar
                                                     dataKey={`${area.id}_rangeErr`}
                                                     width={4}
@@ -1443,7 +1462,7 @@ export default function SalesTrendsPage() {
 
                             <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
                                 {metric === "cap_rate" &&
-                                    `Average cap rate from Crexi closed sales comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
+                                    `${displayType === "Average" ? "Average" : displayType === "Candle" ? "Min–max range with median" : "Median"} cap rate from Crexi closed sales comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                                 {metric === "cost_per_unit" &&
                                     `${displayType === "Average" ? "Average" : displayType === "Candle" ? "P25–P75 range with median" : "Median"} closed-sale price per door from Crexi API comps. Period: ${period}, Sample: ${sampleComps}.${unitFilter !== "All" ? ` Units: ${unitFilter}.` : ""}`}
                                 {" · "}
