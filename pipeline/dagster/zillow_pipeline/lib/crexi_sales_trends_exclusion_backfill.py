@@ -27,10 +27,10 @@ def backfill_crexi_sales_trends_exclusion_partition(
     *,
     batch_size: int = BATCH_SIZE,
 ) -> dict[str, int]:
-    """Mark one id-range batch of one-unit Crexi sales comps as trend-excluded."""
+    """Mark one id-range batch of one-unit and Zillow-confirmed condo sales comps as trend-excluded."""
     start_id, end_id_exclusive = partition_key_to_id_range(partition_key, batch_size=batch_size)
 
-    result = (
+    one_unit_result = (
         client.table("crexi_api_comps")
         .update({"exclude_from_sales_trends": True})
         .gte("id", start_id)
@@ -41,8 +41,20 @@ def backfill_crexi_sales_trends_exclusion_partition(
         .execute()
     )
 
+    condo_result = client.rpc(
+        "backfill_crexi_zillow_condo_sales_trends_exclusions",
+        {
+            "p_start_id": start_id,
+            "p_end_id_exclusive": end_id_exclusive,
+        },
+    ).execute()
+    condo_updated = condo_result.data[0]["updated_count"] if condo_result.data else 0
+    one_unit_updated = len(one_unit_result.data or [])
+
     return {
         "start_id": start_id,
         "end_id": end_id_exclusive - 1,
-        "updated": len(result.data or []),
+        "updated": one_unit_updated + condo_updated,
+        "one_unit_updated": one_unit_updated,
+        "zillow_condo_updated": condo_updated,
     }

@@ -24,11 +24,13 @@ def crexi_sales_trends_exclusion_backfill(
         batch_size=BATCH_SIZE,
     )
     context.log.info(
-        "Crexi sales-trends exclusion partition %s: ids %d-%d, updated=%d",
+        "Crexi sales-trends exclusion partition %s: ids %d-%d, updated=%d, one_unit=%d, zillow_condo=%d",
         context.partition_key,
         stats["start_id"],
         stats["end_id"],
         stats["updated"],
+        stats["one_unit_updated"],
+        stats["zillow_condo_updated"],
     )
     return Output(
         value=stats["updated"],
@@ -37,5 +39,7 @@ def crexi_sales_trends_exclusion_backfill(
             "start_id": stats["start_id"],
             "end_id": stats["end_id"],
             "updated": stats["updated"],
+            "one_unit_updated": stats["one_unit_updated"],
+            "zillow_condo_updated": stats["zillow_condo_updated"],
         },
     )

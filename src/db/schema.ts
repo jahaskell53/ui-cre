@@ -1379,6 +1379,15 @@ export const cleanedListings = pgTable(
         index("cleaned_listings_geom_idx").using("gist", table.geom.asc().nullsLast().op("gist_geometry_ops_2d")),
         index("cleaned_listings_zip_run_idx").using("btree", table.zipCode.asc().nullsLast().op("text_ops"), table.runId.asc().nullsLast().op("text_ops")),
         index("idx_cleaned_listings_city_state_lower").using("btree", sql`lower(address_city)`, sql`lower(address_state)`),
+        index("idx_cleaned_listings_zillow_condo_xref")
+            .using(
+                "btree",
+                sql`lower(btrim(address_street))`,
+                sql`lower(btrim(address_city))`,
+                sql`upper(btrim(address_state))`,
+                sql`left(regexp_replace(coalesce(address_zip, zip_code, ''), '[^0-9]', '', 'g'), 5)`,
+            )
+            .where(sql`home_type = 'CONDO'`),
         index("idx_cleaned_listings_geom")
             .using("gist", table.geom.asc().nullsLast().op("gist_geometry_ops_2d"))
             .where(sql`(geom IS NOT NULL)`),

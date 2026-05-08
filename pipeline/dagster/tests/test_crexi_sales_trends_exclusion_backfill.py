@@ -30,10 +30,17 @@ def test_backfill_partition_updates_only_one_unit_included_rows():
     query.lt.return_value = query
     query.eq.return_value = query
     query.execute.return_value.data = [{"id": 3001}, {"id": 3002}]
+    client.rpc.return_value.execute.return_value.data = [{"updated_count": 3}]
 
     stats = backfill_crexi_sales_trends_exclusion_partition(client, "000003", batch_size=1000)
 
-    assert stats == {"start_id": 3001, "end_id": 4000, "updated": 2}
+    assert stats == {
+        "start_id": 3001,
+        "end_id": 4000,
+        "updated": 5,
+        "one_unit_updated": 2,
+        "zillow_condo_updated": 3,
+    }
     client.table.assert_called_once_with("crexi_api_comps")
     client.table.return_value.update.assert_called_once_with({"exclude_from_sales_trends": True})
     assert query.gte.call_args_list == [call("id", 3001)]
@@ -44,6 +51,13 @@ def test_backfill_partition_updates_only_one_unit_included_rows():
         call("num_units", 1),
     ]
     query.execute.assert_called_once()
+    client.rpc.assert_called_once_with(
+        "backfill_crexi_zillow_condo_sales_trends_exclusions",
+        {
+            "p_start_id": 3001,
+            "p_end_id_exclusive": 4001,
+        },
+    )
 
 
 def test_partitioned_asset_returns_updated_count_metadata():
@@ -55,11 +69,14 @@ def test_partitioned_asset_returns_updated_count_metadata():
     query.lt.return_value = query
     query.eq.return_value = query
     query.execute.return_value.data = [{"id": 1}]
+    client.rpc.return_value.execute.return_value.data = [{"updated_count": 2}]
 
     with build_asset_context(partition_key="000000") as context:
         output = crexi_sales_trends_exclusion_backfill(context=context, supabase=supabase)
 
-    assert output.value == 1
+    assert output.value == 3
     assert output.metadata["partition_key"].value == "000000"
     assert output.metadata["start_id"].value == 1
     assert output.metadata["end_id"].value == 1000
+    assert output.metadata["one_unit_updated"].value == 1
+    assert output.metadata["zillow_condo_updated"].value == 2
