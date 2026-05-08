@@ -1379,15 +1379,6 @@ export const cleanedListings = pgTable(
         index("cleaned_listings_geom_idx").using("gist", table.geom.asc().nullsLast().op("gist_geometry_ops_2d")),
         index("cleaned_listings_zip_run_idx").using("btree", table.zipCode.asc().nullsLast().op("text_ops"), table.runId.asc().nullsLast().op("text_ops")),
         index("idx_cleaned_listings_city_state_lower").using("btree", sql`lower(address_city)`, sql`lower(address_state)`),
-        index("idx_cleaned_listings_zillow_condo_xref")
-            .using(
-                "btree",
-                sql`lower(btrim(address_street))`,
-                sql`lower(btrim(address_city))`,
-                sql`upper(btrim(address_state))`,
-                sql`left(regexp_replace(coalesce(address_zip, zip_code, ''), '[^0-9]', '', 'g'), 5)`,
-            )
-            .where(sql`home_type = 'CONDO'`),
         index("idx_cleaned_listings_geom")
             .using("gist", table.geom.asc().nullsLast().op("gist_geometry_ops_2d"))
             .where(sql`(geom IS NOT NULL)`),
@@ -1684,6 +1675,37 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     /** Set when the detail payload (see `crexi_api_comp_detail_json`) was last fetched. `num_units` is derived from search `raw_json.propertyAttributes.unitsCount`, not from detail. */
     detail_enriched_at: timestamp("detail_enriched_at", { withTimezone: true }),
 });
+
+export const crexiZillowCondoXrefs = pgTable(
+    "crexi_zillow_condo_xrefs",
+    {
+        id: bigserial("id", { mode: "number" }).primaryKey(),
+        runId: text("run_id").notNull(),
+        crexiCompId: bigint("crexi_comp_id", { mode: "number" }).notNull(),
+        crexiId: text("crexi_id"),
+        queryAddress: text("query_address").notNull(),
+        zpid: text("zpid"),
+        zillowUrl: text("zillow_url"),
+        homeType: text("home_type"),
+        isCondo: boolean("is_condo").notNull().default(false),
+        rawJson: jsonb("raw_json")
+            .notNull()
+            .default(sql`'[]'::jsonb`),
+        scrapedAt: timestamp("scraped_at", { withTimezone: true }).defaultNow().notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    },
+    (table) => [
+        uniqueIndex("crexi_zillow_condo_xrefs_crexi_comp_id_key").using("btree", table.crexiCompId.asc().nullsLast().op("int8_ops")),
+        index("idx_crexi_zillow_condo_xrefs_is_condo")
+            .using("btree", table.crexiCompId.asc().nullsLast().op("int8_ops"))
+            .where(sql`is_condo = true`),
+        foreignKey({
+            columns: [table.crexiCompId],
+            foreignColumns: [crexiApiComps.id],
+            name: "crexi_zillow_condo_xrefs_crexi_comp_id_fkey",
+        }).onDelete("cascade"),
+    ],
+);
 
 /**
  * Lineage row per Crexi scrape/enrich invocation. Every bronze (raw_json/detail_json)

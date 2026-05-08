@@ -4,6 +4,7 @@ from zillow_pipeline.lib.crexi_sales_trends_exclusion_backfill import (
     BATCH_SIZE,
     backfill_crexi_sales_trends_exclusion_partition,
 )
+from zillow_pipeline.resources.apify import ApifyResource
 from zillow_pipeline.resources.supabase import SupabaseResource
 
 # Current production max crexi_api_comps.id was 301983 when this one-time
@@ -15,21 +16,25 @@ PARTITIONS = StaticPartitionsDefinition([f"{i:06d}" for i in range(PARTITION_COU
 @asset(partitions_def=PARTITIONS)
 def crexi_sales_trends_exclusion_backfill(
     context: AssetExecutionContext,
+    apify: ApifyResource,
     supabase: SupabaseResource,
 ) -> Output[int]:
     """Backfill one batch of Crexi comps that should be excluded from sales trends."""
     stats = backfill_crexi_sales_trends_exclusion_partition(
         supabase.get_client(),
+        apify,
         context.partition_key,
         batch_size=BATCH_SIZE,
     )
     context.log.info(
-        "Crexi sales-trends exclusion partition %s: ids %d-%d, updated=%d, one_unit=%d, zillow_condo=%d",
+        "Crexi sales-trends exclusion partition %s: ids %d-%d, updated=%d, one_unit=%d, zillow_scraped=%d, zillow_matched=%d, zillow_condo=%d",
         context.partition_key,
         stats["start_id"],
         stats["end_id"],
         stats["updated"],
         stats["one_unit_updated"],
+        stats["zillow_scraped"],
+        stats["zillow_matched"],
         stats["zillow_condo_updated"],
     )
     return Output(
@@ -40,6 +45,8 @@ def crexi_sales_trends_exclusion_backfill(
             "end_id": stats["end_id"],
             "updated": stats["updated"],
             "one_unit_updated": stats["one_unit_updated"],
+            "zillow_scraped": stats["zillow_scraped"],
+            "zillow_matched": stats["zillow_matched"],
             "zillow_condo_updated": stats["zillow_condo_updated"],
         },
     )
