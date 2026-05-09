@@ -37,7 +37,12 @@ def backfill_crexi_sales_trends_exclusion_partition(
 
     one_unit_result = (
         client.table("crexi_api_comps")
-        .update({"exclude_from_sales_trends": True})
+        .update(
+            {
+                "exclude_from_sales_trends": True,
+                "sales_trends_exclusion_reason": "crexi_num_units_1",
+            }
+        )
         .gte("id", start_id)
         .lt("id", end_id_exclusive)
         .eq("is_sales_comp", True)
@@ -53,22 +58,22 @@ def backfill_crexi_sales_trends_exclusion_partition(
         end_id_exclusive,
         limit=batch_size,
     )
-    condo_result = client.rpc(
+    zillow_exclusion_result = client.rpc(
         "backfill_crexi_zillow_condo_sales_trends_exclusions",
         {
             "p_start_id": start_id,
             "p_end_id_exclusive": end_id_exclusive,
         },
     ).execute()
-    condo_updated = condo_result.data[0]["updated_count"] if condo_result.data else 0
+    zillow_excluded_updated = zillow_exclusion_result.data[0]["updated_count"] if zillow_exclusion_result.data else 0
     one_unit_updated = len(one_unit_result.data or [])
 
     return {
         "start_id": start_id,
         "end_id": end_id_exclusive - 1,
-        "updated": one_unit_updated + condo_updated,
+        "updated": one_unit_updated + zillow_excluded_updated,
         "one_unit_updated": one_unit_updated,
-        "zillow_condo_updated": condo_updated,
+        "zillow_excluded_updated": zillow_excluded_updated,
         "zillow_scraped": zillow_scrape_stats["scraped"],
         "zillow_matched": zillow_scrape_stats["matched"],
     }
@@ -101,6 +106,7 @@ def scrape_zillow_condo_xrefs_for_partition(
         raw_items = apify.run_zillow_property_lookup(candidate["query_address"])
         matched_item = _first_matching_zillow_item(raw_items, candidate)
         home_type = _extract_home_type(matched_item) if matched_item else None
+        exclusion_reason = _sales_trends_exclusion_reason(home_type)
         client.table("crexi_zillow_condo_xrefs").upsert(
             {
                 "run_id": candidate["run_id"],
@@ -111,6 +117,8 @@ def scrape_zillow_condo_xrefs_for_partition(
                 "zillow_url": _extract_detail_url(matched_item) if matched_item else None,
                 "home_type": home_type,
                 "is_condo": _is_condo_home_type(home_type),
+                "is_sales_trends_excluded": exclusion_reason is not None,
+                "sales_trends_exclusion_reason": exclusion_reason,
                 "raw_json": raw_items,
                 "scraped_at": datetime.now(timezone.utc).isoformat(),
             },
@@ -211,6 +219,19 @@ def _extract_detail_url(item: dict | None) -> str | None:
 
 def _is_condo_home_type(home_type: str | None) -> bool:
     return (home_type or "").upper() in {"CONDO", "CONDOMINIUM"}
+
+
+def _is_sales_trends_excluded_home_type(home_type: str | None) -> bool:
+    return _sales_trends_exclusion_reason(home_type) is not None
+
+
+def _sales_trends_exclusion_reason(home_type: str | None) -> str | None:
+    normalized = (home_type or "").upper()
+    if normalized in {"CONDO", "CONDOMINIUM"}:
+        return "zillow_home_type_condo"
+    if normalized in {"SINGLE_FAMILY", "SINGLEFAMILY"}:
+        return "zillow_home_type_single_family"
+    return None
 
 
 def _normalize_address_part(value: object) -> str:
