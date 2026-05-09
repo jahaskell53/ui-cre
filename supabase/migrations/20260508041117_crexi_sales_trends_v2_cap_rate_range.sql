@@ -32,11 +32,9 @@ AS $function$
     AVG(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent)) AS avg_cap_rate,
     PERCENTILE_CONT(0.5) WITHIN GROUP (
       ORDER BY COALESCE(sale_cap_rate_percent, financials_cap_rate_percent)
-    ) FILTER (WHERE COALESCE(sale_cap_rate_percent, financials_cap_rate_percent) IS NOT NULL)::numeric AS median_cap_rate,
-    MIN(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(sale_cap_rate_percent, financials_cap_rate_percent) IS NOT NULL)::numeric AS min_cap_rate,
-    MAX(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(sale_cap_rate_percent, financials_cap_rate_percent) IS NOT NULL)::numeric AS max_cap_rate,
+    )::numeric AS median_cap_rate,
+    MIN(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))::numeric AS min_cap_rate,
+    MAX(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))::numeric AS max_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps
   WHERE
@@ -84,11 +82,9 @@ AS $function$
     AVG(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent)) AS avg_cap_rate,
     PERCENTILE_CONT(0.5) WITHIN GROUP (
       ORDER BY COALESCE(sale_cap_rate_percent, financials_cap_rate_percent)
-    ) FILTER (WHERE COALESCE(sale_cap_rate_percent, financials_cap_rate_percent) IS NOT NULL)::numeric AS median_cap_rate,
-    MIN(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(sale_cap_rate_percent, financials_cap_rate_percent) IS NOT NULL)::numeric AS min_cap_rate,
-    MAX(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(sale_cap_rate_percent, financials_cap_rate_percent) IS NOT NULL)::numeric AS max_cap_rate,
+    )::numeric AS median_cap_rate,
+    MIN(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))::numeric AS min_cap_rate,
+    MAX(COALESCE(sale_cap_rate_percent, financials_cap_rate_percent))::numeric AS max_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps
   WHERE
@@ -137,11 +133,9 @@ AS $function$
     AVG(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)) AS avg_cap_rate,
     PERCENTILE_CONT(0.5) WITHIN GROUP (
       ORDER BY COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)
-    ) FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS median_cap_rate,
-    MIN(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS min_cap_rate,
-    MAX(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS max_cap_rate,
+    )::numeric AS median_cap_rate,
+    MIN(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))::numeric AS min_cap_rate,
+    MAX(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))::numeric AS max_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps c
   JOIN county_boundaries cb
@@ -192,11 +186,9 @@ AS $function$
     AVG(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)) AS avg_cap_rate,
     PERCENTILE_CONT(0.5) WITHIN GROUP (
       ORDER BY COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)
-    ) FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS median_cap_rate,
-    MIN(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS min_cap_rate,
-    MAX(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS max_cap_rate,
+    )::numeric AS median_cap_rate,
+    MIN(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))::numeric AS min_cap_rate,
+    MAX(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))::numeric AS max_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps c
   JOIN neighborhoods n
@@ -246,11 +238,9 @@ AS $function$
     AVG(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)) AS avg_cap_rate,
     PERCENTILE_CONT(0.5) WITHIN GROUP (
       ORDER BY COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent)
-    ) FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS median_cap_rate,
-    MIN(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS min_cap_rate,
-    MAX(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))
-      FILTER (WHERE COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent) IS NOT NULL)::numeric AS max_cap_rate,
+    )::numeric AS median_cap_rate,
+    MIN(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))::numeric AS min_cap_rate,
+    MAX(COALESCE(c.sale_cap_rate_percent, c.financials_cap_rate_percent))::numeric AS max_cap_rate,
     COUNT(*) AS listing_count
   FROM crexi_api_comps c
   JOIN msa_boundaries mb
