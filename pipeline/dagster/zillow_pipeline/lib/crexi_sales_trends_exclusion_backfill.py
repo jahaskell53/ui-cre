@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Callable
 
 from supabase import Client
 
 from zillow_pipeline.resources.apify import ApifyResource
 
 BATCH_SIZE = 1000
+PROGRESS_LOG_INTERVAL = 25
 
 
 def partition_key_to_id_range(partition_key: str, *, batch_size: int = BATCH_SIZE) -> tuple[int, int]:
@@ -31,6 +33,7 @@ def backfill_crexi_sales_trends_exclusion_partition(
     partition_key: str,
     *,
     batch_size: int = BATCH_SIZE,
+    log_fn: Callable[[str], None] | None = None,
 ) -> dict[str, int]:
     """Mark one id-range batch of one-unit and Zillow-scraped condo sales comps."""
     start_id, end_id_exclusive = partition_key_to_id_range(partition_key, batch_size=batch_size)
@@ -56,7 +59,9 @@ def backfill_crexi_sales_trends_exclusion_partition(
         apify,
         start_id,
         end_id_exclusive,
+        partition_key=partition_key,
         limit=batch_size,
+        log_fn=log_fn,
     )
     zillow_exclusion_result = client.rpc(
         "backfill_crexi_zillow_condo_sales_trends_exclusions",
@@ -76,6 +81,11 @@ def backfill_crexi_sales_trends_exclusion_partition(
     probable_single_unit_excluded_updated = (
         probable_single_unit_exclusion_result.data[0]["updated_count"] if probable_single_unit_exclusion_result.data else 0
     )
+    if log_fn:
+        log_fn(
+            f"Crexi sales-trends exclusion partition {partition_key}: "
+            f"probable_single_unit_excluded={probable_single_unit_excluded_updated} after Zillow exclusions"
+        )
     one_unit_updated = len(one_unit_result.data or [])
 
     return {
@@ -96,7 +106,9 @@ def scrape_zillow_condo_xrefs_for_partition(
     start_id: int,
     end_id_exclusive: int,
     *,
+    partition_key: str,
     limit: int,
+    log_fn: Callable[[str], None] | None = None,
 ) -> dict[str, int]:
     candidates = (
         client.rpc(
@@ -112,9 +124,12 @@ def scrape_zillow_condo_xrefs_for_partition(
         or []
     )
 
+    if log_fn:
+        log_fn(f"Crexi Zillow scrape partition {partition_key}: {len(candidates)} candidates")
+
     scraped = matched = 0
-    for candidate in candidates:
-        raw_items = apify.run_zillow_property_lookup(candidate["query_address"])
+    for index, candidate in enumerate(candidates, start=1):
+        raw_items = apify.run_zillow_property_lookup(candidate["query_address"], log_fn=log_fn)
         matched_item = _first_matching_zillow_item(raw_items, candidate)
         home_type = _extract_home_type(matched_item) if matched_item else None
         exclusion_reason = _sales_trends_exclusion_reason(home_type)
@@ -137,6 +152,8 @@ def scrape_zillow_condo_xrefs_for_partition(
         ).execute()
         scraped += 1
         matched += 1 if matched_item else 0
+        if log_fn and (index == 1 or index % PROGRESS_LOG_INTERVAL == 0 or index == len(candidates)):
+            log_fn(f"Crexi Zillow scrape partition {partition_key}: scraped {index}/{len(candidates)} candidates (matched={matched})")
 
     return {"scraped": scraped, "matched": matched}
 

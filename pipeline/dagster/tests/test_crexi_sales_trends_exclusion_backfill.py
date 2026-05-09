@@ -84,8 +84,9 @@ def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
     probable_single_unit_exclusion_rpc.execute.return_value.data = [{"updated_count": 4}]
     client.rpc.side_effect = [candidate_rpc, zillow_exclusion_rpc, probable_single_unit_exclusion_rpc]
     xref_table.upsert.return_value.execute.return_value = MagicMock()
+    log_fn = MagicMock()
 
-    stats = backfill_crexi_sales_trends_exclusion_partition(client, apify, "000003", batch_size=1000)
+    stats = backfill_crexi_sales_trends_exclusion_partition(client, apify, "000003", batch_size=1000, log_fn=log_fn)
 
     assert stats == {
         "start_id": 3001,
@@ -126,12 +127,17 @@ def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
             {"p_start_id": 3001, "p_end_id_exclusive": 4001},
         ),
     ]
-    apify.run_zillow_property_lookup.assert_called_once_with("123 Main St, Oakland, CA, 94601")
+    apify.run_zillow_property_lookup.assert_called_once_with("123 Main St, Oakland, CA, 94601", log_fn=log_fn)
     xref_table.upsert.assert_called_once()
     upserted = xref_table.upsert.call_args.args[0]
     assert upserted["is_condo"] is True
     assert upserted["is_sales_trends_excluded"] is True
     assert upserted["sales_trends_exclusion_reason"] == "zillow_home_type_condo"
+    assert log_fn.call_args_list == [
+        call("Crexi Zillow scrape partition 000003: 1 candidates"),
+        call("Crexi Zillow scrape partition 000003: scraped 1/1 candidates (matched=1)"),
+        call("Crexi sales-trends exclusion partition 000003: probable_single_unit_excluded=4 after Zillow exclusions"),
+    ]
 
 
 def test_partitioned_asset_returns_updated_count_metadata():
