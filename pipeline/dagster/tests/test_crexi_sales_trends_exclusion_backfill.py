@@ -9,6 +9,7 @@ from dagster import build_asset_context
 
 from zillow_pipeline.assets.crexi_sales_trends_exclusion_backfill import crexi_sales_trends_exclusion_backfill
 from zillow_pipeline.lib.crexi_sales_trends_exclusion_backfill import (
+    _sales_trends_exclusion_reason,
     backfill_crexi_sales_trends_exclusion_partition,
     partition_key_to_id_range,
 )
@@ -21,6 +22,20 @@ def test_partition_key_to_id_range_uses_zero_based_batches():
 def test_partition_key_to_id_range_rejects_invalid_key():
     with pytest.raises(ValueError, match="Invalid partition key"):
         partition_key_to_id_range("batch-1")
+
+
+@pytest.mark.parametrize(
+    ("home_type", "reason"),
+    [
+        ("CONDO", "zillow_home_type_condo"),
+        ("CONDOMINIUM", "zillow_home_type_condo"),
+        ("SINGLE_FAMILY", "zillow_home_type_single_family"),
+        ("SingleFamily", "zillow_home_type_single_family"),
+        ("MULTI_FAMILY", None),
+    ],
+)
+def test_sales_trends_exclusion_reason_from_zillow_home_type(home_type, reason):
+    assert _sales_trends_exclusion_reason(home_type) == reason
 
 
 def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
@@ -75,12 +90,17 @@ def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
         "end_id": 4000,
         "updated": 5,
         "one_unit_updated": 2,
-        "zillow_condo_updated": 3,
+        "zillow_excluded_updated": 3,
         "zillow_scraped": 1,
         "zillow_matched": 1,
     }
     assert client.table.call_args_list == [call("crexi_api_comps"), call("crexi_zillow_condo_xrefs")]
-    crexi_table.update.assert_called_once_with({"exclude_from_sales_trends": True})
+    crexi_table.update.assert_called_once_with(
+        {
+            "exclude_from_sales_trends": True,
+            "sales_trends_exclusion_reason": "crexi_num_units_1",
+        }
+    )
     assert query.gte.call_args_list == [call("id", 3001)]
     assert query.lt.call_args_list == [call("id", 4001)]
     assert query.eq.call_args_list == [
@@ -101,7 +121,10 @@ def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
     ]
     apify.run_zillow_property_lookup.assert_called_once_with("123 Main St, Oakland, CA, 94601")
     xref_table.upsert.assert_called_once()
-    assert xref_table.upsert.call_args.args[0]["is_condo"] is True
+    upserted = xref_table.upsert.call_args.args[0]
+    assert upserted["is_condo"] is True
+    assert upserted["is_sales_trends_excluded"] is True
+    assert upserted["sales_trends_exclusion_reason"] == "zillow_home_type_condo"
 
 
 def test_partitioned_asset_returns_updated_count_metadata():
@@ -130,4 +153,4 @@ def test_partitioned_asset_returns_updated_count_metadata():
     assert output.metadata["one_unit_updated"].value == 1
     assert output.metadata["zillow_scraped"].value == 0
     assert output.metadata["zillow_matched"].value == 0
-    assert output.metadata["zillow_condo_updated"].value == 2
+    assert output.metadata["zillow_excluded_updated"].value == 2

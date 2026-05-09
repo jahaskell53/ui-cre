@@ -1672,6 +1672,7 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     gross_rent_annual: doublePrecision("gross_rent_annual"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
     excludeFromSalesTrends: boolean("exclude_from_sales_trends").notNull().default(false),
+    salesTrendsExclusionReason: text("sales_trends_exclusion_reason"),
     /** Set when the detail payload (see `crexi_api_comp_detail_json`) was last fetched. `num_units` is derived from search `raw_json.propertyAttributes.unitsCount`, not from detail. */
     detail_enriched_at: timestamp("detail_enriched_at", { withTimezone: true }),
 });
@@ -1688,6 +1689,8 @@ export const crexiZillowCondoXrefs = pgTable(
         zillowUrl: text("zillow_url"),
         homeType: text("home_type"),
         isCondo: boolean("is_condo").notNull().default(false),
+        isSalesTrendsExcluded: boolean("is_sales_trends_excluded").notNull().default(false),
+        salesTrendsExclusionReason: text("sales_trends_exclusion_reason"),
         rawJson: jsonb("raw_json")
             .notNull()
             .default(sql`'[]'::jsonb`),

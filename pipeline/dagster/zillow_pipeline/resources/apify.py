@@ -1,5 +1,3 @@
-from urllib.parse import quote_plus
-
 from dagster import ConfigurableResource
 from apify_client import ApifyClient
 
@@ -135,9 +133,11 @@ async function pageFunction(context) {
 
     def run_zillow_property_lookup(self, address_query: str) -> list[dict]:
         client = ApifyClient(self.api_token)
-        search_url = f"https://www.zillow.com/homes/{quote_plus(address_query)}_rb/"
         run = client.actor(self.detail_actor_id).call(
-            run_input={"startUrls": [{"url": search_url}]}
+            run_input={
+                "addresses": [address_query],
+                "propertyStatus": "RECENTLY_SOLD",
+            }
         )
         return list(client.dataset(run["defaultDatasetId"]).iterate_items())
 
