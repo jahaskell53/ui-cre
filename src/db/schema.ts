@@ -1672,9 +1672,43 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     gross_rent_annual: doublePrecision("gross_rent_annual"),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
     excludeFromSalesTrends: boolean("exclude_from_sales_trends").notNull().default(false),
+    salesTrendsExclusionReason: text("sales_trends_exclusion_reason"),
     /** Set when the detail payload (see `crexi_api_comp_detail_json`) was last fetched. `num_units` is derived from search `raw_json.propertyAttributes.unitsCount`, not from detail. */
     detail_enriched_at: timestamp("detail_enriched_at", { withTimezone: true }),
 });
+
+export const crexiZillowCondoXrefs = pgTable(
+    "crexi_zillow_condo_xrefs",
+    {
+        id: bigserial("id", { mode: "number" }).primaryKey(),
+        runId: text("run_id").notNull(),
+        crexiCompId: bigint("crexi_comp_id", { mode: "number" }).notNull(),
+        crexiId: text("crexi_id"),
+        queryAddress: text("query_address").notNull(),
+        zpid: text("zpid"),
+        zillowUrl: text("zillow_url"),
+        homeType: text("home_type"),
+        isCondo: boolean("is_condo").notNull().default(false),
+        isSalesTrendsExcluded: boolean("is_sales_trends_excluded").notNull().default(false),
+        salesTrendsExclusionReason: text("sales_trends_exclusion_reason"),
+        rawJson: jsonb("raw_json")
+            .notNull()
+            .default(sql`'[]'::jsonb`),
+        scrapedAt: timestamp("scraped_at", { withTimezone: true }).defaultNow().notNull(),
+        createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    },
+    (table) => [
+        uniqueIndex("crexi_zillow_condo_xrefs_crexi_comp_id_key").using("btree", table.crexiCompId.asc().nullsLast().op("int8_ops")),
+        index("idx_crexi_zillow_condo_xrefs_is_condo")
+            .using("btree", table.crexiCompId.asc().nullsLast().op("int8_ops"))
+            .where(sql`is_condo = true`),
+        foreignKey({
+            columns: [table.crexiCompId],
+            foreignColumns: [crexiApiComps.id],
+            name: "crexi_zillow_condo_xrefs_crexi_comp_id_fkey",
+        }).onDelete("cascade"),
+    ],
+);
 
 /**
  * Lineage row per Crexi scrape/enrich invocation. Every bronze (raw_json/detail_json)

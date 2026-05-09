@@ -131,6 +131,16 @@ async function pageFunction(context) {
         )
         return list(client.dataset(run["defaultDatasetId"]).iterate_items())
 
+    def run_zillow_property_lookup(self, address_query: str) -> list[dict]:
+        client = ApifyClient(self.api_token)
+        run = client.actor(self.detail_actor_id).call(
+            run_input={
+                "addresses": [address_query],
+                "propertyStatus": "RECENTLY_SOLD",
+            }
+        )
+        return list(client.dataset(run["defaultDatasetId"]).iterate_items())
+
     def run_loopnet_search(self, search_urls: list[str]) -> list[dict]:
         """Scrape one or more LoopNet search-results pages and return all items."""
         client = ApifyClient(self.api_token)

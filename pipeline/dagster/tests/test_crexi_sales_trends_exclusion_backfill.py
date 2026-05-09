@@ -9,6 +9,7 @@ from dagster import build_asset_context
 
 from zillow_pipeline.assets.crexi_sales_trends_exclusion_backfill import crexi_sales_trends_exclusion_backfill
 from zillow_pipeline.lib.crexi_sales_trends_exclusion_backfill import (
+    _sales_trends_exclusion_reason,
     backfill_crexi_sales_trends_exclusion_partition,
     partition_key_to_id_range,
 )
@@ -23,19 +24,83 @@ def test_partition_key_to_id_range_rejects_invalid_key():
         partition_key_to_id_range("batch-1")
 
 
-def test_backfill_partition_updates_only_one_unit_included_rows():
+@pytest.mark.parametrize(
+    ("home_type", "reason"),
+    [
+        ("CONDO", "zillow_home_type_condo"),
+        ("CONDOMINIUM", "zillow_home_type_condo"),
+        ("SINGLE_FAMILY", "zillow_home_type_single_family"),
+        ("SingleFamily", "zillow_home_type_single_family"),
+        ("MULTI_FAMILY", None),
+    ],
+)
+def test_sales_trends_exclusion_reason_from_zillow_home_type(home_type, reason):
+    assert _sales_trends_exclusion_reason(home_type) == reason
+
+
+def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
     client = MagicMock()
-    query = client.table.return_value.update.return_value
+    apify = MagicMock()
+    apify.run_zillow_property_lookup.return_value = [
+        {
+            "zpid": "zpid-1",
+            "detailUrl": "https://www.zillow.com/homedetails/123-Main/1_zpid/",
+            "addressStreet": "123 Main St",
+            "addressCity": "Oakland",
+            "addressState": "CA",
+            "addressZipcode": "94601",
+            "homeType": "CONDO",
+        }
+    ]
+
+    crexi_table = MagicMock()
+    xref_table = MagicMock()
+    client.table.side_effect = lambda table_name: {
+        "crexi_api_comps": crexi_table,
+        "crexi_zillow_condo_xrefs": xref_table,
+    }[table_name]
+
+    query = crexi_table.update.return_value
     query.gte.return_value = query
     query.lt.return_value = query
     query.eq.return_value = query
     query.execute.return_value.data = [{"id": 3001}, {"id": 3002}]
+    candidate_rpc = MagicMock()
+    candidate_rpc.execute.return_value.data = [
+        {
+            "run_id": "run-1",
+            "crexi_comp_id": 3003,
+            "crexi_id": "crexi-1",
+            "address_street": "123 Main St",
+            "city": "Oakland",
+            "state": "CA",
+            "zip": "94601",
+            "query_address": "123 Main St, Oakland, CA, 94601",
+        }
+    ]
+    exclusion_rpc = MagicMock()
+    exclusion_rpc.execute.return_value.data = [{"updated_count": 3}]
+    client.rpc.side_effect = [candidate_rpc, exclusion_rpc]
+    xref_table.upsert.return_value.execute.return_value = MagicMock()
 
-    stats = backfill_crexi_sales_trends_exclusion_partition(client, "000003", batch_size=1000)
+    stats = backfill_crexi_sales_trends_exclusion_partition(client, apify, "000003", batch_size=1000)
 
-    assert stats == {"start_id": 3001, "end_id": 4000, "updated": 2}
-    client.table.assert_called_once_with("crexi_api_comps")
-    client.table.return_value.update.assert_called_once_with({"exclude_from_sales_trends": True})
+    assert stats == {
+        "start_id": 3001,
+        "end_id": 4000,
+        "updated": 5,
+        "one_unit_updated": 2,
+        "zillow_excluded_updated": 3,
+        "zillow_scraped": 1,
+        "zillow_matched": 1,
+    }
+    assert client.table.call_args_list == [call("crexi_api_comps"), call("crexi_zillow_condo_xrefs")]
+    crexi_table.update.assert_called_once_with(
+        {
+            "exclude_from_sales_trends": True,
+            "sales_trends_exclusion_reason": "crexi_num_units_1",
+        }
+    )
     assert query.gte.call_args_list == [call("id", 3001)]
     assert query.lt.call_args_list == [call("id", 4001)]
     assert query.eq.call_args_list == [
@@ -44,10 +109,27 @@ def test_backfill_partition_updates_only_one_unit_included_rows():
         call("num_units", 1),
     ]
     query.execute.assert_called_once()
+    assert client.rpc.call_args_list == [
+        call(
+            "get_crexi_zillow_condo_scrape_candidates",
+            {"p_start_id": 3001, "p_end_id_exclusive": 4001, "p_limit": 1000},
+        ),
+        call(
+            "backfill_crexi_zillow_condo_sales_trends_exclusions",
+            {"p_start_id": 3001, "p_end_id_exclusive": 4001},
+        ),
+    ]
+    apify.run_zillow_property_lookup.assert_called_once_with("123 Main St, Oakland, CA, 94601")
+    xref_table.upsert.assert_called_once()
+    upserted = xref_table.upsert.call_args.args[0]
+    assert upserted["is_condo"] is True
+    assert upserted["is_sales_trends_excluded"] is True
+    assert upserted["sales_trends_exclusion_reason"] == "zillow_home_type_condo"
 
 
 def test_partitioned_asset_returns_updated_count_metadata():
     supabase = MagicMock()
+    apify = MagicMock()
     client = MagicMock()
     supabase.get_client.return_value = client
     query = client.table.return_value.update.return_value
@@ -55,11 +137,20 @@ def test_partitioned_asset_returns_updated_count_metadata():
     query.lt.return_value = query
     query.eq.return_value = query
     query.execute.return_value.data = [{"id": 1}]
+    candidate_rpc = MagicMock()
+    candidate_rpc.execute.return_value.data = []
+    exclusion_rpc = MagicMock()
+    exclusion_rpc.execute.return_value.data = [{"updated_count": 2}]
+    client.rpc.side_effect = [candidate_rpc, exclusion_rpc]
 
     with build_asset_context(partition_key="000000") as context:
-        output = crexi_sales_trends_exclusion_backfill(context=context, supabase=supabase)
+        output = crexi_sales_trends_exclusion_backfill(context=context, apify=apify, supabase=supabase)
 
-    assert output.value == 1
+    assert output.value == 3
     assert output.metadata["partition_key"].value == "000000"
     assert output.metadata["start_id"].value == 1
     assert output.metadata["end_id"].value == 1000
+    assert output.metadata["one_unit_updated"].value == 1
+    assert output.metadata["zillow_scraped"].value == 0
+    assert output.metadata["zillow_matched"].value == 0
+    assert output.metadata["zillow_excluded_updated"].value == 2
