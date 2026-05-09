@@ -66,6 +66,9 @@ export interface SalesTrendRowV2 extends SalesTrendRow {
     avg_price: number;
     p25_price: number;
     p75_price: number;
+    median_cap_rate: number | null;
+    min_cap_rate: number | null;
+    max_cap_rate: number | null;
 }
 
 interface UnitFilterParams {
