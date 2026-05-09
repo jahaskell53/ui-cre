@@ -66,14 +66,25 @@ def backfill_crexi_sales_trends_exclusion_partition(
         },
     ).execute()
     zillow_excluded_updated = zillow_exclusion_result.data[0]["updated_count"] if zillow_exclusion_result.data else 0
+    probable_single_unit_exclusion_result = client.rpc(
+        "backfill_crexi_probable_single_unit_sales_trends_exclusions",
+        {
+            "p_start_id": start_id,
+            "p_end_id_exclusive": end_id_exclusive,
+        },
+    ).execute()
+    probable_single_unit_excluded_updated = (
+        probable_single_unit_exclusion_result.data[0]["updated_count"] if probable_single_unit_exclusion_result.data else 0
+    )
     one_unit_updated = len(one_unit_result.data or [])
 
     return {
         "start_id": start_id,
         "end_id": end_id_exclusive - 1,
-        "updated": one_unit_updated + zillow_excluded_updated,
+        "updated": one_unit_updated + zillow_excluded_updated + probable_single_unit_excluded_updated,
         "one_unit_updated": one_unit_updated,
         "zillow_excluded_updated": zillow_excluded_updated,
+        "probable_single_unit_excluded_updated": probable_single_unit_excluded_updated,
         "zillow_scraped": zillow_scrape_stats["scraped"],
         "zillow_matched": zillow_scrape_stats["matched"],
     }
