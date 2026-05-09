@@ -115,6 +115,130 @@ When it would help reviewers or future readers (for example UI changes, flows, o
 - **Run dev server**: `cd pipeline/dagster && uv run dagster dev` (requires Supabase + Apify env vars; see `pipeline/dagster/.env.example`).
 - **Debugging a Dagster Cloud run**: To inspect logs for a specific run, extract the run ID from the Dagster Plus run URL (format: `https://<org>.dagster.plus/<deployment>/runs/<run-id>`) and use `dg`: `dg run inspect <run-id>` (add `--logs` to stream full log output). Requires `DAGSTER_CLOUD_API_TOKEN` and the deployment name (e.g. `prod`) to be configured; see `pipeline/dagster/.env.example`.
 
+### Launching and monitoring Dagster Cloud jobs
+
+Use these steps when a task requires launching a Dagster job from a Cursor Cloud VM.
+
+1. **Confirm the target deployment is ready before launch.**
+   - Production deployment name is `prod`.
+   - Branch deployments use the deployment ID from the Dagster PR comment URL, for example `https://openmidmarket.dagster.cloud/<deployment-id>/locations`.
+   - If the job depends on a just-merged migration or code change, wait for GitHub Actions first:
+     - `gh run list --branch main --limit 10 --json databaseId,name,status,conclusion,headSha,url`
+     - `gh run watch <run-id> --exit-status`
+   - For schema-dependent jobs, verify `DB Migration Apply` succeeded before launching. For code-dependent jobs, verify `Dagster+ Deploy` succeeded.
+
+2. **Launch the job with `dagster-cloud`.**
+   - Work from `pipeline/dagster`.
+   - Use `.venv/bin/dagster-cloud`; if the venv is missing, install deps with the command above.
+   - Required values for this repo are `--organization openmidmarket` and `--location zillow_pipeline`.
+   - Partitioned jobs require the `dagster/partition` tag. Example:
+     `cd pipeline/dagster && .venv/bin/dagster-cloud job launch --organization openmidmarket --deployment prod --location zillow_pipeline --job crexi_sales_trends_exclusion_backfill_job --tags '{"dagster/partition":"000000"}'`
+   - For unpartitioned jobs, omit `--tags`. For jobs with run config, pass `--config-json '<json>'`.
+   - Save the printed run ID.
+
+3. **Monitor run status via GraphQL.**
+   - Replace `DEPLOYMENT` with `prod` or a branch deployment ID and `RUN_ID` with the launched run:
+
+```bash
+cd pipeline/dagster
+DEPLOYMENT=prod RUN_ID=<run-id> .venv/bin/python - <<'PY'
+import json
+import os
+import urllib.request
+
+url = f"https://openmidmarket.dagster.cloud/{os.environ['DEPLOYMENT']}/graphql"
+query = """
+query RunStatus($runId: ID!) {
+  runOrError(runId: $runId) {
+    __typename
+    ... on Run {
+      runId
+      status
+      startTime
+      endTime
+      eventConnection {
+        events {
+          __typename
+          ... on MessageEvent { message timestamp level eventType }
+          ... on ExecutionStepFailureEvent {
+            message
+            timestamp
+            level
+            eventType
+            stepKey
+            error {
+              message
+              className
+              cause { message className }
+            }
+          }
+        }
+      }
+    }
+    ... on PythonError { message stack }
+    ... on RunNotFoundError { message }
+  }
+}
+"""
+req = urllib.request.Request(
+    url,
+    data=json.dumps({"query": query, "variables": {"runId": os.environ["RUN_ID"]}}).encode(),
+    headers={
+        "Content-Type": "application/json",
+        "Dagster-Cloud-Api-Token": os.environ["DAGSTER_CLOUD_API_TOKEN"],
+    },
+)
+with urllib.request.urlopen(req, timeout=30) as resp:
+    run = json.loads(resp.read())["data"]["runOrError"]
+print("STATUS", run.get("status"), "START", run.get("startTime"), "END", run.get("endTime"))
+for event in run.get("eventConnection", {}).get("events", [])[-25:]:
+    print(event.get("timestamp"), event.get("level"), event["__typename"], event.get("eventType"), (event.get("message") or "")[:500].replace("\n", " | "))
+    if event["__typename"] == "ExecutionStepFailureEvent":
+        print(json.dumps(event.get("error"), indent=2)[:4000])
+PY
+```
+
+4. **If a run is clearly wrong, terminate it.**
+   - Example:
+
+```bash
+cd pipeline/dagster
+DEPLOYMENT=prod RUN_ID=<run-id> .venv/bin/python - <<'PY'
+import json
+import os
+import urllib.request
+
+url = f"https://openmidmarket.dagster.cloud/{os.environ['DEPLOYMENT']}/graphql"
+mutation = """
+mutation TerminateRun($runId: String!) {
+  terminateRun(runId: $runId) {
+    __typename
+    ... on TerminateRunSuccess { run { runId status } }
+    ... on TerminateRunFailure { message }
+    ... on RunNotFoundError { message }
+    ... on PythonError { message stack }
+  }
+}
+"""
+req = urllib.request.Request(
+    url,
+    data=json.dumps({"query": mutation, "variables": {"runId": os.environ["RUN_ID"]}}).encode(),
+    headers={
+        "Content-Type": "application/json",
+        "Dagster-Cloud-Api-Token": os.environ["DAGSTER_CLOUD_API_TOKEN"],
+    },
+)
+with urllib.request.urlopen(req, timeout=30) as resp:
+    print(resp.read().decode())
+PY
+```
+   - After terminating, run the status query until the run reports `CANCELED`, `FAILURE`, or `SUCCESS`.
+
+5. **For long-running backfills, monitor job-specific progress too.**
+   - Dagster events may only show `STEP_START` while a Python loop is working.
+   - Query the destination table or side-effect table with read-only REST/SQL checks to confirm row counts, latest timestamps, and error payloads are moving in the expected direction.
+   - If the payloads show systematic bad input, terminate the run before it burns external API credits.
+
 **Partitioned assets (bounded batches, idempotent retries).** For data mutations and backfills that should be **bounded** and **idempotent**, model each batch of rows as its own **partition** (bounded-batch / retryable-partition pattern) instead of one monolithic asset.
 
 - Use **partitioned assets** when each partition maps to a bounded row batch; prefer **small ranges** and **explicit partition keys** so a failed partition can be retried independently.
