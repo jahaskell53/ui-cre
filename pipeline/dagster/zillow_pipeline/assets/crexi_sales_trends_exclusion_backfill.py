@@ -25,6 +25,7 @@ def crexi_sales_trends_exclusion_backfill(
         apify,
         context.partition_key,
         batch_size=BATCH_SIZE,
+        log_fn=context.log.info,
     )
     context.log.info(
         "Crexi sales-trends exclusion partition %s: ids %d-%d, updated=%d, one_unit=%d, zillow_scraped=%d, zillow_matched=%d, zillow_excluded=%d, probable_single_unit_excluded=%d",

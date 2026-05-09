@@ -1,5 +1,6 @@
 from dagster import ConfigurableResource
 from apify_client import ApifyClient
+from typing import Callable
 
 
 class ApifyResource(ConfigurableResource):
@@ -131,7 +132,7 @@ async function pageFunction(context) {
         )
         return list(client.dataset(run["defaultDatasetId"]).iterate_items())
 
-    def run_zillow_property_lookup(self, address_query: str) -> list[dict]:
+    def run_zillow_property_lookup(self, address_query: str, log_fn: Callable[[str], None] | None = None) -> list[dict]:
         client = ApifyClient(self.api_token)
         run = client.actor(self.detail_actor_id).call(
             run_input={
@@ -139,6 +140,8 @@ async function pageFunction(context) {
                 "propertyStatus": "RECENTLY_SOLD",
             }
         )
+        if log_fn and run.get("id"):
+            log_fn(f"Apify Zillow property lookup run {run['id']} for {address_query}")
         return list(client.dataset(run["defaultDatasetId"]).iterate_items())
 
     def run_loopnet_search(self, search_urls: list[str]) -> list[dict]:
