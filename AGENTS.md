@@ -114,3 +114,10 @@ When it would help reviewers or future readers (for example UI changes, flows, o
 - **Run tests**: `cd pipeline/dagster && .venv/bin/pytest` (56 tests, all mocked, no external services needed).
 - **Run dev server**: `cd pipeline/dagster && uv run dagster dev` (requires Supabase + Apify env vars; see `pipeline/dagster/.env.example`).
 - **Debugging a Dagster Cloud run**: To inspect logs for a specific run, extract the run ID from the Dagster Plus run URL (format: `https://<org>.dagster.plus/<deployment>/runs/<run-id>`) and use `dg`: `dg run inspect <run-id>` (add `--logs` to stream full log output). Requires `DAGSTER_CLOUD_API_TOKEN` and the deployment name (e.g. `prod`) to be configured; see `pipeline/dagster/.env.example`.
+
+**Partitioned assets (bounded batches, idempotent retries).** For data mutations and backfills that should be **bounded** and **idempotent**, model each batch of rows as its own **partition** (bounded-batch / retryable-partition pattern) instead of one monolithic asset.
+
+- Use **partitioned assets** when each partition maps to a bounded row batch; prefer **small ranges** and **explicit partition keys** so a failed partition can be retried independently.
+- Keep partition logic **idempotent**: mutate only rows that **still need work** (filters aligned with the batch key), so re-running a partition does not double-apply or skip work.
+- Keep **heavy DML** out of SQL migrations; use Dagster for large or resumable backfills (see “Schema change workflow” above).
+- **Tests:** cover partition-key-to-range mapping and the **exact** Supabase/Postgres predicates used in reads and updates.
