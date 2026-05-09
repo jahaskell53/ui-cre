@@ -1,5 +1,12 @@
 -- Extend Crexi sales-trends v2 RPCs with cap-rate distribution columns for candlestick charts:
 -- median_cap_rate, min_cap_rate, max_cap_rate (same monthly grouping as price aggregates).
+--
+-- PostgreSQL rejects CREATE OR REPLACE when RETURNS TABLE columns change (42P13). Drop first.
+DROP FUNCTION IF EXISTS public.get_crexi_sales_trends_v2(text, integer, integer);
+DROP FUNCTION IF EXISTS public.get_crexi_sales_trends_by_city_v2(text, text, integer, integer);
+DROP FUNCTION IF EXISTS public.get_crexi_sales_trends_by_county_v2(text, text, integer, integer);
+DROP FUNCTION IF EXISTS public.get_crexi_sales_trends_by_neighborhood_v2(integer[], integer, integer);
+DROP FUNCTION IF EXISTS public.get_crexi_sales_trends_by_msa_v2(text, integer, integer);
 
 CREATE OR REPLACE FUNCTION public.get_crexi_sales_trends_v2(
   p_zip        text    DEFAULT NULL,
