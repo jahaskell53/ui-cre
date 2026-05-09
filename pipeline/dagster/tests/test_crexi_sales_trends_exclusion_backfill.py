@@ -82,7 +82,7 @@ def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
     zillow_exclusion_rpc.execute.return_value.data = [{"updated_count": 3}]
     probable_single_unit_exclusion_rpc = MagicMock()
     probable_single_unit_exclusion_rpc.execute.return_value.data = [{"updated_count": 4}]
-    client.rpc.side_effect = [probable_single_unit_exclusion_rpc, candidate_rpc, zillow_exclusion_rpc]
+    client.rpc.side_effect = [candidate_rpc, zillow_exclusion_rpc, probable_single_unit_exclusion_rpc]
     xref_table.upsert.return_value.execute.return_value = MagicMock()
     log_fn = MagicMock()
 
@@ -115,15 +115,15 @@ def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
     query.execute.assert_called_once()
     assert client.rpc.call_args_list == [
         call(
-            "backfill_crexi_probable_single_unit_sales_trends_exclusions",
-            {"p_start_id": 3001, "p_end_id_exclusive": 4001},
-        ),
-        call(
             "get_crexi_zillow_condo_scrape_candidates",
             {"p_start_id": 3001, "p_end_id_exclusive": 4001, "p_limit": 1000},
         ),
         call(
             "backfill_crexi_zillow_condo_sales_trends_exclusions",
+            {"p_start_id": 3001, "p_end_id_exclusive": 4001},
+        ),
+        call(
+            "backfill_crexi_probable_single_unit_sales_trends_exclusions",
             {"p_start_id": 3001, "p_end_id_exclusive": 4001},
         ),
     ]
@@ -134,9 +134,9 @@ def test_backfill_partition_scrapes_zillow_and_updates_exclusions():
     assert upserted["is_sales_trends_excluded"] is True
     assert upserted["sales_trends_exclusion_reason"] == "zillow_home_type_condo"
     assert log_fn.call_args_list == [
-        call("Crexi sales-trends exclusion partition 000003: probable_single_unit_excluded=4 before Zillow scrape"),
         call("Crexi Zillow scrape partition 000003: 1 candidates"),
         call("Crexi Zillow scrape partition 000003: scraped 1/1 candidates (matched=1)"),
+        call("Crexi sales-trends exclusion partition 000003: probable_single_unit_excluded=4 after Zillow exclusions"),
     ]
 
 
@@ -156,7 +156,7 @@ def test_partitioned_asset_returns_updated_count_metadata():
     zillow_exclusion_rpc.execute.return_value.data = [{"updated_count": 2}]
     probable_single_unit_exclusion_rpc = MagicMock()
     probable_single_unit_exclusion_rpc.execute.return_value.data = [{"updated_count": 4}]
-    client.rpc.side_effect = [probable_single_unit_exclusion_rpc, candidate_rpc, zillow_exclusion_rpc]
+    client.rpc.side_effect = [candidate_rpc, zillow_exclusion_rpc, probable_single_unit_exclusion_rpc]
 
     with build_asset_context(partition_key="000000") as context:
         output = crexi_sales_trends_exclusion_backfill(context=context, apify=apify, supabase=supabase)

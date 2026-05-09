@@ -54,22 +54,6 @@ def backfill_crexi_sales_trends_exclusion_partition(
         .execute()
     )
 
-    probable_single_unit_exclusion_result = client.rpc(
-        "backfill_crexi_probable_single_unit_sales_trends_exclusions",
-        {
-            "p_start_id": start_id,
-            "p_end_id_exclusive": end_id_exclusive,
-        },
-    ).execute()
-    probable_single_unit_excluded_updated = (
-        probable_single_unit_exclusion_result.data[0]["updated_count"] if probable_single_unit_exclusion_result.data else 0
-    )
-    if log_fn:
-        log_fn(
-            f"Crexi sales-trends exclusion partition {partition_key}: "
-            f"probable_single_unit_excluded={probable_single_unit_excluded_updated} before Zillow scrape"
-        )
-
     zillow_scrape_stats = scrape_zillow_condo_xrefs_for_partition(
         client,
         apify,
@@ -87,6 +71,21 @@ def backfill_crexi_sales_trends_exclusion_partition(
         },
     ).execute()
     zillow_excluded_updated = zillow_exclusion_result.data[0]["updated_count"] if zillow_exclusion_result.data else 0
+    probable_single_unit_exclusion_result = client.rpc(
+        "backfill_crexi_probable_single_unit_sales_trends_exclusions",
+        {
+            "p_start_id": start_id,
+            "p_end_id_exclusive": end_id_exclusive,
+        },
+    ).execute()
+    probable_single_unit_excluded_updated = (
+        probable_single_unit_exclusion_result.data[0]["updated_count"] if probable_single_unit_exclusion_result.data else 0
+    )
+    if log_fn:
+        log_fn(
+            f"Crexi sales-trends exclusion partition {partition_key}: "
+            f"probable_single_unit_excluded={probable_single_unit_excluded_updated} after Zillow exclusions"
+        )
     one_unit_updated = len(one_unit_result.data or [])
 
     return {
