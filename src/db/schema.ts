@@ -17,6 +17,7 @@ import {
     pgSchema,
     pgSequence,
     pgTable,
+    primaryKey,
     serial,
     text,
     timestamp,
@@ -1732,26 +1733,32 @@ export const crexiScrapeRuns = pgTable("crexi_scrape_runs", {
 });
 
 /**
- * Search-index / universal-search record payload, one row per comp today.
- * Append-only bronze: `run_id` + `fetched_at` are nullable in PR A (OPE-237) and
- * become part of the primary key in PR B (OPE-238). The `on delete cascade` from
- * `crexi_api_comps` is intentionally removed so bronze outlives silver.
+ * Search-index / universal-search record payload. Append-only bronze keyed by
+ * `(crexi_id, run_id)` so future scrape runs preserve historical snapshots.
+ * The `on delete cascade` from `crexi_api_comps` is intentionally removed so
+ * bronze outlives silver.
  */
 export const crexiApiCompRawJson = pgTable(
     "crexi_api_comp_raw_json",
     {
         crexi_id: text("crexi_id")
-            .primaryKey()
+            .notNull()
             .references(() => crexiApiComps.crexi_id),
         raw_json: jsonb("raw_json").notNull(),
         updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-        run_id: bigint("run_id", { mode: "number" }).references(() => crexiScrapeRuns.run_id),
+        run_id: bigint("run_id", { mode: "number" })
+            .notNull()
+            .references(() => crexiScrapeRuns.run_id),
         fetched_at: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
     },
     (table) => [
-        index("idx_crexi_api_comp_raw_json_run_id_null_crexi")
-            .using("btree", table.crexi_id.asc().nullsLast().op("text_ops"))
-            .where(sql`(run_id IS NULL)`),
+        primaryKey({ columns: [table.crexi_id, table.run_id], name: "crexi_api_comp_raw_json_pkey" }),
+        index("idx_crexi_api_comp_raw_json_crexi_fetched_at").using(
+            "btree",
+            table.crexi_id.asc().nullsLast().op("text_ops"),
+            table.fetched_at.desc().nullsFirst().op("timestamptz_ops"),
+        ),
+        index("idx_crexi_api_comp_raw_json_run_id").using("btree", table.run_id.asc().nullsLast().op("int8_ops")),
     ],
 );
 
@@ -1764,19 +1771,25 @@ export const crexiApiCompDetailJson = pgTable(
     "crexi_api_comp_detail_json",
     {
         crexi_id: text("crexi_id")
-            .primaryKey()
+            .notNull()
             .references(() => crexiApiComps.crexi_id),
         detail_json: jsonb("detail_json"),
         updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-        run_id: bigint("run_id", { mode: "number" }).references(() => crexiScrapeRuns.run_id),
+        run_id: bigint("run_id", { mode: "number" })
+            .notNull()
+            .references(() => crexiScrapeRuns.run_id),
         fetched_at: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
         /** Crexi detail-API HTTP status (200 / 404 / 410). Null for legacy-import rows. */
         http_status: integer("http_status"),
     },
     (table) => [
-        index("idx_crexi_api_comp_detail_json_run_id_null_crexi")
-            .using("btree", table.crexi_id.asc().nullsLast().op("text_ops"))
-            .where(sql`(run_id IS NULL)`),
+        primaryKey({ columns: [table.crexi_id, table.run_id], name: "crexi_api_comp_detail_json_pkey" }),
+        index("idx_crexi_api_comp_detail_json_crexi_fetched_at").using(
+            "btree",
+            table.crexi_id.asc().nullsLast().op("text_ops"),
+            table.fetched_at.desc().nullsFirst().op("timestamptz_ops"),
+        ),
+        index("idx_crexi_api_comp_detail_json_run_id").using("btree", table.run_id.asc().nullsLast().op("int8_ops")),
     ],
 );
 

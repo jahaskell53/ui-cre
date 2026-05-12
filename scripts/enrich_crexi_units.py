@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,12 +34,15 @@ SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 MAIN_TABLE = "crexi_api_comps"
 DETAIL_TABLE = "crexi_api_comp_detail_json"
+RAW_LATEST_VIEW = "crexi_api_comp_raw_json_latest"
+DETAIL_LATEST_VIEW = "crexi_api_comp_detail_json_latest"
 RUNS_TABLE = "crexi_scrape_runs"
 LOG_PATH = "/tmp/crexi_detail_enrich.log"
 
 DETAIL_WORKERS = 30       # parallel Crexi API calls (higher causes rate limiting)
 SUPABASE_BATCH = 50       # parallel Supabase PATCH workers per chunk
 FETCH_PAGE = 1000         # crexi_ids fetched from Supabase per page
+RAW_LOOKUP_BATCH = 100    # crexi_ids per latest-raw lookup request
 CHUNK_SIZE = 5000         # process IDs in chunks to bound memory usage
 RETRY_DELAYS = [1, 3]     # retry backoff — 2 attempts max; failed rows skipped and re-run with --force
 
@@ -91,16 +95,62 @@ def _units_from_search_raw(raw_json: object) -> int | None:
     return None
 
 
+def _quote_postgrest_value(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _postgrest_in_filter(values: list[str]) -> str:
+    quoted = [_quote_postgrest_value(value) for value in values]
+    return urllib.parse.quote(",".join(quoted), safe=',"')
+
+
+def fetch_latest_raw_by_crexi_ids(crexi_ids: list[str]) -> dict[str, object]:
+    """Fetch latest search raw_json rows by crexi_id from the `_latest` view."""
+    raw_by_id: dict[str, object] = {}
+    for start in range(0, len(crexi_ids), RAW_LOOKUP_BATCH):
+        batch = crexi_ids[start : start + RAW_LOOKUP_BATCH]
+        if not batch:
+            continue
+        url = (
+            f"{SUPABASE_URL}/rest/v1/{RAW_LATEST_VIEW}"
+            f"?select=crexi_id,raw_json&crexi_id=in.({_postgrest_in_filter(batch)})"
+        )
+        req = urllib.request.Request(
+            url,
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Accept": "application/json",
+            },
+        )
+        for attempt, delay in enumerate([0] + RETRY_DELAYS):
+            if delay:
+                time.sleep(delay)
+            try:
+                with urllib.request.urlopen(req) as r:
+                    rows = json.loads(r.read())
+                break
+            except urllib.error.HTTPError:
+                if attempt < len(RETRY_DELAYS):
+                    continue
+                raise
+        for row in rows:
+            cid = row.get("crexi_id")
+            if cid:
+                raw_by_id[cid] = row.get("raw_json")
+    return raw_by_id
+
+
 def fetch_all_rows() -> list[dict]:
     """Fetch crexi_id + search num_units from Supabase (cursor pagination on id)."""
     rows_out: list[dict] = []
     last_id = 0
     filter_clause = "" if FORCE else "&detail_enriched_at=is.null"
-    embed = "crexi_api_comp_raw_json(raw_json)"
     while True:
         url = (
             f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}"
-            f"?select=id,crexi_id,{embed}&order=id.asc&limit={FETCH_PAGE}"
+            f"?select=id,crexi_id&order=id.asc&limit={FETCH_PAGE}"
             f"&id=gt.{last_id}{filter_clause}"
         )
         req = urllib.request.Request(
@@ -125,12 +175,12 @@ def fetch_all_rows() -> list[dict]:
                 raise
         if not page:
             break
+        latest_raw_by_id = fetch_latest_raw_by_crexi_ids([row["crexi_id"] for row in page if row.get("crexi_id")])
         for row in page:
             cid = row.get("crexi_id")
             if not cid:
                 continue
-            emb = row.get("crexi_api_comp_raw_json") or {}
-            raw = emb.get("raw_json")
+            raw = latest_raw_by_id.get(cid)
             rows_out.append({
                 "crexi_id": cid,
                 "num_units_from_search": _units_from_search_raw(raw),
@@ -168,7 +218,7 @@ def fetch_detail(crexi_id: str) -> dict:
 
 
 def patch_row(row: dict) -> bool:
-    """Upsert detail JSON and PATCH main row (num_units from search raw_json, detail_enriched_at)."""
+    """Insert detail JSON and PATCH main row (num_units from search raw_json, detail_enriched_at)."""
     crexi_id = row["crexi_id"]
     detail_payload = {
         "crexi_id": crexi_id,
@@ -193,12 +243,23 @@ def patch_row(row: dict) -> bool:
                     "apikey": SUPABASE_KEY,
                     "Authorization": f"Bearer {SUPABASE_KEY}",
                     "Content-Type": "application/json",
-                    "Prefer": "resolution=merge-duplicates,return=minimal",
+                    "Prefer": "return=minimal",
                 },
                 method="POST",
             )
             with urllib.request.urlopen(req_d, timeout=30) as _:
                 pass
+            break
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
+            body = e.read().decode() if hasattr(e, "read") else str(e)
+            if attempt < len(RETRY_DELAYS):
+                continue
+            log(f"  detail insert error for {crexi_id}: {body[:200]}")
+            return False
+    for attempt, delay in enumerate([0] + RETRY_DELAYS):
+        if delay:
+            time.sleep(delay)
+        try:
             req_m = urllib.request.Request(
                 main_url,
                 data=json.dumps(main_payload).encode(),
@@ -286,8 +347,6 @@ def _git_sha() -> str | None:
 
 
 def main() -> None:
-    import urllib.parse  # noqa: F401 — needed in fetch_detail and patch_row
-
     log("=== Crexi detail enrichment started ===")
     log(f"Mode: {'force re-enrich all' if FORCE else 'skip already-enriched rows'}")
 
@@ -361,9 +420,7 @@ def main() -> None:
     req = urllib.request.Request(
         f"{SUPABASE_URL}/rest/v1/{MAIN_TABLE}"
         "?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b"
-        "&select=crexi_id,num_units,detail_enriched_at,"
-        "crexi_api_comp_raw_json(raw_json),"
-        "crexi_api_comp_detail_json(detail_json)",
+        "&select=crexi_id,num_units,detail_enriched_at",
         headers={
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -372,11 +429,33 @@ def main() -> None:
     )
     with urllib.request.urlopen(req) as r:
         rows = json.loads(r.read())
+    raw_req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/{RAW_LATEST_VIEW}"
+        "?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b"
+        "&select=raw_json",
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(raw_req) as r:
+        raw_rows = json.loads(r.read())
+    detail_req = urllib.request.Request(
+        f"{SUPABASE_URL}/rest/v1/{DETAIL_LATEST_VIEW}"
+        "?crexi_id=eq.3f61c9e4027ff14493630430d81f03e84e7c0f5b"
+        "&select=detail_json",
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(detail_req) as r:
+        detail_rows = json.loads(r.read())
     for row in rows:
-        emb_d = row.get("crexi_api_comp_detail_json") or {}
-        dj = emb_d.get("detail_json") or {}
-        emb_r = row.get("crexi_api_comp_raw_json") or {}
-        rj = emb_r.get("raw_json") or {}
+        dj = (detail_rows[0] if detail_rows else {}).get("detail_json") or {}
+        rj = (raw_rows[0] if raw_rows else {}).get("raw_json") or {}
         pa = rj.get("propertyAttributes") or {}
         log(f"  num_units={row['num_units']} (search unitsCount={pa.get('unitsCount')})")
         log(f"  detail_enriched_at={row['detail_enriched_at']}")
