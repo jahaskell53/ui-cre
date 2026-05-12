@@ -132,6 +132,19 @@ def is_one_unit_count(value):
     except (TypeError, ValueError):
         return False
 
+def geom_wkt(lat, lon):
+    """WKT for crexi_api_comps.geom (Point, SRID 4326); X=longitude, Y=latitude."""
+    if lat is None or lon is None:
+        return None
+    try:
+        la = float(lat)
+        lo = float(lon)
+    except (TypeError, ValueError):
+        return None
+    if la != la or lo != lo:
+        return None
+    return f"POINT({lo} {la})"
+
 def flatten(r):
     addr = r.get("address") or [{}]
     addr = addr[0] if isinstance(addr, list) and addr else (addr if isinstance(addr, dict) else {})
@@ -153,6 +166,8 @@ def flatten(r):
     inv = r.get("investmentType") or {}
     tax = r.get("tax") or {}
     lrr = r.get("leaseRateRange") or {}
+    lat = loc.get("lat")
+    lon = loc.get("lon")
     return {
         "crexi_id": r.get("id") or r.get("propertyRecordId"),
         "property_name": r.get("propertyName"),
@@ -164,8 +179,9 @@ def flatten(r):
         "zip": addr.get("zip"),
         "county": addr.get("county"),
         "apn": addr.get("apn"),
-        "latitude": loc.get("lat"),
-        "longitude": loc.get("lon"),
+        "latitude": lat,
+        "longitude": lon,
+        "geom": geom_wkt(lat, lon),
         "property_type": attrs.get("type"),
         "property_subtype": attrs.get("subType"),
         "building_sqft": attrs.get("buildingSqft"),
