@@ -6,7 +6,7 @@ export interface SalesTrendRow {
 }
 
 /** Fewer than this many closed sales / listings in a chart period triggers a small-sample notice. */
-export const SALES_TREND_SMALL_SAMPLE_THRESHOLD = 10;
+export const SALES_TREND_SMALL_SAMPLE_THRESHOLD = 5;
 
 export function salesTrendChartPointHasSmallSample(minListingCount: number | null | undefined): boolean {
     return minListingCount != null && minListingCount < SALES_TREND_SMALL_SAMPLE_THRESHOLD;

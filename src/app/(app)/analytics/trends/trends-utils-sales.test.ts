@@ -103,8 +103,8 @@ describe("sales trends granularity", () => {
     });
 
     it("salesTrendChartPointHasSmallSample is false at threshold", () => {
-        expect(salesTrendChartPointHasSmallSample(10)).toBe(false);
-        expect(salesTrendChartPointHasSmallSample(9)).toBe(true);
+        expect(salesTrendChartPointHasSmallSample(5)).toBe(false);
+        expect(salesTrendChartPointHasSmallSample(4)).toBe(true);
     });
 });
 
