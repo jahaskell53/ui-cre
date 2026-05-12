@@ -21,7 +21,13 @@ import {
     searchNeighborhoods,
 } from "@/db/rpc";
 import { MAX_TREND_AREAS, getTrendsSearchPlaceholder, parseSerializedAreas, serializeAreasParam } from "@/lib/analytics/trends-page";
-import { AREA_COLORS, type AreaSelection } from "../trends/trends-utils";
+import {
+    AREA_COLORS,
+    type AreaSelection,
+    SALES_TREND_SMALL_SAMPLE_THRESHOLD,
+    salesTrendChartHasAnySmallSample,
+    salesTrendChartPointHasSmallSample,
+} from "../trends/trends-utils";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoiamFoYXNrZWxsNTMxIiwiYSI6ImNsb3Flc3BlYzBobjAyaW16YzRoMTMwMjUifQ.z7hMgBudnm2EHoRYeZOHMA";
 
@@ -761,9 +767,11 @@ export default function SalesTrendsPage() {
                     month: bucket,
                     monthLabel: formatMonthLabel(bucket),
                 };
+                let minListing: number | null = null;
                 for (const area of allAreas) {
                     const row = processed[area.id]?.find((r) => r.month_start === bucket);
                     if (row) {
+                        minListing = minListing === null ? row.listing_count : Math.min(minListing, row.listing_count);
                         const val = metricValue(row, metric, displayType);
                         if (val != null) point[area.id] = val;
                         if (
@@ -789,11 +797,15 @@ export default function SalesTrendsPage() {
                         if (showVolume) point.volume = row.listing_count;
                     }
                 }
+                if (minListing !== null) {
+                    point._minListingCount = minListing;
+                }
                 return point;
             });
     }, [salesResults, selectedAreas, compareAreas, period, sampleComps, metric, displayType, showVolume]);
 
     const hasData = chartData.length > 0;
+    const chartHasSmallSample = useMemo(() => salesTrendChartHasAnySmallSample(chartData), [chartData]);
 
     const searchPlaceholder = getTrendsSearchPlaceholder(areaType, false);
 
@@ -808,10 +820,14 @@ export default function SalesTrendsPage() {
             name: string;
             color: string;
             value: number;
+            payload?: { _minListingCount?: number };
         }>;
         label?: string;
     }) => {
         if (!active || !payload?.length) return null;
+        const datum = payload[0]?.payload;
+        const n = datum?._minListingCount;
+        const small = salesTrendChartPointHasSmallSample(n);
         return (
             <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-lg dark:border-gray-700 dark:bg-gray-800">
                 <p className="mb-1 text-gray-500">{label}</p>
@@ -824,6 +840,11 @@ export default function SalesTrendsPage() {
                         </span>
                     </div>
                 ))}
+                {small && n != null && (
+                    <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-amber-700 dark:border-gray-600 dark:text-amber-400">
+                        Small sample: {n} closed sale{n !== 1 ? "s" : ""} in this period (fewer than {SALES_TREND_SMALL_SAMPLE_THRESHOLD}).
+                    </p>
+                )}
             </div>
         );
     };
@@ -1342,10 +1363,17 @@ export default function SalesTrendsPage() {
             {/* Chart */}
             {allDisplayAreas.length > 0 && !loading && (
                 <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-                    <div className="mb-4 flex items-center justify-between">
-                        <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                            {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} — {displayType} · Closed Sales
-                        </h2>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                                {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} — {displayType} · Closed Sales
+                            </h2>
+                            {chartHasSmallSample && (
+                                <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                                    Some periods have fewer than {SALES_TREND_SMALL_SAMPLE_THRESHOLD} closed sales
+                                </span>
+                            )}
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                             <span>Vertical Scale: {verticalScaleLabel(metric)}</span>
                             {showVolume && (
@@ -1484,6 +1512,11 @@ export default function SalesTrendsPage() {
                             {drillTotal > 0 && (
                                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                     {drillTotal.toLocaleString()} sale{drillTotal !== 1 ? "s" : ""} found
+                                </p>
+                            )}
+                            {drillTotal > 0 && drillTotal < SALES_TREND_SMALL_SAMPLE_THRESHOLD && (
+                                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                                    Small sample: fewer than {SALES_TREND_SMALL_SAMPLE_THRESHOLD} closed sales in this period.
                                 </p>
                             )}
                         </div>

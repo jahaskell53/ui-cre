@@ -5,6 +5,17 @@ export interface SalesTrendRow {
     listing_count: number;
 }
 
+/** Fewer than this many closed sales / listings in a chart period triggers a small-sample notice. */
+export const SALES_TREND_SMALL_SAMPLE_THRESHOLD = 5;
+
+export function salesTrendChartPointHasSmallSample(minListingCount: number | null | undefined): boolean {
+    return minListingCount != null && minListingCount < SALES_TREND_SMALL_SAMPLE_THRESHOLD;
+}
+
+export function salesTrendChartHasAnySmallSample(points: ReadonlyArray<{ _minListingCount?: number }>): boolean {
+    return points.some((p) => salesTrendChartPointHasSmallSample(p._minListingCount));
+}
+
 export interface TrendRow {
     week_start: string;
     beds: number;
@@ -425,12 +436,17 @@ export function buildMultiAreaSalesData(
         .sort()
         .map((bucket) => {
             const point: Record<string, string | number> = { month: bucket, monthLabel: formatLabel(bucket) };
+            let minListing: number | null = null;
             for (const area of areas) {
                 const row = (aggregated[area.id] ?? []).find((r) => r.month_start === bucket);
                 if (row) {
+                    minListing = minListing === null ? row.listing_count : Math.min(minListing, row.listing_count);
                     const val = row[metric];
                     if (val != null) point[area.id] = typeof val === "number" ? val : Number(val);
                 }
+            }
+            if (minListing !== null) {
+                point._minListingCount = minListing;
             }
             return point;
         });

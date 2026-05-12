@@ -5,6 +5,7 @@ import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Too
 import {
     AreaSelection,
     SALES_TIME_RANGE_OPTIONS,
+    SALES_TREND_SMALL_SAMPLE_THRESHOLD,
     SalesGranularity,
     SalesTimeRange,
     SalesTrendRow,
@@ -13,6 +14,8 @@ import {
     formatMillions,
     getSalesCapRateAbsYAxisTicks,
     pctChange,
+    salesTrendChartHasAnySmallSample,
+    salesTrendChartPointHasSmallSample,
 } from "./trends-utils";
 
 interface Props {
@@ -95,6 +98,7 @@ export function SalesTrendsSection({
     // Volume always shows raw counts — pct would be misleading with no toggle or label.
     const effectiveYView: YAxisView = metric === "listing_count" ? "abs" : yView;
     const chartData = effectiveYView === "pct" ? pctData : absData;
+    const chartHasSmallSample = useMemo(() => salesTrendChartHasAnySmallSample(absData), [absData]);
 
     const onlyOnePoint = chartData.length === 1;
     const yFormatter = formatYAxis(metric, effectiveYView);
@@ -120,6 +124,8 @@ export function SalesTrendsSection({
         const month = chartData.find((p) => p.monthLabel === label)?.month as string | undefined;
         const absPoint = month ? absData.find((p) => p.month === month) : undefined;
         const pctPoint = month ? pctData.find((p) => p.month === month) : undefined;
+        const n = absPoint?._minListingCount as number | undefined;
+        const small = salesTrendChartPointHasSmallSample(n);
         return (
             <div style={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13, background: "#fff", padding: "8px 12px" }}>
                 <p className="mb-1 text-gray-500">{label}</p>
@@ -139,6 +145,12 @@ export function SalesTrendsSection({
                         </div>
                     );
                 })}
+                {small && n != null && (
+                    <p className="mt-2 border-t border-gray-200 pt-2 text-xs text-amber-700">
+                        Small sample: {n} {salesSource === "crexi" ? "closed sale" : "listing"}
+                        {n !== 1 ? "s" : ""} in this period (fewer than {SALES_TREND_SMALL_SAMPLE_THRESHOLD}).
+                    </p>
+                )}
             </div>
         );
     };
@@ -146,11 +158,16 @@ export function SalesTrendsSection({
     return (
         <div className="h-full rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-semibold text-gray-900 dark:text-gray-100">
                         {METRIC_OPTIONS.find((m) => m.value === metric)?.label ?? "Sales"} —{" "}
                         {salesSource === "crexi" ? "Closed Sales" : "For-Sale Listings (LoopNet)"}
                     </h2>
+                    {chartHasSmallSample && (
+                        <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                            Some periods have fewer than {SALES_TREND_SMALL_SAMPLE_THRESHOLD} {salesSource === "crexi" ? "closed sales" : "listings"}
+                        </span>
+                    )}
                     {onlyOnePoint && (
                         <span className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-400 dark:border-gray-600 dark:bg-gray-700">
                             More data as scrapes accumulate

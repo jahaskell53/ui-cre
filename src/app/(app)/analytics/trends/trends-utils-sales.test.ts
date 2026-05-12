@@ -11,6 +11,8 @@ import {
     isSalesGranularity,
     salesMonthStartToHalfYearBucket,
     salesMonthStartToQuarterBucket,
+    salesTrendChartHasAnySmallSample,
+    salesTrendChartPointHasSmallSample,
 } from "./trends-utils";
 
 const monthly2024H1: SalesTrendRow[] = [
@@ -96,6 +98,13 @@ describe("sales trends granularity", () => {
         expect(data[0].month).toBe("2024-01-01");
         expect(data[0].a).toBe(1_100_000);
         expect(data[0].b).toBe(500_000);
+        expect(data[0]._minListingCount).toBe(2);
+        expect(salesTrendChartHasAnySmallSample(data)).toBe(true);
+    });
+
+    it("salesTrendChartPointHasSmallSample is false at threshold", () => {
+        expect(salesTrendChartPointHasSmallSample(5)).toBe(false);
+        expect(salesTrendChartPointHasSmallSample(4)).toBe(true);
     });
 });
 
