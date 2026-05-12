@@ -92,10 +92,12 @@ export function SalesTrendsSection({
 
     const absData = useMemo(() => buildMultiAreaSalesData(areaResults, areas, metric, granularity), [areaResults, areas, metric, granularity]);
     const pctData = useMemo(() => buildPctData(absData, areas), [absData, areas]);
-    const chartData = yView === "pct" ? pctData : absData;
+    // Volume always shows raw counts — pct would be misleading with no toggle or label.
+    const effectiveYView: YAxisView = metric === "listing_count" ? "abs" : yView;
+    const chartData = effectiveYView === "pct" ? pctData : absData;
 
     const onlyOnePoint = chartData.length === 1;
-    const yFormatter = formatYAxis(metric, yView);
+    const yFormatter = formatYAxis(metric, effectiveYView);
     const yWidth = metric === "median_price" ? 75 : metric === "avg_cap_rate" ? 60 : 55;
     const capRateAbsTicks =
         metric === "avg_cap_rate" && yView === "abs"
@@ -127,8 +129,8 @@ export function SalesTrendsSection({
                     return (
                         <div key={entry.dataKey} className="flex items-center gap-2">
                             <span style={{ color: entry.color, fontWeight: 600 }}>{entry.name}</span>
-                            {yView === "abs" && absVal != null && <span>{formatTooltipValue(metric, absVal)}</span>}
-                            {yView === "pct" && pctVal != null && (
+                            {effectiveYView === "abs" && absVal != null && <span>{formatTooltipValue(metric, absVal)}</span>}
+                            {effectiveYView === "pct" && pctVal != null && (
                                 <span className={pctVal >= 0 ? "text-green-600" : "text-red-500"}>
                                     {pctVal >= 0 ? "+" : ""}
                                     {pctVal.toFixed(2)}%
@@ -241,7 +243,7 @@ export function SalesTrendsSection({
                         {...(capRateAbsTicks ? { ticks: capRateAbsTicks, domain: [capRateAbsTicks[0], capRateAbsTicks[capRateAbsTicks.length - 1]] } : {})}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    {yView === "pct" && <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="3 3" />}
+                    {effectiveYView === "pct" && <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="3 3" />}
                     {areas.map((area) => (
                         <Line
                             key={area.id}
