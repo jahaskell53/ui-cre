@@ -8,13 +8,12 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/__tests__/integration/db/**/*.test.ts'],
-    // Match the function-level statement_timeout budget on heavy spatial RPCs
-    // (e.g. get_crexi_sales_trends_by_msa for the SF Bay Area MSA can take
-    // ~25-40s end-to-end on a cold buffer cache). Holding the test cap below
-    // the DB cap caused intermittent harness timeouts even though the RPC
-    // completed inside its own statement_timeout.
-    testTimeout: 120000,
-    hookTimeout: 120000,
+    // MSA tests call get_msa_at_point then get_*_by_msa. Postgres sets
+    // statement_timeout = 120s on those RPCs; the Vitest wall clock must allow
+    // the spatial lookup plus PostgREST overhead on top of the full DB budget,
+    // or the harness times out first (see integration-tests on main).
+    testTimeout: 180000,
+    hookTimeout: 180000,
   },
   resolve: {
     alias: {
