@@ -12,6 +12,15 @@
 import { type SupabaseClient, createClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
+/**
+ * Plausible per-door price range for commercial real estate.
+ * Lower bound is set conservatively to $1,000 to accommodate legitimate
+ * historical (pre-2000) nominal prices without masking calculation bugs
+ * (which would produce values near $0).
+ */
+const PRICE_PER_DOOR_MIN = 1_000;
+const PRICE_PER_DOOR_MAX = 5_000_000;
+
 /** Approx. center of downtown San Francisco — used for neighborhood + MSA resolution. */
 const SF_LAT = 37.7749;
 const SF_LNG = -122.4194;
@@ -47,6 +56,27 @@ function assertSalesTrendRows(rows: SalesTrendRow[], label: string) {
         const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
         const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
         expect(price, `${label} month=${row.month_start}: median_price`).toBeGreaterThan(0);
+        expect(count, `${label} month=${row.month_start}: listing_count`).toBeGreaterThan(0);
+    }
+}
+
+/**
+ * Like assertSalesTrendRows but also enforces per-door price plausibility bounds
+ * ($5K–$5M) on every row. Catches both absurdly low values (calculation bug,
+ * wrong field, division by a huge num_units) and absurdly high values
+ * (num_units accidentally 0 or 1 for a large property).
+ */
+function assertCrexiSalesTrendRows(rows: SalesTrendRow[], label: string) {
+    for (const row of rows) {
+        const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
+        const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
+        expect(price, `${label} month=${row.month_start}: median_price > 0`).toBeGreaterThan(0);
+        expect(price, `${label} month=${row.month_start}: median_price ($/door) must be ≥ $${PRICE_PER_DOOR_MIN.toLocaleString()}`).toBeGreaterThanOrEqual(
+            PRICE_PER_DOOR_MIN,
+        );
+        expect(price, `${label} month=${row.month_start}: median_price ($/door) must be ≤ $${PRICE_PER_DOOR_MAX.toLocaleString()}`).toBeLessThanOrEqual(
+            PRICE_PER_DOOR_MAX,
+        );
         expect(count, `${label} month=${row.month_start}: listing_count`).toBeGreaterThan(0);
     }
 }
@@ -134,44 +164,31 @@ describe("get_sales_trends_by_neighborhood (San Francisco area)", () => {
 // ── Crexi sales trends RPCs ──────────────────────────────────────────────────
 
 describe("get_crexi_sales_trends_by_city (San Francisco, CA)", () => {
-    it("returns no RPC error for San Francisco", async () => {
+    it("returns plausible per-door prices for San Francisco", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_crexi_sales_trends_by_city", {
             p_city: CITY,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        // Crexi data may be sparse for any given city; just verify shape.
-        const rows = (data ?? []) as SalesTrendRow[];
-        for (const row of rows) {
-            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
-            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
-            expect(price).toBeGreaterThan(0);
-            expect(count).toBeGreaterThan(0);
-        }
+        assertCrexiSalesTrendRows((data ?? []) as SalesTrendRow[], "get_crexi_sales_trends_by_city San Francisco");
     });
 });
 
 describe("get_crexi_sales_trends_by_county (San Francisco County, CA)", () => {
-    it("returns no RPC error for San Francisco County", async () => {
+    it("returns plausible per-door prices for San Francisco County", async () => {
         const client = makeClient();
         const { data, error } = await client.rpc("get_crexi_sales_trends_by_county", {
             p_county_name: COUNTY_NAME,
             p_state: STATE,
         });
         expect(error).toBeNull();
-        const rows = (data ?? []) as SalesTrendRow[];
-        for (const row of rows) {
-            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
-            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
-            expect(price).toBeGreaterThan(0);
-            expect(count).toBeGreaterThan(0);
-        }
+        assertCrexiSalesTrendRows((data ?? []) as SalesTrendRow[], "get_crexi_sales_trends_by_county San Francisco County");
     });
 });
 
 describe("get_crexi_sales_trends_by_msa (SF Bay Area MSA)", () => {
-    it("resolves SF Bay Area MSA and returns no RPC error", async () => {
+    it("resolves SF Bay Area MSA and returns plausible per-door prices", async () => {
         const client = makeClient();
         const { data: msaRows, error: msaError } = await client.rpc("get_msa_at_point", {
             p_lat: SF_LAT,
@@ -186,18 +203,12 @@ describe("get_crexi_sales_trends_by_msa (SF Bay Area MSA)", () => {
             p_geoid: msa.geoid,
         });
         expect(error).toBeNull();
-        const rows = (data ?? []) as SalesTrendRow[];
-        for (const row of rows) {
-            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
-            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
-            expect(price).toBeGreaterThan(0);
-            expect(count).toBeGreaterThan(0);
-        }
+        assertCrexiSalesTrendRows((data ?? []) as SalesTrendRow[], `get_crexi_sales_trends_by_msa geoid=${msa.geoid}`);
     });
 });
 
 describe("get_crexi_sales_trends_by_neighborhood (San Francisco area)", () => {
-    it("resolves a neighborhood at San Francisco point and returns no RPC error", async () => {
+    it("resolves a neighborhood at San Francisco point and returns plausible per-door prices", async () => {
         const client = makeClient();
         const { data: nhRows, error: nhError } = await client.rpc("get_neighborhood_at_point", {
             p_lat: SF_LAT,
@@ -216,13 +227,53 @@ describe("get_crexi_sales_trends_by_neighborhood (San Francisco area)", () => {
             p_neighborhood_ids: [nh.id],
         });
         expect(error).toBeNull();
-        const rows = (data ?? []) as SalesTrendRow[];
-        for (const row of rows) {
-            const price = typeof row.median_price === "string" ? parseFloat(row.median_price) : (row.median_price ?? 0);
-            const count = typeof row.listing_count === "bigint" ? Number(row.listing_count) : row.listing_count;
-            expect(price).toBeGreaterThan(0);
-            expect(count).toBeGreaterThan(0);
-        }
+        assertCrexiSalesTrendRows((data ?? []) as SalesTrendRow[], `get_crexi_sales_trends_by_neighborhood id=${nh.id}`);
+    });
+});
+
+// ── get_map_crexi_sales_trends_by_city ───────────────────────────────────────
+
+interface MapSalesTrendCityRow {
+    city_name: string;
+    state: string;
+    geom_json: string;
+    current_median: number | string;
+    prior_median: number | string;
+    pct_change: number | string | null;
+    listing_count: number | bigint;
+}
+
+describe("get_map_crexi_sales_trends_by_city (San Francisco, 3-year window)", () => {
+    it("San Francisco row has plausible per-door medians and bounded pct_change", async () => {
+        const client = makeClient();
+        const { data, error } = await client.rpc("get_map_crexi_sales_trends_by_city", {
+            p_months_back: 36,
+        });
+        expect(error).toBeNull();
+
+        const rows = (data ?? []) as MapSalesTrendCityRow[];
+        expect(rows.length, "get_map_crexi_sales_trends_by_city: expected at least one row").toBeGreaterThan(0);
+
+        const sfRow = rows.find((r) => r.city_name === CITY && r.state === STATE);
+        expect(sfRow, `San Francisco, CA row must be present in get_map_crexi_sales_trends_by_city`).toBeDefined();
+        if (!sfRow) return;
+
+        const toNum = (v: number | string) => (typeof v === "string" ? parseFloat(v) : v);
+        const current = toNum(sfRow.current_median);
+        const prior = toNum(sfRow.prior_median);
+
+        expect(current, `SF current_median must be ≥ $${PRICE_PER_DOOR_MIN.toLocaleString()}/door`).toBeGreaterThanOrEqual(PRICE_PER_DOOR_MIN);
+        expect(current, `SF current_median must be ≤ $${PRICE_PER_DOOR_MAX.toLocaleString()}/door`).toBeLessThanOrEqual(PRICE_PER_DOOR_MAX);
+        expect(prior, `SF prior_median must be ≥ $${PRICE_PER_DOOR_MIN.toLocaleString()}/door`).toBeGreaterThanOrEqual(PRICE_PER_DOOR_MIN);
+        expect(prior, `SF prior_median must be ≤ $${PRICE_PER_DOOR_MAX.toLocaleString()}/door`).toBeLessThanOrEqual(PRICE_PER_DOOR_MAX);
+
+        // pct_change is (current-prior)/prior*100; null when either half has < 2 comps.
+        // A non-null value must be within a sane range — guards against the regression
+        // where oldest vs newest month comparison produced thousands-of-percent changes.
+        expect(sfRow.pct_change, "SF pct_change must not be null over 3-year window").not.toBeNull();
+        const pct = toNum(sfRow.pct_change as number | string);
+        expect(pct, "SF pct_change must be ≥ -80%").toBeGreaterThanOrEqual(-80);
+        expect(pct, "SF pct_change must be ≤ +80%").toBeLessThanOrEqual(80);
     });
 });
 
