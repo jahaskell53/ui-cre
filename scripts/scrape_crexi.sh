@@ -102,6 +102,7 @@ import json, os, sys, urllib.request, urllib.error
 
 CI = sys.argv[1]
 RUN_ID = int(os.environ["CREXI_RUN_ID"])
+SEEN_IDS_FILE = os.environ["CREXI_SEEN_IDS_FILE"]
 SUPABASE_URL = os.environ["NEXT_PUBLIC_SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 TABLE = "crexi_api_comps"
@@ -225,11 +226,19 @@ with open(f"{DOWNLOAD_DIR}/crexi_cell_{CI}.json") as f:
     data = json.load(f)
 
 rows = [flatten(r) for r in data]
-raw_rows = [
-    {"crexi_id": row["crexi_id"], "raw_json": r, "run_id": RUN_ID}
-    for row, r in zip(rows, data)
-    if row.get("crexi_id")
-]
+try:
+    with open(SEEN_IDS_FILE) as f:
+        seen_ids = {line.strip() for line in f if line.strip()}
+except FileNotFoundError:
+    seen_ids = set()
+
+raw_rows_by_id = {}
+for row, r in zip(rows, data):
+    crexi_id = row.get("crexi_id")
+    if not crexi_id or crexi_id in seen_ids or crexi_id in raw_rows_by_id:
+        continue
+    raw_rows_by_id[crexi_id] = {"crexi_id": crexi_id, "raw_json": r, "run_id": RUN_ID}
+raw_rows = list(raw_rows_by_id.values())
 for i in range(0, len(rows), BATCH):
     batch = rows[i:i+BATCH]
     req = urllib.request.Request(
@@ -259,17 +268,22 @@ for i in range(0, len(raw_rows), BATCH):
             "apikey": SUPABASE_KEY,
             "Authorization": f"Bearer {SUPABASE_KEY}",
             "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates,return=minimal",
+            "Prefer": "return=minimal",
         },
         method="POST",
     )
     try:
         with urllib.request.urlopen(req) as _: pass
+        with open(SEEN_IDS_FILE, "a") as f:
+            for raw_row in batch:
+                f.write(raw_row["crexi_id"] + "\n")
     except urllib.error.HTTPError as e:
         body = e.read().decode()
-        print(f"raw_json upsert error: {body[:200]}", file=sys.stderr)
+        print(f"raw_json insert error: {body[:200]}", file=sys.stderr)
+        sys.exit(1)
 
 print(f"Cell {CI}: uploaded {len(rows)} rows (run_id={RUN_ID})")
+print(f"Cell {CI}: inserted {len(raw_rows)} raw bronze rows after same-run dedupe")
 print(f"CELL_ROW_COUNT:{len(rows)}")
 PYEOF
 }
@@ -282,6 +296,8 @@ xdotool windowactivate --sync $CHROME_WID
 # uploading any cell flip the final status to 'failed'; no fallback.
 export CREXI_RUN_ID
 CREXI_RUN_ID=$(start_run)
+export CREXI_SEEN_IDS_FILE="$DOWNLOAD_DIR/crexi_seen_${CREXI_RUN_ID}.txt"
+: > "$CREXI_SEEN_IDS_FILE"
 echo "crexi_scrape_runs run_id=$CREXI_RUN_ID" | tee -a "$LOG"
 
 TOTAL_ROWS=0
