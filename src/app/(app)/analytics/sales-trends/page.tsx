@@ -1529,7 +1529,7 @@ export default function SalesTrendsPage() {
                             <X className="size-5" />
                         </button>
                     </div>
-                    <div className="max-h-[min(70vh,560px)] overflow-auto">
+                    <div className="overflow-x-auto">
                         {drillLoading && (
                             <div className="flex items-center justify-center p-10">
                                 <p className="text-sm text-gray-400">Loading…</p>
