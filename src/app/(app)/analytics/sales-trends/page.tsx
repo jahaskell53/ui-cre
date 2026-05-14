@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type SyntheticEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, MapPin, Search, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -838,6 +838,32 @@ export default function SalesTrendsPage() {
         [allDisplayAreas, chartData, handleDotClick],
     );
 
+    const renderTrendDot = useCallback(
+        (area: AreaSelection, radius: number, active = false) =>
+            (props: unknown) => {
+                const dot = props as { cx?: number; cy?: number; payload?: { month?: string; monthLabel?: string } };
+                if (typeof dot.cx !== "number" || typeof dot.cy !== "number") return null;
+                const selectDot = (event: SyntheticEvent<SVGCircleElement>) => {
+                    event.stopPropagation();
+                    handleDotClick(area, { payload: dot.payload });
+                };
+                return (
+                    <circle
+                        cx={dot.cx}
+                        cy={dot.cy}
+                        r={radius}
+                        fill={area.color}
+                        stroke={active ? "#fff" : area.color}
+                        strokeWidth={active ? 2 : 0}
+                        className="cursor-pointer"
+                        onClick={selectDot}
+                        onTouchEnd={selectDot}
+                    />
+                );
+            },
+        [handleDotClick],
+    );
+
     const hasData = chartData.length > 0;
     const chartHasSmallSample = useMemo(() => salesTrendChartHasAnySmallSample(chartData), [chartData]);
 
@@ -1500,13 +1526,8 @@ export default function SalesTrendsPage() {
                                             name={area.label}
                                             stroke={area.color}
                                             strokeWidth={2}
-                                            dot={{ r: 3, cursor: "pointer" }}
-                                            activeDot={{
-                                                r: 6,
-                                                cursor: "pointer",
-                                                onClick: (_e: unknown, dotProps: unknown) =>
-                                                    handleDotClick(area, dotProps as { payload?: { month?: string; monthLabel?: string } }),
-                                            }}
+                                            dot={renderTrendDot(area, 3)}
+                                            activeDot={renderTrendDot(area, 6, true)}
                                             connectNulls
                                         >
                                             {displayType === "Candle" && (metric === "cost_per_unit" || metric === "cap_rate") && (
