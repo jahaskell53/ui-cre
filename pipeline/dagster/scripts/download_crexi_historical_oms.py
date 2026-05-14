@@ -13,12 +13,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import json
 import os
 import sys
 import time
 import urllib.parse
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -57,10 +59,19 @@ class SupabaseRest:
             }
         )
 
-    def get(self, path: str, params: dict[str, str]) -> list[dict[str, Any]]:
-        response = self.session.get(f"{self.url}/rest/v1/{path}", params=params, timeout=60)
-        response.raise_for_status()
-        return response.json()
+    def get(self, path: str, params: dict[str, str], retries: int = 5) -> list[dict[str, Any]]:
+        last_error: Exception | None = None
+        for attempt in range(retries):
+            try:
+                response = self.session.get(f"{self.url}/rest/v1/{path}", params=params, timeout=60)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                last_error = e
+                time.sleep(2**attempt)
+        if last_error:
+            raise last_error
+        raise RuntimeError("Supabase GET failed without an exception")
 
     def patch_comp(self, comp_id: int, payload: dict[str, Any]) -> None:
         response = self.session.patch(
@@ -79,18 +90,17 @@ def fetch_candidate_raw_rows(
     max_rows: int | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    offset = 0
+    last_crexi_id: str | None = None
     while True:
-        page = client.get(
-            "crexi_api_comp_raw_json_latest",
-            {
-                "select": "crexi_id,raw_json",
-                "raw_json->source->>isCrexiOm": "eq.true",
-                "order": "crexi_id.asc",
-                "limit": str(page_size),
-                "offset": str(offset),
-            },
-        )
+        params = {
+            "select": "crexi_id,raw_json",
+            "raw_json->source->>isCrexiOm": "eq.true",
+            "order": "crexi_id.asc",
+            "limit": str(page_size),
+        }
+        if last_crexi_id:
+            params["crexi_id"] = f"gt.{last_crexi_id}"
+        page = client.get("crexi_api_comp_raw_json_latest", params)
         if not page:
             break
         rows.extend(page)
@@ -98,7 +108,7 @@ def fetch_candidate_raw_rows(
             return rows[:max_rows]
         if len(page) < page_size:
             break
-        offset += page_size
+        last_crexi_id = page[-1]["crexi_id"]
     return rows
 
 
@@ -154,16 +164,105 @@ def fetch_comp_rows(
     return rows
 
 
+def load_failed_crexi_ids(path: str | None, retry_failed: bool) -> set[str]:
+    if retry_failed or not path:
+        return set()
+    failure_path = Path(path)
+    if not failure_path.exists():
+        return set()
+    out: set[str] = set()
+    for line in failure_path.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        crexi_id = item.get("crexi_id")
+        if isinstance(crexi_id, str) and crexi_id:
+            out.add(crexi_id)
+    return out
+
+
+def record_failed_candidate(path: str | None, candidate: CrexiOmCandidate, error: Exception) -> None:
+    if not path:
+        return
+    failure_path = Path(path)
+    failure_path.parent.mkdir(parents=True, exist_ok=True)
+    with failure_path.open("a") as f:
+        f.write(
+            json.dumps(
+                {
+                    "crexi_id": candidate.crexi_id,
+                    "comp_id": candidate.comp_id,
+                    "asset_id": candidate.asset_id,
+                    "property_name": candidate.property_name,
+                    "error": str(error),
+                    "failed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
+
+
+def collect_candidates(
+    client: SupabaseRest,
+    page_size: int,
+    limit: int | None,
+    skip_crexi_ids: set[str],
+) -> list[CrexiOmCandidate]:
+    candidates: list[CrexiOmCandidate] = []
+    last_crexi_id: str | None = None
+
+    while True:
+        params = {
+            "select": "crexi_id,raw_json",
+            "raw_json->source->>isCrexiOm": "eq.true",
+            "order": "crexi_id.asc",
+            "limit": str(page_size),
+        }
+        if last_crexi_id:
+            params["crexi_id"] = f"gt.{last_crexi_id}"
+        raw_rows = client.get("crexi_api_comp_raw_json_latest", params)
+        if not raw_rows:
+            break
+
+        filtered_raw_rows = [
+            row
+            for row in raw_rows
+            if isinstance(row.get("crexi_id"), str)
+            and row["crexi_id"] not in skip_crexi_ids
+            and extract_crexi_om_asset_ids(row.get("raw_json"))
+        ]
+        if filtered_raw_rows:
+            comp_rows = fetch_comp_rows(client, [row["crexi_id"] for row in filtered_raw_rows])
+            for candidate in build_candidates(filtered_raw_rows, comp_rows, None):
+                if candidate.crexi_id in skip_crexi_ids:
+                    continue
+                candidates.append(candidate)
+                if limit is not None and len(candidates) >= limit:
+                    return candidates
+
+        if len(raw_rows) < page_size:
+            break
+        last_crexi_id = raw_rows[-1]["crexi_id"]
+
+    return candidates
+
+
 class ChromeTab:
     def __init__(self, websocket_url: str):
         self.websocket_url = websocket_url
         self.next_id = 1
         self.ws = None
+        self.seen_urls: list[str] = []
 
     async def __aenter__(self):
         self.ws = await websockets.connect(self.websocket_url, max_size=32 * 1024 * 1024)
         await self.call("Page.enable")
         await self.call("Runtime.enable")
+        await self.call("Network.enable")
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -178,6 +277,17 @@ class ChromeTab:
         await self.ws.send(json.dumps({"id": msg_id, "method": method, "params": params or {}}))
         while True:
             message = json.loads(await self.ws.recv())
+            method = message.get("method")
+            if method == "Network.requestWillBeSent":
+                url = message.get("params", {}).get("request", {}).get("url")
+                if isinstance(url, str):
+                    self.seen_urls.append(url)
+            elif method == "Network.responseReceived":
+                response = message.get("params", {}).get("response", {})
+                url = response.get("url")
+                mime_type = response.get("mimeType")
+                if isinstance(url, str) and (mime_type == "application/pdf" or "offering-memorandum" in url or "/flyer" in url):
+                    self.seen_urls.append(url)
             if message.get("id") == msg_id:
                 if "error" in message:
                     raise RuntimeError(message["error"])
@@ -220,17 +330,28 @@ async def reveal_pdf_url(
     debug_url: str,
     candidate: CrexiOmCandidate,
     broker_agent: str,
-) -> str:
+    link_timeout: int,
+    pdf_timeout: int,
+) -> tuple[str, bytes]:
     websocket_url = create_chrome_target(debug_url)
     async with ChromeTab(websocket_url) as tab:
         await tab.navigate(candidate.crexi_url)
-        deadline = time.monotonic() + 60
+        deadline = time.monotonic() + link_timeout
         while time.monotonic() < deadline:
             clicked = await tab.evaluate(
                 r"""
 (() => {
-  const nodes = [...document.querySelectorAll('a,button,[role="button"],span,div')];
-  const node = nodes.find((el) => /Historical\s+OM/i.test(el.textContent || '') && el.offsetParent !== null);
+  const text = document.body.innerText || '';
+  if (/Select which/i.test(text)) {
+    const view = [...document.querySelectorAll('button,a,[role="button"]')]
+      .find((el) => /^view$/i.test((el.innerText || el.textContent || '').trim()) && el.offsetParent !== null);
+    if (view) {
+      view.click();
+      return true;
+    }
+  }
+  const nodes = [...document.querySelectorAll('button,a,[role="button"]')];
+  const node = nodes.find((el) => /Historical\s+(OM|Flyer)/i.test((el.innerText || el.textContent || '').trim()) && el.offsetParent !== null);
   if (!node) return false;
   node.click();
   return true;
@@ -243,7 +364,7 @@ async def reveal_pdf_url(
         else:
             raise RuntimeError(f"Historical OM link not found for {candidate.crexi_url}")
 
-        deadline = time.monotonic() + 90
+        deadline = time.monotonic() + pdf_timeout
         while time.monotonic() < deadline:
             await tab.evaluate(
                 f"""
@@ -260,16 +381,46 @@ async def reveal_pdf_url(
   if (/Are you a Broker\\/Agent\\?/i.test(document.body.innerText || '')) {{
     clickButton([{"/^yes$/i" if broker_agent == "yes" else "/^no$/i"}]);
   }}
-  clickButton([/accept/i, /agree/i, /continue/i, /view\\s+om/i, /download/i]);
+  clickButton([/accept/i, /agree/i, /continue/i, /^view$/i, /view\\s+om/i, /download/i]);
 }})()
 """
             )
-            pdf_url = find_historical_om_pdf_url(list_chrome_urls(debug_url), candidate.asset_id)
+            pdf_url = find_historical_om_pdf_url(tab.seen_urls + list_chrome_urls(debug_url), candidate.asset_id)
             if pdf_url:
-                return pdf_url
+                return pdf_url, await fetch_pdf_bytes_in_browser(tab, pdf_url)
             await asyncio.sleep(1)
 
     raise TimeoutError(f"Timed out waiting for generated OM PDF URL for asset {candidate.asset_id}")
+
+
+async def fetch_pdf_bytes_in_browser(tab: ChromeTab, pdf_url: str) -> bytes:
+    result = await tab.evaluate(
+        f"""
+(async () => {{
+  const response = await fetch({json.dumps(pdf_url)}, {{
+    credentials: 'include',
+    headers: {{ 'Accept': 'application/pdf,*/*;q=0.9' }},
+  }});
+  if (!response.ok) {{
+    return {{ ok: false, status: response.status, text: (await response.text()).slice(0, 500) }};
+  }}
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 32768) {{
+    binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  }}
+  return {{
+    ok: true,
+    status: response.status,
+    contentType: response.headers.get('content-type'),
+    base64: btoa(binary),
+  }};
+}})()
+"""
+    )
+    if not isinstance(result, dict) or not result.get("ok"):
+        raise RuntimeError(f"Browser PDF fetch failed: {result}")
+    return base64.b64decode(result["base64"])
 
 
 def upload_pdf_to_s3(key: str, content: bytes) -> str:
@@ -292,6 +443,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of PDFs to process")
     parser.add_argument("--page-size", type=int, default=20, help="Raw-row page size")
+    parser.add_argument("--link-timeout", type=int, default=30, help="Seconds to wait for the page document link")
+    parser.add_argument("--pdf-timeout", type=int, default=45, help="Seconds to wait for the generated PDF request")
+    parser.add_argument(
+        "--failure-log",
+        default="/tmp/crexi_historical_om_failures.jsonl",
+        help="JSONL file of failed crexi_ids to skip on later runs",
+    )
+    parser.add_argument("--retry-failed", action="store_true", help="Ignore the failure log and retry failed rows")
     parser.add_argument("--dry-run", action="store_true", help="Print candidates without clicking or writing")
     parser.add_argument("--chrome-debug-url", default="http://127.0.0.1:9222")
     parser.add_argument(
@@ -320,47 +479,61 @@ def main() -> int:
         return 2
 
     supabase = SupabaseRest(supabase_url, service_key)
-    raw_scan_limit = max(args.limit * 5, args.page_size) if args.limit is not None else None
-    raw_rows = fetch_candidate_raw_rows(supabase, args.page_size, raw_scan_limit)
-    crexi_ids = [row["crexi_id"] for row in raw_rows if isinstance(row.get("crexi_id"), str)]
-    comp_rows = fetch_comp_rows(supabase, crexi_ids, include_om_columns=not args.dry_run)
-    candidates = build_candidates(raw_rows, comp_rows, args.limit)
+    skip_crexi_ids = load_failed_crexi_ids(args.failure_log, args.retry_failed)
+    candidates = collect_candidates(supabase, args.page_size, args.limit, skip_crexi_ids)
 
     print(f"Found {len(candidates)} candidate Historical OM row(s).")
+    if skip_crexi_ids and not args.retry_failed:
+        print(f"Skipped {len(skip_crexi_ids)} previously failed crexi_id(s) from {args.failure_log}.")
     if args.dry_run:
         for candidate in candidates[: args.limit]:
             print(f"{candidate.comp_id}\t{candidate.asset_id}\t{candidate.property_name or ''}\t{candidate.crexi_url}")
         return 0
 
-    updated = 0
+    updated = failed = 0
     for candidate in candidates:
         print(f"Processing crexi_api_comps.id={candidate.comp_id} asset={candidate.asset_id} {candidate.property_name or ''}")
-        pdf_url = asyncio.run(reveal_pdf_url(args.chrome_debug_url, candidate, args.broker_agent))
-        response = requests.get(pdf_url, timeout=120)
-        response.raise_for_status()
-        if not is_pdf_bytes(response.content):
-            raise RuntimeError(f"Historical OM response was not a PDF for asset {candidate.asset_id}")
+        try:
+            pdf_url, pdf_bytes = asyncio.run(
+                reveal_pdf_url(
+                    args.chrome_debug_url,
+                    candidate,
+                    args.broker_agent,
+                    args.link_timeout,
+                    args.pdf_timeout,
+                )
+            )
+            if not is_pdf_bytes(pdf_bytes):
+                raise RuntimeError(f"Historical OM response was not a PDF for asset {candidate.asset_id}")
 
-        s3_key = build_crexi_om_s3_key(candidate.comp_id, candidate.crexi_id, candidate.asset_id)
-        s3_url = upload_pdf_to_s3(s3_key, response.content)
-        supabase.patch_comp(
-            candidate.comp_id,
-            {
-                "om_url": s3_url,
-                "attachment_urls": [
-                    {
-                        "source_url": f"https://api.crexi.com/assets/{candidate.asset_id}/offering-memorandum",
-                        "url": s3_url,
-                        "description": "Historical OM",
-                        "asset_id": candidate.asset_id,
-                    }
-                ],
-            },
-        )
-        updated += 1
-        print(f"Stored Historical OM for crexi_api_comps.id={candidate.comp_id}: {s3_url}")
+            s3_key = build_crexi_om_s3_key(candidate.comp_id, candidate.crexi_id, candidate.asset_id)
+            s3_url = upload_pdf_to_s3(s3_key, pdf_bytes)
+            supabase.patch_comp(
+                candidate.comp_id,
+                {
+                    "om_url": s3_url,
+                    "attachment_urls": [
+                        {
+                            "source_url": pdf_url.split("?", 1)[0],
+                            "url": s3_url,
+                            "description": "Historical Flyer" if "/flyer" in pdf_url else "Historical OM",
+                            "asset_id": candidate.asset_id,
+                        }
+                    ],
+                },
+            )
+            updated += 1
+            print(f"Stored Historical OM for crexi_api_comps.id={candidate.comp_id}: {s3_url}")
+        except Exception as e:
+            failed += 1
+            record_failed_candidate(args.failure_log, candidate, e)
+            print(
+                f"Failed crexi_api_comps.id={candidate.comp_id} asset={candidate.asset_id}: {e}",
+                file=sys.stderr,
+            )
+            continue
 
-    print(f"Done. Updated {updated} row(s).")
+    print(f"Done. Updated {updated} row(s), failed {failed} row(s).")
     return 0
 
 
