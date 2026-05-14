@@ -97,6 +97,61 @@ function filterByPeriod(rows: SalesTrendRowV2[], period: Period): SalesTrendRowV
     return rows.filter((r) => r.month_start >= cutoffStr);
 }
 
+function medianSorted(arr: number[]): number {
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
+}
+
+function avgNums(arr: number[]): number {
+    return arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
+}
+
+/** First day of the sample bucket that contains `monthStart` (matches chart bucketing). */
+function bucketStartForMonth(monthStart: string, sampleComps: SampleComps): string {
+    const monthsPerWindow: Record<SampleComps, number> = {
+        "1M": 1,
+        "3M": 3,
+        "6M": 6,
+        "1Y": 12,
+    };
+    const windowSize = monthsPerWindow[sampleComps];
+    if (windowSize === 1) return monthStart;
+    const d = new Date(monthStart + "T00:00:00Z");
+    const monthIndex = d.getUTCFullYear() * 12 + d.getUTCMonth();
+    const bucketIndex = Math.floor(monthIndex / windowSize) * windowSize;
+    const bucketYear = Math.floor(bucketIndex / 12);
+    const bucketMonth = bucketIndex % 12;
+    return `${bucketYear}-${String(bucketMonth + 1).padStart(2, "0")}-01`;
+}
+
+function combineSalesTrendMonthlyGroup(group: SalesTrendRowV2[]): Omit<SalesTrendRowV2, "month_start"> {
+    const medians = group.map((r) => r.median_price).filter((p) => p != null);
+    const avgs = group.map((r) => r.avg_price).filter((p) => p != null);
+    const p25s = group.map((r) => r.p25_price).filter((p) => p != null);
+    const p75s = group.map((r) => r.p75_price).filter((p) => p != null);
+    const caps = group.map((r) => r.avg_cap_rate).filter((c) => c != null) as number[];
+    const medianCaps = group.map((r) => r.median_cap_rate).filter((c) => c != null) as number[];
+    const minCaps = group.map((r) => r.min_cap_rate).filter((c) => c != null) as number[];
+    const maxCaps = group.map((r) => r.max_cap_rate).filter((c) => c != null) as number[];
+    return {
+        median_price: medians.length > 0 ? medianSorted(medians) : 0,
+        avg_price: avgs.length > 0 ? avgNums(avgs) : 0,
+        p25_price: p25s.length > 0 ? medianSorted(p25s) : 0,
+        p75_price: p75s.length > 0 ? medianSorted(p75s) : 0,
+        avg_cap_rate: caps.length > 0 ? avgNums(caps) : null,
+        median_cap_rate: medianCaps.length > 0 ? medianSorted(medianCaps) : null,
+        min_cap_rate: minCaps.length > 0 ? Math.min(...minCaps) : null,
+        max_cap_rate: maxCaps.length > 0 ? Math.max(...maxCaps) : null,
+        listing_count: group.reduce((s, r) => s + r.listing_count, 0),
+    };
+}
+
+function monthlyRowsForChartBucket(rows: SalesTrendRowV2[], period: Period, bucketStart: string, sampleComps: SampleComps): SalesTrendRowV2[] {
+    const filtered = filterByPeriod(rows, period);
+    return filtered.filter((r) => bucketStartForMonth(r.month_start, sampleComps) === bucketStart).sort((a, b) => a.month_start.localeCompare(b.month_start));
+}
+
 function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleComps): SalesTrendRowV2[] {
     if (rows.length === 0) return [];
     const monthsPerWindow: Record<SampleComps, number> = {
@@ -111,46 +166,30 @@ function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleCom
     const sorted = [...rows].sort((a, b) => a.month_start.localeCompare(b.month_start));
     const buckets: Record<string, SalesTrendRowV2[]> = {};
     for (const row of sorted) {
-        const d = new Date(row.month_start + "T00:00:00Z");
-        const monthIndex = d.getUTCFullYear() * 12 + d.getUTCMonth();
-        const bucketIndex = Math.floor(monthIndex / windowSize) * windowSize;
-        const bucketYear = Math.floor(bucketIndex / 12);
-        const bucketMonth = bucketIndex % 12;
-        const key = `${bucketYear}-${String(bucketMonth + 1).padStart(2, "0")}-01`;
+        const key = bucketStartForMonth(row.month_start, sampleComps);
         if (!buckets[key]) buckets[key] = [];
         buckets[key].push(row);
     }
 
     return Object.entries(buckets)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, group]) => {
-            const medians = group.map((r) => r.median_price).filter((p) => p != null);
-            const avgs = group.map((r) => r.avg_price).filter((p) => p != null);
-            const p25s = group.map((r) => r.p25_price).filter((p) => p != null);
-            const p75s = group.map((r) => r.p75_price).filter((p) => p != null);
-            const caps = group.map((r) => r.avg_cap_rate).filter((c) => c != null) as number[];
-            const medianCaps = group.map((r) => r.median_cap_rate).filter((c) => c != null) as number[];
-            const minCaps = group.map((r) => r.min_cap_rate).filter((c) => c != null) as number[];
-            const maxCaps = group.map((r) => r.max_cap_rate).filter((c) => c != null) as number[];
-            const median = (arr: number[]) => {
-                const s = [...arr].sort((a, b) => a - b);
-                const m = Math.floor(s.length / 2);
-                return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
-            };
-            const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0);
-            return {
-                month_start: key,
-                median_price: medians.length > 0 ? median(medians) : 0,
-                avg_price: avgs.length > 0 ? avg(avgs) : 0,
-                p25_price: p25s.length > 0 ? median(p25s) : 0,
-                p75_price: p75s.length > 0 ? median(p75s) : 0,
-                avg_cap_rate: caps.length > 0 ? avg(caps) : null,
-                median_cap_rate: medianCaps.length > 0 ? median(medianCaps) : null,
-                min_cap_rate: minCaps.length > 0 ? Math.min(...minCaps) : null,
-                max_cap_rate: maxCaps.length > 0 ? Math.max(...maxCaps) : null,
-                listing_count: group.reduce((s, r) => s + r.listing_count, 0),
-            };
-        });
+        .map(([key, group]) => ({
+            month_start: key,
+            ...combineSalesTrendMonthlyGroup(group),
+        }));
+}
+
+/** Value from one calendar month that feeds the combined chart point (main line). */
+function monthlyMainLineInput(r: SalesTrendRowV2, metric: Metric, displayType: DisplayType): number | null {
+    if (metric === "cap_rate") {
+        if (displayType === "Average") return r.avg_cap_rate;
+        return r.median_cap_rate;
+    }
+    if (metric === "cost_per_unit") {
+        if (displayType === "Average") return r.avg_price;
+        return r.median_price;
+    }
+    return null;
 }
 
 function metricValue(row: SalesTrendRowV2, metric: Metric, displayType: DisplayType): number | null {
@@ -806,6 +845,17 @@ export default function SalesTrendsPage() {
 
     const hasData = chartData.length > 0;
     const chartHasSmallSample = useMemo(() => salesTrendChartHasAnySmallSample(chartData), [chartData]);
+
+    const drillDownChartDerivation = useMemo(() => {
+        if (drillDown == null || metric === "grm") return null;
+        const raw = salesResults[drillDown.area.id];
+        if (!raw?.length) return null;
+        const monthly = monthlyRowsForChartBucket(raw, period, drillDown.bucketStart, sampleComps);
+        if (monthly.length === 0) return null;
+        const combinedMetrics = combineSalesTrendMonthlyGroup(monthly);
+        const combinedRow: SalesTrendRowV2 = { month_start: drillDown.bucketStart, ...combinedMetrics };
+        return { monthly, combinedRow };
+    }, [drillDown, salesResults, period, sampleComps, metric]);
 
     const searchPlaceholder = getTrendsSearchPlaceholder(areaType, false);
 
@@ -1529,6 +1579,126 @@ export default function SalesTrendsPage() {
                             <X className="size-5" />
                         </button>
                     </div>
+                    {drillDownChartDerivation != null &&
+                        metric !== "grm" &&
+                        (() => {
+                            const { monthly, combinedRow } = drillDownChartDerivation;
+                            const chartVal = metricValue(combinedRow, metric, displayType);
+                            const monthColLabel =
+                                metric === "cost_per_unit"
+                                    ? displayType === "Average"
+                                        ? "Avg $/door"
+                                        : "Median $/door"
+                                    : displayType === "Average"
+                                      ? "Avg cap %"
+                                      : "Median cap %";
+                            const monthlyNums = monthly.map((r) => monthlyMainLineInput(r, metric, displayType));
+                            const formattedInputs = monthlyNums.filter((v): v is number => v != null).map((v) => formatMetricValue(v, metric));
+                            const combinePhrase = displayType === "Average" ? "Average" : "Median";
+                            return (
+                                <div className="border-b border-gray-100 bg-slate-50 px-6 py-4 text-sm dark:border-gray-700 dark:bg-slate-900/40">
+                                    <h4 className="font-semibold text-gray-900 dark:text-gray-100">How this chart point is calculated</h4>
+                                    <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                        {sampleComps === "1M" ? (
+                                            <>
+                                                Each point uses one calendar month from the API. The plotted value is that month&apos;s{" "}
+                                                {metric === "cost_per_unit"
+                                                    ? displayType === "Average"
+                                                        ? "average"
+                                                        : "median"
+                                                    : displayType === "Average"
+                                                      ? "average"
+                                                      : "median"}{" "}
+                                                {metric === "cost_per_unit" ? "closed-sale price per door" : "cap rate"} (same basis as the chart legend).
+                                            </>
+                                        ) : (
+                                            <>
+                                                With sample <span className="font-medium text-gray-800 dark:text-gray-200">{sampleComps}</span>, the chart
+                                                groups consecutive calendar months, then{" "}
+                                                <span className="font-medium text-gray-800 dark:text-gray-200">
+                                                    {displayType === "Average"
+                                                        ? "averages each month\u0027s averages"
+                                                        : "takes the median of each month\u0027s medians"}
+                                                </span>{" "}
+                                                for the line. That is <span className="font-medium text-gray-800 dark:text-gray-200">not</span> the same as a
+                                                single median over every sale in the table below.
+                                            </>
+                                        )}
+                                    </p>
+                                    <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800/80">
+                                        <table className="w-full min-w-[280px] text-xs">
+                                            <thead>
+                                                <tr className="border-b border-gray-100 bg-gray-50 text-left text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
+                                                    <th className="px-3 py-2 font-medium">Month (UTC)</th>
+                                                    <th className="px-3 py-2 text-right font-medium">Sales</th>
+                                                    <th className="px-3 py-2 text-right font-medium">{monthColLabel}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                                {monthly.map((r) => (
+                                                    <tr key={r.month_start}>
+                                                        <td className="px-3 py-2 whitespace-nowrap text-gray-800 dark:text-gray-200">
+                                                            {formatMonthLabel(r.month_start)}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-300">
+                                                            {r.listing_count.toLocaleString()}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
+                                                            {(() => {
+                                                                const v = monthlyMainLineInput(r, metric, displayType);
+                                                                return v != null ? formatMetricValue(v, metric) : "—";
+                                                            })()}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {chartVal != null && formattedInputs.length > 0 && (
+                                        <p className="mt-3 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+                                            <span className="font-medium text-gray-900 dark:text-gray-100">Plotted value ({combinePhrase})</span>
+                                            {displayType === "Average" ? (
+                                                <>
+                                                    {" "}
+                                                    = average of [{formattedInputs.join(", ")}] ={" "}
+                                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                        {formatMetricValue(chartVal, metric)}
+                                                    </span>
+                                                    .
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {" "}
+                                                    = median of [{formattedInputs.join(", ")}] ={" "}
+                                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                                        {formatMetricValue(chartVal, metric)}
+                                                    </span>
+                                                    .
+                                                </>
+                                            )}
+                                        </p>
+                                    )}
+                                    {displayType === "Candle" && metric === "cost_per_unit" && (
+                                        <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                            Candle band: combined P25 = median of monthly P25s (
+                                            {monthly.map((r) => formatMetricValue(r.p25_price, metric)).join(", ")}) ={" "}
+                                            {formatMetricValue(combinedRow.p25_price, metric)}; combined P75 = median of monthly P75s (
+                                            {monthly.map((r) => formatMetricValue(r.p75_price, metric)).join(", ")}) ={" "}
+                                            {formatMetricValue(combinedRow.p75_price, metric)}.
+                                        </p>
+                                    )}
+                                    {displayType === "Candle" && metric === "cap_rate" && (
+                                        <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                            Candle band: low = min of monthly mins (
+                                            {monthly.map((r) => (r.min_cap_rate != null ? `${r.min_cap_rate.toFixed(2)}%` : "—")).join(", ")}) ={" "}
+                                            {combinedRow.min_cap_rate != null ? `${combinedRow.min_cap_rate.toFixed(2)}%` : "—"}; high = max of monthly maxes (
+                                            {monthly.map((r) => (r.max_cap_rate != null ? `${r.max_cap_rate.toFixed(2)}%` : "—")).join(", ")}) ={" "}
+                                            {combinedRow.max_cap_rate != null ? `${combinedRow.max_cap_rate.toFixed(2)}%` : "—"}.
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     <div className="max-h-[min(70vh,560px)] overflow-auto">
                         {drillLoading && (
                             <div className="flex items-center justify-center p-10">
