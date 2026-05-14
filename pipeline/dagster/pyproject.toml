@@ -19,6 +19,7 @@ dependencies = [
     "boto3",
     "requests",
     "google-genai>=1",
+    "websockets>=15",
 ]
 
 [tool.dg]
