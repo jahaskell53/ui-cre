@@ -20,6 +20,7 @@ import sys
 import time
 import urllib.parse
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -58,10 +59,19 @@ class SupabaseRest:
             }
         )
 
-    def get(self, path: str, params: dict[str, str]) -> list[dict[str, Any]]:
-        response = self.session.get(f"{self.url}/rest/v1/{path}", params=params, timeout=60)
-        response.raise_for_status()
-        return response.json()
+    def get(self, path: str, params: dict[str, str], retries: int = 5) -> list[dict[str, Any]]:
+        last_error: Exception | None = None
+        for attempt in range(retries):
+            try:
+                response = self.session.get(f"{self.url}/rest/v1/{path}", params=params, timeout=60)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                last_error = e
+                time.sleep(2**attempt)
+        if last_error:
+            raise last_error
+        raise RuntimeError("Supabase GET failed without an exception")
 
     def patch_comp(self, comp_id: int, payload: dict[str, Any]) -> None:
         response = self.session.patch(
@@ -80,18 +90,17 @@ def fetch_candidate_raw_rows(
     max_rows: int | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    offset = 0
+    last_crexi_id: str | None = None
     while True:
-        page = client.get(
-            "crexi_api_comp_raw_json_latest",
-            {
-                "select": "crexi_id,raw_json",
-                "raw_json->source->>isCrexiOm": "eq.true",
-                "order": "crexi_id.asc",
-                "limit": str(page_size),
-                "offset": str(offset),
-            },
-        )
+        params = {
+            "select": "crexi_id,raw_json",
+            "raw_json->source->>isCrexiOm": "eq.true",
+            "order": "crexi_id.asc",
+            "limit": str(page_size),
+        }
+        if last_crexi_id:
+            params["crexi_id"] = f"gt.{last_crexi_id}"
+        page = client.get("crexi_api_comp_raw_json_latest", params)
         if not page:
             break
         rows.extend(page)
@@ -99,7 +108,7 @@ def fetch_candidate_raw_rows(
             return rows[:max_rows]
         if len(page) < page_size:
             break
-        offset += page_size
+        last_crexi_id = page[-1]["crexi_id"]
     return rows
 
 
@@ -153,6 +162,93 @@ def fetch_comp_rows(
             params["om_url"] = "is.null"
         rows.extend(client.get("crexi_api_comps", params))
     return rows
+
+
+def load_failed_crexi_ids(path: str | None, retry_failed: bool) -> set[str]:
+    if retry_failed or not path:
+        return set()
+    failure_path = Path(path)
+    if not failure_path.exists():
+        return set()
+    out: set[str] = set()
+    for line in failure_path.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        crexi_id = item.get("crexi_id")
+        if isinstance(crexi_id, str) and crexi_id:
+            out.add(crexi_id)
+    return out
+
+
+def record_failed_candidate(path: str | None, candidate: CrexiOmCandidate, error: Exception) -> None:
+    if not path:
+        return
+    failure_path = Path(path)
+    failure_path.parent.mkdir(parents=True, exist_ok=True)
+    with failure_path.open("a") as f:
+        f.write(
+            json.dumps(
+                {
+                    "crexi_id": candidate.crexi_id,
+                    "comp_id": candidate.comp_id,
+                    "asset_id": candidate.asset_id,
+                    "property_name": candidate.property_name,
+                    "error": str(error),
+                    "failed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                },
+                sort_keys=True,
+            )
+            + "\n"
+        )
+
+
+def collect_candidates(
+    client: SupabaseRest,
+    page_size: int,
+    limit: int | None,
+    skip_crexi_ids: set[str],
+) -> list[CrexiOmCandidate]:
+    candidates: list[CrexiOmCandidate] = []
+    last_crexi_id: str | None = None
+
+    while True:
+        params = {
+            "select": "crexi_id,raw_json",
+            "raw_json->source->>isCrexiOm": "eq.true",
+            "order": "crexi_id.asc",
+            "limit": str(page_size),
+        }
+        if last_crexi_id:
+            params["crexi_id"] = f"gt.{last_crexi_id}"
+        raw_rows = client.get("crexi_api_comp_raw_json_latest", params)
+        if not raw_rows:
+            break
+
+        filtered_raw_rows = [
+            row
+            for row in raw_rows
+            if isinstance(row.get("crexi_id"), str)
+            and row["crexi_id"] not in skip_crexi_ids
+            and extract_crexi_om_asset_ids(row.get("raw_json"))
+        ]
+        if filtered_raw_rows:
+            comp_rows = fetch_comp_rows(client, [row["crexi_id"] for row in filtered_raw_rows])
+            for candidate in build_candidates(filtered_raw_rows, comp_rows, None):
+                if candidate.crexi_id in skip_crexi_ids:
+                    continue
+                candidates.append(candidate)
+                if limit is not None and len(candidates) >= limit:
+                    return candidates
+
+        if len(raw_rows) < page_size:
+            break
+        last_crexi_id = raw_rows[-1]["crexi_id"]
+
+    return candidates
 
 
 class ChromeTab:
@@ -349,6 +445,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--page-size", type=int, default=20, help="Raw-row page size")
     parser.add_argument("--link-timeout", type=int, default=30, help="Seconds to wait for the page document link")
     parser.add_argument("--pdf-timeout", type=int, default=45, help="Seconds to wait for the generated PDF request")
+    parser.add_argument(
+        "--failure-log",
+        default="/tmp/crexi_historical_om_failures.jsonl",
+        help="JSONL file of failed crexi_ids to skip on later runs",
+    )
+    parser.add_argument("--retry-failed", action="store_true", help="Ignore the failure log and retry failed rows")
     parser.add_argument("--dry-run", action="store_true", help="Print candidates without clicking or writing")
     parser.add_argument("--chrome-debug-url", default="http://127.0.0.1:9222")
     parser.add_argument(
@@ -377,13 +479,12 @@ def main() -> int:
         return 2
 
     supabase = SupabaseRest(supabase_url, service_key)
-    raw_scan_limit = max(args.limit * 5, args.page_size) if args.limit is not None else None
-    raw_rows = fetch_candidate_raw_rows(supabase, args.page_size, raw_scan_limit)
-    crexi_ids = [row["crexi_id"] for row in raw_rows if isinstance(row.get("crexi_id"), str)]
-    comp_rows = fetch_comp_rows(supabase, crexi_ids, include_om_columns=not args.dry_run)
-    candidates = build_candidates(raw_rows, comp_rows, args.limit)
+    skip_crexi_ids = load_failed_crexi_ids(args.failure_log, args.retry_failed)
+    candidates = collect_candidates(supabase, args.page_size, args.limit, skip_crexi_ids)
 
     print(f"Found {len(candidates)} candidate Historical OM row(s).")
+    if skip_crexi_ids and not args.retry_failed:
+        print(f"Skipped {len(skip_crexi_ids)} previously failed crexi_id(s) from {args.failure_log}.")
     if args.dry_run:
         for candidate in candidates[: args.limit]:
             print(f"{candidate.comp_id}\t{candidate.asset_id}\t{candidate.property_name or ''}\t{candidate.crexi_url}")
@@ -425,6 +526,7 @@ def main() -> int:
             print(f"Stored Historical OM for crexi_api_comps.id={candidate.comp_id}: {s3_url}")
         except Exception as e:
             failed += 1
+            record_failed_candidate(args.failure_log, candidate, e)
             print(
                 f"Failed crexi_api_comps.id={candidate.comp_id} asset={candidate.asset_id}: {e}",
                 file=sys.stderr,
