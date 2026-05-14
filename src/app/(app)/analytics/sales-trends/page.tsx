@@ -848,17 +848,17 @@ export default function SalesTrendsPage() {
                     handleDotClick(area, { payload: dot.payload });
                 };
                 return (
-                    <circle
-                        cx={dot.cx}
-                        cy={dot.cy}
-                        r={radius}
-                        fill={area.color}
-                        stroke={active ? "#fff" : area.color}
-                        strokeWidth={active ? 2 : 0}
-                        className="cursor-pointer"
-                        onClick={selectDot}
-                        onTouchEnd={selectDot}
-                    />
+                    <g className="cursor-pointer" onClick={selectDot} onTouchEnd={selectDot}>
+                        <circle cx={dot.cx} cy={dot.cy} r={active ? 12 : 10} fill="transparent" />
+                        <circle
+                            cx={dot.cx}
+                            cy={dot.cy}
+                            r={radius}
+                            fill={area.color}
+                            stroke={active ? "#fff" : area.color}
+                            strokeWidth={active ? 2 : 0}
+                        />
+                    </g>
                 );
             },
         [handleDotClick],
