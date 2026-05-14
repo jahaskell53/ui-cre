@@ -1671,6 +1671,10 @@ export const crexiApiComps = pgTable("crexi_api_comps", {
     mortgage_recording_date: text("mortgage_recording_date"),
     // Gross rent income signal (parsed from leaseRateRange.totalAnnual)
     gross_rent_annual: doublePrecision("gross_rent_annual"),
+    omUrl: text("om_url"),
+    attachmentUrls: jsonb("attachment_urls")
+        .notNull()
+        .default(sql`'[]'::jsonb`),
     scraped_at: timestamp("scraped_at", { withTimezone: true }).defaultNow(),
     excludeFromSalesTrends: boolean("exclude_from_sales_trends").notNull().default(false),
     salesTrendsExclusionReason: text("sales_trends_exclusion_reason"),
