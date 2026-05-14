@@ -887,8 +887,7 @@ export default function SalesTrendsPage() {
                 lastTouchTooltipDrillKeyRef.current = null;
                 return;
             }
-            const isTouchDevice =
-                typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.navigator.maxTouchPoints > 0);
+            const isTouchDevice = typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.navigator.maxTouchPoints > 0);
             if (!isTouchDevice) return;
             const key = `${touchArea.id}:${touchPoint.month}`;
             if (lastTouchTooltipDrillKeyRef.current === key) return;
