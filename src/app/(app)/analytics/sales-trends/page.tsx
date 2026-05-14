@@ -843,21 +843,14 @@ export default function SalesTrendsPage() {
             (props: unknown) => {
                 const dot = props as { cx?: number; cy?: number; payload?: { month?: string; monthLabel?: string } };
                 if (typeof dot.cx !== "number" || typeof dot.cy !== "number") return null;
-                const selectDot = (event: SyntheticEvent<SVGCircleElement>) => {
+                const selectDot = (event: SyntheticEvent<SVGElement>) => {
                     event.stopPropagation();
                     handleDotClick(area, { payload: dot.payload });
                 };
                 return (
                     <g className="cursor-pointer" onClick={selectDot} onTouchEnd={selectDot}>
                         <circle cx={dot.cx} cy={dot.cy} r={active ? 12 : 10} fill="transparent" />
-                        <circle
-                            cx={dot.cx}
-                            cy={dot.cy}
-                            r={radius}
-                            fill={area.color}
-                            stroke={active ? "#fff" : area.color}
-                            strokeWidth={active ? 2 : 0}
-                        />
+                        <circle cx={dot.cx} cy={dot.cy} r={radius} fill={area.color} stroke={active ? "#fff" : area.color} strokeWidth={active ? 2 : 0} />
                     </g>
                 );
             },
