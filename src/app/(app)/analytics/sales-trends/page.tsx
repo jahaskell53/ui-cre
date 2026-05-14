@@ -749,8 +749,9 @@ export default function SalesTrendsPage() {
     const showVolume = selectedAreas.length === 1 && compareAreas.length === 0;
 
     const handleChartClick = useCallback(
-        (state: { activePayload?: Array<{ dataKey?: string | number; payload?: { month?: string; monthLabel?: string } }> } | undefined) => {
-            const activePayload = state?.activePayload;
+        (state: unknown) => {
+            const activePayload = (state as { activePayload?: Array<{ dataKey?: string | number; payload?: { month?: string; monthLabel?: string } }> })
+                ?.activePayload;
             if (!activePayload?.length) return;
             const areaEntry = activePayload.find((entry) => allDisplayAreas.some((area) => area.id === entry.dataKey));
             const area = allDisplayAreas.find((candidate) => candidate.id === areaEntry?.dataKey);
