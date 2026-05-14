@@ -748,19 +748,6 @@ export default function SalesTrendsPage() {
     const allDisplayAreas = [...selectedAreas, ...compareAreas];
     const showVolume = selectedAreas.length === 1 && compareAreas.length === 0;
 
-    const handleChartClick = useCallback(
-        (state: unknown) => {
-            const activePayload = (state as { activePayload?: Array<{ dataKey?: string | number; payload?: { month?: string; monthLabel?: string } }> })
-                ?.activePayload;
-            if (!activePayload?.length) return;
-            const areaEntry = activePayload.find((entry) => allDisplayAreas.some((area) => area.id === entry.dataKey));
-            const area = allDisplayAreas.find((candidate) => candidate.id === areaEntry?.dataKey);
-            if (!area) return;
-            handleDotClick(area, { payload: areaEntry?.payload });
-        },
-        [allDisplayAreas, handleDotClick],
-    );
-
     const chartData = useMemo(() => {
         const allAreas = [...selectedAreas, ...compareAreas];
         if (allAreas.length === 0) return [];
@@ -816,6 +803,40 @@ export default function SalesTrendsPage() {
                 return point;
             });
     }, [salesResults, selectedAreas, compareAreas, period, sampleComps, metric, displayType, showVolume]);
+
+    /** Recharts 3 ComposedChart passes this to onClick/onTouchEnd (not legacy `activePayload`). See recharts externalEventsMiddleware. */
+    const handleChartPointerSelect = useCallback(
+        (state: unknown) => {
+            const s = state as {
+                activeTooltipIndex?: number | string;
+                activeIndex?: number | string;
+                activeDataKey?: string | number;
+            };
+            const rawIdx = s.activeTooltipIndex ?? s.activeIndex;
+            const idx = typeof rawIdx === "number" && Number.isFinite(rawIdx) ? rawIdx : typeof rawIdx === "string" && rawIdx !== "" ? Number(rawIdx) : NaN;
+            if (!Number.isFinite(idx) || idx < 0 || idx >= chartData.length) return;
+
+            const datum = chartData[idx] as Record<string, unknown>;
+            const month = datum.month;
+            const monthLabel = datum.monthLabel;
+            if (typeof month !== "string" || typeof monthLabel !== "string") return;
+
+            const dk = s.activeDataKey;
+            let area: AreaSelection | undefined;
+            if (typeof dk === "string" && allDisplayAreas.some((a) => a.id === dk)) {
+                area = allDisplayAreas.find((a) => a.id === dk);
+            } else if (dk === "volume") {
+                area = allDisplayAreas.find((a) => typeof datum[a.id] === "number");
+            } else if (allDisplayAreas.length === 1) {
+                [area] = allDisplayAreas;
+            } else {
+                area = allDisplayAreas.find((a) => typeof datum[a.id] === "number");
+            }
+            if (!area) return;
+            handleDotClick(area, { payload: { month, monthLabel } });
+        },
+        [allDisplayAreas, chartData, handleDotClick],
+    );
 
     const hasData = chartData.length > 0;
     const chartHasSmallSample = useMemo(() => salesTrendChartHasAnySmallSample(chartData), [chartData]);
@@ -1424,7 +1445,8 @@ export default function SalesTrendsPage() {
                             <ResponsiveContainer width="100%" height={340}>
                                 <ComposedChart
                                     data={chartData}
-                                    onClick={handleChartClick}
+                                    onClick={handleChartPointerSelect}
+                                    onTouchEnd={handleChartPointerSelect}
                                     margin={{
                                         top: 5,
                                         right: showVolume ? 60 : 20,
