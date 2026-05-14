@@ -257,6 +257,7 @@ export default function SalesTrendsPage() {
     const [drillTotal, setDrillTotal] = useState(0);
     const [drillPage, setDrillPage] = useState(0);
     const [drillLoading, setDrillLoading] = useState(false);
+    const lastTouchTooltipDrillKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!navigator.geolocation) return;
@@ -873,10 +874,28 @@ export default function SalesTrendsPage() {
             name: string;
             color: string;
             value: number;
-            payload?: { _minListingCount?: number };
+            payload?: { _minListingCount?: number; month?: string; monthLabel?: string };
         }>;
         label?: string;
     }) => {
+        const touchEntry = payload?.find((entry) => allDisplayAreas.some((area) => area.id === entry.dataKey));
+        const touchArea = allDisplayAreas.find((area) => area.id === touchEntry?.dataKey);
+        const touchPoint = touchEntry?.payload;
+
+        useEffect(() => {
+            if (!active || !touchArea || !touchPoint?.month || !touchPoint.monthLabel) {
+                lastTouchTooltipDrillKeyRef.current = null;
+                return;
+            }
+            const isTouchDevice =
+                typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.navigator.maxTouchPoints > 0);
+            if (!isTouchDevice) return;
+            const key = `${touchArea.id}:${touchPoint.month}`;
+            if (lastTouchTooltipDrillKeyRef.current === key) return;
+            lastTouchTooltipDrillKeyRef.current = key;
+            handleDotClick(touchArea, { payload: { month: touchPoint.month, monthLabel: touchPoint.monthLabel } });
+        }, [active, touchArea, touchPoint?.month, touchPoint?.monthLabel]);
+
         if (!active || !payload?.length) return null;
         const datum = payload[0]?.payload;
         const n = datum?._minListingCount;
