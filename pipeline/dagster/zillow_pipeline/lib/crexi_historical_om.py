@@ -3,7 +3,7 @@ import re
 
 
 _HISTORICAL_OM_RE = re.compile(
-    r"^https://api\.crexi\.com/assets/(?P<asset_id>[^/]+)/offering-memorandum\?(.+&)?access_token=[^&]+",
+    r"^https://api\.crexi\.com/assets/(?P<asset_id>[^/]+)/(offering-memorandum|flyer)\?(.+&)?access_token=[^&]+",
     re.IGNORECASE,
 )
 

@@ -55,6 +55,14 @@ def test_finds_matching_historical_om_pdf_url():
     )
 
 
+def test_finds_matching_historical_flyer_pdf_url():
+    urls = [
+        "https://api.crexi.com/assets/1959227/flyer?access_token=abc",
+    ]
+
+    assert find_historical_om_pdf_url(urls, asset_id="1959227") == "https://api.crexi.com/assets/1959227/flyer?access_token=abc"
+
+
 def test_requires_access_token_on_historical_om_pdf_url():
     urls = ["https://api.crexi.com/assets/1625848/offering-memorandum"]
 
