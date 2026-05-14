@@ -748,6 +748,18 @@ export default function SalesTrendsPage() {
     const allDisplayAreas = [...selectedAreas, ...compareAreas];
     const showVolume = selectedAreas.length === 1 && compareAreas.length === 0;
 
+    const handleChartClick = useCallback(
+        (state: { activePayload?: Array<{ dataKey?: string | number; payload?: { month?: string; monthLabel?: string } }> } | undefined) => {
+            const activePayload = state?.activePayload;
+            if (!activePayload?.length) return;
+            const areaEntry = activePayload.find((entry) => allDisplayAreas.some((area) => area.id === entry.dataKey));
+            const area = allDisplayAreas.find((candidate) => candidate.id === areaEntry?.dataKey);
+            if (!area) return;
+            handleDotClick(area, { payload: areaEntry?.payload });
+        },
+        [allDisplayAreas, handleDotClick],
+    );
+
     const chartData = useMemo(() => {
         const allAreas = [...selectedAreas, ...compareAreas];
         if (allAreas.length === 0) return [];
@@ -1411,6 +1423,7 @@ export default function SalesTrendsPage() {
                             <ResponsiveContainer width="100%" height={340}>
                                 <ComposedChart
                                     data={chartData}
+                                    onClick={handleChartClick}
                                     margin={{
                                         top: 5,
                                         right: showVolume ? 60 : 20,
