@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type SyntheticEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, MapPin, Search, TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -257,6 +257,7 @@ export default function SalesTrendsPage() {
     const [drillTotal, setDrillTotal] = useState(0);
     const [drillPage, setDrillPage] = useState(0);
     const [drillLoading, setDrillLoading] = useState(false);
+    const lastTouchTooltipDrillKeyRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!navigator.geolocation) return;
@@ -804,6 +805,59 @@ export default function SalesTrendsPage() {
             });
     }, [salesResults, selectedAreas, compareAreas, period, sampleComps, metric, displayType, showVolume]);
 
+    /** Recharts 3 ComposedChart passes this to onClick/onTouchEnd (not legacy `activePayload`). See recharts externalEventsMiddleware. */
+    const handleChartPointerSelect = useCallback(
+        (state: unknown) => {
+            const s = state as {
+                activeTooltipIndex?: number | string;
+                activeIndex?: number | string;
+                activeDataKey?: string | number;
+            };
+            const rawIdx = s.activeTooltipIndex ?? s.activeIndex;
+            const idx = typeof rawIdx === "number" && Number.isFinite(rawIdx) ? rawIdx : typeof rawIdx === "string" && rawIdx !== "" ? Number(rawIdx) : NaN;
+            if (!Number.isFinite(idx) || idx < 0 || idx >= chartData.length) return;
+
+            const datum = chartData[idx] as Record<string, unknown>;
+            const month = datum.month;
+            const monthLabel = datum.monthLabel;
+            if (typeof month !== "string" || typeof monthLabel !== "string") return;
+
+            const dk = s.activeDataKey;
+            let area: AreaSelection | undefined;
+            if (typeof dk === "string" && allDisplayAreas.some((a) => a.id === dk)) {
+                area = allDisplayAreas.find((a) => a.id === dk);
+            } else if (dk === "volume") {
+                area = allDisplayAreas.find((a) => typeof datum[a.id] === "number");
+            } else if (allDisplayAreas.length === 1) {
+                [area] = allDisplayAreas;
+            } else {
+                area = allDisplayAreas.find((a) => typeof datum[a.id] === "number");
+            }
+            if (!area) return;
+            handleDotClick(area, { payload: { month, monthLabel } });
+        },
+        [allDisplayAreas, chartData, handleDotClick],
+    );
+
+    const renderTrendDot = useCallback(
+        (area: AreaSelection, radius: number, active = false) =>
+            (props: unknown) => {
+                const dot = props as { cx?: number; cy?: number; payload?: { month?: string; monthLabel?: string } };
+                if (typeof dot.cx !== "number" || typeof dot.cy !== "number") return null;
+                const selectDot = (event: SyntheticEvent<SVGElement>) => {
+                    event.stopPropagation();
+                    handleDotClick(area, { payload: dot.payload });
+                };
+                return (
+                    <g className="cursor-pointer" onClick={selectDot} onTouchEnd={selectDot}>
+                        <circle cx={dot.cx} cy={dot.cy} r={active ? 12 : 10} fill="transparent" />
+                        <circle cx={dot.cx} cy={dot.cy} r={radius} fill={area.color} stroke={active ? "#fff" : area.color} strokeWidth={active ? 2 : 0} />
+                    </g>
+                );
+            },
+        [handleDotClick],
+    );
+
     const hasData = chartData.length > 0;
     const chartHasSmallSample = useMemo(() => salesTrendChartHasAnySmallSample(chartData), [chartData]);
 
@@ -820,10 +874,27 @@ export default function SalesTrendsPage() {
             name: string;
             color: string;
             value: number;
-            payload?: { _minListingCount?: number };
+            payload?: { _minListingCount?: number; month?: string; monthLabel?: string };
         }>;
         label?: string;
     }) => {
+        const touchEntry = payload?.find((entry) => allDisplayAreas.some((area) => area.id === entry.dataKey));
+        const touchArea = allDisplayAreas.find((area) => area.id === touchEntry?.dataKey);
+        const touchPoint = touchEntry?.payload;
+
+        useEffect(() => {
+            if (!active || !touchArea || !touchPoint?.month || !touchPoint.monthLabel) {
+                lastTouchTooltipDrillKeyRef.current = null;
+                return;
+            }
+            const isTouchDevice = typeof window !== "undefined" && (window.matchMedia("(pointer: coarse)").matches || window.navigator.maxTouchPoints > 0);
+            if (!isTouchDevice) return;
+            const key = `${touchArea.id}:${touchPoint.month}`;
+            if (lastTouchTooltipDrillKeyRef.current === key) return;
+            lastTouchTooltipDrillKeyRef.current = key;
+            handleDotClick(touchArea, { payload: { month: touchPoint.month, monthLabel: touchPoint.monthLabel } });
+        }, [active, touchArea, touchPoint?.month, touchPoint?.monthLabel]);
+
         if (!active || !payload?.length) return null;
         const datum = payload[0]?.payload;
         const n = datum?._minListingCount;
@@ -1411,6 +1482,8 @@ export default function SalesTrendsPage() {
                             <ResponsiveContainer width="100%" height={340}>
                                 <ComposedChart
                                     data={chartData}
+                                    onClick={handleChartPointerSelect}
+                                    onTouchEnd={handleChartPointerSelect}
                                     margin={{
                                         top: 5,
                                         right: showVolume ? 60 : 20,
@@ -1464,13 +1537,8 @@ export default function SalesTrendsPage() {
                                             name={area.label}
                                             stroke={area.color}
                                             strokeWidth={2}
-                                            dot={{ r: 3, cursor: "pointer" }}
-                                            activeDot={{
-                                                r: 6,
-                                                cursor: "pointer",
-                                                onClick: (_e: unknown, dotProps: unknown) =>
-                                                    handleDotClick(area, dotProps as { payload?: { month?: string; monthLabel?: string } }),
-                                            }}
+                                            dot={renderTrendDot(area, 3)}
+                                            activeDot={renderTrendDot(area, 6, true)}
                                             connectNulls
                                         >
                                             {displayType === "Candle" && (metric === "cost_per_unit" || metric === "cap_rate") && (
@@ -1529,7 +1597,7 @@ export default function SalesTrendsPage() {
                             <X className="size-5" />
                         </button>
                     </div>
-                    <div className="max-h-[min(70vh,560px)] overflow-auto">
+                    <div className="overflow-x-auto">
                         {drillLoading && (
                             <div className="flex items-center justify-center p-10">
                                 <p className="text-sm text-gray-400">Loading…</p>
@@ -1541,7 +1609,7 @@ export default function SalesTrendsPage() {
                             </div>
                         )}
                         {!drillLoading && drillListings.length > 0 && (
-                            <table className="w-full text-sm">
+                            <table className="w-full min-w-[760px] text-sm">
                                 <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800">
                                     <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
                                         <th className="px-4 py-3 font-medium">Property</th>
