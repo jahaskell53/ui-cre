@@ -74,6 +74,7 @@ export interface SalesTrendRowV2 extends SalesTrendRow {
 interface UnitFilterParams {
     p_min_units?: number | null;
     p_max_units?: number | null;
+    p_months_per_bucket?: number | null;
 }
 
 export async function getCrexiSalesTrendsV2(params: { p_zip: string } & UnitFilterParams): Promise<SalesTrendRowV2[]> {

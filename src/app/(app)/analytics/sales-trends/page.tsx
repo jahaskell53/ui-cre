@@ -42,6 +42,7 @@ type RentBasis = "Current" | "Stabilized" | "Market";
 const AREA_TYPES: AreaType[] = ["Neighborhood", "ZIP Code", "City", "County", "MSA"];
 const PERIOD_OPTIONS: Period[] = ["3M", "6M", "9M", "1Y", "2Y", "5Y", "10Y", "Max"];
 const SAMPLE_COMPS_OPTIONS: SampleComps[] = ["1M", "3M", "6M", "1Y"];
+const SAMPLE_COMPS_MONTHS: Record<SampleComps, number> = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12 };
 const DISPLAY_OPTIONS: { value: DisplayType; label: string }[] = [
     { value: "Average", label: "Average" },
     { value: "Candle", label: "Candle" },
@@ -95,62 +96,6 @@ function filterByPeriod(rows: SalesTrendRowV2[], period: Period): SalesTrendRowV
     cutoff.setMonth(cutoff.getMonth() - months[period]);
     const cutoffStr = cutoff.toISOString().slice(0, 10);
     return rows.filter((r) => r.month_start >= cutoffStr);
-}
-
-function aggregateBySampleWindow(rows: SalesTrendRowV2[], sampleComps: SampleComps): SalesTrendRowV2[] {
-    if (rows.length === 0) return [];
-    const monthsPerWindow: Record<SampleComps, number> = {
-        "1M": 1,
-        "3M": 3,
-        "6M": 6,
-        "1Y": 12,
-    };
-    const windowSize = monthsPerWindow[sampleComps];
-    if (windowSize === 1) return rows;
-
-    const sorted = [...rows].sort((a, b) => a.month_start.localeCompare(b.month_start));
-    const buckets: Record<string, SalesTrendRowV2[]> = {};
-    for (const row of sorted) {
-        const d = new Date(row.month_start + "T00:00:00Z");
-        const monthIndex = d.getUTCFullYear() * 12 + d.getUTCMonth();
-        const bucketIndex = Math.floor(monthIndex / windowSize) * windowSize;
-        const bucketYear = Math.floor(bucketIndex / 12);
-        const bucketMonth = bucketIndex % 12;
-        const key = `${bucketYear}-${String(bucketMonth + 1).padStart(2, "0")}-01`;
-        if (!buckets[key]) buckets[key] = [];
-        buckets[key].push(row);
-    }
-
-    return Object.entries(buckets)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, group]) => {
-            const medians = group.map((r) => r.median_price).filter((p) => p != null);
-            const avgs = group.map((r) => r.avg_price).filter((p) => p != null);
-            const p25s = group.map((r) => r.p25_price).filter((p) => p != null);
-            const p75s = group.map((r) => r.p75_price).filter((p) => p != null);
-            const caps = group.map((r) => r.avg_cap_rate).filter((c) => c != null) as number[];
-            const medianCaps = group.map((r) => r.median_cap_rate).filter((c) => c != null) as number[];
-            const minCaps = group.map((r) => r.min_cap_rate).filter((c) => c != null) as number[];
-            const maxCaps = group.map((r) => r.max_cap_rate).filter((c) => c != null) as number[];
-            const median = (arr: number[]) => {
-                const s = [...arr].sort((a, b) => a - b);
-                const m = Math.floor(s.length / 2);
-                return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
-            };
-            const avg = (arr: number[]) => (arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0);
-            return {
-                month_start: key,
-                median_price: medians.length > 0 ? median(medians) : 0,
-                avg_price: avgs.length > 0 ? avg(avgs) : 0,
-                p25_price: p25s.length > 0 ? median(p25s) : 0,
-                p75_price: p75s.length > 0 ? median(p75s) : 0,
-                avg_cap_rate: caps.length > 0 ? avg(caps) : null,
-                median_cap_rate: medianCaps.length > 0 ? median(medianCaps) : null,
-                min_cap_rate: minCaps.length > 0 ? Math.min(...minCaps) : null,
-                max_cap_rate: maxCaps.length > 0 ? Math.max(...maxCaps) : null,
-                listing_count: group.reduce((s, r) => s + r.listing_count, 0),
-            };
-        });
 }
 
 function metricValue(row: SalesTrendRowV2, metric: Metric, displayType: DisplayType): number | null {
@@ -667,6 +612,7 @@ export default function SalesTrendsPage() {
             return;
         }
         setLoading(true);
+        const bucketParams = { p_months_per_bucket: SAMPLE_COMPS_MONTHS[sampleComps] };
 
         const fetchSales = (area: AreaSelection): Promise<SalesTrendRowV2[]> => {
             const isNh = area.neighborhoodId != null;
@@ -677,22 +623,25 @@ export default function SalesTrendsPage() {
                 ? getCrexiSalesTrendsByNeighborhoodV2({
                       p_neighborhood_ids: [area.neighborhoodId!],
                       ...unitRange,
+                      ...bucketParams,
                   })
                 : isCity
                   ? getCrexiSalesTrendsByCityV2({
                         p_city: area.cityName!,
                         p_state: area.cityState!,
                         ...unitRange,
+                        ...bucketParams,
                     })
                   : isCounty
                     ? getCrexiSalesTrendsByCountyV2({
                           p_county_name: area.countyName!,
                           p_state: area.countyState!,
                           ...unitRange,
+                          ...bucketParams,
                       })
                     : isMsa
-                      ? getCrexiSalesTrendsByMsaV2({ p_geoid: area.msaGeoid!, ...unitRange })
-                      : getCrexiSalesTrendsV2({ p_zip: area.id, ...unitRange });
+                      ? getCrexiSalesTrendsByMsaV2({ p_geoid: area.msaGeoid!, ...unitRange, ...bucketParams })
+                      : getCrexiSalesTrendsV2({ p_zip: area.id, ...unitRange, ...bucketParams });
             return call.catch(() => [] as SalesTrendRowV2[]);
         };
 
@@ -702,7 +651,7 @@ export default function SalesTrendsPage() {
             for (const r of results) next[r.id] = r.rows;
             setSalesResults(next);
         });
-    }, [selectedAreas, compareAreas, unitRange]);
+    }, [selectedAreas, compareAreas, unitRange, sampleComps]);
 
     // Fetch drill-down listings when a point is selected or page changes
     useEffect(() => {
@@ -719,11 +668,10 @@ export default function SalesTrendsPage() {
                     : area.msaGeoid != null
                       ? "msa"
                       : "zip";
-        const monthsPerBucket: Record<SampleComps, number> = { "1M": 1, "3M": 3, "6M": 6, "1Y": 12 };
         getCrexiSalesTrendsBucketListings({
             p_area_kind: areaKind,
             p_bucket_start: drillDown.bucketStart,
-            p_months_per_bucket: monthsPerBucket[sampleComps],
+            p_months_per_bucket: SAMPLE_COMPS_MONTHS[sampleComps],
             p_offset: drillPage * PAGE_SIZE,
             p_limit: PAGE_SIZE,
             p_zip: areaKind === "zip" ? area.id : null,
@@ -757,9 +705,8 @@ export default function SalesTrendsPage() {
         for (const area of allAreas) {
             const raw = salesResults[area.id] ?? [];
             const filtered = filterByPeriod(raw, period);
-            const aggregated = aggregateBySampleWindow(filtered, sampleComps);
-            processed[area.id] = aggregated;
-            aggregated.forEach((r) => allBuckets.add(r.month_start));
+            processed[area.id] = filtered;
+            filtered.forEach((r) => allBuckets.add(r.month_start));
         }
         return Array.from(allBuckets)
             .sort()
@@ -803,7 +750,7 @@ export default function SalesTrendsPage() {
                 }
                 return point;
             });
-    }, [salesResults, selectedAreas, compareAreas, period, sampleComps, metric, displayType, showVolume]);
+    }, [salesResults, selectedAreas, compareAreas, period, metric, displayType, showVolume]);
 
     /** Recharts 3 ComposedChart passes this to onClick/onTouchEnd (not legacy `activePayload`). See recharts externalEventsMiddleware. */
     const handleChartPointerSelect = useCallback(
